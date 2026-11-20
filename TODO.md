@@ -911,12 +911,14 @@
 - note (2026-11-21, haiku-t069): done
 
 ### T-070 · Foundation: errors, output, time, paths, settings, names, lock, safe writing
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P0 · type: milestone
 - milestone: T-001
 - goal: The small library modules that every command uses work as docs/design.md section 3 describes, each tested in its own file.
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, coordinator): done
 
 ### T-071 · error.rs: exit codes and code names
 - status: done
@@ -1457,8 +1459,10 @@
 - note (2026-11-21, planner): added
 
 ### T-093 · tx.rs: every write goes through one transaction
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-093
+- claimed: 2026-11-21T00:46+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-083
 - why: Lock, snapshot, safe replacement and journal line must happen for every change, in every command, the same way.
