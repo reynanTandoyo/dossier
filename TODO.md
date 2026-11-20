@@ -1891,10 +1891,8 @@
 - note (2026-11-21, planner): added
 
 ### T-113 · select.rs: score entries against tags and words
-- status: claimed
+- status: done
 - owner: haiku-t-113
-- claimed: 2026-11-21T00:45+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: brief, search and the similar-entry hint must rank entries the same way.
@@ -1909,8 +1907,12 @@
   5. Run cargo test --lib select::.
 - accept: Scores follow the design; the order is deterministic.
 - verify: cargo test --lib select::
+- verified: 2026-11-21
+- commit: ac58ced
 - reqs: R-READ-3, R-CTX-2, TEST-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-113): done
 
 ### T-114 · search: find entries by words
 - status: open
@@ -2506,8 +2508,10 @@
 - note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
 
 ### T-142 · remote/ssh.rs: build and run the ssh command
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-142
+- claimed: 2026-11-21T00:49+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-139
 - why: Text with quotes, backticks and dollar signs must arrive on the server unchanged, and ssh must never ask a question.
