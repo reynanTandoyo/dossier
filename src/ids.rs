@@ -18,10 +18,10 @@ const BYTE_ORDER_MARK: &[u8] = &[0xEF, 0xBB, 0xBF];
 pub fn next(dossier: &Path, state: &Path, kind: Kind) -> Result<String> {
     let prefix = kind.prefix();
     let path = state.join(NUMBERS_FILE);
-    let mut numbers = read_numbers(&path);
+    let mut numbers = read_numbers(&path)?;
     let recorded = numbers.get(prefix).copied().unwrap_or(0);
     let number = recorded
-        .max(highest_on_disk(dossier, prefix))
+        .max(highest_on_disk(dossier, kind)?)
         .checked_add(1)
         .ok_or_else(|| {
             Error::new(
@@ -38,36 +38,98 @@ pub fn next(dossier: &Path, state: &Path, kind: Kind) -> Result<String> {
     Ok(format!("{prefix}-{number:03}"))
 }
 
-/// The numbers in ids.json. A missing or unreadable file, or one that is not a JSON object of
-/// whole numbers, is an empty object. A byte-order mark at the start is skipped.
-fn read_numbers(path: &Path) -> BTreeMap<String, u64> {
-    let Ok(bytes) = std::fs::read(path) else {
-        return BTreeMap::new();
+/// The numbers in ids.json. A missing file is an empty object. A file that cannot be read, or
+/// that is not a JSON object of whole numbers, is Code::Parse, and nothing is written over it. A
+/// byte-order mark at the start is skipped.
+fn read_numbers(path: &Path) -> Result<BTreeMap<String, u64>> {
+    let bytes = match std::fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(BTreeMap::new());
+        }
+        Err(_) => return Err(not_valid(path)),
     };
     let text = bytes.strip_prefix(BYTE_ORDER_MARK).unwrap_or(&bytes);
-    serde_json::from_slice(text).unwrap_or_default()
+    serde_json::from_slice(text).map_err(|_| not_valid(path))
 }
 
-/// The highest number among the entries whose ID has this prefix; 0 when there is none. Files
-/// that fail to parse are not in `store::all`, so they are not counted.
-fn highest_on_disk(dossier: &Path, prefix: &str) -> u64 {
+/// The error for an ids.json that cannot be used.
+fn not_valid(path: &Path) -> Error {
+    Error::new(
+        Code::Parse,
+        format!(
+            "{}: not a valid ids.json; fix it before adding entries",
+            path.display()
+        ),
+    )
+}
+
+/// The highest number of a kind on disk, 0 when there is none. It is the highest number in the ID
+/// of each entry that parses (`store::all`) and in the name of each file of the kind's folder,
+/// whether or not that file parses.
+fn highest_on_disk(dossier: &Path, kind: Kind) -> Result<u64> {
+    let prefix = kind.prefix();
     let (items, _warnings) = store::all(dossier);
-    items
+    let in_ids = items
         .iter()
-        .filter_map(|item| number_of(&item.entry.id(), prefix))
+        .filter_map(|item| number_of_id(&item.entry.id(), prefix))
         .max()
-        .unwrap_or(0)
+        .unwrap_or(0);
+    Ok(in_ids.max(highest_in_file_names(dossier, kind)?))
+}
+
+/// The highest number in the names of the files directly inside the folder of a kind (format.md
+/// §4), 0 when there is none. A folder that cannot be listed is an error, since its numbers
+/// would be missed.
+fn highest_in_file_names(dossier: &Path, kind: Kind) -> Result<u64> {
+    let folder = dossier.join(kind.folder());
+    let listing = match std::fs::read_dir(&folder) {
+        Ok(listing) => listing,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+        Err(error) => return Err(io_error(&folder, error)),
+    };
+    let mut highest = 0;
+    for dir_entry in listing {
+        let dir_entry = dir_entry.map_err(|error| io_error(&folder, error))?;
+        let name = dir_entry.file_name().to_string_lossy().into_owned();
+        if let Some(number) = number_in_file_name(&name, kind.prefix()) {
+            highest = highest.max(number);
+        }
+    }
+    Ok(highest)
+}
+
+/// A failure on `path` as Code::Io, with the path in the message.
+fn io_error(path: &Path, error: std::io::Error) -> Error {
+    Error::new(Code::Io, format!("{}: {error}", path.display()))
+}
+
+/// The number in the name of an entry file: `DEC-012-title.md` gives 12, and the prefix may be in
+/// any case. None when the name does not end in `.md`, does not start with the prefix and a `-`,
+/// or has no digit after the `-`.
+fn number_in_file_name(name: &str, prefix: &str) -> Option<u64> {
+    let stem = name.strip_suffix(".md")?;
+    let head = stem.get(..prefix.len())?;
+    if !head.eq_ignore_ascii_case(prefix) {
+        return None;
+    }
+    leading_number(stem.get(prefix.len()..)?.strip_prefix('-')?)
 }
 
 /// The number of an ID with this prefix: `DEC-012` gives 12. None for another prefix, or when no
-/// digit follows the `-`. A number too large for a u64 gives u64::MAX, so that the next ID is
-/// refused rather than repeated.
-fn number_of(id: &str, prefix: &str) -> Option<u64> {
+/// digit follows the `-`.
+fn number_of_id(id: &str, prefix: &str) -> Option<u64> {
     let (found, rest) = id.split_once('-')?;
     if found != prefix {
         return None;
     }
-    let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
+    leading_number(rest)
+}
+
+/// The number made by the digits at the start of `text`; None when there is no digit. A number
+/// too large for a u64 gives u64::MAX, so that the next ID is refused rather than repeated.
+fn leading_number(text: &str) -> Option<u64> {
+    let digits: String = text.chars().take_while(char::is_ascii_digit).collect();
     if digits.is_empty() {
         return None;
     }
@@ -107,6 +169,14 @@ mod tests {
     /// The text of ids.json.
     fn ids_json(state: &Path) -> String {
         fs::read_to_string(state.join(NUMBERS_FILE)).expect("ids.json")
+    }
+
+    /// The message for an ids.json that cannot be used.
+    fn not_valid_message(path: &Path) -> String {
+        format!(
+            "{}: not a valid ids.json; fix it before adding entries",
+            path.display()
+        )
     }
 
     #[test]
@@ -215,21 +285,48 @@ mod tests {
     }
 
     #[test]
-    fn an_unreadable_ids_json_counts_as_empty_and_the_entries_still_count() {
+    fn an_ids_json_that_is_not_a_map_of_numbers_is_an_error_and_is_kept() {
         let (_temp, dossier, state) = dossier();
         fs::create_dir_all(&state).expect("state folder");
-        fs::write(state.join(NUMBERS_FILE), "{\"DEC\": not a number").expect("ids.json");
+        let path = state.join(NUMBERS_FILE);
         put(
             &dossier,
             Kind::Decision,
             "DEC-004-invented.md",
             "DEC-004 · Invented",
         );
+        for text in [
+            "",
+            "[]",
+            "null",
+            "{\"DEC\": -1}",
+            "{\"DEC\": \"seven\"}",
+            "{\"DEC\": 4",
+        ] {
+            fs::write(&path, text).expect("ids.json");
+            let error = next(&dossier, &state, Kind::Decision).expect_err("no ID");
+            assert_eq!(error.code, Code::Parse, "{text}");
+            assert_eq!(error.message, not_valid_message(&path), "{text}");
+            assert_eq!(ids_json(&state), text, "{text}");
+        }
+
+        fs::write(&path, "{\"DEC\":4}\n").expect("fixed ids.json");
         assert_eq!(
             next(&dossier, &state, Kind::Decision).expect("ID"),
             "DEC-005"
         );
         assert_eq!(ids_json(&state), "{\"DEC\":5}\n");
+    }
+
+    #[test]
+    fn an_ids_json_that_cannot_be_read_is_an_error() {
+        let (_temp, dossier, state) = dossier();
+        let path = state.join(NUMBERS_FILE);
+        fs::create_dir_all(&path).expect("a folder where ids.json should be");
+        let error = next(&dossier, &state, Kind::Decision).expect_err("no ID");
+        assert_eq!(error.code, Code::Parse);
+        assert_eq!(error.message, not_valid_message(&path));
+        assert!(path.is_dir());
     }
 
     #[test]
@@ -271,6 +368,78 @@ mod tests {
         );
         let error = next(&dossier, &state, Kind::Decision).expect_err("no ID");
         assert_eq!(error.code, Code::Parse);
+        assert!(!state.join(NUMBERS_FILE).exists());
+    }
+
+    #[test]
+    fn a_file_name_blocks_its_number_even_when_its_entry_does_not_parse() {
+        let (_temp, dossier, state) = dossier();
+        fs::write(
+            dossier.join("decisions").join("DEC-005-broken.md"),
+            "<!-- dossier-format: 1 -->\nthis file has no heading\n",
+        )
+        .expect("broken entry");
+        assert_eq!(
+            next(&dossier, &state, Kind::Decision).expect("ID"),
+            "DEC-006"
+        );
+        assert_eq!(ids_json(&state), "{\"DEC\":6}\n");
+    }
+
+    #[test]
+    fn the_prefix_in_a_file_name_counts_in_any_case() {
+        let (_temp, dossier, state) = dossier();
+        let decisions = dossier.join("decisions");
+        fs::write(decisions.join("dec-009-lower.md"), "not an entry\n").expect("lower case");
+        fs::write(decisions.join("Dec-011.md"), "not an entry\n").expect("mixed case");
+        assert_eq!(
+            next(&dossier, &state, Kind::Decision).expect("ID"),
+            "DEC-012"
+        );
+    }
+
+    #[test]
+    fn only_names_of_this_kind_in_its_folder_that_end_in_md_count() {
+        let (_temp, dossier, state) = dossier();
+        let decisions = dossier.join("decisions");
+        fs::create_dir_all(decisions.join("archive")).expect("subfolder");
+        for name in [
+            "DEC-020.md.tmp-4242",
+            "DEC-021-notes.txt",
+            "DECISION-040.md",
+            "DEC-x.md",
+            "DEC-.md",
+        ] {
+            fs::write(decisions.join(name), "not an entry\n").expect(name);
+        }
+        fs::write(
+            decisions.join("archive").join("DEC-050.md"),
+            "not an entry\n",
+        )
+        .expect("nested file");
+        fs::write(
+            dossier.join("assumptions").join("ASM-060.md"),
+            "not an entry\n",
+        )
+        .expect("other kind");
+        assert_eq!(
+            next(&dossier, &state, Kind::Decision).expect("ID"),
+            "DEC-001"
+        );
+        assert_eq!(
+            next(&dossier, &state, Kind::Assumption).expect("ID"),
+            "ASM-061"
+        );
+    }
+
+    #[test]
+    fn a_kind_folder_that_cannot_be_listed_is_an_error_and_nothing_is_written() {
+        let (_temp, dossier, state) = dossier();
+        let decisions = dossier.join("decisions");
+        fs::remove_dir(&decisions).expect("remove the decisions folder");
+        fs::write(&decisions, "not a folder\n").expect("a file in its place");
+        let error = next(&dossier, &state, Kind::Decision).expect_err("no ID");
+        assert_eq!(error.code, Code::Io);
         assert!(!state.join(NUMBERS_FILE).exists());
     }
 }
