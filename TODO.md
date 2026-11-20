@@ -2617,8 +2617,8 @@
 - note (2026-11-21, planner): added
 
 ### T-153 · Release workflow for a version tag
-- status: open
-- owner: —
+- status: done
+- owner: haiku-t153
 - priority: P1 · difficulty: 1 · type: chore
 - milestone: T-150
 - why: The team installs the program from a release, on the server and on each PC.
@@ -2635,8 +2635,12 @@
   7. Run cargo build to check that the project still builds with the new config file.
 - accept: The workflow builds a static Linux program and a Windows program with checksums and publishes them for a v* tag.
 - verify: cargo build
+- verified: 2026-11-21
+- commit: bd69078
 - reqs: NFR-1, REL-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t153): done
 
 ## Questions
 
