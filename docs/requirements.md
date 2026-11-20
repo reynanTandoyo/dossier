@@ -802,6 +802,43 @@ things are in the code is left to code navigation tools.
   parsed, commands that only read skip it with a warning naming the file and line; commands that
   would change that file refuse.
 
+### 5.14a Windows and Linux together — XOS
+
+The dossier lives on Linux and is read, and through remote mode used, from Windows. Nothing may
+depend on which of the two a command was typed on.
+
+- **R-XOS-1 MUST** Only one program ever writes to a dossier: the one on the machine where the
+  dossier lives. The Windows program in a connected folder forwards and writes nothing itself
+  (R-REMOTE-1); run directly on a network share it refuses to write (R-LOCK-3). Reading through
+  the share with an editor or file browser is always safe.
+- **R-XOS-2 MUST** Every path stored in a dossier is relative to the project folder (or, for
+  team scripts, to `script_root`) and written with `/`. A path typed with `\`, a Windows drive
+  path or a share path that lies inside the project is converted; one that lies outside is
+  refused. Output shows the separators of the system the command was typed on.
+- **R-XOS-3 MUST** In remote mode a path typed on the PC relative to the connected local folder
+  means the same relative path in the project folder on the server.
+- **R-XOS-4 MUST** File names the tool creates use lower-case ASCII letters, digits and `-`
+  after the ID, never a name Windows reserves (`con`, `nul`, `aux`, `prn`, `com1` … `lpt9`),
+  never a trailing dot or space, and stay under 120 characters. Two entries never get names that
+  differ only in upper and lower case.
+- **R-XOS-5 MUST** `attach`, `take` and `check` warn when two files in a list differ only in
+  upper and lower case, or when a file name can't exist on Windows (reserved name, one of
+  `< > : " | ? *`, trailing dot or space), because such files can't be copied to a PC.
+- **R-XOS-6 MUST** A file written by the tool has `LF` line endings in new lines and keeps the
+  endings of lines it didn't change (D17). An entry saved from a Windows editor with `CRLF`
+  endings or a byte-order mark is read and changed without converting the rest of the file.
+- **R-XOS-7 MUST** Times are written with their UTC offset. Checksums, IDs and the order of
+  search results are the same on both systems for the same files.
+- **R-XOS-8 MUST** On Linux, files and folders the tool creates are readable and writable by the
+  group of the dossier folder, and new folders pass the group on, so that an entry written by
+  one team member can be changed by another. `init` sets this up and says which group it used;
+  `check` reports files a team member could not write.
+- **R-XOS-9 MUST** In remote mode the PC program and the server program compare versions at the
+  first command of a session. A different format version is refused with a message saying which
+  side to update; a different program version with the same format is a warning.
+- **R-XOS-10 MUST** Text passed from the PC arrives byte for byte on the server (R-REMOTE-2),
+  whatever the PC's console code page is; output from the server is shown as UTF-8.
+
 ### 5.15 History — HIST
 
 - **R-HIST-1 MUST** Every change adds one line to `journal.jsonl` in the state folder: time,
@@ -1029,6 +1066,12 @@ On a PC, in a connected folder: `.dossier-connect`, holding the server and the p
   copy leaves the take in place.
 - **TEST-9 MUST** `brief` tests: the limit holds with 500 decisions; the selection for a task is
   the same on every run; each reason in `--json` is correct.
+- **TEST-11 MUST** Windows and Linux tests, run in CI on both systems with the same fixtures:
+  the same commands give byte-identical dossier files, the same checksums and the same search
+  order; a path typed with `\` and one typed with `/` store the same line; an entry with `CRLF`
+  endings and a byte-order mark is changed with every other byte kept; reserved and
+  case-colliding names are refused or warned about; on Linux, a file made by one user of the
+  group can be changed by another; a version mismatch between PC and server is refused.
 - **TEST-10 SHOULD** One manual test plan on the real server: lock behaviour when a Windows PC
   reaches the folder through the network share (O-1), ssh connection reuse, and `approve` through
   ssh from PowerShell.
@@ -1085,6 +1128,7 @@ forwarded through ssh.
 | Output | R-OUT-1 to 5 |
 | Backup | R-BACKUP-1 to 3 |
 | Running commands from the PC (no file copying yet) | R-REMOTE-1 to 3, 5, 6, 9 to 12 |
+| Windows and Linux together | R-XOS-1 to 4, 6 to 10 (R-XOS-5 comes with the file lists in phase 2) |
 
 In this phase every listed person may decide (R-WRITE-2); proposals come in phase 2.
 

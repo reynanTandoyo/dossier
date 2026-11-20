@@ -420,7 +420,7 @@
 - priority: P1 · difficulty: 3 · type: chore
 - milestone: T-001
 - why: Phase 1 is only finished when the team can install it on the server and try it on a real project.
-- depends: T-029,T-028,T-025,T-016,T-014,T-021,T-024,T-015,T-011,T-063
+- depends: T-029,T-028,T-025,T-016,T-014,T-021,T-024,T-015,T-011,T-063,T-064
 - files: .github/workflows/release.yml, Cargo.toml, README.md
 - read: docs/requirements.md, ../todo/.github/workflows/
 - accept: A v0.1.0 tag builds one program for Linux x64 and one dossier.exe for Windows x64 with the C runtime linked in, with checksums; all checks pass on both systems; the program refuses a dossier written by a newer format with a message to update.
@@ -455,6 +455,7 @@
 - accept: The file list of each task by role with made-from links works as in R-FILE-8 to R-FILE-16.
 - reqs: R-FILE-8 to R-FILE-16, D18
 - note (2026-11-20, planner): added
+- note (2026-11-20, planner): Also covers R-XOS-5: warn about file names that cannot exist on Windows or differ only in case.
 
 ### T-034 · Software use and simulation runs: used, ran, runs
 - status: open
@@ -732,6 +733,20 @@
 - accept: connect writes the pointer file and the register entry; projects lists the register and --project <code> works from any folder; every command in a connected folder runs on the server with output and exit code unchanged; quotes, backticks, dollar signs, umlauts and line breaks arrive unchanged and --stdin is passed on; approve, remove and close ask ssh for a terminal; ssh never prompts and fails with exit 5 within the time limit; dossier todo forwards todo the same way; brief and status name the project code and server folder first; tests use a stand-in for ssh.
 - verify: cargo test --test remote
 - reqs: R-REMOTE-1 to R-REMOTE-3, R-REMOTE-5, R-REMOTE-6, R-REMOTE-9 to R-REMOTE-12, TEST-8
+- note (2026-11-20, planner): added
+
+### T-064 · Windows and Linux together: paths, file names, line endings, group access, version match
+- status: open
+- owner: —
+- priority: P0 · difficulty: 4 · type: feature
+- milestone: T-001
+- why: The dossier lives on Linux and is used from Windows; nothing may depend on which system a command was typed on, and one colleague's entry must be writable by another.
+- depends: T-008,T-011,T-063
+- files: src/xos.rs, src/paths.rs, tests/xos.rs
+- read: docs/requirements.md, docs/format.md
+- accept: Stored paths are relative with forward slashes and a path typed with backslashes stores the same line; created file names are lower-case ASCII, never a Windows reserved name, never differing only in case; CRLF files and a byte-order mark are changed keeping every other byte; times carry their UTC offset; the same commands give byte-identical files, checksums and search order on Windows and Linux in CI; on Linux new files and folders are group-writable and init reports the group; a format version mismatch between PC and server is refused.
+- verify: cargo test --test xos
+- reqs: R-XOS-1 to R-XOS-4, R-XOS-6 to R-XOS-10, TEST-11
 - note (2026-11-20, planner): added
 
 ## Questions
