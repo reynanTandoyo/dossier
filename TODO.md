@@ -825,10 +825,8 @@
 - note (2026-11-21, haiku-t066): done
 
 ### T-067 · Library skeleton: lib.rs and every library module with its types and signatures
-- status: claimed
+- status: done
 - owner: haiku-t067
-- claimed: 2026-11-21T00:22+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: chore
 - milestone: T-065
 - why: With every type and signature in place, each later task fills in one file without touching a shared one.
@@ -851,11 +849,15 @@
   12. Run cargo build and cargo clippy --all-targets -- -D warnings and fix every error.
 - accept: Every file of design.md section 3 exists with the listed signatures; lib.rs has the test-only ENV_LOCK; emit prints text or error and returns the exit code; clippy.toml allows unwrap, expect and panic in tests; cargo build and cargo clippy --all-targets -- -D warnings succeed.
 - verify: cargo clippy --all-targets -- -D warnings
+- verified: 2026-11-21
+- commit: 20a8bd2
 - reqs: D16, NFR-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): clippy.toml added: the deny lints of T-066 otherwise fail cargo clippy --all-targets on test code (checked in a throwaway crate). It sits here, not in T-066, because a level-1 task may list at most 3 files.
 - note (2026-11-21, planner): Simple emit moved from T-068 to T-067 (output.rs is T-067's file; T-068 did not list it and could run beside T-072). Smoke test uses an unknown command for exit 2, because dossier where stops returning 2 once T-109 is built.
 - note (2026-11-21, planner): ENV_LOCK added: unit tests of time, names, term, todo_bridge, brief_task, register and forward set environment variables or the current folder and would race in parallel threads.
+- note (2026-11-21, haiku-t067): done
 
 ### T-068 · Command skeleton: cli.rs, main.rs and a stub file for every command
 - status: open
