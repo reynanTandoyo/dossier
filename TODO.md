@@ -1494,8 +1494,10 @@
 - note (2026-11-21, haiku-t-093): done
 
 ### T-094 · create.rs: create one entry with author, approval and history
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-094
+- claimed: 2026-11-21T00:51+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-083
 - why: Who wrote an entry, whether it is approved and when must be decided in one place for every kind and every command.
@@ -1555,10 +1557,8 @@
 - note (2026-11-21, haiku-t-096): done
 
 ### T-097 · people add: register a person and their LLMs
-- status: claimed
+- status: done
 - owner: haiku-t-097
-- claimed: 2026-11-21T00:47+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: Only known names may write, and the tool must know which names are LLMs.
@@ -1573,8 +1573,12 @@
   5. Run cargo test --test cmd_people.
 - accept: people add writes the person and LLM names into dossier.toml and keeps the rest of the file.
 - verify: cargo test --test cmd_people
+- verified: 2026-11-21
+- commit: 9e5dda2
 - reqs: R-CFG-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-097): done
 
 ### T-098 · tests/common/mod.rs: the shared test project
 - status: open
