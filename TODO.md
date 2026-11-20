@@ -1611,8 +1611,10 @@
 - note (2026-11-21, haiku-t-098): done
 
 ### T-099 · add: create an entry of any kind from options, a file or standard input
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-099
+- claimed: 2026-11-21T00:56+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: The general way to write an entry; the short forms are built the same way.
@@ -1634,8 +1636,10 @@
 - note (2026-11-21, planner): added
 
 ### T-100 · decide: record a decision with its reason
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-100
+- claimed: 2026-11-21T00:56+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: Decisions made in a session must be recorded at once, with who decided.
@@ -1656,8 +1660,10 @@
 - note (2026-11-21, planner): added
 
 ### T-101 · found: record an observation, a dead end or a quick note
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-101
+- claimed: 2026-11-21T00:56+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: Findings and dead ends are the facts of a project; a thought must cost ten seconds to save.
@@ -1818,10 +1824,8 @@
 - note (2026-11-21, planner): added
 
 ### T-109 · where: the paths in use
-- status: claimed
+- status: done
 - owner: haiku-t-109
-- claimed: 2026-11-21T00:55+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: People and LLMs need to see which dossier a command would work on.
@@ -1835,8 +1839,12 @@
   4. Run cargo test --test cmd_where.
 - accept: where prints the project folder, dossier, state folder and code from any subfolder.
 - verify: cargo test --test cmd_where
+- verified: 2026-11-21
+- commit: 70e5ad7
 - reqs: R-PLACE-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-109): done
 
 ### T-110 · filter.rs: the filter options shared by list and search
 - status: done
