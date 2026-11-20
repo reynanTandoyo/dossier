@@ -1465,10 +1465,8 @@
 - note (2026-11-21, haiku-t-092): done
 
 ### T-093 · tx.rs: every write goes through one transaction
-- status: claimed
+- status: done
 - owner: haiku-t-093
-- claimed: 2026-11-21T00:46+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-083
 - why: Lock, snapshot, safe replacement and journal line must happen for every change, in every command, the same way.
@@ -1487,9 +1485,13 @@
   9. Run cargo test --lib tx::.
 - accept: A change is written only under the lock, with a snapshot of the old file and a journal line carrying person, LLM and time; dry run and failures write nothing.
 - verify: cargo test --lib tx::
+- verified: 2026-11-21
+- commit: 1fa449c
 - final: It ties five modules together; the order of the steps is given but the borrowing details are settled in code.
 - reqs: R-LOCK-1, R-LOCK-3, R-IO-1, R-IO-2, R-HIST-1, R-HIST-2, R-HIST-4, R-WRITE-10
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-093): done
 
 ### T-094 · create.rs: create one entry with author, approval and history
 - status: open
@@ -2469,8 +2471,10 @@
 - note (2026-11-21, planner): added
 
 ### T-140 · remote/pointer.rs: the .dossier-connect file
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-140
+- claimed: 2026-11-21T00:50+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-139
 - why: A connected folder must remember which server project it belongs to.
@@ -2488,8 +2492,10 @@
 - note (2026-11-21, planner): added
 
 ### T-141 · remote/register.rs: the per-user list of projects
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-141
+- claimed: 2026-11-21T00:50+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-139
 - why: A person or an LLM must never have to know or type a server name or path.
