@@ -28,23 +28,26 @@ const IGNORED_LINES: [&[u8]; 5] = [
 /// The file in the state folder that holds the checksums.
 const FILE: &str = "approved.json";
 
-/// Records the checksum of an approved entry.
+/// Records the checksum of an approved entry. A broken `approved.json` is refused, not replaced.
 pub fn record(state: &Path, id: &str, bytes: &[u8]) -> Result<()> {
-    let mut records = load(state);
+    let mut records = load(state)?;
     records.insert(key(id), Value::String(checksum(bytes)));
     save(state, &records)
 }
 
-/// Forgets the recorded checksum of entry `id`.
+/// Forgets the recorded checksum of entry `id`. A broken `approved.json` is refused, not
+/// replaced.
 pub fn forget(state: &Path, id: &str) -> Result<()> {
-    let mut records = load(state);
+    let mut records = load(state)?;
     records.remove(&key(id));
     save(state, &records)
 }
 
-/// Compares an entry with its recorded checksum.
+/// Compares an entry with its recorded checksum. A broken `approved.json` records nothing.
 pub fn mark(state: &Path, id: &str, bytes: &[u8]) -> Mark {
-    let records = load(state);
+    let Ok(records) = load(state) else {
+        return Mark::NotRecorded;
+    };
     let Some(recorded) = records.get(&key(id)) else {
         return Mark::NotRecorded;
     };
@@ -83,13 +86,26 @@ fn key(id: &str) -> String {
     id.to_uppercase()
 }
 
-/// The recorded checksums. A missing file, a file that cannot be read and a file that is not a
-/// JSON object all count as nothing recorded.
-fn load(state: &Path) -> Map<String, Value> {
-    match std::fs::read(state.join(FILE)) {
-        Ok(bytes) => serde_json::from_slice(&bytes).unwrap_or_default(),
-        Err(_) => Map::new(),
+/// The recorded checksums. A missing file is an empty object. A file that cannot be read or is
+/// not a JSON object is Code::Parse, so that nothing overwrites it.
+fn load(state: &Path) -> Result<Map<String, Value>> {
+    let path = state.join(FILE);
+    match std::fs::read(&path) {
+        Ok(bytes) => serde_json::from_slice(&bytes).map_err(|_| broken(&path)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(Map::new()),
+        Err(_) => Err(broken(&path)),
     }
+}
+
+/// The refusal for a broken `approved.json` at `path`.
+fn broken(path: &Path) -> Error {
+    Error::new(
+        Code::Parse,
+        format!(
+            "{}: not a valid approved.json; fix or delete it",
+            path.display()
+        ),
+    )
 }
 
 /// Writes the checksums as one line.
@@ -221,14 +237,78 @@ mod tests {
         ));
     }
 
+    /// File texts that are not a JSON object.
+    const BROKEN: [&str; 4] = ["[\"LES-031\"]", "null", "{\"LES-031\": ", ""];
+
+    /// The refusal of a broken file at `path`.
+    fn assert_refused(error: &Error, path: &Path) {
+        assert_eq!(error.code, Code::Parse, "{}", error.message);
+        assert_eq!(
+            error.message,
+            format!(
+                "{}: not a valid approved.json; fix or delete it",
+                path.display()
+            )
+        );
+    }
+
     #[test]
-    fn a_file_that_is_not_a_json_object_records_nothing() {
+    fn mark_treats_a_broken_file_as_nothing_recorded() {
+        for broken in BROKEN {
+            let state = tempfile::tempdir().unwrap();
+            std::fs::write(file(state.path()), broken).unwrap();
+            assert!(matches!(
+                mark(state.path(), "LES-031", entry().as_bytes()),
+                Mark::NotRecorded
+            ));
+        }
+    }
+
+    #[test]
+    fn record_refuses_a_broken_file_and_leaves_it_unchanged() {
+        for broken in BROKEN {
+            let root = tempfile::tempdir().unwrap();
+            let state = root.path().join("Projekt Übersicht");
+            std::fs::create_dir(&state).unwrap();
+            std::fs::write(file(&state), broken).unwrap();
+            let error = record(&state, "LES-031", entry().as_bytes()).unwrap_err();
+            assert_refused(&error, &file(&state));
+            assert_eq!(std::fs::read_to_string(file(&state)).unwrap(), broken);
+        }
+    }
+
+    #[test]
+    fn forget_refuses_a_broken_file_and_leaves_it_unchanged() {
+        for broken in BROKEN {
+            let state = tempfile::tempdir().unwrap();
+            std::fs::write(file(state.path()), broken).unwrap();
+            let error = forget(state.path(), "LES-031").unwrap_err();
+            assert_refused(&error, &file(state.path()));
+            assert_eq!(std::fs::read_to_string(file(state.path())).unwrap(), broken);
+        }
+    }
+
+    #[test]
+    fn a_file_that_cannot_be_read_is_refused_and_kept() {
         let state = tempfile::tempdir().unwrap();
-        std::fs::write(file(state.path()), "[\"LES-031\"]").unwrap();
+        // A folder where the file should be: it cannot be read as a file.
+        std::fs::create_dir(file(state.path())).unwrap();
+        let error = record(state.path(), "LES-031", entry().as_bytes()).unwrap_err();
+        assert_refused(&error, &file(state.path()));
+        let error = forget(state.path(), "LES-031").unwrap_err();
+        assert_refused(&error, &file(state.path()));
+        assert!(file(state.path()).is_dir());
         assert!(matches!(
             mark(state.path(), "LES-031", entry().as_bytes()),
             Mark::NotRecorded
         ));
+    }
+
+    #[test]
+    fn a_missing_file_is_an_empty_object() {
+        let state = tempfile::tempdir().unwrap();
+        forget(state.path(), "LES-031").unwrap();
+        assert_eq!(std::fs::read_to_string(file(state.path())).unwrap(), "{}\n");
     }
 
     #[test]
