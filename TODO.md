@@ -1298,10 +1298,8 @@
 - note (2026-11-21, planner): added
 
 ### T-087 · entry/rules.rs: what an entry of each kind needs
-- status: claimed
+- status: done
 - owner: haiku-t-087
-- claimed: 2026-11-21T00:38+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-083
 - why: A lesson without its conditions must never be approved.
@@ -1319,8 +1317,12 @@
   8. Run cargo test --lib entry::rules::.
 - accept: problems lists exactly what is missing for approval per kind.
 - verify: cargo test --lib entry::rules::
+- verified: 2026-11-21
+- commit: 9e391d2
 - reqs: R-ENTRY-5 to R-ENTRY-7, R-ENTRY-13, R-ENTRY-15
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-087): done
 
 ### T-088 · store.rs: read all entries, find one by ID, name a new file
 - status: claimed
@@ -1389,8 +1391,10 @@
 - note (2026-11-21, haiku-t-090): done
 
 ### T-091 · snapshot.rs: keep the old version of an entry
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-091
+- claimed: 2026-11-21T00:42+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-083
 - why: There is no git in the project folders, so snapshots are the only undo.
