@@ -1407,10 +1407,8 @@
 - note (2026-11-21, haiku-t-090): done
 
 ### T-091 · snapshot.rs: keep the old version of an entry
-- status: claimed
+- status: done
 - owner: haiku-t-091
-- claimed: 2026-11-21T00:42+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-083
 - why: There is no git in the project folders, so snapshots are the only undo.
@@ -1426,8 +1424,12 @@
   6. Run cargo test --lib snapshot::.
 - accept: Each save gets the next number; snapshots are listed and loaded by number.
 - verify: cargo test --lib snapshot::
+- verified: 2026-11-21
+- commit: a94aba3
 - reqs: R-HIST-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-091): done
 
 ### T-092 · approval.rs: notice an approved entry that was changed by hand
 - status: claimed
@@ -1807,8 +1809,10 @@
 - note (2026-11-21, planner): added
 
 ### T-110 · filter.rs: the filter options shared by list and search
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-110
+- claimed: 2026-11-21T00:44+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: list and search must filter the same way.
