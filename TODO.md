@@ -1040,10 +1040,8 @@
 - note (2026-11-21, planner): added
 
 ### T-076 · find.rs: locate the DOSSIER folder
-- status: claimed
+- status: done
 - owner: haiku-t-076
-- claimed: 2026-11-21T00:33+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: Every command must agree on which dossier it works on.
@@ -1058,8 +1056,12 @@
   5. Run cargo test --lib find::.
 - accept: The dossier is found from any subfolder; a missing one gives NO_DOSSIER with the hint.
 - verify: cargo test --lib find::
+- verified: 2026-11-21
+- commit: d4bba35
 - reqs: R-PLACE-1, R-PLACE-8, NFR-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-076): done
 
 ### T-077 · config.rs: read dossier.toml, default text, add a person
 - status: claimed
@@ -2356,8 +2358,10 @@
 - note (2026-11-21, haiku-t-137): done
 
 ### T-138 · agents install, agents check and help agents
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-138
+- claimed: 2026-11-21T00:34+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-130
 - why: The commands that put the rules in front of every LLM.
