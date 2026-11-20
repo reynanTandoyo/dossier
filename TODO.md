@@ -2504,10 +2504,8 @@
 - note (2026-11-21, haiku-t-140): done
 
 ### T-141 · remote/register.rs: the per-user list of projects
-- status: claimed
+- status: done
 - owner: haiku-t-141
-- claimed: 2026-11-21T00:50+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-139
 - why: A person or an LLM must never have to know or type a server name or path.
@@ -2523,9 +2521,13 @@
   6. Run cargo test --lib remote::register::.
 - accept: Projects are stored per user with code, server, folder and local folder, and survive being rewritten.
 - verify: cargo test --lib remote::register::
+- verified: 2026-11-21
+- commit: 553f104
 - reqs: R-REMOTE-9, R-REMOTE-10
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
+- note (2026-11-21, haiku-t-141): done
 
 ### T-142 · remote/ssh.rs: build and run the ssh command
 - status: done
