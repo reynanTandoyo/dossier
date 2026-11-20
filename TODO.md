@@ -1111,8 +1111,10 @@
 - note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
 
 ### T-079 · lock.rs: the write lock and the network drive test
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-079
+- claimed: 2026-11-21T00:36+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-070
 - why: Three people and their LLMs write at the same time; the lock keeps entries and ID counters intact.
