@@ -1130,8 +1130,10 @@
 - note (2026-11-21, planner): added
 
 ### T-080 · atomic.rs: replace a file in one step
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-080
+- claimed: 2026-11-21T00:34+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: A crash or a hand edit during a write must never leave half an entry.
@@ -2330,10 +2332,8 @@
 - note (2026-11-21, haiku-t-136): done
 
 ### T-137 · agents/mod.rs: the managed block in AGENTS.md
-- status: claimed
+- status: done
 - owner: haiku-t-137
-- claimed: 2026-11-21T00:31+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-130
 - why: The rules must be installable into AGENTS.md without touching any other line.
@@ -2348,8 +2348,12 @@
   5. Run cargo test --lib agents::.
 - accept: The block is added once, after todo's block when there is one, and replaced in place later; other lines stay unchanged.
 - verify: cargo test --lib agents::
+- verified: 2026-11-21
+- commit: 445ac20
 - reqs: R-AGENT-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-137): done
 
 ### T-138 · agents install, agents check and help agents
 - status: open
