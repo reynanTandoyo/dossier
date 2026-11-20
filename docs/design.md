@@ -21,7 +21,10 @@ needs to know nothing about the others beyond what is written here. It follows
 6. **Tests.** A library module has its tests at the end of its own file
    (`#[cfg(test)] mod tests`), run with `cargo test --lib <module>::`. A command has
    `tests/cmd_<name>.rs`, which runs the built program in a temporary folder using the helpers
-   of `tests/common/mod.rs`, run with `cargo test --test cmd_<name>`.
+   of `tests/common/mod.rs`, run with `cargo test --test cmd_<name>`. Unit tests run in parallel
+   threads of one process: a unit test that sets or removes an environment variable, or changes
+   the current folder, holds `crate::ENV_LOCK` (a test-only `Mutex<()>` in `lib.rs`) for its
+   whole run.
 
 ## 2. Files
 
@@ -551,8 +554,16 @@ impl Project {
     pub fn read(&self, relative: &str) -> String;
     pub fn write(&self, relative: &str, text: &str);
     pub fn entry_file(&self, id: &str) -> std::path::PathBuf;     // finds DOSSIER/*/<id>-*.md
+    /// The prepared command, not yet run, so that a test can add variables such as
+    /// DOSSIER_ANSWERS or EDITOR. run_at is command(agent, now).args(args).assert().
+    pub fn command(&self, agent: &str, now: &str) -> assert_cmd::Command;
+    /// Where DOSSIER_TODO and DOSSIER_SSH point: <project>/.test/<program>, with .cmd on Windows.
+    pub fn stand_in(&self, program: &str) -> std::path::PathBuf;
+    /// Writes a stand-in program there (the Windows or the Unix text, executable) and returns it.
+    pub fn write_stand_in(&self, program: &str, windows: &str, unix: &str) -> std::path::PathBuf;
 }
 ```
 
-Tests never touch a real project, a real server or the user's register (`DOSSIER_REGISTER`,
-`DOSSIER_SSH` and `DOSSIER_TODO` point into the temporary folder).
+Tests never touch a real project, a real server or the user's register (`DOSSIER_REGISTER` is
+`<project>/.test/projects.toml`; `DOSSIER_SSH` and `DOSSIER_TODO` are the stand-in paths, where
+nothing exists until a test writes a stand-in).

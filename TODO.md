@@ -834,18 +834,22 @@
   1. Add the [lib] section (name dossier, path src/lib.rs) to Cargo.toml.
   2. Create clippy.toml with three lines: allow-unwrap-in-tests = true, allow-expect-in-tests = true, allow-panic-in-tests = true. Without it the deny lints in Cargo.toml reject unwrap, expect and panic in unit tests and in tests/, which AGENTS.md allows.
   3. Create src/lib.rs with one pub mod line per module of docs/design.md section 2 (cli and cmd are added by the next task).
-  4. For every library module of design.md section 3, create its file with every type, constant and function signature exactly as written there.
-  5. Give every function a body that compiles and does nothing useful: return Err(Error::new(Code::NotImplemented, '<module>::<function>')) where it returns a Result, and a plain default value otherwise (empty String, empty Vec, false, None, 0). Never use todo!, unimplemented!, unwrap, expect or panic.
-  6. Implement only error.rs fully enough for the others to compile: the Code enum, Error, Result, Error::new; exit and name may return 1 and an empty string for now.
-  7. In src/cli.rs is not part of this task: where a signature needs crate::cli::Global (ctx.rs), declare a temporary pub struct Global in ctx.rs with the six fields of design.md section 4 and a comment that the next task moves it.
-  8. Create src/agents/rules.md with one line: rules are written by a later task.
-  9. Put #![allow(dead_code, unused_variables)] at the top of lib.rs with a comment that the release task removes it.
-  10. Run cargo build and cargo clippy --all-targets -- -D warnings and fix every error.
-- accept: Every file of design.md section 3 exists with the listed signatures; clippy.toml allows unwrap, expect and panic in tests; cargo build and cargo clippy --all-targets -- -D warnings succeed.
+  4. In src/lib.rs also add, for unit tests only: #[cfg(test)] pub(crate) static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(()); with the comment: every unit test that sets or removes an environment variable, or changes the current folder, holds this lock for its whole run (ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner())), because unit tests run in parallel threads of one process.
+  5. For every library module of design.md section 3, create its file with every type, constant and function signature exactly as written there.
+  6. Give every function a body that compiles and does nothing useful: return Err(Error::new(Code::NotImplemented, '<module>::<function>')) where it returns a Result, and a plain default value otherwise (empty String, empty Vec, false, None, 0). Never use todo!, unimplemented!, unwrap, expect or panic.
+  7. Implement only error.rs fully enough for the others to compile: the Code enum, Error, Result, Error::new; exit and name may return 1 and an empty string for now.
+  8. Make output::emit work in the simplest way: on Ok write the text with a final line break to standard output, on Err write 'error: <message>' to standard error, both with std::io::Write ignoring write errors (no println!); return 0 or the error's exit(). The output task replaces it.
+  9. In src/cli.rs is not part of this task: where a signature needs crate::cli::Global (ctx.rs), declare a temporary pub struct Global in ctx.rs with the six fields of design.md section 4 and a comment that the next task moves it.
+  10. Create src/agents/rules.md with one line: rules are written by a later task.
+  11. Put #![allow(dead_code, unused_variables)] at the top of lib.rs with a comment that the release task removes it.
+  12. Run cargo build and cargo clippy --all-targets -- -D warnings and fix every error.
+- accept: Every file of design.md section 3 exists with the listed signatures; lib.rs has the test-only ENV_LOCK; emit prints text or error and returns the exit code; clippy.toml allows unwrap, expect and panic in tests; cargo build and cargo clippy --all-targets -- -D warnings succeed.
 - verify: cargo clippy --all-targets -- -D warnings
 - reqs: D16, NFR-5
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): clippy.toml added: the deny lints of T-066 otherwise fail cargo clippy --all-targets on test code (checked in a throwaway crate). It sits here, not in T-066, because a level-1 task may list at most 3 files.
+- note (2026-11-21, planner): Simple emit moved from T-068 to T-067 (output.rs is T-067's file; T-068 did not list it and could run beside T-072). Smoke test uses an unknown command for exit 2, because dossier where stops returning 2 once T-109 is built.
+- note (2026-11-21, planner): ENV_LOCK added: unit tests of time, names, term, todo_bridge, brief_task, register and forward set environment variables or the current folder and would race in parallel threads.
 
 ### T-068 · Command skeleton: cli.rs, main.rs and a stub file for every command
 - status: open
@@ -864,13 +868,13 @@
   4. In cli.rs write pub fn main_exit() -> u8: collect std::env::args, call crate::remote::forward::maybe(&args) and return its code when it is Some, else parse with Cli::try_parse_from (on error print the clap error and return 2, or 0 for --help and --version), match the command to its run function, and return crate::output::emit(<command name>, global.json, &result).
   5. Add pub mod cli; and pub mod cmd; to src/lib.rs.
   6. Make src/main.rs: fn main() -> std::process::ExitCode { std::process::ExitCode::from(dossier::cli::main_exit()) }.
-  7. In src/output.rs make emit work in the simplest way for now: print text or the error message and return 0 or the error's exit code (the output task replaces it).
-  8. Create tests/smoke.rs: one test runs the program with --version and asserts success and that the output starts with dossier; a second test runs dossier where and asserts exit code 2.
-  9. Run cargo build, cargo clippy --all-targets -- -D warnings and cargo test --test smoke.
-- accept: dossier --version prints the version; every command of design.md section 5 is accepted by the parser and ends with exit code 2 and a not built yet message; clippy is clean.
+  7. Create tests/smoke.rs: one test runs the program with --version and asserts success and that the output starts with dossier; a second test runs dossier no-such-command and asserts exit code 2 (a parse error, which stays 2 after the commands are built).
+  8. Run cargo build, cargo clippy --all-targets -- -D warnings and cargo test --test smoke.
+- accept: dossier --version prints the version; every command of design.md section 5 is accepted by the parser and fails with its not built yet message; an unknown command exits with 2; clippy is clean.
 - verify: cargo test --test smoke
 - reqs: D16, R-OUT-2
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Simple emit moved from T-068 to T-067 (output.rs is T-067's file; T-068 did not list it and could run beside T-072). Smoke test uses an unknown command for exit 2, because dossier where stops returning 2 once T-109 is built.
 
 ### T-069 · CI workflow, MIT licence and CLAUDE.md
 - status: open
@@ -955,12 +959,13 @@
   2. Implement now(): if the environment variable DOSSIER_NOW is set and valid, return it; else chrono::Local::now() formatted with %Y-%m-%dT%H:%M:%S%:z.
   3. Implement date(stamp): the first 10 characters, or the whole string when it is shorter.
   4. Implement days_between(earlier, later): parse both with parse_from_rfc3339 and return the whole days between them; 0 when one does not parse.
-  5. Add tests: valid accepts 2026-11-20T14:03:27+01:00 and refuses a date without time; now() returns DOSSIER_NOW when set (set and remove the variable inside one test); date and days_between on fixed values.
+  5. Add tests: valid accepts 2026-11-20T14:03:27+01:00 and refuses a date without time; now() returns DOSSIER_NOW when set (set and remove the variable inside one test that holds crate::ENV_LOCK; in edition 2024 set_var and remove_var need an unsafe block); date and days_between on fixed values.
   6. Run cargo test --lib time::.
 - accept: now() has the form of format.md section 7 and obeys DOSSIER_NOW.
 - verify: cargo test --lib time::
 - reqs: R-HIST-4, R-XOS-7
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
 
 ### T-074 · hash.rs: SHA-256 as hex
 - status: open
@@ -1057,12 +1062,13 @@
   2. Implement resolve(cfg, flag): take the name from flag, else from the environment variable DOSSIER_AGENT, else TODO_AGENT; an empty value counts as missing; none gives Code::Usage with the message 'this command needs a name: --agent <name> or DOSSIER_AGENT'.
   3. If the name is a person return Who with name and person equal and is_llm false; if it is in a person's llms return Who with that person and is_llm true; else Code::UnknownName with the message listing every known person and LLM and the hint 'add one with: dossier people add <person> --llm <name>'.
   4. Implement label(who): the person, or '<person> via <name>' for an LLM.
-  5. Add tests with a Config built in the test: person, LLM, unknown name, no name, environment fallback (set and remove the variable inside one test), and label.
+  5. Add tests with a Config built in the test: person, LLM, unknown name, no name, no name and the environment fallback together in one test that holds crate::ENV_LOCK: first remove DOSSIER_AGENT and TODO_AGENT (a worker's shell may set TODO_AGENT), then set and remove them as needed (set_var and remove_var need an unsafe block in edition 2024), and label.
   6. Run cargo test --lib names::.
 - accept: A name resolves to its person; unknown names are refused with the known names listed.
 - verify: cargo test --lib names::
 - reqs: D13, R-CFG-4, R-LIFE-2
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
 
 ### T-079 · lock.rs: the write lock and the network drive test
 - status: open
@@ -1122,12 +1128,13 @@
   2. Implement is_terminal(): true when DOSSIER_ANSWERS is set; else std::io::IsTerminal on stdin and stdout are both true.
   3. Implement ask(prompt): when DOSSIER_ANSWERS is set, remove and return the first answer, or Code::NeedsTerminal with the message 'no more answers' when none is left.
   4. Otherwise, when is_terminal() is false return Code::NeedsTerminal with the message 'this command must be run by a person at a terminal'; else write the prompt to stderr, read one line from stdin and return it trimmed.
-  5. Add one test that sets DOSSIER_ANSWERS to a|b and checks is_terminal and two asks and the error on the third.
+  5. Add one test, holding crate::ENV_LOCK, that sets DOSSIER_ANSWERS to a|b and checks is_terminal and two asks and the error on the third.
   6. Run cargo test --lib term::.
 - accept: Without a terminal ask fails with NEEDS_TERMINAL; DOSSIER_ANSWERS supplies answers in tests.
 - verify: cargo test --lib term::
 - reqs: D6, R-DRAFT-4
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
 
 ### T-082 · ctx.rs: what every command starts with
 - status: open
@@ -1397,13 +1404,14 @@
   5. Render with entry::new::render, queue it with tx.put(store::path_for(...), None, text, Change{id, event 'created', detail 'approved' or 'draft'}).
   6. When the entry is an approved lesson and not a dry run, call approval::record with the text.
   7. Return the ID and the text.
-  8. Add tests with a temporary dossier (people anna with LLM anna-claude): a person's decision is approved with author anna and no via; an LLM's decision without said_by fails; with said_by it is approved with author anna and via anna-claude; an LLM's lesson is a draft; an approved lesson missing Valid for fails; history lines carry the fixed DOSSIER_NOW time.
+  8. Add tests with a temporary dossier (people anna with LLM anna-claude): a person's decision is approved with author anna and no via; an LLM's decision without said_by fails; with said_by it is approved with author anna and via anna-claude; an LLM's lesson is a draft; an approved lesson missing Valid for fails; the history lines carry the time of the transaction (compare with tx.time() inside the closure; do not set DOSSIER_NOW here, the time tests change it).
   9. Run cargo test --lib create::.
 - accept: Author, LLM, status, approval time and history lines follow design.md for people and LLMs; incomplete entries cannot be approved.
 - verify: cargo test --lib create::
 - final: The approval rules have several cases that interact; they are listed, but their order is settled in code.
 - reqs: D5, R-WRITE-2 to R-WRITE-4, R-LIFE-2, R-ENTRY-14, R-HIST-4, R-HIST-5
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Test compares with tx.time() instead of setting DOSSIER_NOW, which the time tests change.
 
 ### T-095 · Recording: one short command writes an entry
 - status: open
@@ -1468,15 +1476,17 @@
 - steps:
   1. Create tests/common/mod.rs with #![allow(dead_code)] and the Project type of design.md section 6.
   2. Project::new: make a tempfile::TempDir; run the program (assert_cmd::Command::cargo_bin('dossier')) in it with init --code P-001, then people add anna --llm anna-claude and people add ben --llm ben-codex; assert each succeeds.
-  3. run and run_at: build the command with current_dir set to the project folder, the environment variables DOSSIER_NOW (2026-11-20T10:00:00+01:00 unless given), DOSSIER_REGISTER, DOSSIER_SSH and DOSSIER_TODO pointing at paths inside the temporary folder, DOSSIER_AGENT set to the agent when it is not empty and removed otherwise, TODO_AGENT removed; return .assert().
+  3. command(agent, now): an assert_cmd::Command for the program (cargo_bin dossier), not yet run, with current_dir the project folder and the environment: DOSSIER_NOW = now, DOSSIER_REGISTER = <project>/.test/projects.toml, DOSSIER_TODO = stand_in('todo'), DOSSIER_SSH = stand_in('ssh'), DOSSIER_AGENT = agent when it is not empty and removed otherwise, TODO_AGENT removed. run(agent, args) is run_at(agent, '2026-11-20T10:00:00+01:00', args); run_at is command(agent, now).args(args).assert().
   4. stdout: run, assert success, return standard output as a String.
   5. read and write: files relative to the project folder; entry_file: the first file in DOSSIER/*/ whose name starts with the ID followed by -; panic with a clear message when there is none (tests may panic).
-  6. Create tests/common_check.rs with mod common; and one test: Project::new() then stdout('', ['people', 'list']) contains anna.
-  7. Run cargo test --test common_check.
-- accept: A test gets a ready project with two people in three lines.
+  6. stand_in(program): <project>/.test/<program>.cmd on Windows, <project>/.test/<program> elsewhere; nothing is there until a test writes it. write_stand_in(program, windows, unix): create .test, write the windows text (Windows) or the unix text (elsewhere, then mode 0o755) to stand_in(program), return the path.
+  7. Create tests/common_check.rs with mod common; and two tests: Project::new() then stdout('', ['people', 'list']) contains anna; write_stand_in('todo', ...) returns a path that exists.
+  8. Run cargo test --test common_check.
+- accept: A test gets a ready project with two people in three lines, can add variables before running a command, and can put a stand-in todo or ssh where the program looks for it.
 - verify: cargo test --test common_check
 - reqs: TEST-1, TEST-2
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Added command, stand_in and write_stand_in (design.md section 6): run returns a finished Assert, so tests that need DOSSIER_ANSWERS, EDITOR or a stand-in todo had no way to set them.
 
 ### T-099 · add: create an entry of any kind from options, a file or standard input
 - status: open
@@ -1664,16 +1674,18 @@
 - steps:
   1. Give Args: id: String.
   2. In run: Ctx::load(g, 'edit'); the editor is the environment variable VISUAL, else EDITOR, else notepad on Windows and vi elsewhere.
-  3. Inside tx::write: load the item; write its text to a temporary file named '<ID>.md' in std::env::temp_dir(); run the editor on it and wait; read the file back and delete it.
+  3. Inside tx::write: load the item; write its text to a temporary file named '<ID>-<process id>.md' (tests run in parallel) in std::env::temp_dir(); run the editor on it and wait; read the file back and delete it.
   4. If the text is unchanged print 'no change' and queue nothing.
   5. Parse the new text with Entry::parse (an error is returned and nothing is written); refuse a changed ID, or changed status, author, via, created, approved or history lines, with Code::Refused 'these lines are written by the tool'.
   6. Add a history line 'changed' with detail 'edited'; apply the same rule as set for an approved lesson changed by an LLM or a person; queue with tx.put; print '<ID>: changed'.
-  7. Create tests/cmd_edit.rs with mod common: set EDITOR to a small script written by the test into the temporary folder that appends a line to the file it is given (a .cmd file on Windows, a shell script with the executable bit elsewhere); the entry gains that line and a history line; an editor that changes the status line is refused.
+  7. Create tests/cmd_edit.rs with mod common: write an editor with project.write_stand_in('editor', ...) that appends a line to the file it is given, and run with project.command(...) plus the variable EDITOR set to that path; the entry gains that line and a history line; an editor that changes the status line is refused.
   8. Run cargo test --test cmd_edit.
 - accept: edit applies an editor's change under the lock and refuses changes to tool-owned lines.
 - verify: cargo test --test cmd_edit
 - reqs: R-EDIT-2
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
+- note (2026-11-21, planner): Temporary file named with the process ID: parallel tests editing the same ID would share one file.
 
 ### T-108 · Reading: find and read what was recorded, and who did what when
 - status: open
@@ -1865,12 +1877,13 @@
   3. Ask with term::ask 'restore <ID> to snapshot <n>? (yes/no) ' and stop with 'nothing changed' unless the answer is yes.
   4. Inside tx::write: load the item and the snapshot bytes; parse the snapshot text; keep the history lines of the current entry by copying into the restored entry every history line the snapshot does not have; add a history line 'restored' with detail 'snapshot <n>'; queue with tx.put.
   5. Print '<ID>: restored to snapshot <n>'.
-  6. Create tests/cmd_restore.rs with mod common, setting the environment variable DOSSIER_ANSWERS=yes for the run (use assert_cmd directly with the same variables as common, or add the variable through a small helper in the test file): after set and restore 1 the field has its old value and the history has changed and restored lines; run as anna-claude fails with exit 1.
+  6. Create tests/cmd_restore.rs with mod common, running restore through project.command(...) with the variable DOSSIER_ANSWERS=yes added: after set and restore 1 the field has its old value and the history has changed and restored lines; run as anna-claude fails with exit 1.
   7. Run cargo test --test cmd_restore.
 - accept: A person at a terminal can bring back a snapshot; the history keeps every earlier line and gains a restored line.
 - verify: cargo test --test cmd_restore
 - reqs: R-HIST-2, R-HIST-5
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
 
 ### T-118 · log: who did what when
 - status: open
@@ -1878,7 +1891,7 @@
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: The owner wants to see what was decided by whom and when, across the whole dossier.
-- depends: T-090, T-082, T-098, T-099
+- depends: T-090, T-082, T-098, T-099, T-100, T-101
 - files: src/cmd/log.rs, tests/cmd_log.rs
 - read: docs/design.md, docs/format.md
 - steps:
@@ -1894,6 +1907,7 @@
 - verify: cargo test --test cmd_log
 - reqs: R-HIST-3, R-HIST-4, R-HIST-6
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
 
 ### T-119 · Approval and life: a person decides what counts as knowledge
 - status: open
@@ -1917,12 +1931,13 @@
   2. Implement available(): run the program with --version and return true when it starts and exits with 0.
   3. Implement json(root, args): run the program with the args plus --json in the folder root, capturing standard output; when the program cannot be started return Code::TodoMissing with the message 'todo is not installed or not on PATH; dossier needs todo 0.8 or newer'.
   4. Parse standard output as JSON; when ok is true return the data value; when ok is false return Code::Refused with error.message; when it is not JSON return Code::TodoMissing with the first 200 characters of the output.
-  5. Add tests that write a stand-in program into a temporary folder (a .cmd file on Windows, a shell script with the executable bit elsewhere) printing a fixed JSON envelope, point DOSSIER_TODO at it inside the test, and check: data is returned; an ok:false envelope gives Code::Refused; a missing program gives Code::TodoMissing.
+  5. Add tests that write a stand-in program into a temporary folder (a .cmd file on Windows, a shell script with the executable bit elsewhere) printing a fixed JSON envelope, point DOSSIER_TODO at it inside one test that holds crate::ENV_LOCK and covers all cases, and check: data is returned; an ok:false envelope gives Code::Refused; a missing program gives Code::TodoMissing.
   6. Run cargo test --lib todo_bridge::.
 - accept: json returns the data of todo's envelope and turns a missing todo into TODO_MISSING.
 - verify: cargo test --lib todo_bridge::
 - reqs: D1, TEST-2
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
 
 ### T-121 · review-task: the material for drafting lessons
 - status: open
@@ -1936,16 +1951,17 @@
 - steps:
   1. Give Args: task: String.
   2. In run: Ctx::load(g, 'review-task'); call todo_bridge::json(&ctx.root, ['show', &task]) and pass an error on.
-  3. Print a heading '# Review of <task>', then the task data: its title and every string field of the returned object as 'key: value' lines, and its notes if the object has a notes list.
+  3. Print a heading '# Review of <task>', then the task data: its title and every string field of the returned object as 'key: value' lines, and its notes, each as '<date> <agent>: <text>' (notes is a list of objects with date, agent and text).
   4. Print '## Entries recorded for this task' and one line per entry whose task field equals the task: ID, kind, status mark, title; or 'none'.
   5. Print '## Drafting rules' and the rules of requirement R-DRAFT-2 as a numbered list (copy them from docs/requirements.md, one rule per line), then the two example commands: dossier learn ... and dossier found --dead-end ....
   6. Change nothing on disk.
-  7. Create tests/cmd_review_task.rs with mod common: write a stand-in todo into the project folder (as in the todo_bridge task) and set DOSSIER_TODO to it for the run; the output contains the task title from the stand-in, an entry added with --task, and the words Drafting rules; without the stand-in the exit code is 5.
+  7. Create tests/cmd_review_task.rs with mod common: write a stand-in todo with project.write_stand_in('todo', ...) that prints a todo.show.v1 envelope; the output contains the task title from the stand-in, an entry added with --task, and the words Drafting rules; without the stand-in the exit code is 5.
   8. Run cargo test --test cmd_review_task.
 - accept: review-task prints the task, its entries and the drafting rules, changes nothing, and fails with exit 5 when todo is missing.
 - verify: cargo test --test cmd_review_task
 - reqs: R-DRAFT-1, R-DRAFT-2, D7
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
 
 ### T-122 · drafts: what is waiting for approval
 - status: open
@@ -1974,7 +1990,7 @@
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: This is the step that keeps wrong LLM conclusions out of the team's knowledge.
-- depends: T-093, T-081, T-087, T-092, T-085, T-098, T-102
+- depends: T-093, T-081, T-087, T-092, T-085, T-098, T-102, T-099
 - files: src/cmd/approve.rs, tests/cmd_approve.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -1983,12 +1999,14 @@
   3. Inside tx::write, for each ID: load the item; skip with a warning when its status is not draft; print its whole text to standard error; when rules::problems is not empty print them and skip with a warning 'cannot be approved yet'.
   4. Ask with term::ask '<ID>: approve, reject or skip? (a/r/s) '; a or approve: set status approved, set approved '<time> by <person>', set valid-from, add a history line 'approved', queue with tx.put, and for a lesson call approval::record; r or reject: set status rejected, add a history line 'rejected', queue; anything else: skip.
   5. Return an Output with one line per ID: '<ID>: approved', '<ID>: rejected' or '<ID>: skipped'.
-  6. Create tests/cmd_approve.rs with mod common (set DOSSIER_ANSWERS for the run): anna approves a draft lesson with answer a and the file has status approved, an approved line with the fixed time and a history line 'anna: approved'; answer r rejects; anna-claude gets exit 1; without DOSSIER_ANSWERS (no terminal in tests) anna gets exit 1 with NEEDS_TERMINAL in --json; a lesson without Valid for is skipped.
+  6. Create tests/cmd_approve.rs with mod common (run approve through project.command(...) with DOSSIER_ANSWERS added): anna approves a draft lesson with answer a and the file has status approved, an approved line with the fixed time and a history line 'anna: approved'; answer r rejects; anna-claude gets exit 1; without DOSSIER_ANSWERS (no terminal in tests) anna gets exit 1 with NEEDS_TERMINAL in --json; a lesson without Valid for is skipped.
   7. Run cargo test --test cmd_approve.
 - accept: Only a person at a terminal approves; the entry records who approved and when; incomplete drafts are not approved.
 - verify: cargo test --test cmd_approve
 - reqs: R-DRAFT-4, D5, D6, R-HIST-5, TEST-5
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
+- note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
 
 ### T-124 · reject: turn a draft down
 - status: open
@@ -2017,7 +2035,7 @@
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: Knowledge is never overwritten; the old entry is closed with a date and points to its replacement.
-- depends: T-093, T-085, T-098, T-100
+- depends: T-093, T-085, T-098, T-100, T-099
 - files: src/cmd/supersede.rs, tests/cmd_supersede.rs
 - read: docs/design.md, docs/format.md
 - steps:
@@ -2032,6 +2050,7 @@
 - verify: cargo test --test cmd_supersede
 - reqs: R-LIFE-4, R-ENTRY-14, D20
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
 
 ### T-126 · retire: end an entry without a replacement
 - status: open
@@ -2070,12 +2089,13 @@
   4. Inside tx::write: load the item; queue tx.delete with Change{event 'removed', detail ''} (the journal line holds no text of the entry); call approval::forget.
   5. After the write, delete the folder DOSSIER/.state/history/<ID> if it exists, so that no copy of the text stays.
   6. Print '<ID>: removed'.
-  7. Create tests/cmd_remove.rs with mod common (DOSSIER_ANSWERS set to the ID): the file is gone, the journal has a removed line, the snapshot folder is gone; the next added finding gets a higher number, not the removed one; anna-claude fails.
+  7. Create tests/cmd_remove.rs with mod common (run remove through project.command(...) with DOSSIER_ANSWERS set to the ID): the file is gone, the journal has a removed line, the snapshot folder is gone; the next added finding gets a higher number, not the removed one; anna-claude fails.
   8. Run cargo test --test cmd_remove.
 - accept: Only a person at a terminal can remove an entry; no copy of its text remains; its ID is not reused.
 - verify: cargo test --test cmd_remove
 - reqs: R-LIFE-3, R-ID-3
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
 
 ### T-128 · reopen: back to draft, or a retired entry back in force
 - status: open
@@ -2083,7 +2103,7 @@
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: A rejection or an approval can turn out to be wrong.
-- depends: T-093, T-085, T-092, T-098, T-102
+- depends: T-093, T-085, T-092, T-098, T-102, T-101, T-124, T-126
 - files: src/cmd/reopen.rs, tests/cmd_reopen.rs
 - read: docs/design.md, docs/requirements.md
 - steps:
@@ -2099,6 +2119,7 @@
 - verify: cargo test --test cmd_reopen
 - reqs: R-LIFE-1
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
 
 ### T-129 · check: report problems in a dossier
 - status: open
@@ -2136,7 +2157,7 @@
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-130
 - why: An LLM that starts without the project's decisions will contradict them.
-- depends: T-088, T-082, T-098, T-100, T-101, T-103, T-102
+- depends: T-088, T-082, T-098, T-100, T-101, T-103, T-102, T-125
 - files: src/cmd/brief.rs, tests/cmd_brief.rs
 - read: docs/design.md, docs/requirements.md
 - steps:
@@ -2152,6 +2173,7 @@
 - verify: cargo test --test cmd_brief
 - reqs: R-CTX-1, R-CTX-4, R-CTX-5, TEST-9
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
 
 ### T-132 · brief_task.rs: what matters for one task
 - status: open
@@ -2165,17 +2187,18 @@
 - steps:
   1. Implement lines(ctx, task, limit): call todo_bridge::json(&ctx.root, ['show', task]); on Code::TodoMissing return that error with the message 'brief --task needs todo'.
   2. From the data read the strings title, machine, analysis, software (look first at the top level, then inside an object named fields; missing ones are empty) and the list milestones if present (each item's id), else the single string milestone.
-  3. Line 1: 'Task <task> · <title>'.
-  4. '## Recorded for this task': approved entries whose task field equals the task, as '<ID> · <kind> · <title>'.
+  3. Line 1: 'Task <task> Â· <title>'.
+  4. '## Recorded for this task': approved entries whose task field equals the task, as '<ID> Â· <kind> Â· <title>'.
   5. '## Decisions of its milestones': approved decisions whose task field equals one of the milestone IDs, each with its Decision section body indented.
   6. '## Related': select::best over the other approved entries with Query{tags: the task's machine, analysis and software values split at commas, words: select::words(title)}, limit 10; lessons with their Statement and Valid for bodies indented, other kinds as one line.
   7. Leave a heading out when it has no lines; cut the list to limit lines and add '<m> more left out' when cut.
-  8. Add tests with a temporary dossier, a Ctx built in the test and a stand-in todo (as in the todo_bridge task) whose show output has title 'Speedline of the compressor' and machine 'axial compressor': an entry with task equal to the task is listed first; a lesson tagged axial compressor appears under Related with its Valid for text; a draft never appears; without todo the error is TodoMissing.
+  8. Add tests with a temporary dossier, a Ctx built in the test and a stand-in todo (as in the todo_bridge task, DOSSIER_TODO set inside one test that holds crate::ENV_LOCK) whose show output has title 'Speedline of the compressor' and machine 'axial compressor': an entry with task equal to the task is listed first; a lesson tagged axial compressor appears under Related with its Valid for text; a draft never appears; without todo the error is TodoMissing.
   9. Run cargo test --lib brief_task::.
 - accept: The lines contain the task's own entries, its milestones' decisions and the best-matching approved entries; without todo it fails clearly.
 - verify: cargo test --lib brief_task::
 - reqs: R-CTX-2, R-CTX-3, R-CTX-5
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
 
 ### T-133 · status: the state of the whole project
 - status: open
@@ -2189,19 +2212,21 @@
 - steps:
   1. Give Args: --since <date or the word last>, --milestone <task>.
   2. In run: Ctx::load(g, 'status'); line 1: 'Project <code>'.
-  3. Task part: when todo_bridge::available() is false print 'tasks: todo is not installed' and go on; else call todo_bridge::json(&ctx.root, ['summary']) and print '## Tasks' followed by the value of its text field if there is one, else the data printed with serde_json::to_string_pretty, at most 20 lines.
-  4. '## Decisions in force': approved decisions newest first as '<ID> · <title> (<author>, <date>)'.
+  3. Task part: when todo_bridge::available() is false print 'tasks: todo is not installed' and go on; else call todo_bridge::json(&ctx.root, ['summary']) and print '## Tasks', one line per item of data.milestones as '<id> · <title> · <progress.done>/<progress.total> done', and one line from data.counts: 'open <n>, claimed <n>, blocked <n>, done <n>'; at most 20 lines.
+  4. '## Decisions in force': approved decisions newest first as '<ID> Â· <title> (<author>, <date>)'.
   5. '## Newest findings': the five newest approved findings in the same form.
   6. '## Unsettled': one line each when not zero: '<n> drafts waiting', '<n> open assumptions', '<n> approved lessons changed by hand' (approval::mark Changed).
   7. With --milestone keep only entries whose task field equals it.
   8. With --since: print instead, under '## Since <date>', one line per journal record on or after the date as in the log command; the word last uses the time stored in DOSSIER/.state/seen-<person>.txt (missing: everything) and afterwards writes time::now() into that file when the writer is a person.
   9. Keep to cfg.status_lines by cutting the longest list and adding '<m> more: dossier list'.
-  10. Create tests/cmd_status.rs with mod common: without todo the output has the 'todo is not installed' line and still lists a decision and the drafts count; with a stand-in todo the Tasks part appears; --since last run twice by anna shows the events the first time and none the second; an LLM's --since last does not move the marker.
+  10. Create tests/cmd_status.rs with mod common: without todo the output has the 'todo is not installed' line and still lists a decision and the drafts count; with a stand-in todo written by project.write_stand_in('todo', ...) that prints a summary envelope with one milestone, the Tasks part shows that milestone; --since last run twice by anna shows the events the first time and none the second; an LLM's --since last does not move the marker.
   11. Run cargo test --test cmd_status.
 - accept: status combines the task state from todo with decisions, findings and what is unsettled, works without todo, and --since last shows only what is new for that person.
 - verify: cargo test --test cmd_status
 - reqs: R-CTX-9 to R-CTX-11, R-READ-8, R-READ-10
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
+- note (2026-11-21, planner): Tasks part reads data.milestones and data.counts: todo summary --json has no text field.
 
 ### T-134 · decide: show related decisions, and --replaces or --besides for an LLM
 - status: open
@@ -2344,12 +2369,13 @@
   2. Implement load(): a missing file is an empty list; parse the TOML with a private serde struct holding project: Vec<...> (default empty); a parse error is Code::Config naming the file.
   3. Implement put(project): load, remove the one with the same code (ignoring case), add the new one, sort by code, and write the whole file (create folders) as [[project]] tables with code, server, folder and, when present, local; write through atomic::replace.
   4. Implement remove(code): load, remove it, write, and return whether one was removed.
-  5. Add tests that set DOSSIER_REGISTER to a path in a tempfile folder inside one test function: put two projects, load returns them sorted; put with the same code replaces; remove returns true then false.
+  5. Add tests that set DOSSIER_REGISTER to a path in a tempfile folder inside one test function that holds crate::ENV_LOCK: put two projects, load returns them sorted; put with the same code replaces; remove returns true then false.
   6. Run cargo test --lib remote::register::.
 - accept: Projects are stored per user with code, server, folder and local folder, and survive being rewritten.
 - verify: cargo test --lib remote::register::
 - reqs: R-REMOTE-9, R-REMOTE-10
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
 
 ### T-142 · remote/ssh.rs: build and run the ssh command
 - status: open
@@ -2388,12 +2414,13 @@
   5. The remote program is 'dossier'; when the command word is todo, the remote program is 'todo' and the word todo is removed from the arguments.
   6. terminal is true when the command word is approve, remove, restore or edit and term::is_terminal() is true.
   7. Build ssh::argv with timeout 10 and run it; on Ok(code) return Some(code); on an error print 'error: <message>' to standard error and return Some(5).
-  8. Add tests with a tempfile folder: no pointer and no --project gives None; with a pointer and DOSSIER_SSH pointing at a stand-in program that writes its arguments to a file and exits with 7, maybe returns Some(7) and the file contains BatchMode=yes, the server and the quoted command; the command connect gives None even with a pointer; todo list forwards the program todo.
+  8. Add one test function that holds crate::ENV_LOCK (it changes the current folder and DOSSIER_SSH; set the current folder back at the end), with a tempfile folder: no pointer and no --project gives None; with a pointer and DOSSIER_SSH pointing at a stand-in program that writes its arguments to a file and exits with 7, maybe returns Some(7) and the file contains BatchMode=yes, the server and the quoted command; the command connect gives None even with a pointer; todo list forwards the program todo.
   9. Run cargo test --lib remote::forward::.
 - accept: In a connected folder, or with --project, a command is run on the server with its output and exit code passed through; connect, projects and help stay local.
 - verify: cargo test --lib remote::forward::
 - reqs: R-REMOTE-1 to R-REMOTE-3, R-REMOTE-5, R-REMOTE-10, R-REMOTE-11, TEST-8
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
 
 ### T-144 · connect: tie a PC folder to a project on the server
 - status: open
@@ -2425,7 +2452,7 @@
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-139
 - why: People and LLMs need to see which projects this PC knows and where they are.
-- depends: T-141, T-068
+- depends: T-141, T-068, T-144
 - files: src/cmd/projects.rs, tests/cmd_projects.rs
 - read: docs/design.md
 - steps:
@@ -2438,6 +2465,7 @@
 - verify: cargo test --test cmd_projects
 - reqs: R-REMOTE-10
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
 
 ### T-146 · todo: run todo in the project folder
 - status: open
@@ -2453,12 +2481,13 @@
   2. In run: find the project folder with find::find from the current folder and take its parent (no name is needed).
   3. Run the program DOSSIER_TODO or todo with the arguments in that folder, with inherited standard input, output and error; when it cannot be started return Code::TodoMissing.
   4. When it exits with 0 return Output::text(''); otherwise end the process with the same exit code: std::process::exit(code).
-  5. Create tests/cmd_todo.rs with mod common: with a stand-in todo in the project folder that prints its arguments and exits with 3, dossier todo list --wide prints 'list --wide' and exits with 3; without a stand-in the exit code is 5.
+  5. Create tests/cmd_todo.rs with mod common: with a stand-in todo written by project.write_stand_in('todo', ...) that prints its arguments and exits with 3, dossier todo list --wide prints 'list --wide' and exits with 3; without a stand-in the exit code is 5.
   6. Run cargo test --test cmd_todo.
 - accept: dossier todo passes arguments, output and exit code through to todo, run in the project folder.
 - verify: cargo test --test cmd_todo
 - reqs: R-REMOTE-5
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
 
 ### T-147 · tar.rs: a small archive writer and reader
 - status: open
@@ -2506,7 +2535,7 @@
 - priority: P0 · difficulty: 1 · type: test
 - milestone: T-139
 - why: The dossier lives on Linux and is used from Windows; nothing may depend on where a command was typed.
-- depends: T-104, T-123, T-118, T-114
+- depends: T-104, T-123, T-118, T-114, T-100, T-101, T-103
 - files: tests/xos.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -2521,6 +2550,7 @@
 - verify: cargo test --test xos
 - reqs: R-XOS-4, R-XOS-6, R-XOS-7, TEST-11, TEST-3
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
 
 ### T-150 · Ship v0.1: proven fast enough, documented, released
 - status: open
