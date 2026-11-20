@@ -825,8 +825,10 @@
 - note (2026-11-21, haiku-t066): done
 
 ### T-067 · Library skeleton: lib.rs and every library module with its types and signatures
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t067
+- claimed: 2026-11-21T00:22+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: chore
 - milestone: T-065
 - why: With every type and signature in place, each later task fills in one file without touching a shared one.
@@ -881,8 +883,8 @@
 - note (2026-11-21, planner): Simple emit moved from T-068 to T-067 (output.rs is T-067's file; T-068 did not list it and could run beside T-072). Smoke test uses an unknown command for exit 2, because dossier where stops returning 2 once T-109 is built.
 
 ### T-069 · CI workflow, MIT licence and CLAUDE.md
-- status: open
-- owner: —
+- status: done
+- owner: haiku-t069
 - priority: P1 · difficulty: 1 · type: chore
 - milestone: T-065
 - why: The checks must run on Windows and Linux on every push, and a public repository needs a licence.
@@ -895,8 +897,12 @@
   3. Create CLAUDE.md with the single line @AGENTS.md.
 - accept: The three files exist; ci.yml is valid YAML with both systems and the three checks.
 - verify: git ls-files --error-unmatch .github/workflows/ci.yml LICENSE CLAUDE.md
+- verified: 2026-11-21
+- commit: c197408
 - reqs: REL-1, NFR-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t069): done
 
 ### T-070 · Foundation: errors, output, time, paths, settings, names, lock, safe writing
 - status: open
