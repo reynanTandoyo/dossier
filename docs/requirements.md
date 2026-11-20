@@ -848,6 +848,18 @@ depend on which of the two a command was typed on.
   changed; `restore <ID> <n>` (a person, at a terminal) brings a version back.
 - **R-HIST-3 SHOULD** `log [--since <date>] [--author <name>]` prints the journal as readable
   lines.
+- **R-HIST-4 MUST** Everything that is recorded carries who and when: the person, the LLM if one
+  wrote it, and the local time to the second with its UTC offset. This holds for every entry,
+  value, file list line, exchange record, usage record, take and return, and for every later
+  change of them. Nothing is written without both.
+- **R-HIST-5 MUST** Each entry file carries its own history as `- history:` lines, one per event
+  (created, approved, rejected, changed, superseded, retired, reopened, promoted), each with
+  time, person and LLM. So who decided or approved what, and when, can be read in the file
+  itself, without the tool and without the journal.
+- **R-HIST-6 MUST** `log` answers "who did what when" for the whole dossier:
+  `log [--kind <kind>] [--person <name>] [--event <event>] [--since <date>] [--until <date>]`
+  prints one line per event, newest first: time, person, LLM, event, ID and title. `show` prints
+  an entry's history lines; `list --wide` adds the time and person of creation and approval.
 
 ### 5.16 Checking — CHECK
 
