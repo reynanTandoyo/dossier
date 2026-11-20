@@ -282,7 +282,7 @@ Every write command needs a name (D13) and prints one line such as `DEC-012: add
   `--from` or `--stdin`. Run by a person it is approved; run by an LLM it is a draft.
 - **R-WRITE-6 MUST** New entries go to the project dossier unless `--team` is given. Lessons and
   how-tos written with `--team` pass the check of R-CONF-2.
-- **R-WRITE-7 MUST** `dossier note "<text>"` saves a quick note with nothing else required: a
+- **R-WRITE-7 MUST** `found --later "<text>"` saves a quick note with nothing else required: a
   finding with status `draft` and the tag `inbox`. It exists so that a thought costs ten seconds;
   it is sorted out later (R-DRAFT-3).
 - **R-WRITE-12 MUST** `propose "<decision>" --reason "…" [--rejected "…"] [--task T-042]` writes
@@ -416,7 +416,7 @@ Every write command needs a name (D13) and prints one line such as `DEC-012: add
   title, no task text, no file names.
 - **R-USE-4 MUST** `where-used <software> [--analysis "…"] [--machine "…"]` reads the usage index
   and prints the matching lines, newest first, with the how-tos they followed.
-- **R-USE-5 MUST** `howtos <software>` lists the approved how-tos for a software with their
+- **R-USE-5 MUST** `list --kind howto --software <name>` lists the approved how-tos for a software with their
   purpose and the versions they were tested with.
 - **R-USE-8 MUST** `script add <file> --software <name> --title "…"` creates a script entry
   (R-ENTRY-12) for a script file, usually with `--from` or `--stdin` for the sections. Run by a
@@ -427,7 +427,7 @@ Every write command needs a name (D13) and prints one line such as `DEC-012: add
   the working folder of a git repository on the server). A team script's `path` is relative to
   it; a project script's `path` is relative to the project folder. `dossier` never copies or
   changes a script file.
-- **R-USE-10 MUST** `scripts [<software>] [--language "…"] [words…]` lists approved scripts with
+- **R-USE-10 MUST** `list --kind script [--software <name>] [--language "…"] [words…]` lists approved scripts with
   their purpose, language and tested versions; `show <ID>` also prints the full path and whether
   the file still matches its recorded checksum.
 - **R-USE-11 MUST** A script file that changed since its entry was approved is marked
@@ -435,7 +435,8 @@ Every write command needs a name (D13) and prints one line such as `DEC-012: add
   records the new checksum; run by an LLM it turns the entry into a draft.
 - **R-USE-12 MUST** `used` accepts `--script <ID>…`, and the usage index (R-USE-3) records the
   scripts that were run. `where-used --script <ID>` lists the projects that ran a script.
-- **R-USE-14 MUST** `ran --task <task> --software <name> --version <v> --model <file>
+- **R-USE-14 MUST** (Part of `used`, R-USE-2; there is no separate `ran` command.)
+  `used <software> --version <v> --task <task> --model <file>
   [--script <ID>…] [--param <name>=<value>…] [--output <path>…] [--howto <ID>] [--note "…"]`
   records one simulation run in a single step: it writes a usage record with the model's
   checksum, the scripts, the parameters and the outputs, and attaches each output to the task
@@ -476,17 +477,18 @@ Every write command needs a name (D13) and prints one line such as `DEC-012: add
 - **R-READ-7 SHOULD** `dossier story` prints the project's decisions in the order they were made,
   each with its reason and the task it belongs to: the answer to "why was it done this way".
   `--milestone <task>` limits it to the tasks under one `todo` milestone.
-- **R-READ-8 SHOULD** `summary` prints at most 40 lines: entries per kind, drafts waiting (oldest
+- **R-READ-8 SHOULD** *(Merged into `status`, R-CTX-9: `status` also shows what follows.)*
+  Formerly `summary`, at most 40 lines: entries per kind, drafts waiting (oldest
   first), entries due for review or changed after approval, the five newest decisions, and files
   taken and not returned (R-FILE-5).
-- **R-READ-10 MUST** `news` prints what is new for the calling person since they last ran it: one
+- **R-READ-10 MUST** `status --since last` (there is no separate `news` command) prints what is new for the calling person since they last ran it: one
   line per entry that was approved, superseded or retired in the meantime, in the project dossier
   and the team dossier, grouped by place, with ID, kind, title and who approved it. At most 20
   lines (`news_lines`); a last line counts the rest. Drafts and changes to fields are not listed.
   Running `news` moves the person's marker to now; `--keep` leaves it, `--since <date>` ignores
   it. A person's LLMs share the person's marker and never move it.
 - **R-READ-11 MUST** `brief` (R-CTX-1) ends with one line when there is news, for example
-  `4 new entries since 2026-11-12: dossier news`, and nothing when there is none.
+  `4 new entries since 2026-11-12: dossier status --since last`, and nothing when there is none.
 - **R-READ-9 COULD** `search --similar <ID>` lists entries that share the most tags and title
   words with an entry.
 
@@ -1161,12 +1163,20 @@ routine steps happen by themselves.
 **It worked if:** `brief` in a project with more than 200 entries still fits its limit and
 still contains what the LLM needed.
 
-### Overlaps to settle before phase 1 is planned
+### Merged commands
 
-Some commands overlap, and merging them would make the tool easier for people and LLMs:
-`summary` into `status`; `note` into `found`; `used` and `ran` into one record; `howtos` and
-`scripts` into `list` with a filter; `news` into `status --since last`. The requirements keep
-them apart for now.
+By the owner's decision of 2026-11-20, five overlapping commands were merged so that people and
+LLMs have fewer to choose from. Requirement IDs are unchanged.
+
+| Removed | Use instead | Requirement |
+|---|---|---|
+| `summary` | `status` | R-READ-8, R-CTX-9 |
+| `note` | `found --later` | R-WRITE-7 |
+| `ran` | `used` with `--model` | R-USE-2, R-USE-14 |
+| `howtos`, `scripts` | `list --kind howto` / `list --kind script`, with `--software` | R-USE-5, R-USE-10 |
+| `news` | `status --since last` | R-READ-10, R-READ-11, R-CTX-10 |
+
+Where another requirement still names a removed command, the replacement is meant.
 
 ---
 

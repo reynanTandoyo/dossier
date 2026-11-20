@@ -175,7 +175,7 @@
 - reqs: R-ID-1 to R-ID-4, TEST-4
 - note (2026-11-20, planner): added
 
-### T-013 · add and the short forms decide, found, learn, assume and note
+### T-013 · add and the short forms decide, found, learn and assume
 - status: open
 - owner: —
 - priority: P0 · difficulty: 4 · type: feature
@@ -188,6 +188,7 @@
 - verify: cargo test --test cmd_add
 - reqs: R-WRITE-1 to R-WRITE-4, R-WRITE-7, R-WRITE-14, R-WRITE-16, R-ENTRY-3 to R-ENTRY-7, R-ENTRY-13, R-ENTRY-15, D5
 - note (2026-11-20, planner): added
+- note (2026-11-20, planner): The quick note is found --later (R-WRITE-7); there is no note command (T-059).
 
 ### T-014 · set, retitle, link and --dry-run
 - status: open
@@ -328,6 +329,7 @@
 - verify: cargo test --test cmd_status
 - reqs: R-CTX-9 to R-CTX-11, R-READ-8
 - note (2026-11-20, planner): added
+- note (2026-11-20, planner): There is no summary command; status covers R-READ-8 (T-059).
 
 ### T-024 · decide shows related decisions and needs --replaces or --besides from an LLM
 - status: open
@@ -720,11 +722,12 @@
 ## Questions
 
 ### T-059 · Merge the overlapping commands before phase 1 is built? summary into status, note into found, used and ran into one record, howtos and scripts into list with a filter, news into status --since last. See docs/requirements.md section 11, last part.
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - type: question
 - about: T-001
 - note (2026-11-20, planner): added
+- note (2026-11-20, planner): answer — Yes: merged. summary into status, note into found --later, ran into used --model, howtos and scripts into list --kind, news into status --since last. Requirements updated (section 11, Merged commands).
 
 ### T-060 · Is typing a plain ssh command comfortable enough for phases 1 to 3, or must a first part of remote mode (R-REMOTE-1, 2, 5) move into phase 1? Open point O-7.
 - status: open
@@ -741,8 +744,9 @@
 - note (2026-11-20, planner): added
 
 ### T-062 · Is a command named dossier already installed on the team's server? Open point O-3.
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - type: question
 - about: T-001
 - note (2026-11-20, planner): added
+- note (2026-11-20, planner): answer — No: there is no command named dossier on the server (owner, 2026-11-20).
