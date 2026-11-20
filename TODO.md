@@ -1683,8 +1683,10 @@
 - note (2026-11-21, planner): added
 
 ### T-102 · learn: record a lesson with its conditions and evidence
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-102
+- claimed: 2026-11-21T00:58+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: A lesson is what reaches later projects, so it must carry where it holds and how sure it is.
@@ -2320,10 +2322,8 @@
 - note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
 
 ### T-132 · brief_task.rs: what matters for one task
-- status: claimed
+- status: done
 - owner: haiku-t-132
-- claimed: 2026-11-21T00:53+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-130
 - why: Before a task, the LLM needs the entries that concern exactly this task.
@@ -2342,9 +2342,13 @@
   9. Run cargo test --lib brief_task::.
 - accept: The lines contain the task's own entries, its milestones' decisions and the best-matching approved entries; without todo it fails clearly.
 - verify: cargo test --lib brief_task::
+- verified: 2026-11-21
+- commit: 353d894
 - reqs: R-CTX-2, R-CTX-3, R-CTX-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
+- note (2026-11-21, haiku-t-132): done
 
 ### T-133 · status: the state of the whole project
 - status: open
