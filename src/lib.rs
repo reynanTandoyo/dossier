@@ -11,6 +11,8 @@ pub mod agents;
 pub mod approval;
 pub mod atomic;
 pub mod brief_task;
+pub mod cli;
+pub mod cmd;
 pub mod config;
 pub mod create;
 pub mod ctx;

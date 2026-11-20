@@ -1,29 +1,10 @@
 //! The context of a command: the dossier it works on, its settings, and who acts.
 
+use crate::cli::Global;
 use crate::config::Config;
 use crate::error::{Code, Error, Result};
 use crate::names::Who;
 use std::path::PathBuf;
-
-/// The global options of every command.
-///
-/// Temporary: the next skeleton task moves this struct to `cli.rs` (docs/design.md section 4),
-/// where it belongs.
-#[derive(clap::Args, Debug, Clone, Default)]
-pub struct Global {
-    #[arg(long, global = true)]
-    pub dossier: Option<PathBuf>,
-    #[arg(long, global = true)]
-    pub agent: Option<String>,
-    #[arg(long, global = true)]
-    pub json: bool,
-    #[arg(long, global = true)]
-    pub dry_run: bool,
-    #[arg(long, global = true)]
-    pub allow_network_drive: bool,
-    #[arg(long, global = true)]
-    pub project: Option<String>,
-}
 
 /// The context of one command.
 pub struct Ctx {
