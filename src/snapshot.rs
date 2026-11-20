@@ -28,7 +28,9 @@ struct IndexLine {
     command: String,
 }
 
-/// Saves `bytes` as the next snapshot of entry `id`; returns its number.
+/// Saves `bytes` as the next snapshot of entry `id`; returns its number. The number is one more
+/// than the highest in the index or among the snapshot files on disk, and the file must not
+/// exist yet, so an existing snapshot is never overwritten (Code::Changed if it appears meanwhile).
 pub fn save(
     state: &Path,
     id: &str,
@@ -37,16 +39,18 @@ pub fn save(
     name: &str,
     command: &str,
 ) -> Result<u32> {
-    let highest = list(state, id)?
+    let in_index = list(state, id)?
         .iter()
         .map(|snap| snap.n)
         .max()
         .unwrap_or(0);
-    let n = highest
+    let on_disk = highest_file(state, id)?;
+    let n = in_index
+        .max(on_disk)
         .checked_add(1)
         .ok_or_else(|| Error::new(Code::Refused, format!("{id} has no snapshot number left")))?;
 
-    atomic::replace(&file(state, id, n), bytes, None)?;
+    atomic::replace(&file(state, id, n), bytes, Some(&None))?;
 
     let line = IndexLine {
         n,
@@ -102,6 +106,34 @@ fn folder(state: &Path, id: &str) -> PathBuf {
 /// The file of snapshot `n` of entry `id`: `<n as six digits>.md` in its folder.
 fn file(state: &Path, id: &str, n: u32) -> PathBuf {
     folder(state, id).join(format!("{n:06}.md"))
+}
+
+/// The highest number among the snapshot files of entry `id` on disk; 0 when there are none.
+/// Files whose names are not `<six digits>.md` do not count.
+fn highest_file(state: &Path, id: &str) -> Result<u32> {
+    let folder = folder(state, id);
+    let entries = match std::fs::read_dir(&folder) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+        Err(error) => return Err(failure(&folder, error)),
+    };
+    let mut highest = 0;
+    for entry in entries {
+        let entry = entry.map_err(|error| failure(&folder, error))?;
+        if let Some(n) = entry.file_name().to_str().and_then(number_of_file) {
+            highest = highest.max(n);
+        }
+    }
+    Ok(highest)
+}
+
+/// The number in a snapshot file name `<six digits>.md`; None for any other name.
+fn number_of_file(name: &str) -> Option<u32> {
+    let digits = name.strip_suffix(".md")?;
+    if digits.len() != 6 || !digits.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    digits.parse().ok()
 }
 
 /// Appends one index line in a single write, creating the folder and the index when missing.
@@ -269,5 +301,56 @@ mod tests {
         let snaps = list(&state, "DEC-012").unwrap();
         assert_eq!(snaps.len(), 2);
         assert_eq!(snaps[1].n, 2);
+    }
+
+    #[test]
+    fn a_snapshot_file_missing_from_the_index_is_not_overwritten() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = state_in(&dir);
+        save(&state, "DEC-012", b"first", WHEN, "anna", "decide").unwrap();
+        save(&state, "DEC-012", b"second", WHEN, "anna", "set").unwrap();
+        let orphan = state.join("history").join("DEC-012").join("000003.md");
+        std::fs::write(&orphan, b"third, not in the index").unwrap();
+        assert_eq!(
+            save(&state, "DEC-012", b"fourth", WHEN, "anna", "set").unwrap(),
+            4
+        );
+        assert_eq!(std::fs::read(&orphan).unwrap(), b"third, not in the index");
+        assert_eq!(load(&state, "DEC-012", 4).unwrap(), b"fourth");
+    }
+
+    #[test]
+    fn a_snapshot_file_without_any_index_line_counts_too() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = state_in(&dir);
+        let existing = state.join("history").join("DEC-012").join("000001.md");
+        std::fs::create_dir_all(existing.parent().unwrap()).unwrap();
+        std::fs::write(&existing, b"kept").unwrap();
+        assert_eq!(
+            save(&state, "DEC-012", b"new", WHEN, "anna", "set").unwrap(),
+            2
+        );
+        assert_eq!(std::fs::read(&existing).unwrap(), b"kept");
+    }
+
+    #[test]
+    fn files_not_named_as_snapshots_do_not_count() {
+        let dir = tempfile::tempdir().unwrap();
+        let state = state_in(&dir);
+        let folder = state.join("history").join("DEC-012");
+        std::fs::create_dir_all(&folder).unwrap();
+        for name in [
+            "12.md",
+            "0000010.md",
+            "abcdef.md",
+            "000009.txt",
+            "000009.md.tmp-7",
+        ] {
+            std::fs::write(folder.join(name), b"other").unwrap();
+        }
+        assert_eq!(
+            save(&state, "DEC-012", b"first", WHEN, "anna", "decide").unwrap(),
+            1
+        );
     }
 }
