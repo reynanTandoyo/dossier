@@ -2524,10 +2524,8 @@
 - note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
 
 ### T-142 · remote/ssh.rs: build and run the ssh command
-- status: claimed
+- status: done
 - owner: haiku-t-142
-- claimed: 2026-11-21T00:49+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-139
 - why: Text with quotes, backticks and dollar signs must arrive on the server unchanged, and ssh must never ask a question.
@@ -2542,8 +2540,12 @@
   5. Run cargo test --lib remote::ssh::.
 - accept: Every argument is quoted so a POSIX shell passes it on unchanged; ssh runs without prompts and its failures become SSH errors.
 - verify: cargo test --lib remote::ssh::
+- verified: 2026-11-21
+- commit: 269e93c
 - reqs: R-REMOTE-2, R-REMOTE-6, R-REMOTE-11, R-XOS-10
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-142): done
 
 ### T-143 · remote/forward.rs: run a command on the server
 - status: open
