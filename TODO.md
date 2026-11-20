@@ -805,18 +805,17 @@
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-065
 - why: Nothing can be built or tested before the Cargo project exists.
-- files: Cargo.toml, .cargo/config.toml, src/main.rs
+- files: Cargo.toml, Cargo.lock, src/main.rs
 - read: docs/design.md, docs/requirements.md
 - steps:
-  1. Create Cargo.toml: package name dossier, version 0.1.0, edition 2024, rust-version 1.89, license MIT, publish false; a [lib] named dossier at src/lib.rs and a [[bin]] named dossier at src/main.rs.
+  1. Create Cargo.toml: package name dossier, version 0.1.0, edition 2024, rust-version 1.89, license MIT, publish false; one [[bin]] named dossier at src/main.rs. Do not add a [lib] section; the library skeleton task adds it.
   2. Add dependencies with these features: chrono (default-features false, features clock), clap (default-features false, features std, derive, help, usage, error-context, suggestions), serde (feature derive), serde_json, sha2 (default-features false), toml (default-features false, features std, serde, parse). Use cargo add so current versions are written.
   3. Add dev-dependencies assert_cmd, predicates and tempfile with cargo add --dev.
   4. Add windows-sys for Windows only: cargo add windows-sys --target 'cfg(windows)' --features Win32_Storage_FileSystem.
   5. Add [lints.clippy] with unwrap_used, expect_used and panic set to deny, and [profile.release] with lto true, codegen-units 1, strip true, panic abort.
-  6. Create .cargo/config.toml with [target.x86_64-pc-windows-msvc] rustflags = ['-C', 'target-feature=+crt-static'].
-  7. Create src/main.rs containing only fn main() {}. Do not add a [lib] section yet; the library skeleton task adds it.
-  8. Run cargo build and fix any error.
-- accept: cargo build succeeds; Cargo.toml lists exactly the dependencies above.
+  6. Create src/main.rs containing only fn main() {}.
+  7. Run cargo build and fix any error. Commit Cargo.lock together with the other two files.
+- accept: cargo build succeeds; Cargo.toml lists exactly the dependencies of the steps; Cargo.lock is committed.
 - verify: cargo build
 - reqs: D16, NFR-1, NFR-5, NFR-6
 - note (2026-11-21, planner): added
@@ -2582,16 +2581,18 @@
 - milestone: T-150
 - why: The team installs the program from a release, on the server and on each PC.
 - depends: T-069
-- files: .github/workflows/release.yml
+- files: .github/workflows/release.yml, .cargo/config.toml
 - read: docs/requirements.md
 - steps:
-  1. Create .github/workflows/release.yml triggered on push of tags matching v*.
-  2. Job check: fail when the tag without the leading v differs from the version in Cargo.toml.
-  3. Job build with a matrix: ubuntu-latest building target x86_64-unknown-linux-musl (install the target with rustup and the package musl-tools) producing the file dossier, and windows-latest building x86_64-pc-windows-msvc producing dossier.exe; each runs cargo build --release --target <target>.
-  4. Rename the outputs to dossier-linux-x64 and dossier-windows-x64.exe, write a .sha256 file next to each, and upload them as artifacts.
-  5. Job release: download the artifacts and create a GitHub release for the tag with the four files, using the gh CLI (gh release create) and permissions contents: write.
+  1. Create .cargo/config.toml with [target.x86_64-pc-windows-msvc] rustflags = ['-C', 'target-feature=+crt-static'], so the Windows program runs without Visual C++ installed.
+  2. Create .github/workflows/release.yml triggered on push of tags matching v*.
+  3. Job check: fail when the tag without the leading v differs from the version in Cargo.toml.
+  4. Job build with a matrix: ubuntu-latest building target x86_64-unknown-linux-musl (install the target with rustup and the package musl-tools) producing the file dossier, and windows-latest building x86_64-pc-windows-msvc producing dossier.exe; each runs cargo build --release --target <target>.
+  5. Rename the outputs to dossier-linux-x64 and dossier-windows-x64.exe, write a .sha256 file next to each, and upload them as artifacts.
+  6. Job release: download the artifacts and create a GitHub release for the tag with the four files, using the gh CLI (gh release create) and permissions contents: write.
+  7. Run cargo build to check that the project still builds with the new config file.
 - accept: The workflow builds a static Linux program and a Windows program with checksums and publishes them for a v* tag.
-- verify: git ls-files --error-unmatch .github/workflows/release.yml
+- verify: cargo build
 - reqs: NFR-1, REL-1
 - note (2026-11-21, planner): added
 
