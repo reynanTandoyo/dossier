@@ -1171,10 +1171,8 @@
 - note (2026-11-21, haiku-t-080): done
 
 ### T-081 · term.rs: is a person at a terminal
-- status: claimed
+- status: done
 - owner: haiku-t-081
-- claimed: 2026-11-21T00:42+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: Approval must be given by a person at a terminal, and tests need a stand-in for one.
@@ -1190,9 +1188,13 @@
   6. Run cargo test --lib term::.
 - accept: Without a terminal ask fails with NEEDS_TERMINAL; DOSSIER_ANSWERS supplies answers in tests.
 - verify: cargo test --lib term::
+- verified: 2026-11-21
+- commit: c4680d1
 - reqs: D6, R-DRAFT-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
+- note (2026-11-21, haiku-t-081): done
 
 ### T-082 · ctx.rs: what every command starts with
 - status: claimed
@@ -1256,8 +1258,10 @@
 - note (2026-11-21, haiku-t-084): done
 
 ### T-085 · entry/edit.rs: change fields, title, sections and add history lines
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-085
+- claimed: 2026-11-21T00:44+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-083
 - why: The tool must change only the lines it has to and keep every other byte.
@@ -1357,8 +1361,10 @@
 - note (2026-11-21, haiku-t-088): done
 
 ### T-089 · ids.rs: the next ID of a kind
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-089
+- claimed: 2026-11-21T00:44+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-083
 - why: Two writers must never get the same ID, and an ID is never used twice.
