@@ -964,10 +964,8 @@
 - note (2026-11-21, planner): added
 
 ### T-073 · time.rs: timestamps to the second with UTC offset
-- status: claimed
+- status: done
 - owner: haiku-t-073
-- claimed: 2026-11-21T00:28+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: Everything recorded carries when it happened; tests need a clock they can fix.
@@ -983,9 +981,13 @@
   6. Run cargo test --lib time::.
 - accept: now() has the form of format.md section 7 and obeys DOSSIER_NOW.
 - verify: cargo test --lib time::
+- verified: 2026-11-21
+- commit: a831f28
 - reqs: R-HIST-4, R-XOS-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
+- note (2026-11-21, haiku-t-073): done
 
 ### T-074 · hash.rs: SHA-256 as hex
 - status: done
@@ -2314,8 +2316,10 @@
 - note (2026-11-21, planner): added
 
 ### T-137 · agents/mod.rs: the managed block in AGENTS.md
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-137
+- claimed: 2026-11-21T00:31+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-130
 - why: The rules must be installable into AGENTS.md without touching any other line.
