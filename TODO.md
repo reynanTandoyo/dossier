@@ -945,10 +945,8 @@
 - note (2026-11-21, haiku-t-071): done
 
 ### T-072 · output.rs: text, JSON envelope, closed pipe
-- status: claimed
+- status: done
 - owner: haiku-t-072
-- claimed: 2026-11-21T00:31+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: Every command prints through this one function, so text and JSON output are the same everywhere.
@@ -964,8 +962,12 @@
   6. Run cargo test --lib output::.
 - accept: render produces the two shapes of design.md; emit never panics when writing fails.
 - verify: cargo test --lib output::
+- verified: 2026-11-21
+- commit: eb0d99a
 - reqs: R-OUT-1, R-OUT-2, R-OUT-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-072): done
 
 ### T-073 · time.rs: timestamps to the second with UTC offset
 - status: done
@@ -1038,8 +1040,10 @@
 - note (2026-11-21, planner): added
 
 ### T-076 · find.rs: locate the DOSSIER folder
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-076
+- claimed: 2026-11-21T00:33+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: Every command must agree on which dossier it works on.
@@ -1058,8 +1062,10 @@
 - note (2026-11-21, planner): added
 
 ### T-077 · config.rs: read dossier.toml, default text, add a person
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-077
+- claimed: 2026-11-21T00:33+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: The project code, the limits and the list of people and their LLMs drive who may write and approve.
@@ -1197,8 +1203,10 @@
 - note (2026-11-21, planner): added
 
 ### T-084 · entry/mod.rs: parse an entry and read its parts
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-084
+- claimed: 2026-11-21T00:33+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-083
 - why: Every command reads entries through this model; it must keep every byte of a hand-written file.
