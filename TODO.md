@@ -1366,10 +1366,8 @@
 - note (2026-11-21, planner): added
 
 ### T-090 · journal.rs: one line per change
-- status: claimed
+- status: done
 - owner: haiku-t-090
-- claimed: 2026-11-21T00:39+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-083
 - why: The journal answers who did what when for the whole dossier.
@@ -1383,8 +1381,12 @@
   4. Run cargo test --lib journal::.
 - accept: Records are appended one JSON line each and read back oldest first.
 - verify: cargo test --lib journal::
+- verified: 2026-11-21
+- commit: 1984cd3
 - reqs: R-HIST-1, R-HIST-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-090): done
 
 ### T-091 · snapshot.rs: keep the old version of an entry
 - status: open
@@ -1488,8 +1490,10 @@
 - note (2026-11-21, planner): added
 
 ### T-096 · init: create a project dossier
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-096
+- claimed: 2026-11-21T00:41+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: The first command anyone runs in a project.
