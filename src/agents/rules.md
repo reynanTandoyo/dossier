@@ -7,6 +7,7 @@
 - Work only on a task you have claimed in `todo`.
 - Decisions in force bind you: if your task contradicts one, stop and ask your person; never work around it.
 - When your person decides something, record it at once: `dossier decide "<decision>" --reason "<why>" --said-by <person>`.
+- If `dossier decide` lists related decisions, run it again with `--replaces <ID>` when yours replaces one, or `--besides` when both stay in force.
 - Record what you observe with `dossier found "<observation>"`, and what was tried and failed with `dossier found "<what was tried>" --dead-end`.
 - Record what you had to assume with `dossier assume "<assumption>" --reason "<why>"`.
 - After `todo done <id>`, run `dossier review-task <id>`, then propose lessons with `dossier learn` (it needs `--valid-for`, `--evidence` and `--confidence`), or propose none if nothing was learned.
