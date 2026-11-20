@@ -1,6 +1,6 @@
 # dossier — requirements
 
-Draft 4, 2026-11-20. Five points are still open (§12); everything else is decided (§3) until the
+Draft 4, 2026-11-20. Four points are still open (§12); everything else is decided (§3) until the
 owner says otherwise.
 
 Each requirement has a priority, which says how important it is. When it is built is decided
@@ -739,6 +739,21 @@ things are in the code is left to code navigation tools.
   in the same way, so that the task list is reached from the PC without a second wrapper.
 - **R-REMOTE-6 MUST** The name is taken from the PC's `DOSSIER_AGENT` (or `--agent`) and sent
   with each command; the server's own setting is not used.
+- **R-REMOTE-9 MUST** `connect` also records the project in a per-user register on the PC
+  (`%APPDATA%\dossier\projects.toml`; on Linux `$XDG_CONFIG_HOME/dossier/projects.toml`, normally
+  `~/.config/dossier/`): project code, server, user, project folder on the server, and the local
+  folder if there is one. `connect --code <code> <user@server>:<folder>` records a project
+  without a local folder.
+- **R-REMOTE-10 MUST** `projects` lists the register: code, server, folder, local folder, and
+  whether the server answers. `--project <code>` on any command runs it for that project from
+  any folder on the PC. `projects remove <code>` forgets one. So a person or an LLM never has to
+  know or type a server name or path.
+- **R-REMOTE-11 MUST** ssh is run so that it never asks a question: key sign-in only, no password
+  prompt, a connection time limit of 10 seconds (`ssh_timeout_seconds`). When sign-in fails or
+  the server doesn't answer, the command ends with exit code `5` and a message that says to sign
+  in once by hand with `ssh <user@server>`. A session without a terminal must never hang.
+- **R-REMOTE-12 MUST** `brief` and `status` in remote mode print one first line naming the
+  project code and the server folder, so an LLM knows where the project's files are.
 - **R-REMOTE-7 SHOULD** One ssh connection is kept open and reused for several commands, so that
   a command takes under half a second on the office network after the first.
 - **R-REMOTE-8 SHOULD** `dossier connect --check` tests the connection, that `dossier` and `todo`
@@ -1049,8 +1064,9 @@ starts its session with it.
 **At the end you can:** create a dossier in a project folder; record decisions, assumptions,
 findings, dead ends and lessons; approve an LLM's drafts; search; get `brief` and `status`; undo
 any change. It runs on the server (or on a PC for a project that lives there, such as the
-owner's own software) and is reached from a PC with a plain `ssh` command described in the
-README.
+owner's own software). From a PC, `dossier` and `dossier todo` are typed as if the project were
+local: a folder is connected once, the project is noted in a per-user register, and commands are
+forwarded through ssh.
 
 | Area | Requirements |
 |---|---|
@@ -1068,6 +1084,7 @@ README.
 | Settings | R-CFG-1, 3; the people and their LLMs are listed in the project settings until phase 3 |
 | Output | R-OUT-1 to 5 |
 | Backup | R-BACKUP-1 to 3 |
+| Running commands from the PC (no file copying yet) | R-REMOTE-1 to 3, 5, 6, 9 to 12 |
 
 In this phase every listed person may decide (R-WRITE-2); proposals come in phase 2.
 
@@ -1139,7 +1156,7 @@ it without overwriting a colleague's version.
 
 | Area | Requirements |
 |---|---|
-| Remote mode | R-REMOTE-1 to 8 |
+| Remote mode: copying files, connection reuse, connection check | R-REMOTE-4, 7, 8 |
 | Large files | R-FILE-1 to 7 |
 
 **It worked if:** all three team members work for two weeks without typing `ssh`, and one
@@ -1196,10 +1213,10 @@ Where another requirement still names a removed command, the replacement is mean
   create the same ID twice. Today the owner develops alone, so this doesn't arise. It must be
   solved (for example by IDs that carry the author) before colleagues commit from their own
   copies.
-- **O-7 Reaching the server in phases 1 to 3.** Until remote mode exists (phase 4), a PC reaches
-  the dossier with a plain `ssh` command. Whether that is comfortable enough for three people
-  for that long, or a first small part of remote mode (R-REMOTE-1, 2, 5) must move into phase 1,
-  is to be seen in the first weeks of use.
+- **O-7 Reaching the server in phases 1 to 3.** *Decided 2026-11-20: running commands from the
+  PC is part of phase 1, with a per-user register of projects (R-REMOTE-9 to 12). The team's
+  network signs in to the server by key without a password. Copying large files stays in
+  phase 4.*
 - **O-5 Tags on tasks.** R-CTX-3 uses `machine`, `analysis` and `software` fields on `todo`
   tasks. Whether `todo` 0.8's planner writes them, or the project's default tags are enough, is
   to be seen in the first real project.

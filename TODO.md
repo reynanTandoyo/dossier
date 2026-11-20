@@ -407,7 +407,7 @@
 - priority: P1 · difficulty: 3 · type: docs
 - milestone: T-001
 - why: The repository is public and the team has to be able to start without the author.
-- depends: T-026, T-027
+- depends: T-026,T-027,T-063
 - files: README.md
 - read: docs/requirements.md
 - accept: README explains what the tool is for, that it needs todo 0.8 or newer with a link, a first project in ten commands, how it works with todo, how to run it on the server from a PC with a plain ssh command, that the dossier is one copy that must be in the server's backup, and how to schedule pack; examples are in PowerShell and a Linux shell.
@@ -420,7 +420,7 @@
 - priority: P1 · difficulty: 3 · type: chore
 - milestone: T-001
 - why: Phase 1 is only finished when the team can install it on the server and try it on a real project.
-- depends: T-029, T-028, T-025, T-016, T-014, T-021, T-024, T-015, T-011
+- depends: T-029,T-028,T-025,T-016,T-014,T-021,T-024,T-015,T-011,T-063
 - files: .github/workflows/release.yml, Cargo.toml, README.md
 - read: docs/requirements.md, ../todo/.github/workflows/
 - accept: A v0.1.0 tag builds one program for Linux x64 and one dossier.exe for Windows x64 with the C runtime linked in, with checksums; all checks pass on both systems; the program refuses a dossier written by a newer format with a message to update.
@@ -657,7 +657,7 @@
 - goal: A folder on a PC is connected to a project on the server; every dossier and todo command runs there through ssh; large simulation files are taken, worked on locally and returned without overwriting a colleague's version. Requirements: docs/requirements.md section 11, Phase 4 (v0.4). Each task here is split when the phase starts.
 - note (2026-11-20, planner): added
 
-### T-053 · Remote mode: connect, running commands through ssh, dossier todo
+### T-053 · Remote mode: connection reuse and connection check
 - status: open
 - owner: —
 - priority: P2 · difficulty: 5 · type: feature
@@ -667,6 +667,7 @@
 - accept: R-REMOTE-1 to R-REMOTE-3 and R-REMOTE-5 to R-REMOTE-8 hold, with the tests of TEST-8.
 - reqs: R-REMOTE-1 to R-REMOTE-3, R-REMOTE-5 to R-REMOTE-8, D9, TEST-8
 - note (2026-11-20, planner): added
+- note (2026-11-20, planner): Forwarding, connect and the project register moved to phase 1 (T-060). Left here: R-REMOTE-7 and R-REMOTE-8.
 
 ### T-054 · Large files: take, return, and the copy in remote mode; release 0.4.0
 - status: open
@@ -719,6 +720,20 @@
 - reqs: R-READ-7, R-READ-9, R-CTX-6, R-CTX-8, R-CHECK-2, R-OUT-5 to R-OUT-7, R-ENTRY-11, R-TEAM-5, REL-4
 - note (2026-11-20, planner): added
 
+### T-063 · Run commands from the PC: connect, the per-user project register, forwarding through ssh, dossier todo
+- status: open
+- owner: —
+- priority: P0 · difficulty: 4 · type: feature
+- milestone: T-001
+- why: The team works on Windows PCs from the first day while the one copy of the dossier is on the Linux server; people and LLMs must not have to know a server name or path.
+- depends: T-004,T-005
+- files: src/remote/mod.rs, src/remote/register.rs, src/cmd/connect.rs, src/cmd/projects.rs, tests/remote.rs
+- read: docs/requirements.md
+- accept: connect writes the pointer file and the register entry; projects lists the register and --project <code> works from any folder; every command in a connected folder runs on the server with output and exit code unchanged; quotes, backticks, dollar signs, umlauts and line breaks arrive unchanged and --stdin is passed on; approve, remove and close ask ssh for a terminal; ssh never prompts and fails with exit 5 within the time limit; dossier todo forwards todo the same way; brief and status name the project code and server folder first; tests use a stand-in for ssh.
+- verify: cargo test --test remote
+- reqs: R-REMOTE-1 to R-REMOTE-3, R-REMOTE-5, R-REMOTE-6, R-REMOTE-9 to R-REMOTE-12, TEST-8
+- note (2026-11-20, planner): added
+
 ## Questions
 
 ### T-059 · Merge the overlapping commands before phase 1 is built? summary into status, note into found, used and ran into one record, howtos and scripts into list with a filter, news into status --since last. See docs/requirements.md section 11, last part.
@@ -730,11 +745,12 @@
 - note (2026-11-20, planner): answer — Yes: merged. summary into status, note into found --later, ran into used --model, howtos and scripts into list --kind, news into status --since last. Requirements updated (section 11, Merged commands).
 
 ### T-060 · Is typing a plain ssh command comfortable enough for phases 1 to 3, or must a first part of remote mode (R-REMOTE-1, 2, 5) move into phase 1? Open point O-7.
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - type: question
 - about: T-001
 - note (2026-11-20, planner): added
+- note (2026-11-20, planner): answer — Running commands from the PC moves into phase 1, with a per-user register of projects (code, server, folder) so nobody types a server or path. ssh signs in by key without a password on the team's network. File copying stays in phase 4. Requirements: R-REMOTE-9 to 12, O-7.
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.
 - status: open
