@@ -36,6 +36,90 @@ Steady runs converged at mass flows where the transient run already showed rotat
 Steady runs with a finer mesh: same result, three times the cost.
 ```
 
+An assumption, a finding that is a dead end, and a lesson drafted by an LLM and not yet approved:
+
+```markdown
+<!-- dossier-format: 1 -->
+# ASM-003 · Inlet profile is uniform
+
+- kind: assumption
+- status: approved
+- created: 2026-11-20T09:12:05+01:00
+- author: ben
+- approved: 2026-11-20T09:12:05+01:00 by ben
+- valid-from: 2026-11-20T09:12:05+01:00
+- state: open
+- task: T-040
+- history: 2026-11-20T09:12:05+01:00 ben: created
+- history: 2026-11-20T09:12:05+01:00 ben: approved
+
+## Assumption
+
+The total pressure and temperature at the inlet are uniform over the span.
+
+## Reason
+
+No measured profile was delivered.
+
+## Affects
+
+T-042, T-043
+```
+
+```markdown
+<!-- dossier-format: 1 -->
+# FND-007 · Halving the time step did not remove the oscillation
+
+- kind: finding
+- status: approved
+- created: 2026-11-21T16:40:11+01:00
+- author: anna
+- via: anna-claude
+- approved: 2026-11-21T16:40:11+01:00 by anna
+- valid-from: 2026-11-21T16:40:11+01:00
+- outcome: dead end
+- task: T-042
+- history: 2026-11-21T16:40:11+01:00 anna via anna-claude: created
+- history: 2026-11-21T16:40:11+01:00 anna via anna-claude: approved
+
+## Observation
+
+The mass flow still oscillated by 0.4 % with half the time step. The cause is not the time step.
+
+## Evidence
+
+Runs 12 and 13, monitor plots in results/monitors/.
+```
+
+```markdown
+<!-- dossier-format: 1 -->
+# LES-004 · Steady mixing-plane runs overpredict stall margin
+
+- kind: lesson
+- status: draft
+- created: 2026-11-21T17:02:44+01:00
+- author: anna
+- via: anna-claude
+- confidence: simulated
+- task: T-042
+- machine: axial compressor
+- analysis: steady RANS, speedline
+- history: 2026-11-21T17:02:44+01:00 anna via anna-claude: created
+
+## Statement
+
+Near the stability limit, steady runs with a mixing-plane interface converged at mass flows
+where the transient run already showed rotating stall.
+
+## Valid for
+
+Transonic front stages, tip Mach number above 1.1. Not checked for subsonic rear stages.
+
+## Evidence
+
+Comparison of steady and transient speedlines, report section 4.2.
+```
+
 ## 2. Text and lines
 
 - Files are UTF-8. A byte-order mark at the start is accepted and kept.
