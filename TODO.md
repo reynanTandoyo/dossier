@@ -800,8 +800,8 @@
 - note (2026-11-21, planner): added
 
 ### T-066 · Cargo project with the approved dependencies
-- status: open
-- owner: —
+- status: done
+- owner: haiku-t066
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-065
 - why: Nothing can be built or tested before the Cargo project exists.
@@ -817,8 +817,12 @@
   7. Run cargo build and fix any error. Commit Cargo.lock together with the other two files.
 - accept: cargo build succeeds; Cargo.toml lists exactly the dependencies of the steps; Cargo.lock is committed.
 - verify: cargo build
+- verified: 2026-11-21
+- commit: fef3ca9
 - reqs: D16, NFR-1, NFR-5, NFR-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t066): done
 
 ### T-067 · Library skeleton: lib.rs and every library module with its types and signatures
 - status: open
