@@ -1018,10 +1018,8 @@
 - note (2026-11-21, haiku-t-074): done
 
 ### T-075 · paths.rs: slugs, Windows-safe names, stored paths
-- status: claimed
+- status: done
 - owner: haiku-t-075
-- claimed: 2026-11-21T00:35+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: File names and stored paths must be the same whether a command was typed on Windows or Linux.
@@ -1038,8 +1036,12 @@
   7. Run cargo test --lib paths::.
 - accept: slug follows format.md section 4; a path typed with backslashes and one typed with slashes store the same text; paths outside the project are refused.
 - verify: cargo test --lib paths::
+- verified: 2026-11-21
+- commit: 1b51023
 - reqs: R-ENTRY-1, R-XOS-2, R-XOS-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-075): done
 
 ### T-076 · find.rs: locate the DOSSIER folder
 - status: done
@@ -1266,8 +1268,10 @@
 - note (2026-11-21, planner): added
 
 ### T-086 · entry/new.rs: the text of a new entry file
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-086
+- claimed: 2026-11-21T00:38+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-083
 - why: Every new entry must look exactly like the example in format.md, whichever command creates it.
@@ -1288,8 +1292,10 @@
 - note (2026-11-21, planner): added
 
 ### T-087 · entry/rules.rs: what an entry of each kind needs
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-087
+- claimed: 2026-11-21T00:38+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-083
 - why: A lesson without its conditions must never be approved.
