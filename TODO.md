@@ -1549,8 +1549,10 @@
 - note (2026-11-21, haiku-t-096): done
 
 ### T-097 · people add: register a person and their LLMs
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-097
+- claimed: 2026-11-21T00:47+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: Only known names may write, and the tool must know which names are LLMs.
@@ -1819,10 +1821,8 @@
 - note (2026-11-21, planner): added
 
 ### T-110 · filter.rs: the filter options shared by list and search
-- status: claimed
+- status: done
 - owner: haiku-t-110
-- claimed: 2026-11-21T00:44+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: list and search must filter the same way.
@@ -1837,8 +1837,12 @@
   5. Run cargo test --lib filter::.
 - accept: Each filter option narrows the entries as described; approved only by default.
 - verify: cargo test --lib filter::
+- verified: 2026-11-21
+- commit: 57935bd
 - reqs: R-READ-2, R-DRAFT-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-110): done
 
 ### T-111 · show: print one entry with its marks
 - status: open
