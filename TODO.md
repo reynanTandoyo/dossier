@@ -2306,8 +2306,10 @@
 - note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
 
 ### T-132 · brief_task.rs: what matters for one task
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-132
+- claimed: 2026-11-21T00:53+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-130
 - why: Before a task, the LLM needs the entries that concern exactly this task.
@@ -2640,10 +2642,8 @@
 - note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
 
 ### T-147 · tar.rs: a small archive writer and reader
-- status: claimed
+- status: done
 - owner: haiku-t-147
-- claimed: 2026-11-21T00:45+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 2 · type: feature
 - milestone: T-139
 - why: A backup archive without a new dependency.
@@ -2658,9 +2658,13 @@
   5. Run cargo test --lib tar::.
 - accept: A folder packed and unpacked is identical; archives are byte-identical for the same input.
 - verify: cargo test --lib tar::
+- verified: 2026-11-21
+- commit: ab26f73
 - final: The header layout is fixed by the tar format; the worker has to look up the field offsets.
 - reqs: R-BACKUP-1, R-BACKUP-2, NFR-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-147): done
 
 ### T-148 · pack and unpack: one archive of a dossier
 - status: open
