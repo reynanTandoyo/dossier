@@ -1093,10 +1093,8 @@
 - note (2026-11-21, haiku-t-077): done
 
 ### T-078 · names.rs: who is writing
-- status: claimed
+- status: done
 - owner: haiku-t-078
-- claimed: 2026-11-21T00:40+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: Each entry must show whether a person or an LLM wrote it, and for whom.
@@ -1112,9 +1110,13 @@
   6. Run cargo test --lib names::.
 - accept: A name resolves to its person; unknown names are refused with the known names listed.
 - verify: cargo test --lib names::
+- verified: 2026-11-21
+- commit: a88c949
 - reqs: D13, R-CFG-4, R-LIFE-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
+- note (2026-11-21, haiku-t-078): done
 
 ### T-079 · lock.rs: the write lock and the network drive test
 - status: done
@@ -1169,8 +1171,10 @@
 - note (2026-11-21, haiku-t-080): done
 
 ### T-081 · term.rs: is a person at a terminal
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-081
+- claimed: 2026-11-21T00:42+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: Approval must be given by a person at a terminal, and tests need a stand-in for one.
