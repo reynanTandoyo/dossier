@@ -12,7 +12,9 @@ pub fn now() -> String {
 
 /// Whether `stamp` is a time stamp in the format of format.md §7.
 pub fn valid(stamp: &str) -> bool {
-    stamp.chars().count() == 25 && DateTime::parse_from_rfc3339(stamp).is_ok()
+    stamp.chars().count() == 25
+        && stamp.as_bytes().get(10) == Some(&b'T')
+        && DateTime::parse_from_rfc3339(stamp).is_ok()
 }
 
 /// The date part of a time stamp: its first 10 characters.
@@ -65,6 +67,13 @@ mod tests {
     }
 
     #[test]
+    fn valid_refuses_a_space_or_lower_case_t_between_date_and_time() {
+        // chrono's parser accepts both; format.md section 7 allows only the capital T.
+        assert!(!valid("2026-11-20 14:03:27+01:00"));
+        assert!(!valid("2026-11-20t14:03:27+01:00"));
+    }
+
+    #[test]
     fn now_returns_dossier_now_when_it_is_set() {
         let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         // SAFETY: ENV_LOCK is held, so no other test in this process reads or changes the
@@ -85,6 +94,21 @@ mod tests {
         unsafe { std::env::remove_var("DOSSIER_NOW") };
         let missing = now();
         for stamp in [invalid, missing] {
+            assert!(valid(&stamp), "not a time stamp: {stamp}");
+            assert_eq!(stamp.get(10..11), Some("T"), "no T separator: {stamp}");
+        }
+    }
+
+    #[test]
+    fn now_ignores_dossier_now_without_a_capital_t() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        for fixed in ["2026-11-20 14:03:27+01:00", "2026-11-20t14:03:27+01:00"] {
+            // SAFETY: ENV_LOCK is held, so no other test in this process reads or changes the
+            // environment while this one does.
+            unsafe { std::env::set_var("DOSSIER_NOW", fixed) };
+            let stamp = now();
+            unsafe { std::env::remove_var("DOSSIER_NOW") };
+            assert_ne!(stamp, fixed);
             assert!(valid(&stamp), "not a time stamp: {stamp}");
             assert_eq!(stamp.get(10..11), Some("T"), "no T separator: {stamp}");
         }
