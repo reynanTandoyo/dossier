@@ -1093,8 +1093,10 @@
 - note (2026-11-21, haiku-t-077): done
 
 ### T-078 · names.rs: who is writing
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-078
+- claimed: 2026-11-21T00:40+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: Each entry must show whether a person or an LLM wrote it, and for whom.
@@ -1115,10 +1117,8 @@
 - note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
 
 ### T-079 · lock.rs: the write lock and the network drive test
-- status: claimed
+- status: done
 - owner: haiku-t-079
-- claimed: 2026-11-21T00:36+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-070
 - why: Three people and their LLMs write at the same time; the lock keeps entries and ID counters intact.
@@ -1135,9 +1135,13 @@
   7. Run cargo test --lib lock::.
 - accept: A held lock makes a second writer fail with BUSY naming the holder; the lock is free after the guard is dropped.
 - verify: cargo test --lib lock::
+- verified: 2026-11-21
+- commit: 5904ff6
 - final: The Windows part needs one call into the operating system; it cannot be written down more exactly without writing the code.
 - reqs: R-LOCK-1 to R-LOCK-3, R-XOS-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-079): done
 
 ### T-080 · atomic.rs: replace a file in one step
 - status: done
@@ -1319,8 +1323,10 @@
 - note (2026-11-21, planner): added
 
 ### T-088 · store.rs: read all entries, find one by ID, name a new file
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-088
+- claimed: 2026-11-21T00:40+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-083
 - why: Commands need one way to load entries and to know where a new one goes.
