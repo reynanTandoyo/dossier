@@ -2364,10 +2364,8 @@
 - note (2026-11-21, haiku-t-137): done
 
 ### T-138 · agents install, agents check and help agents
-- status: claimed
+- status: done
 - owner: haiku-t-138
-- claimed: 2026-11-21T00:34+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-130
 - why: The commands that put the rules in front of every LLM.
@@ -2383,8 +2381,12 @@
   6. Run cargo test --test cmd_agents.
 - accept: agents install writes the block, agents check reports whether it is current, help agents prints the rules.
 - verify: cargo test --test cmd_agents
+- verified: 2026-11-21
+- commit: 0345539
 - reqs: R-AGENT-1, R-AGENT-2, D14
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-138): done
 
 ### T-139 · From the PC: commands run on the server, and Windows and Linux agree
 - status: open
