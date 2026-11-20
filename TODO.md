@@ -1365,10 +1365,8 @@
 - note (2026-11-21, haiku-t-088): done
 
 ### T-089 · ids.rs: the next ID of a kind
-- status: claimed
+- status: done
 - owner: haiku-t-089
-- claimed: 2026-11-21T00:44+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-083
 - why: Two writers must never get the same ID, and an ID is never used twice.
@@ -1384,8 +1382,12 @@
   6. Run cargo test --lib ids::.
 - accept: IDs count per kind, never repeat, and survive deleted entries.
 - verify: cargo test --lib ids::
+- verified: 2026-11-21
+- commit: f921799
 - reqs: R-ID-1, R-ID-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-089): done
 
 ### T-090 · journal.rs: one line per change
 - status: done
@@ -2030,8 +2032,10 @@
 - note (2026-11-21, planner): added
 
 ### T-120 · todo_bridge.rs: read tasks from todo
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-120
+- claimed: 2026-11-21T00:48+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: dossier reads tasks through todo --json and shares no code with it.
