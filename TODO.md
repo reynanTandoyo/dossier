@@ -988,10 +988,8 @@
 - note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
 
 ### T-074 · hash.rs: SHA-256 as hex
-- status: claimed
+- status: done
 - owner: haiku-t-074
-- claimed: 2026-11-21T00:28+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: Checksums tell whether a file changed since it was read or approved.
@@ -1004,8 +1002,12 @@
   3. Run cargo test --lib hash::.
 - accept: The two known values match.
 - verify: cargo test --lib hash::
+- verified: 2026-11-21
+- commit: 17cb156
 - reqs: R-IO-2, R-LIFE-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-074): done
 
 ### T-075 · paths.rs: slugs, Windows-safe names, stored paths
 - status: open
@@ -2292,8 +2294,10 @@
 - note (2026-11-21, planner): added
 
 ### T-136 · The rules text for LLMs
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-136
+- claimed: 2026-11-21T00:30+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: docs
 - milestone: T-130
 - why: Every LLM learns the tool from this one text; if it is unclear, nothing gets recorded.
