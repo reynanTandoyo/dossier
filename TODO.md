@@ -860,10 +860,8 @@
 - note (2026-11-21, haiku-t067): done
 
 ### T-068 · Command skeleton: cli.rs, main.rs and a stub file for every command
-- status: claimed
+- status: done
 - owner: haiku-t-068
-- claimed: 2026-11-21T00:28+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: chore
 - milestone: T-065
 - why: After this task a command task only fills in its own file; cli.rs never changes again.
@@ -882,9 +880,13 @@
   8. Run cargo build, cargo clippy --all-targets -- -D warnings and cargo test --test smoke.
 - accept: dossier --version prints the version; every command of design.md section 5 is accepted by the parser and fails with its not built yet message; an unknown command exits with 2; clippy is clean.
 - verify: cargo test --test smoke
+- verified: 2026-11-21
+- commit: 2f7efdf
 - reqs: D16, R-OUT-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Simple emit moved from T-068 to T-067 (output.rs is T-067's file; T-068 did not list it and could run beside T-072). Smoke test uses an unknown command for exit 2, because dossier where stops returning 2 once T-109 is built.
+- note (2026-11-21, haiku-t-068): done
 
 ### T-069 · CI workflow, MIT licence and CLAUDE.md
 - status: done
@@ -943,8 +945,10 @@
 - note (2026-11-21, haiku-t-071): done
 
 ### T-072 · output.rs: text, JSON envelope, closed pipe
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-072
+- claimed: 2026-11-21T00:31+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: Every command prints through this one function, so text and JSON output are the same everywhere.
