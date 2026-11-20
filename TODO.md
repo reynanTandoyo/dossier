@@ -860,8 +860,10 @@
 - note (2026-11-21, haiku-t067): done
 
 ### T-068 · Command skeleton: cli.rs, main.rs and a stub file for every command
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-068
+- claimed: 2026-11-21T00:28+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: chore
 - milestone: T-065
 - why: After this task a command task only fills in its own file; cli.rs never changes again.
@@ -915,8 +917,8 @@
 - note (2026-11-21, planner): added
 
 ### T-071 · error.rs: exit codes and code names
-- status: open
-- owner: —
+- status: done
+- owner: haiku-t-071
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: Agents branch on the exit code and the code name of every failure.
@@ -933,8 +935,12 @@
   7. Run cargo test --lib error::.
 - accept: All 20 codes map to the exit codes of the design table; names are SCREAMING_SNAKE_CASE.
 - verify: cargo test --lib error::
+- verified: 2026-11-21
+- commit: cc8f6d1
 - reqs: R-OUT-2, R-OUT-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-071): done
 
 ### T-072 · output.rs: text, JSON envelope, closed pipe
 - status: open
@@ -958,8 +964,10 @@
 - note (2026-11-21, planner): added
 
 ### T-073 · time.rs: timestamps to the second with UTC offset
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-073
+- claimed: 2026-11-21T00:28+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: Everything recorded carries when it happened; tests need a clock they can fix.
@@ -980,8 +988,10 @@
 - note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
 
 ### T-074 · hash.rs: SHA-256 as hex
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-074
+- claimed: 2026-11-21T00:28+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: Checksums tell whether a file changed since it was read or approved.
