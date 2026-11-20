@@ -66,7 +66,7 @@ fn install(yes: bool, g: &Global) -> Result<Output> {
             json!({"written": false}),
         ));
     }
-    std::fs::write(&path, text.as_bytes())?;
+    crate::atomic::replace(&path, text.as_bytes(), None)?;
     Ok(Output::with(
         "AGENTS.md: rules block written",
         json!({"written": true}),
