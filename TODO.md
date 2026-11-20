@@ -1018,8 +1018,10 @@
 - note (2026-11-21, haiku-t-074): done
 
 ### T-075 · paths.rs: slugs, Windows-safe names, stored paths
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-075
+- claimed: 2026-11-21T00:35+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: File names and stored paths must be the same whether a command was typed on Windows or Linux.
@@ -1132,10 +1134,8 @@
 - note (2026-11-21, planner): added
 
 ### T-080 · atomic.rs: replace a file in one step
-- status: claimed
+- status: done
 - owner: haiku-t-080
-- claimed: 2026-11-21T00:34+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: A crash or a hand edit during a write must never leave half an entry.
@@ -1151,8 +1151,12 @@
   6. Run cargo test --lib atomic::.
 - accept: A file is either the old or the new version, never half; a file changed since it was read is not overwritten.
 - verify: cargo test --lib atomic::
+- verified: 2026-11-21
+- commit: 5d4c398
 - reqs: R-IO-1, R-IO-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-080): done
 
 ### T-081 · term.rs: is a person at a terminal
 - status: open
