@@ -2300,10 +2300,8 @@
 - note (2026-11-21, planner): added
 
 ### T-136 · The rules text for LLMs
-- status: claimed
+- status: done
 - owner: haiku-t-136
-- claimed: 2026-11-21T00:30+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: docs
 - milestone: T-130
 - why: Every LLM learns the tool from this one text; if it is unclear, nothing gets recorded.
@@ -2316,8 +2314,12 @@
   3. End the file with a single line break and use LF line endings.
 - accept: rules.md has at most 40 lines and contains every rule listed.
 - verify: cargo build
+- verified: 2026-11-21
+- commit: ee7e8ed
 - reqs: R-AGENT-1, R-CTX-12, R-ENTRY-19, D25
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-136): done
 
 ### T-137 · agents/mod.rs: the managed block in AGENTS.md
 - status: claimed
