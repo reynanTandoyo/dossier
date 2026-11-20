@@ -2481,10 +2481,8 @@
 - note (2026-11-21, planner): added
 
 ### T-140 · remote/pointer.rs: the .dossier-connect file
-- status: claimed
+- status: done
 - owner: haiku-t-140
-- claimed: 2026-11-21T00:50+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-139
 - why: A connected folder must remember which server project it belongs to.
@@ -2498,8 +2496,12 @@
   4. Run cargo test --lib remote::pointer::.
 - accept: The pointer file is written and found from any subfolder.
 - verify: cargo test --lib remote::pointer::
+- verified: 2026-11-21
+- commit: 2576723
 - reqs: R-REMOTE-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-140): done
 
 ### T-141 · remote/register.rs: the per-user list of projects
 - status: claimed
