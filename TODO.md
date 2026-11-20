@@ -1213,10 +1213,8 @@
 - note (2026-11-21, planner): added
 
 ### T-084 · entry/mod.rs: parse an entry and read its parts
-- status: claimed
+- status: done
 - owner: haiku-t-084
-- claimed: 2026-11-21T00:33+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-083
 - why: Every command reads entries through this model; it must keep every byte of a hand-written file.
@@ -1235,9 +1233,13 @@
   9. Run cargo test --lib entry::tests.
 - accept: Entry::parse(text).text() equals text for every valid file; fields, sections, ID and title are read as format.md describes.
 - verify: cargo test --lib entry::tests
+- verified: 2026-11-21
+- commit: 683699c
 - final: Parsing needs a few small decisions about edge cases that are easier to settle in code than in steps.
 - reqs: R-ENTRY-1, R-ENTRY-2, R-EDIT-3, R-XOS-6, D17
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-084): done
 
 ### T-085 · entry/edit.rs: change fields, title, sections and add history lines
 - status: open
