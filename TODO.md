@@ -1195,8 +1195,10 @@
 - note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
 
 ### T-082 · ctx.rs: what every command starts with
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-082
+- claimed: 2026-11-21T00:43+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: One place finds the dossier, loads the settings and resolves who is writing.
@@ -1331,10 +1333,8 @@
 - note (2026-11-21, haiku-t-087): done
 
 ### T-088 · store.rs: read all entries, find one by ID, name a new file
-- status: claimed
+- status: done
 - owner: haiku-t-088
-- claimed: 2026-11-21T00:40+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-083
 - why: Commands need one way to load entries and to know where a new one goes.
@@ -1349,8 +1349,12 @@
   5. Run cargo test --lib store::.
 - accept: All entries load in ID order; broken files are skipped with a warning; an entry is found by ID in any case, with or without a place prefix.
 - verify: cargo test --lib store::
+- verified: 2026-11-21
+- commit: 6dabfee
 - reqs: R-ID-2, R-EDIT-3, R-ENTRY-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-088): done
 
 ### T-089 · ids.rs: the next ID of a kind
 - status: open
@@ -1420,8 +1424,10 @@
 - note (2026-11-21, planner): added
 
 ### T-092 · approval.rs: notice an approved entry that was changed by hand
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-092
+- claimed: 2026-11-21T00:43+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-083
 - why: Approved knowledge that someone edited without the tool must be marked until a person looks at it again.
