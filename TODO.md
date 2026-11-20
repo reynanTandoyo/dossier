@@ -1068,10 +1068,8 @@
 - note (2026-11-21, haiku-t-076): done
 
 ### T-077 · config.rs: read dossier.toml, default text, add a person
-- status: claimed
+- status: done
 - owner: haiku-t-077
-- claimed: 2026-11-21T00:33+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: The project code, the limits and the list of people and their LLMs drive who may write and approve.
@@ -1087,8 +1085,12 @@
   6. Run cargo test --lib config::.
 - accept: dossier.toml of format.md section 10 loads; unknown keys are errors naming the file; add_person keeps other lines.
 - verify: cargo test --lib config::
+- verified: 2026-11-21
+- commit: 2847923
 - reqs: R-CFG-1, R-CFG-3, R-CFG-4, NFR-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-077): done
 
 ### T-078 · names.rs: who is writing
 - status: open
@@ -1358,8 +1360,10 @@
 - note (2026-11-21, planner): added
 
 ### T-090 · journal.rs: one line per change
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-090
+- claimed: 2026-11-21T00:39+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-083
 - why: The journal answers who did what when for the whole dossier.
