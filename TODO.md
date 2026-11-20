@@ -1436,10 +1436,8 @@
 - note (2026-11-21, haiku-t-091): done
 
 ### T-092 · approval.rs: notice an approved entry that was changed by hand
-- status: claimed
+- status: done
 - owner: haiku-t-092
-- claimed: 2026-11-21T00:43+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-083
 - why: Approved knowledge that someone edited without the tool must be marked until a person looks at it again.
@@ -1455,8 +1453,12 @@
   6. Run cargo test --lib approval::.
 - accept: A change to the content is noticed; history, status and approval lines do not count as a change.
 - verify: cargo test --lib approval::
+- verified: 2026-11-21
+- commit: cf1db65
 - reqs: R-LIFE-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-092): done
 
 ### T-093 · tx.rs: every write goes through one transaction
 - status: claimed
