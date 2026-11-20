@@ -1494,10 +1494,8 @@
 - note (2026-11-21, haiku-t-093): done
 
 ### T-094 · create.rs: create one entry with author, approval and history
-- status: claimed
+- status: done
 - owner: haiku-t-094
-- claimed: 2026-11-21T00:51+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-083
 - why: Who wrote an entry, whether it is approved and when must be decided in one place for every kind and every command.
@@ -1516,10 +1514,14 @@
   9. Run cargo test --lib create::.
 - accept: Author, LLM, status, approval time and history lines follow design.md for people and LLMs; incomplete entries cannot be approved.
 - verify: cargo test --lib create::
+- verified: 2026-11-21
+- commit: 61f549a
 - final: The approval rules have several cases that interact; they are listed, but their order is settled in code.
 - reqs: D5, R-WRITE-2 to R-WRITE-4, R-LIFE-2, R-ENTRY-14, R-HIST-4, R-HIST-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Test compares with tx.time() instead of setting DOSSIER_NOW, which the time tests change.
+- note (2026-11-21, haiku-t-094): done
 
 ### T-095 · Recording: one short command writes an entry
 - status: open
@@ -1816,8 +1818,10 @@
 - note (2026-11-21, planner): added
 
 ### T-109 · where: the paths in use
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-109
+- claimed: 2026-11-21T00:55+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: People and LLMs need to see which dossier a command would work on.
@@ -2630,8 +2634,10 @@
 - note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
 
 ### T-146 · todo: run todo in the project folder
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-146
+- claimed: 2026-11-21T00:55+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-139
 - why: The task list is reached through the same command from a PC and on the server.
