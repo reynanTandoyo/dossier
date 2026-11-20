@@ -1514,10 +1514,8 @@
 - note (2026-11-21, planner): added
 
 ### T-096 · init: create a project dossier
-- status: claimed
+- status: done
 - owner: haiku-t-096
-- claimed: 2026-11-21T00:41+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: The first command anyone runs in a project.
@@ -1535,8 +1533,12 @@
   8. Run cargo test --test cmd_init.
 - accept: init --code P-001 creates DOSSIER with its folders, settings and state folder; a second init is refused.
 - verify: cargo test --test cmd_init
+- verified: 2026-11-21
+- commit: ec8defe
 - reqs: R-PLACE-2, R-XOS-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-096): done
 
 ### T-097 · people add: register a person and their LLMs
 - status: open
