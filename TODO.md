@@ -1581,8 +1581,10 @@
 - note (2026-11-21, haiku-t-097): done
 
 ### T-098 · tests/common/mod.rs: the shared test project
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-098
+- claimed: 2026-11-21T00:52+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: test
 - milestone: T-095
 - why: Every command test needs the same temporary project, so tests stay short and alike.
@@ -2042,10 +2044,8 @@
 - note (2026-11-21, planner): added
 
 ### T-120 · todo_bridge.rs: read tasks from todo
-- status: claimed
+- status: done
 - owner: haiku-t-120
-- claimed: 2026-11-21T00:48+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: dossier reads tasks through todo --json and shares no code with it.
@@ -2061,9 +2061,13 @@
   6. Run cargo test --lib todo_bridge::.
 - accept: json returns the data of todo's envelope and turns a missing todo into TODO_MISSING.
 - verify: cargo test --lib todo_bridge::
+- verified: 2026-11-21
+- commit: c43d59d
 - reqs: D1, TEST-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
+- note (2026-11-21, haiku-t-120): done
 
 ### T-121 · review-task: the material for drafting lessons
 - status: open
