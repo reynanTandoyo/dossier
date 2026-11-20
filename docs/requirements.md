@@ -119,15 +119,15 @@ an LLM starts with the right context.
 ## 4. An entry in brief
 
 ```markdown
-<!-- dossier format: 1 -->
+<!-- dossier-format: 1 -->
 # LES-031 · Steady mixing-plane runs overpredict stall margin
 
 - kind: lesson
 - status: approved
-- created: 2026-11-19T14:03+01:00
+- created: 2026-11-19T14:03:00+01:00
 - author: anna
 - via: anna-claude
-- approved: 2026-11-19T16:20+01:00 by anna
+- approved: 2026-11-19T16:20:00+01:00 by anna
 - machine: axial compressor
 - analysis: steady RANS, speedline
 - software: ExampleSolver 2406
@@ -149,7 +149,7 @@ Transonic front stages, tip Mach number above 1.1. Not checked for subsonic rear
 Comparison of steady and transient speedlines in P-017, report section 4.2.
 ```
 
-The exact format is fixed in `docs/format.md` (to be written from §5.2).
+The exact format is fixed in [`docs/format.md`](format.md); where the two differ, format.md counts.
 
 ---
 

@@ -828,22 +828,24 @@
 - why: With every type and signature in place, each later task fills in one file without touching a shared one.
 - final: Mechanical but touches every library file at once; all signatures are copied from docs/design.md.
 - depends: T-066
-- files: Cargo.toml, src/lib.rs, src/error.rs, src/output.rs, src/time.rs, src/hash.rs, src/paths.rs, src/find.rs, src/config.rs, src/names.rs, src/lock.rs, src/atomic.rs, src/term.rs, src/ctx.rs, src/entry/mod.rs, src/entry/edit.rs, src/entry/new.rs, src/entry/rules.rs, src/store.rs, src/ids.rs, src/journal.rs, src/snapshot.rs, src/approval.rs, src/tx.rs, src/create.rs, src/filter.rs, src/select.rs, src/todo_bridge.rs, src/brief_task.rs, src/tar.rs, src/remote/mod.rs, src/remote/pointer.rs, src/remote/register.rs, src/remote/ssh.rs, src/remote/forward.rs, src/agents/mod.rs, src/agents/rules.md
+- files: Cargo.toml, clippy.toml, src/lib.rs, src/error.rs, src/output.rs, src/time.rs, src/hash.rs, src/paths.rs, src/find.rs, src/config.rs, src/names.rs, src/lock.rs, src/atomic.rs, src/term.rs, src/ctx.rs, src/entry/mod.rs, src/entry/edit.rs, src/entry/new.rs, src/entry/rules.rs, src/store.rs, src/ids.rs, src/journal.rs, src/snapshot.rs, src/approval.rs, src/tx.rs, src/create.rs, src/filter.rs, src/select.rs, src/todo_bridge.rs, src/brief_task.rs, src/tar.rs, src/remote/mod.rs, src/remote/pointer.rs, src/remote/register.rs, src/remote/ssh.rs, src/remote/forward.rs, src/agents/mod.rs, src/agents/rules.md
 - read: docs/design.md
 - steps:
   1. Add the [lib] section (name dossier, path src/lib.rs) to Cargo.toml.
-  2. Create src/lib.rs with one pub mod line per module of docs/design.md section 2 (cli and cmd are added by the next task).
-  3. For every library module of design.md section 3, create its file with every type, constant and function signature exactly as written there.
-  4. Give every function a body that compiles and does nothing useful: return Err(Error::new(Code::NotImplemented, '<module>::<function>')) where it returns a Result, and a plain default value otherwise (empty String, empty Vec, false, None, 0). Never use todo!, unimplemented!, unwrap, expect or panic.
-  5. Implement only error.rs fully enough for the others to compile: the Code enum, Error, Result, Error::new; exit and name may return 1 and an empty string for now.
-  6. In src/cli.rs is not part of this task: where a signature needs crate::cli::Global (ctx.rs), declare a temporary pub struct Global in ctx.rs with the six fields of design.md section 4 and a comment that the next task moves it.
-  7. Create src/agents/rules.md with one line: rules are written by a later task.
-  8. Put #![allow(dead_code, unused_variables)] at the top of lib.rs with a comment that the release task removes it.
-  9. Run cargo build and cargo clippy --all-targets -- -D warnings and fix every error.
-- accept: Every file of design.md section 3 exists with the listed signatures; cargo build and cargo clippy --all-targets -- -D warnings succeed.
+  2. Create clippy.toml with three lines: allow-unwrap-in-tests = true, allow-expect-in-tests = true, allow-panic-in-tests = true. Without it the deny lints in Cargo.toml reject unwrap, expect and panic in unit tests and in tests/, which AGENTS.md allows.
+  3. Create src/lib.rs with one pub mod line per module of docs/design.md section 2 (cli and cmd are added by the next task).
+  4. For every library module of design.md section 3, create its file with every type, constant and function signature exactly as written there.
+  5. Give every function a body that compiles and does nothing useful: return Err(Error::new(Code::NotImplemented, '<module>::<function>')) where it returns a Result, and a plain default value otherwise (empty String, empty Vec, false, None, 0). Never use todo!, unimplemented!, unwrap, expect or panic.
+  6. Implement only error.rs fully enough for the others to compile: the Code enum, Error, Result, Error::new; exit and name may return 1 and an empty string for now.
+  7. In src/cli.rs is not part of this task: where a signature needs crate::cli::Global (ctx.rs), declare a temporary pub struct Global in ctx.rs with the six fields of design.md section 4 and a comment that the next task moves it.
+  8. Create src/agents/rules.md with one line: rules are written by a later task.
+  9. Put #![allow(dead_code, unused_variables)] at the top of lib.rs with a comment that the release task removes it.
+  10. Run cargo build and cargo clippy --all-targets -- -D warnings and fix every error.
+- accept: Every file of design.md section 3 exists with the listed signatures; clippy.toml allows unwrap, expect and panic in tests; cargo build and cargo clippy --all-targets -- -D warnings succeed.
 - verify: cargo clippy --all-targets -- -D warnings
 - reqs: D16, NFR-5
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): clippy.toml added: the deny lints of T-066 otherwise fail cargo clippy --all-targets on test code (checked in a throwaway crate). It sits here, not in T-066, because a level-1 task may list at most 3 files.
 
 ### T-068 · Command skeleton: cli.rs, main.rs and a stub file for every command
 - status: open
@@ -2602,6 +2604,7 @@
 - status: open
 - owner: —
 - type: question
-- about: T-006
+- about: T-079
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): about moved from T-006 (dropped) to T-079 (lock.rs), which now holds the lock work.
 
