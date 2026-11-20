@@ -1274,10 +1274,8 @@
 - note (2026-11-21, planner): added
 
 ### T-086 · entry/new.rs: the text of a new entry file
-- status: claimed
+- status: done
 - owner: haiku-t-086
-- claimed: 2026-11-21T00:38+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-083
 - why: Every new entry must look exactly like the example in format.md, whichever command creates it.
@@ -1294,8 +1292,12 @@
   7. Run cargo test --lib entry::new::.
 - accept: render gives the canonical text of format.md section 1, and it parses back to the same fields and sections.
 - verify: cargo test --lib entry::new::
+- verified: 2026-11-21
+- commit: 9050524
 - reqs: R-ENTRY-1 to R-ENTRY-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-086): done
 
 ### T-087 · entry/rules.rs: what an entry of each kind needs
 - status: done
