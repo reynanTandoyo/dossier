@@ -1197,10 +1197,8 @@
 - note (2026-11-21, haiku-t-081): done
 
 ### T-082 · ctx.rs: what every command starts with
-- status: claimed
+- status: done
 - owner: haiku-t-082
-- claimed: 2026-11-21T00:43+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-070
 - why: One place finds the dossier, loads the settings and resolves who is writing.
@@ -1217,8 +1215,12 @@
   7. Run cargo test --lib ctx::.
 - accept: Ctx::load returns the folders, settings and writer; an unknown name is an error, a missing name is not.
 - verify: cargo test --lib ctx::
+- verified: 2026-11-21
+- commit: 9f585d9
 - reqs: R-PLACE-1, D13
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-082): done
 
 ### T-083 · Entries: files are read and changed without damage, with who and when
 - status: open
@@ -1877,8 +1879,10 @@
 - note (2026-11-21, planner): added
 
 ### T-113 · select.rs: score entries against tags and words
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-113
+- claimed: 2026-11-21T00:45+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: brief, search and the similar-entry hint must rank entries the same way.
@@ -2600,8 +2604,10 @@
 - note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
 
 ### T-147 · tar.rs: a small archive writer and reader
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-147
+- claimed: 2026-11-21T00:45+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 2 · type: feature
 - milestone: T-139
 - why: A backup archive without a new dependency.
