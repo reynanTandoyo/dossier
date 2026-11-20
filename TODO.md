@@ -1581,10 +1581,8 @@
 - note (2026-11-21, haiku-t-097): done
 
 ### T-098 · tests/common/mod.rs: the shared test project
-- status: claimed
+- status: done
 - owner: haiku-t-098
-- claimed: 2026-11-21T00:52+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: test
 - milestone: T-095
 - why: Every command test needs the same temporary project, so tests stay short and alike.
@@ -1602,9 +1600,13 @@
   8. Run cargo test --test common_check.
 - accept: A test gets a ready project with two people in three lines, can add variables before running a command, and can put a stand-in todo or ssh where the program looks for it.
 - verify: cargo test --test common_check
+- verified: 2026-11-21
+- commit: d988917
 - reqs: TEST-1, TEST-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Added command, stand_in and write_stand_in (design.md section 6): run returns a finished Assert, so tests that need DOSSIER_ANSWERS, EDITOR or a stand-in todo had no way to set them.
+- note (2026-11-21, haiku-t-098): done
 
 ### T-099 · add: create an entry of any kind from options, a file or standard input
 - status: open
@@ -2554,8 +2556,10 @@
 - note (2026-11-21, haiku-t-142): done
 
 ### T-143 · remote/forward.rs: run a command on the server
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-143
+- claimed: 2026-11-21T00:55+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-139
 - why: From a PC, dossier must behave as if the project were local.
@@ -2579,8 +2583,10 @@
 - note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
 
 ### T-144 · connect: tie a PC folder to a project on the server
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-144
+- claimed: 2026-11-21T00:55+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-139
 - why: One command per project, once, and nobody types a server or path again.
