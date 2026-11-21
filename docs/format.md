@@ -279,3 +279,195 @@ One line per change:
 Read: any heading separator of §3, a missing format line, `CRLF`, a byte-order mark, fields in
 any order, blank lines anywhere between the parts. Written by the tool: exactly what §1 shows. The
 tool never rewrites a line it has no reason to change.
+
+---
+
+# Phase 2 (v0.2) additions
+
+Everything below is still format version 1: the files of phase 1 keep their meaning, and new
+fields, statuses and files are added. Every rule of §2, §3, §6, §7 and §13 holds for the new
+files too. Every change of every file carries who and when (D29).
+
+## 14. New statuses, events and fields of entries
+
+- Statuses for decisions: `proposed` (behaves like `draft`) and `declined` (behaves like
+  `rejected`). An accepted proposal becomes `approved`; its `approved` field names the person who
+  accepted it.
+- History events added to §6: `proposed`, `accepted`, `declined`, `confirmed`, `refuted`,
+  `cleared`, `picture`.
+- Fields added to §5, in this order after `rejected-reason`: `declined-reason` (free text),
+  `confirmed` and `refuted` (assumptions: `<time> by <person>`), `rests-on` (comma-separated IDs
+  of wrong assumptions this entry rests on), `code` (comma-separated pointers `path` or
+  `path::name`).
+- An assumption that is confirmed gets `state: confirmed`, `confirmed`, and the `--by` text as
+  its *Confirmation* section. A refuted one gets `state: wrong`, `refuted`, `valid-until`, and the
+  `--by` text as *Confirmation*.
+- The *Affects* section of an assumption holds items separated by commas or line breaks. The
+  tool recognises a task ID (`T-042`), an entry ID (`FND-004`), a value name (`design.massflow`,
+  a name of §17 that exists) and an attached path (§18). Anything else is plain text.
+
+## 15. Usage records
+
+A fifth kind of entry: `usage`, prefix `USE`, folder `usage/`.
+
+| Field | Value |
+|---|---|
+| `software` | name, free text in phase 2 |
+| `version` | the version used |
+| `task` | the task (required for a usage record) |
+| `analysis` | as in §5 |
+| `model` | stored path of the simulation file that was run, if any |
+| `model-checksum` | its checksum (§18) at the time of the run |
+| `howto` | an ID, if one was followed |
+
+Sections, in this order: `Parameters` (one `name = value` per line; a value may be `{name}` of a
+key value, §17), `Outputs` (one stored path per line), `Deviations`, `Notes`. Required:
+`software`, `version`, `task`. A usage record is approved at once, whoever writes it.
+
+```markdown
+<!-- dossier-format: 1 -->
+# USE-003 · ExampleSolver 2406 run of speedline point 7
+
+- kind: usage
+- status: approved
+- created: 2026-12-02T10:15:00+01:00
+- author: anna
+- via: anna-claude
+- approved: 2026-12-02T10:15:00+01:00 by anna
+- valid-from: 2026-12-02T10:15:00+01:00
+- task: T-042
+- software: ExampleSolver
+- version: 2406
+- model: sim/stage1.sim
+- model-checksum: sha256:9f2c…
+- history: 2026-12-02T10:15:00+01:00 anna via anna-claude: created
+- history: 2026-12-02T10:15:00+01:00 anna via anna-claude: approved
+
+## Parameters
+
+backpressure = 1.42 bar
+massflow = {design.massflow}
+
+## Outputs
+
+results/point07/
+```
+
+## 16. Pictures
+
+- A picture of entry `<ID>` is copied to `DOSSIER/images/<ID>/<file>`, where `<file>` is the slug
+  (§4) of the original name without its extension, then `.png`, `.jpg` or `.svg`. A second
+  picture with the same name gets `-2`, `-3`, … before the extension.
+- The entry gets a section `Pictures` (after the kind's own sections) with one line per picture:
+  `![<caption>](../images/<ID>/<file>)`. The caption is one line and required.
+- Allowed: PNG, JPEG and SVG, recognised by their first bytes, at most 2 MB each and 10 per
+  entry.
+
+## 17. Block files
+
+`values.md`, `files/<task>.md`, `exchange.md` and `map.md` are block files:
+
+1. the format line of §3;
+2. a heading `# <title>`;
+3. blocks: a line `## <key>`, then field lines `- <name>: <value>` as in §3, the `history` lines
+   last in the block. Lines that are neither are kept as written.
+
+A new block is written as `## <key>`, a blank line, its field lines, a blank line. A block is
+never deleted: an item that ends gets a field saying so (`detached`, below) and keeps its
+history, so that what was true on a date (R-LIFE-9) can be read back.
+
+In snapshots and the journal the whole file is one item with a fixed ID: `VALUES`, `MAP`,
+`EXCHANGE`, and `FILES-<task>` for `files/<task>.md`. The journal `detail` names the block
+(`design.massflow: set — 12.4 kg/s`).
+
+### values.md
+
+Title `Values of <code>`. One block per value; the key is the name (lower-case letters, digits,
+`.`, `_` and `-`, starting with a letter, such as `design.massflow`).
+
+| Field | Value |
+|---|---|
+| `value` | the value in force: a number, a range or a short text |
+| `unit` | its unit; left out for a dimensionless value, which has `dimensionless: yes` |
+| `source` | where it comes from: an attached path, a document, a person |
+| `note` | free text |
+| `key` | `yes` for a value that `brief` and `status` print first |
+| `valid-from` | the time the value in force was set |
+| `proposed` | `<value>[ <unit>] by <name> at <time>`: a change waiting for a person |
+
+History lines: `<time> <who>: set — <value>[ <unit>]` for every value that came into force,
+`proposed — <value>[ <unit>]`, `rejected — <value>[ <unit>]`, `changed — note` (or `source`,
+`key`). The value in force on a date is the newest `set` line on or before it.
+
+```markdown
+<!-- dossier-format: 1 -->
+# Values of P-017
+
+## design.massflow
+
+- value: 12.4
+- unit: kg/s
+- source: docs/spec-rev3.pdf
+- key: yes
+- valid-from: 2026-12-01T09:00:00+01:00
+- history: 2026-11-20T10:00:00+01:00 anna: set — 12.1 kg/s
+- history: 2026-12-01T09:00:00+01:00 anna: set — 12.4 kg/s
+```
+
+### files/<task>.md
+
+Title `Files of <task>`. One block per attached path; the key is the stored path (R-XOS-2: relative
+to the project folder, with `/`).
+
+| Field | Value |
+|---|---|
+| `role` | `description`, `geometry`, `mesh`, `model`, `setup`, `script`, `result`, `report`, `reference`, `other`, or a role of `roles` in the settings |
+| `type` | `file` or `folder` |
+| `note` | free text |
+| `size` | bytes (files) |
+| `files` | number of files (folders) |
+| `modified` | the file's modification time, format of §7 |
+| `checksum` | `sha256:<hex>`, or for files over 1 GiB `short-sha256:<hex>` of the first and last 16 MiB and the size (R-FILE-6) |
+| `made-from` | comma-separated `<stored path>@<checksum>` |
+| `moved-from` | the old stored path, after `attach --moved` |
+| `detached` | `<time> by <name>`: the file no longer belongs to the task |
+| `rests-on` | as in §14 |
+
+History events: `attached`, `reattached`, `moved`, `detached`, `cleared`.
+
+### exchange.md
+
+Title `Exchange of <code>`. One block per record; the key is `RCV-<n>` (received) or `DLV-<n>`
+(delivered), numbered as entry IDs (ids.json holds `RCV` and `DLV`).
+
+| Field | Value |
+|---|---|
+| `date` | the date of the exchange, `YYYY-MM-DD` |
+| `from` / `to` | who sent or received it |
+| `files` | comma-separated `<stored path>@<checksum>` |
+| `based-on` | comma-separated task IDs and `<stored path>@<checksum>` |
+| `note` | free text |
+
+History events: `received`, `delivered`, `changed`.
+
+### map.md
+
+Title `Map of <code>`. One block per described folder or package; the key is the stored path.
+Fields `purpose`, `start` (where to begin reading), `detached`. History events: `set`,
+`changed`, `detached`.
+
+## 18. Checksums of files outside the dossier
+
+`sha256:<64 hex digits>` over the whole file, or for a file over 1 GiB
+`short-sha256:<64 hex digits>` over the first 16 MiB, the last 16 MiB and the size as eight bytes
+little-endian.
+
+## 19. dossier.toml additions
+
+```toml
+deciders = ["anna"]          # D28; empty or missing: everyone listed decides
+roles = ["postprocessing"]   # added to the roles of §17
+code_project = false         # true after init --code-project
+```
+
+Top-level keys, before `[tags]`. All three may be left out.

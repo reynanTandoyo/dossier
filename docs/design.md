@@ -567,3 +567,233 @@ impl Project {
 Tests never touch a real project, a real server or the user's register (`DOSSIER_REGISTER` is
 `<project>/.test/projects.toml`; `DOSSIER_SSH` and `DOSSIER_TODO` are the stand-in paths, where
 nothing exists until a test writes a stand-in).
+
+---
+
+# Phase 2 (v0.2)
+
+Same principles as §1: one file, one task; a skeleton task first creates every new file as a stub
+that compiles; every write goes through `tx`; every change records who and when (D29). The
+formats are in format.md §14 to §19.
+
+## 7. Changes to existing modules
+
+```rust
+// entry/mod.rs
+pub enum Kind { Decision, Assumption, Finding, Lesson, Usage }      // all() -> [Kind; 5]
+                                                                    // usage: prefix USE, folder usage
+pub enum Status { Draft, Approved, Rejected, Superseded, Retired, Proposed, Declined }
+
+// entry/rules.rs: usage needs the fields software, version, task; sections in order
+// Parameters, Outputs, Deviations, Notes (none required). `Pictures` is never required and
+// always comes after a kind's own sections.
+
+// config.rs: Config gains
+pub deciders: Vec<String>, pub roles: Vec<String>, pub code_project: bool,
+
+// names.rs
+/// True when cfg.deciders is empty or names `person` (ignoring case).
+pub fn may_decide(cfg: &Config, person: &str) -> bool;
+/// For commands that run before or without people in the settings (init, people add): the name
+/// from `flag`, DOSSIER_AGENT or TODO_AGENT, else the operating-system user (USERNAME, USER),
+/// else "unknown"; person = name; is_llm = false. Never an error.
+pub fn unchecked(flag: Option<&str>) -> Who;
+
+// create.rs: a decision that would be approved, whose author may not decide
+// (names::may_decide), gets status `proposed` instead: no `approved` and `valid-from` fields, the
+// history lines `created` and `proposed`, Change detail `proposed`. A usage record is approved
+// at once like a finding.
+
+// tx.rs
+/// Queue writing `bytes` to `path` (any file inside the dossier). `old` is the file as read (None
+/// for a new file). The old bytes are snapshotted under change.id when the path ends in `.md`.
+pub fn put_raw(&mut self, path: PathBuf, old: Option<Vec<u8>>, bytes: Vec<u8>, change: Change);
+/// Queue removing a file that is still `old`.
+pub fn delete_raw(&mut self, path: PathBuf, old: Vec<u8>, change: Change);
+
+// ids.rs
+/// The next number for a prefix that is not an entry kind (RCV, DLV): 1 + max(ids.json, on_disk).
+/// Writes ids.json; call under the lock. Returns e.g. "RCV-001".
+pub fn next_prefix(state: &Path, prefix: &str, on_disk: u64) -> Result<String>;
+
+// filter.rs: a new option --on <date>. With it, an entry matches when its valid-from date is on
+// or before the date and its valid-until is empty or after it, whatever its status; the other
+// options still apply. Without --status, --drafts and --all, `proposed` behaves like `draft`.
+
+// remote/forward.rs: `hooks`, `guard` and `skill` run locally like `connect`; `accept`,
+// `decline`, `confirm`, `refute`, `cleared` and `value` ask ssh for a terminal like `approve`.
+
+// remote/register.rs: Project gains `pub added: String` (the time it was put, format.md §7),
+// written as `added = "..."`; a register entry without it reads as "".
+
+// agents/mod.rs
+/// The Claude Code skill: a front matter (name: dossier, description: one line) and RULES.
+pub fn skill() -> String;
+```
+
+## 8. New library modules
+
+### blockfile.rs
+
+```rust
+/// A block file (format.md §17), kept as its lines so that every byte not changed stays.
+#[derive(Debug, Clone)]
+pub struct BlockFile { pub lines: Vec<String> }
+impl BlockFile {
+    pub fn parse(text: &str) -> Result<BlockFile>;     // TooNew above format 1; Parse: no heading
+    pub fn empty(title: &str) -> BlockFile;            // format line, "# <title>", one blank line
+    pub fn text(&self) -> String;                      // equals the parsed text
+    pub fn keys(&self) -> Vec<String>;                 // `## ` keys in file order
+    pub fn field(&self, key: &str, name: &str) -> Option<String>;
+    pub fn fields(&self, key: &str) -> Vec<(String, String)>;   // history included
+    pub fn history(&self, key: &str) -> Vec<String>;
+    /// Appends `## <key>`, a blank line, the fields (history pairs last), a blank line.
+    pub fn add_block(&mut self, key: &str, fields: &[(String, String)]);
+    /// Replaces the field or adds it before the block's first history line; an empty value
+    /// removes it; `history` changes nothing; a missing block changes nothing.
+    pub fn set_field(&mut self, key: &str, name: &str, value: &str);
+    pub fn add_history(&mut self, key: &str, time: &str, who: &Who, event: &str, detail: &str);
+}
+```
+
+New lines follow format.md §2 (LF, or CRLF after a CRLF line).
+
+### filesum.rs
+
+```rust
+pub const SHORT_ABOVE: u64 = 1 << 30;
+/// "sha256:<hex>", or "short-sha256:<hex>" above SHORT_ABOVE (format.md §18). Reads in chunks.
+pub fn checksum(path: &Path) -> Result<String>;
+pub struct Stamp { pub size: u64, pub modified: String }   // modified: format.md §7, local time
+pub fn stamp(path: &Path) -> Result<Stamp>;
+pub fn count_files(folder: &Path) -> Result<u64>;           // regular files, recursive
+```
+
+### values.rs
+
+```rust
+pub const FILE: &str = "values.md";
+pub const ITEM: &str = "VALUES";
+pub struct Value { pub name: String, pub value: String, pub unit: Option<String>,
+    pub source: Option<String>, pub note: Option<String>, pub key: bool,
+    pub valid_from: Option<String>, pub proposed: Option<String> }
+pub fn valid_name(name: &str) -> bool;                       // format.md §17
+/// "12.4 kg/s" -> ("12.4", Some("kg/s")): the unit is the last word. With `dimensionless` the
+/// whole text is the value. One word without `dimensionless`: Code::BadValue.
+pub fn split(text: &str, dimensionless: bool) -> Result<(String, Option<String>)>;
+/// The file and its bytes as read; a missing file is BlockFile::empty("Values of <code>"), None.
+pub fn load(dossier: &Path, code: &str) -> Result<(BlockFile, Option<Vec<u8>>)>;
+pub fn all(file: &BlockFile) -> Vec<Value>;                  // file order
+pub fn get(file: &BlockFile, name: &str) -> Option<Value>;
+/// "<value>[ <unit>]" in force at the end of `date` (YYYY-MM-DD), from the `set` history lines.
+pub fn on(file: &BlockFile, name: &str, date: &str) -> Option<String>;
+```
+
+### filelist.rs
+
+```rust
+pub const ROLES: [&str; 10] = ["description", "geometry", "mesh", "model", "setup", "script",
+    "result", "report", "reference", "other"];
+pub fn item(task: &str) -> String;                    // "FILES-<TASK>", task upper-cased
+pub fn path(dossier: &Path, task: &str) -> PathBuf;   // dossier/files/<TASK>.md
+pub fn load(dossier: &Path, task: &str) -> Result<(BlockFile, Option<Vec<u8>>)>; // empty: "Files of <TASK>"
+pub fn tasks(dossier: &Path) -> Vec<String>;          // tasks that have a list, sorted
+pub fn valid_role(cfg: &Config, role: &str) -> bool;  // ROLES or cfg.roles, any case
+/// The fields describing `stored` now: type, size or files, modified, checksum.
+pub fn describe(root: &Path, stored: &str) -> Result<Vec<(String, String)>>;
+/// Marks of a block: "detached", "missing", "changed since attached", "outdated" (a made-from
+/// checksum differs from that file now), "rests on a wrong assumption".
+pub fn marks(root: &Path, file: &BlockFile, key: &str) -> Vec<String>;
+```
+
+### exchange.rs
+
+```rust
+pub const FILE: &str = "exchange.md";
+pub const ITEM: &str = "EXCHANGE";
+pub fn load(dossier: &Path, code: &str) -> Result<(BlockFile, Option<Vec<u8>>)>; // empty: "Exchange of <code>"
+pub fn highest(file: &BlockFile, prefix: &str) -> u64;     // highest number of RCV or DLV keys
+```
+
+### mapfile.rs
+
+```rust
+pub const FILE: &str = "map.md";
+pub const ITEM: &str = "MAP";
+pub fn load(dossier: &Path, code: &str) -> Result<(BlockFile, Option<Vec<u8>>)>; // empty: "Map of <code>"
+/// The map as lines `<path>  <purpose>[ (start: <start>)]`, sorted by path, detached left out.
+pub fn lines(file: &BlockFile) -> Vec<String>;
+```
+
+### affects.rs
+
+```rust
+#[derive(Debug, Clone, PartialEq)]
+pub enum Item { Task(String), Entry(String), Value(String), Path(String), Text(String) }
+/// The items of an Affects section (format.md §14). `values` are the known value names, `paths`
+/// the attached stored paths.
+pub fn parse(text: &str, values: &[String], paths: &[String]) -> Vec<Item>;
+```
+
+### picture.rs
+
+```rust
+pub const MAX_BYTES: u64 = 2 * 1024 * 1024;
+pub const MAX_PER_ENTRY: usize = 10;
+pub fn extension(bytes: &[u8]) -> Option<&'static str>;  // "png", "jpg" or "svg" by content
+/// The file name for a new picture in `folder` (format.md §16).
+pub fn file_name(folder: &Path, original: &str, ext: &str) -> String;
+pub fn line(id: &str, file: &str, caption: &str) -> String;   // ![caption](../images/<ID>/<file>)
+```
+
+### hooks.rs
+
+```rust
+pub const BRIEF: &str = "dossier brief";
+pub const GUARD: &str = "dossier guard";
+/// .claude/settings.json with a SessionStart hook running BRIEF and a PreToolUse hook (matcher
+/// "Edit|Write|MultiEdit") running GUARD, each added once; other keys kept. Empty text is "{}".
+/// Code::Parse when the text is not a JSON object.
+pub fn installed(existing: &str) -> Result<String>;
+pub fn uninstalled(existing: &str) -> Result<String>;   // removes exactly those two entries
+/// The message to block with when a Claude Code PreToolUse payload edits a file inside a
+/// folder named DOSSIER; None to allow.
+pub fn guard(payload: &str) -> Option<String>;
+```
+
+Written with `serde_json::to_string_pretty` and a final LF; the old file is kept as
+`settings.json.bak`.
+
+## 9. Commands of v0.2
+
+| Command | Arguments | Result |
+|---|---|---|
+| `propose` | `<decision> --reason <t> [--rejected <t>] [--title <t>] [--task <task>] [tag options]` | a decision with status `proposed`; anyone, also an LLM without `--said-by` |
+| `accept` | `<ID>` | a decider at a terminal: proposed to approved |
+| `decline` | `<ID> --reason <t>` | a decider at a terminal: proposed to declined |
+| `confirm` | `<ID> --by <who and how>` | a person: an assumption to confirmed |
+| `refute` | `<ID> --by <who and how>` | a person at a terminal: an assumption to wrong; marks what rests on it and prints it |
+| `cleared` | `<ID or path> --assumption <ID> --note <t>` | a person: removes one `rests-on` mark |
+| `value` | `set <name> <value> [--dimensionless] [--source <t>] [--note <t>] [--key] [--said-by <person>]`, `show <name>`, `approve <name>`, `reject <name>` | key values; approve and reject: a person at a terminal |
+| `values` | `[<prefix>] [--on <date>]` | the values in force |
+| `attach` | `<task> <path>… --role <role> [--note <t>] [--from <path>…]`, or `<task> --moved <old> <new>` | adds or moves files of a task |
+| `detach` | `<task> <path>` | sets `detached` |
+| `reattach` | `<task> <path>` | records size, time and checksum again |
+| `files` | `[--task <task>] [--role <role>] [<words>…] [--on <date>]` | file lists with marks |
+| `which` | `<path>` | tasks, role, made from, made into, entries whose `code` points there |
+| `used` | `<software> --version <v> --task <task> [--model <path>] [--param <n>=<v>]… [--output <path>]… [--howto <ID>] [--deviations <t>] [--note <t>]` | a usage record; outputs attached to the task with role `result`, made from the model |
+| `runs` | `[--task <task>] [--model <path>] [--software <name>]`, or `--compare <ID> <ID>` | usage records, newest first |
+| `image` | `add <ID> <file> --caption <t>`, `remove <ID> <file>` | pictures of an entry |
+| `received` | `<path>… --from <who> [--date <date>] [--task <task>] [--note <t>]` | an RCV record; with `--task` the files are attached with role `reference` |
+| `delivered` | `<path>… --to <who> [--date <date>] [--based-on <task or path>…] [--note <t>]` | a DLV record; warnings need a person at a terminal to confirm |
+| `exchange` | `[--received] [--delivered]` | records in time order |
+| `map` | (none), `set <path> <purpose> [--start <where>]`, `remove <path>` | the map of a code project |
+| `hooks` | `install [--yes]`, `uninstall [--yes]` | Claude Code hooks in `.claude/settings.json` |
+| `guard` | — | reads a PreToolUse payload on standard input; exit 2 with a message blocks the edit |
+| `skill` | `install [--yes]` | writes `.claude/skills/dossier/SKILL.md` |
+
+Changed commands: `init --code-project`; `decide` (a non-decider's decision becomes a proposal);
+`list` and `search` (`--on`, marks `[proposed]`, `[declined]`, `[rests on <ID>]`); `brief` and
+`status` (values, proposals, marks, `--on`, the map, the last exchange); `brief --task` (dead ends,
+the task's files, pictures, code pointers); `init`, `people`, `agents` and `connect` (journal and
+register lines, D29).

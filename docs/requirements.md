@@ -1,6 +1,6 @@
 # dossier — requirements
 
-Draft 4, 2026-11-20. Four points are still open (§12); everything else is decided (§3) until the
+Draft 5, 2026-11-21 (owner's decisions for phase 2: D28 to D33). Four points are still open (§12); everything else is decided (§3) until the
 owner says otherwise.
 
 Each requirement has a priority, which says how important it is. When it is built is decided
@@ -113,6 +113,12 @@ an LLM starts with the right context.
 | D19 | A script (a Java macro, a Python script) is an entry of its own kind that points to the script file and says what it does, for which software, and what it needs. The file itself lives in the team's script folder or repository. | Scripts are reused more than anything else, and a script nobody can find or trust is rewritten. Code belongs where it can be versioned and run. |
 | D16 | Rust 1.89 or newer, edition 2024. One program for Linux x64 (the server, where the work is done) and one for Windows 10/11 x64 (remote mode, and local dossiers). Same code rules as `todo`. | One toolchain for all the team's tools. |
 | D17 | UTF-8 only. Each line keeps its own line ending; bytes the tool doesn't change stay identical. | Files are edited by hand on Windows and Linux. |
+| D28 | One list of people who decide, `deciders` in the project settings. No separate project lead. With an empty list everyone listed in the project decides, as in v0.1. (Owner, 2026-11-21.) | Simple to understand and to set up; one list covers accepting proposals and closing a project. |
+| D29 | Literally every change is saved with who and when: entries, values, file lists, exchange records, usage records, settings changes (`init`, `people add`), the agent rules block and the register on the PC. (Owner, 2026-11-21.) | Nothing in the dossier may appear without a trace of who made it and when. |
+| D30 | Knowledge (text) can be promoted to the team dossier; files (simulation files, CAD parts, spreadsheets, scripts) are never copied, only pointed to from their project. Small pictures are the exception of D26. (Owner, 2026-11-21.) | The team dossier stays small and free of customer files. |
+| D31 | Scripts, commands on the server, installed software and git repositories are one entry kind, a *tool* (`TOOL-001`), with a `type` (`script`, `command`, `software`, `repo`) and a `location`. It replaces the separate software list, script entries and `script_root` of D19 and R-USE-1, R-USE-8 to R-USE-13, which are rewritten when phase 3 starts. The team standardises its tools in the meantime. (Owner, 2026-11-21.) | The team has no single place or form for its tools yet; one flexible kind fits all of them. |
+| D32 | Anyone in the project may add a confidential term, also an LLM when its person says so in the session; removing a term needs a person at a terminal. There are no automatic terms; writing to the team dossier is refused until the project has at least one term or a person stated that there are none. (Owner, 2026-11-21.) | The tool cannot guess a customer's names; the refusal makes sure nobody forgets the list. |
+| D33 | The Claude Code hooks (`brief` at session start, a guard against direct edits of `DOSSIER/`) and the skill come in phase 2; the session-end review (R-DRAFT-9) stays in phase 5. Export (R-OUT-7) writes Markdown only. Review dates (R-LIFE-7) have no default: they are set per entry. (Owner, 2026-11-21.) | The hooks make the tool part of every session from the start. |
 
 ---
 
@@ -287,12 +293,12 @@ Every write command needs a name (D13) and prints one line such as `DEC-012: add
   it is sorted out later (R-DRAFT-3).
 - **R-WRITE-12 MUST** `propose "<decision>" --reason "…" [--rejected "…"] [--task T-042]` writes
   a decision with status `proposed` (D21). Anyone may propose, also an LLM without `--said-by`.
-  `accept <ID>` and `decline <ID> --reason "…"` are run by the project lead or a person listed
-  as `deciders` in the project settings, at a terminal. An accepted proposal is a decision in
+  `accept <ID>` and `decline <ID> --reason "…"` are run by a person listed in `deciders` in the
+  project settings (D28), at a terminal. An accepted proposal is a decision in
   force from that moment; a declined one is kept, hidden like a rejected draft.
 - **R-WRITE-13 MUST** `decide` (R-WRITE-2) is accepted at once only when the person who decided
-  is the project lead or a decider; from anyone else it becomes a proposal, and the command says
-  so.
+  is listed in `deciders` (or the list is empty); from anyone else it becomes a proposal, and the
+  command says so.
 - **R-WRITE-14 MUST** `assume "<assumption>" --reason "…" [--affects <task, file or value>…]`
   writes an assumption with state `open`. Assumptions are facts of the project and are approved
   at once, whoever writes them.
@@ -393,12 +399,15 @@ Every write command needs a name (D13) and prints one line such as `DEC-012: add
   `confidence` before it can be approved.
 - **R-TEAM-3 MUST** `promote` and every write with `--team` run the check of R-CONF-2 and refuse
   when it fails, naming the terms found and the lines.
-- **R-TEAM-4 MUST** `dossier close` (run by the project lead at the end of a project) lists
+- **R-TEAM-4 MUST** `dossier close` (run by a person listed in `deciders` at the end of a project) lists
   every approved finding, lesson and how-to in the project that has not been promoted, and asks
   for each: promote, keep in the project only, or decide later. It records the answers, so a
   second run shows only what is left.
 - **R-TEAM-5 SHOULD** `dossier team summary` shows the team dossier: entries per kind and status,
   drafts waiting, entries due for review, and the newest ten entries.
+- **R-TEAM-7 MUST** Only members write to the team dossier. `team member add <person> [--llm
+  <name>]…` and `team member remove <person>` (a person at a terminal) keep the list of members
+  in the team settings, each change with who and when (D29). (Owner, 2026-11-21.)
 - **R-TEAM-6 SHOULD** When the team dossier is a git repository, every command that changes it
   also commits the change with a subject naming the command and the entry. `dossier` never
   pushes.
@@ -763,8 +772,9 @@ things are in the code is left to code navigation tools.
 
 - **R-CONF-1 MUST** The project settings hold the project's confidential terms: the customer's
   name, product and machine names, people's names, anything that identifies the customer.
-  `confidential add "<term>"`, `confidential list`. Matching ignores case and treats spaces,
-  hyphens and underscores as the same.
+  `confidential add "<term>"`, `confidential list`, `confidential remove "<term>"`. Anyone in
+  the project may add a term, also an LLM when its person tells it to; `remove` needs a person at
+  a terminal (D32). Matching ignores case and treats spaces, hyphens and underscores as the same.
 - **R-CONF-2 MUST** Before anything is written to the team dossier from a project, the whole
   text (title, fields, sections, file paths) is checked against the project's terms. When a term
   is found the write is refused with the terms and lines.
@@ -895,8 +905,8 @@ depend on which of the two a command was typed on.
 
 ### 5.18 Settings — CFG
 
-- **R-CFG-1 MUST** Project settings in `DOSSIER/dossier.toml`: project code, the project lead
-  and the deciders (R-WRITE-12), path of the team
+- **R-CFG-1 MUST** Project settings in `DOSSIER/dossier.toml`: project code, the
+  deciders (R-WRITE-12, D28), path of the team
   dossier, default tags, confidential terms, and overrides of the values below.
 - **R-CFG-2 MUST** Team settings in the team dossier's `dossier.toml`: the people, each with the
   names of their LLMs; the allowed values for `machine` and `analysis` (optional); and the
@@ -1170,6 +1180,9 @@ a dossier in a software project with a map of the code.
 | Exchange with the customer | R-EXCH-1 to 5 |
 | Code projects | R-CODE-1 to 5 |
 | Context | R-CTX-16 |
+| Who and when for every change (D29) | R-HIST-4 for `init`, `people add`, `agents install`, the register |
+| Short checksums for large files | R-FILE-6 |
+| Claude Code hooks and skill (D33) | R-AGENT-3, R-AGENT-4, R-CTX-7 |
 
 **It worked if:** for one delivered report the dossier names the model, the runs, the values
 and the assumptions behind every result in it.
@@ -1226,8 +1239,8 @@ routine steps happen by themselves.
 | Area | Requirements |
 |---|---|
 | Milestone digests | R-CTX-14, 15 |
-| Context extras | R-CTX-6, 7, 8 |
-| Session review and hooks | R-DRAFT-7, 9, R-AGENT-3, 4 |
+| Context extras | R-CTX-6, 8 |
+| Session review | R-DRAFT-7, 9 |
 | Reading extras | R-READ-7, 9 |
 | Repairs, export, schema | R-CHECK-2, R-OUT-6, 7 |
 | Unit warnings | R-ENTRY-11 |
