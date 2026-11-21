@@ -3852,14 +3852,16 @@
 - note (2026-11-21, haiku-t-156): done
 
 ### T-157 · v0.2 skeleton: command stubs, help overview and the forwarding lists
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-157
+- claimed: 2026-11-21T10:44+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-031
 - why: After this, a command task only fills in its own file.
 - final: Mechanical, but touches every new command file at once.
 - depends: T-156
-- files: src/cli.rs, src/cmd/mod.rs, src/cmd/help.rs, src/remote/forward.rs, src/cmd/propose.rs, src/cmd/accept.rs, src/cmd/decline.rs, src/cmd/confirm.rs, src/cmd/refute.rs, src/cmd/cleared.rs, src/cmd/value.rs, src/cmd/values.rs, src/cmd/attach.rs, src/cmd/detach.rs, src/cmd/reattach.rs, src/cmd/files.rs, src/cmd/which.rs, src/cmd/used.rs, src/cmd/runs.rs, src/cmd/image.rs, src/cmd/received.rs, src/cmd/delivered.rs, src/cmd/exchange.rs, src/cmd/map.rs, src/cmd/hooks.rs, src/cmd/guard.rs, src/cmd/skill.rs
+- files: src/cli.rs, src/cmd/mod.rs, src/cmd/help.rs, src/remote/forward.rs, src/cmd/propose.rs, src/cmd/accept.rs, src/cmd/decline.rs, src/cmd/confirm.rs, src/cmd/refute.rs, src/cmd/cleared.rs, src/cmd/value.rs, src/cmd/values.rs, src/cmd/attach.rs, src/cmd/detach.rs, src/cmd/reattach.rs, src/cmd/files.rs, src/cmd/which.rs, src/cmd/used.rs, src/cmd/runs.rs, src/cmd/image.rs, src/cmd/received.rs, src/cmd/delivered.rs, src/cmd/exchange.rs, src/cmd/map.rs, src/cmd/hooks.rs, src/cmd/guard.rs, src/cmd/skill.rs, tests/cmd_agents.rs
 - read: docs/design.md, docs/format.md
 - steps:
   1. For every new command of docs/design.md section 9 create src/cmd/<name>.rs as the phase 1 stubs were: #[derive(clap::Args, Debug)] pub struct Args {} and pub fn run(_args: &Args, _g: &crate::cli::Global) -> crate::error::Result<crate::output::Output> returning Err(Error::new(Code::NotImplemented, "<name> is not built yet")).
@@ -3870,6 +3872,8 @@
 - accept: Every command of design.md section 9 is accepted by the parser and says it is not built yet; help lists them; forwarding knows the local and terminal ones.
 - verify: cargo test --all-features
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): forced set (owner was haiku-t-157)
+- note (2026-11-21, planner): tests/cmd_agents.rs added: its help test lists every command and must get the 23 new ones (found by the worker).
 
 ### T-158 · init: journal line, the usage folder and --code-project
 - status: open
