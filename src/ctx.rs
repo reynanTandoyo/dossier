@@ -10,9 +10,9 @@ use std::path::PathBuf;
 /// The name of the state folder inside the DOSSIER folder (format.md §9).
 const STATE: &str = ".state";
 
-/// The commands that change entries. Only they refuse a name that is not in the settings
+/// The commands that change the dossier. Only they refuse a name that is not in the settings
 /// (R-CFG-4: unknown names are refused for writing); a reading command runs without a name.
-const WRITING: [&str; 16] = [
+const WRITING: [&str; 31] = [
     "add",
     "decide",
     "found",
@@ -29,6 +29,21 @@ const WRITING: [&str; 16] = [
     "retire",
     "remove",
     "reopen",
+    "propose",
+    "accept",
+    "decline",
+    "confirm",
+    "refute",
+    "cleared",
+    "value",
+    "attach",
+    "detach",
+    "reattach",
+    "used",
+    "image",
+    "received",
+    "delivered",
+    "map",
 ];
 
 /// The context of one command.
