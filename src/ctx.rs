@@ -10,6 +10,27 @@ use std::path::PathBuf;
 /// The name of the state folder inside the DOSSIER folder (format.md §9).
 const STATE: &str = ".state";
 
+/// The commands that change entries. Only they refuse a name that is not in the settings
+/// (R-CFG-4: unknown names are refused for writing); a reading command runs without a name.
+const WRITING: [&str; 16] = [
+    "add",
+    "decide",
+    "found",
+    "learn",
+    "assume",
+    "set",
+    "retitle",
+    "link",
+    "edit",
+    "restore",
+    "approve",
+    "reject",
+    "supersede",
+    "retire",
+    "remove",
+    "reopen",
+];
+
 /// The context of one command.
 pub struct Ctx {
     /// The parent of `dossier`: the project folder.
@@ -49,10 +70,12 @@ impl Ctx {
         };
         let state = dossier.join(STATE);
         let cfg = config::load(&dossier)?;
-        // A missing name is fine here; a name that is not in the settings is an error.
+        // A missing name is fine here. A name that is not in the settings is an error for a
+        // command that writes, and no name at all for one that only reads.
         let who = match names::resolve(&cfg, g.agent.as_deref()) {
             Ok(who) => Some(who),
             Err(error) if error.code == Code::Usage => None,
+            Err(error) if error.code == Code::UnknownName && !WRITING.contains(&command) => None,
             Err(error) => return Err(error),
         };
         Ok(Ctx {
@@ -135,6 +158,18 @@ mod tests {
         };
         let error = Ctx::load(&g, "add").err().expect("carl is refused");
         assert_eq!(error.code, Code::UnknownName);
+    }
+
+    #[test]
+    fn an_unknown_name_does_not_stop_a_reading_command() {
+        let (_dir, dossier) = project();
+        let g = Global {
+            dossier: Some(dossier),
+            agent: Some("carl".to_string()),
+            ..Default::default()
+        };
+        let ctx = Ctx::load(&g, "show").expect("show reads without a name");
+        assert!(ctx.who.is_none());
     }
 
     #[test]
