@@ -90,7 +90,7 @@ dossier --version
 
 ## A first project in ten commands
 
-Run these on the server. The examples use a person, `anna`, and her LLM, `anna-claude`. Use your
+Run these on the server. The examples use a person, `anna`, and the LLM that works for anna, `anna-claude`. Use your
 own names. Every name must be listed in the project before it can write.
 
 Go to the project folder (create it first if it is new), and set your name:
@@ -118,7 +118,7 @@ dossier brief
 What each command does:
 
 - `init` creates the `DOSSIER` folder and its settings.
-- `people add` lists anna and her LLM.
+- `people add` lists anna and the LLM `anna-claude`.
 - `agents install` writes the rules for LLMs into `AGENTS.md`. See [For LLMs](#for-llms).
 - `decide`, `found` and `assume` are approved at once, because anna wrote them.
 - `learn` is run by anna's LLM (`--agent anna-claude`). A lesson from an LLM is a draft.
