@@ -809,10 +809,8 @@
 - note (2026-11-21, planner): split into T-197, T-198
 
 ### T-197 · picture.rs: picture type, name and line
-- status: claimed
+- status: done
 - owner: haiku-t-197
-- claimed: 2026-11-21T11:32+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-035
 - why: R-ENTRY-16.
@@ -826,8 +824,12 @@
   4. Run cargo test --lib picture::.
 - accept: Pictures are recognised by content and get safe names.
 - verify: cargo test --lib picture::
+- verified: 2026-11-21
+- commit: 5f83ee5
 - reqs: R-ENTRY-16
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-197): done
 
 ### T-198 · image add and image remove
 - status: open
