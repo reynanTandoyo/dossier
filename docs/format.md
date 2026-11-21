@@ -537,7 +537,8 @@ In this order after `code` (§14): `source` (`<project code>:<ID>` on a promoted
 with `history` (`added`, `removed`) and, after removal, `removed: <time> by <person>`. A block
 with the key `(no confidential terms)` and the field `stated: <time> by <person>` records that
 a person stated there are none. Matching ignores case and treats spaces, hyphens and underscores
-as the same (`NT-450`, `nt 450` and `NT_450` match).
+as the same, and also matches when they are left out (`NT-450`, `nt 450`, `NT_450` and `NT450`
+all match). A false match only stops a write until the text is reworded; a missed one would leak.
 
 ## 25. Finished projects
 
