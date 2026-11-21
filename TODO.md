@@ -495,8 +495,10 @@
 - note (2026-11-21, planner): split into T-175, T-176, T-177
 
 ### T-175 · values.rs: the key values file
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-175
+- claimed: 2026-11-21T11:09+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-032
 - why: The key numbers live in one sheet (R-VALUE-1 to R-VALUE-4).
@@ -597,8 +599,10 @@
 - note (2026-11-21, haiku-t-168): done
 
 ### T-169 · filelist.rs: the file list of a task
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-169
+- claimed: 2026-11-21T11:09+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-033
 - why: The files of a task are found without searching the disk, and outdated results are seen (R-FILE-8 to R-FILE-11).
@@ -840,10 +844,8 @@
 - note (2026-11-21, planner): split into T-186, T-187, T-188, T-189, T-190
 
 ### T-186 · create.rs: proposals for decisions, usage records approved at once
-- status: claimed
+- status: done
 - owner: haiku-t-186
-- claimed: 2026-11-21T10:56+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-036
 - why: A suggestion must not become binding by accident (D21, D28, R-WRITE-13).
@@ -856,10 +858,14 @@
   3. Run cargo test --lib create::.
 - accept: Decisions by people who may not decide, and draft decisions, become proposals; usage records are approved at once.
 - verify: cargo test --lib create::
+- verified: 2026-11-21
+- commit: c9d6cea
 - reqs: R-WRITE-12, R-WRITE-13, D28
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): forced set (owner was haiku-t-186)
 - note (2026-11-21, planner): tests/cmd_supersede.rs added: add decision --draft now writes status proposed (design.md section 7).
+- note (2026-11-21, haiku-t-186): done
 
 ### T-187 · propose: suggest a decision
 - status: open
@@ -1081,8 +1087,10 @@
 - note (2026-11-21, planner): split into T-180, T-181, T-182, T-183, T-184
 
 ### T-180 · exchange.rs: the exchange file
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-180
+- claimed: 2026-11-21T11:09+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-039
 - why: What came from and went to the customer is recorded in one file (R-EXCH-3).
@@ -1192,8 +1200,10 @@
 - note (2026-11-21, planner): split into T-178, T-179
 
 ### T-178 · mapfile.rs: the map of a code project
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-178
+- claimed: 2026-11-21T11:09+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-040
 - why: An LLM needs orientation in a code base (R-CODE-1).
