@@ -471,3 +471,89 @@ code_project = false         # true after init --code-project
 ```
 
 Top-level keys, before `[tags]`. All three may be left out.
+
+---
+
+# Phase 3 (v0.3) additions
+
+Still format version 1. Every rule of §2 to §19 holds; every change carries who and when (D29).
+
+## 20. The team dossier
+
+A team dossier is a `DOSSIER` folder like a project's, made by `init --team-dossier --code <code>`
+in the folder that holds it (that folder is a git repository, D36). Its `dossier.toml` has
+`kind = "team"`. It has the folders `lessons/`, `howtos/` and `tools/` (no decisions,
+assumptions, findings or usage records, R-TEAM-1), and these block files:
+
+| File | Title | One block per | Fields |
+|---|---|---|---|
+| `projects.md` | `Projects of <code>` | project code | `folder` (the project folder on the server), `history` |
+| `glossary.md` | `Glossary of <code>` | term | `meaning`, `symbol`, `unit`, `also` (comma list of other spellings), `history` |
+| `usage-index.md` | `Usage of <code>` | `<project code>:<USE-ID>` | `date`, `code`, `software`, `version`, `analysis`, `machine`, `howto`, `person` |
+
+A project dossier may have a `glossary.md` of its own, same format. `.state/.gitignore` holds the
+two lines `write.lock` and `holder.json`.
+
+## 21. People and names (D34)
+
+`dossier.toml`, top-level keys before `[tags]`, in project and team dossiers:
+
+```toml
+members = ["tony", "anna"]          # usernames (operating-system logins) of the people
+names = ["Dr. Weber", "Tom Example"] # plain names: not users, never write
+```
+
+A name that writes is resolved in this order: `--agent`, `DOSSIER_AGENT`, `TODO_AGENT`, then the
+operating-system user (`USERNAME`, then `USER`). It is a person when it equals a member or a
+`[[people]]` name (case ignored). It is an LLM when it has the form `<person> - <anything>` (the
+first ` - ` splits it) or is an LLM registered with `people add --llm`. A project with a team
+dossier also knows the team's members and plain names. `--said-by` and an author may be a person
+or a plain name. In history lines an LLM is written as `<person> via <full LLM name>`.
+
+## 22. How-tos and tools
+
+| Kind | Prefix | Folder | Sections, in this order | Required |
+|---|---|---|---|---|
+| howto | `HOW` | `howtos/` | `Purpose`, `Steps`, `Settings`, `Traps`, `Tested with` | field `software`, `Purpose`, `Steps` |
+| tool | `TOOL` | `tools/` | `Purpose`, `How to run`, `Inputs`, `Outputs`, `Traps`, `Tested with` | `Purpose` |
+
+Tool fields: `type` (`script`, `command`, `software`, `repo`), `location` (optional: a path, a
+command name or a URL), `software`, `language`, `checksum` (`sha256:…` of a script's file when
+its location is a file that exists). Lessons, how-tos and tools are *guarded*: an LLM writes them
+as drafts, a person's approval records their checksum, and a hand change after approval is
+marked (R-LIFE-6).
+
+## 23. New entry fields
+
+In this order after `code` (§14): `source` (`<project code>:<ID>` on a promoted team entry),
+`promoted` (`team:<ID>` on the project entry), `promote` (`no` when kept in the project at
+`close`), `imported` (`yes`), `source-document` (`<stored path>[ p. <page>]`), `review`
+(`YYYY-MM-DD`), `reviewed` (`<time> by <person>`), then for tools `type`, `location`,
+`language`, `checksum`.
+
+## 24. Confidential terms
+
+`confidential.md` in a project dossier, title `Confidential terms of <code>`, one block per term
+with `history` (`added`, `removed`) and, after removal, `removed: <time> by <person>`. A block
+with the key `(no confidential terms)` and the field `stated: <time> by <person>` records that
+a person stated there are none. Matching ignores case and treats spaces, hyphens and underscores
+as the same (`NT-450`, `nt 450` and `NT_450` match).
+
+## 25. Finished projects
+
+`dossier.toml` gains `past = true`, and `describes = "<folder>"` when the dossier was made with
+`--in` somewhere else. `imports.md`, title `Documents of <code>`, one block per document (stored
+path) with `state` (`reviewing`, `done`, `nothing`) and `history`. Entries drafted from a
+document carry `imported: yes` and `source-document`; they are always drafts at first and keep
+`imported: yes` for good.
+
+## 26. dossier.toml additions
+
+```toml
+kind = "project"        # or "team"; missing means project
+team = "/projects/TEAM/DOSSIER"   # the team dossier of a project
+past = true             # a finished project brought in later
+describes = "/archive/P-003"      # the project folder it describes, with --in
+```
+
+All top-level, before `[tags]`, all optional.

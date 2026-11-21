@@ -801,3 +801,150 @@ Changed commands: `init --code-project`; `decide` (a non-decider's decision beco
 `status` (values, proposals, marks, `--on`, the map, the last exchange); `brief --task` (dead ends,
 the task's files, pictures, code pointers); `init`, `people`, `agents` and `connect` (journal and
 register lines, D29).
+
+---
+
+# Phase 3 (v0.3)
+
+Same principles as §1 and §7: skeleton tasks first; one file, one task; every write through `tx`;
+who and when for everything (D29); `dossier` never manages tasks (D38). Formats: format.md §20
+to §26.
+
+## 10. Changes to existing modules
+
+```rust
+// entry/mod.rs
+pub enum Kind { Decision, Assumption, Finding, Lesson, Usage, Howto, Tool }  // all() -> [Kind; 7]
+                          // howto: prefix HOW, folder howtos; tool: prefix TOOL, folder tools
+// entry/rules.rs, entry/new.rs: sections and fields of format.md §22 and §23.
+
+// approval.rs
+/// Lessons, how-tos and tools: an LLM writes them as drafts, approval records their checksum.
+pub fn guarded(kind: Kind) -> bool;
+
+// config.rs: Config gains
+pub kind: String /* "project" or "team" */, pub team: Option<String>, pub members: Vec<String>,
+pub names: Vec<String>, pub past: bool, pub describes: Option<String>,
+/// Sets a top-level array key (members, names) to `values`, keeping every other line; adds the
+/// line before the first table when it is missing.
+pub fn set_list(dossier: &Path, key: &str, values: &[String]) -> Result<()>;
+/// Sets a top-level string or bool key (team, past, describes, kind) the same way; `value` is
+/// written as given (already quoted for a string).
+pub fn set_value(dossier: &Path, key: &str, value: &str) -> Result<()>;
+
+// names.rs (format.md §21)
+/// The name from flag, DOSSIER_AGENT, TODO_AGENT, USERNAME, USER; then person, `<person> -
+/// <anything>` LLM, or registered LLM. Unknown: Code::UnknownName listing members and the
+/// form for an LLM. No name at all: Code::Usage.
+pub fn resolve(cfg: &Config, flag: Option<&str>) -> Result<Who>;
+pub fn is_person(cfg: &Config, name: &str) -> bool;     // members or [[people]], any case
+/// A person or a plain name of `names`: may be an author, a source or --said-by.
+pub fn is_known(cfg: &Config, name: &str) -> bool;
+
+// cli.rs Global gains
+#[arg(long, global = true)] pub team: bool,
+#[arg(long, global = true)] pub from_document: Option<String>,
+
+// ctx.rs: Ctx gains
+pub team: Option<PathBuf>,            // the team dossier of a project (cfg.team), if it exists
+pub from_document: Option<String>,    // g.from_document, stored (paths::stored)
+// Ctx::load: when g.team is set and the current dossier is a project, the context is the team
+// dossier's (its folders and settings) and `who` is resolved against the project's and the
+// team's people together; a project's cfg gains the team's members and names in memory.
+// A team dossier that cannot be reached: Code::NoDossier naming the path (R-PLACE-8).
+/// The context of this project's team dossier, with the same who, json and dry_run.
+pub fn team_ctx(&self) -> Result<Ctx>;
+
+// create.rs: with ctx.from_document the entry is a draft and gets imported: yes and
+// source-document; approval::record for every guarded kind (not only lessons).
+
+// tx.rs: after the changes of a team dossier (cfg.kind == "team") are written,
+// gitcommit::commit(<folder holding DOSSIER>, <DOSSIER>, "<command>: <ids>"); a failure is a
+// warning on the Output, never an error.
+
+// hooks.rs
+/// .claude/settings.local.json with env.DOSSIER_AGENT set to `agent` (D34), other keys kept.
+pub fn local_installed(existing: &str, agent: &str) -> Result<String>;
+pub fn local_uninstalled(existing: &str) -> Result<String>;   // removes that one key
+```
+
+The approval rule of lessons in `set`, `edit`, `retitle`, `image`, `approve`, `reopen`,
+`retire`, `restore`, `show`, `brief`, `status` and `check` becomes `approval::guarded(kind)`.
+
+## 11. New library modules
+
+```rust
+// conf.rs (format.md §24)
+pub const NONE: &str = "(no confidential terms)";
+pub fn normalize(text: &str) -> String;     // lower case; runs of space, '-', '_' become one space
+pub fn load(dossier: &Path, code: &str) -> Result<(BlockFile, Option<Vec<u8>>)>;
+pub fn terms(file: &BlockFile) -> Vec<String>;       // not removed, NONE left out
+pub fn stated_none(file: &BlockFile) -> bool;
+/// Each term found in `text` with the 1-based line it is on.
+pub fn find(terms: &[String], text: &str) -> Vec<(String, usize)>;
+/// The terms of a project before writing to the team dossier: Code::Refused when there are none
+/// and none was stated (R-CONF-5, the message says how to add them or state none).
+pub fn gate(project: &Path, code: &str) -> Result<Vec<String>>;
+/// Code::Refused naming each term and line when `text` holds one (R-CONF-2).
+pub fn check(terms: &[String], text: &str) -> Result<()>;
+
+// gitcommit.rs (D36)
+/// Runs `git add -- <path>` and `git commit -m <message> -- <path>` in `repo`. Ok(false) when
+/// `repo` is not a git work tree or there is nothing to commit; Code::Io when git fails.
+pub fn commit(repo: &Path, path: &Path, message: &str) -> Result<bool>;
+
+// teamfiles.rs (format.md §20)
+pub fn projects(team: &Path, code: &str) -> Result<(BlockFile, Option<Vec<u8>>)>;   // projects.md
+pub fn usage(team: &Path, code: &str) -> Result<(BlockFile, Option<Vec<u8>>)>;      // usage-index.md
+
+// glossary.rs (format.md §20)
+pub struct Term { pub term: String, pub meaning: String, pub symbol: Option<String>,
+    pub unit: Option<String>, pub also: Vec<String> }
+pub fn load(dossier: &Path, code: &str) -> Result<(BlockFile, Option<Vec<u8>>)>;
+pub fn terms(file: &BlockFile) -> Vec<Term>;
+/// Every spelling of the terms that `word` is a spelling of (term and `also`, any case).
+pub fn spellings(terms: &[Term], word: &str) -> Vec<String>;
+
+// imports.rs (format.md §25)
+pub fn load(dossier: &Path, code: &str) -> Result<(BlockFile, Option<Vec<u8>>)>;
+pub fn state(file: &BlockFile, stored: &str) -> Option<String>;
+
+// folderscan.rs (R-IMPORT-2)
+pub struct Doc { pub stored: String, pub size: u64, pub modified: String, pub kind: String }
+/// The folder tree to `depth` levels as indented lines `<name>/` and `<name>  <size>`.
+pub fn tree(root: &Path, depth: usize) -> Result<Vec<String>>;
+/// Documents found under root (reports .pdf .docx .doc .odt .md .txt, presentations .pptx
+/// .ppt, spreadsheets .xlsx .xls .csv, scripts .py .java .m .sh .bat .ps1), newest first.
+pub fn documents(root: &Path) -> Result<Vec<Doc>>;
+```
+
+## 12. Commands of v0.3
+
+| Command | Arguments | Result |
+|---|---|---|
+| `init` | also `--team-dossier`, `--team <path>`, `--past`, `--in <folder>` | a team dossier; a project linked to its team and registered in `projects.md`; a finished project |
+| `team` | (none), `use <path>`, `member add <username>`, `member remove <username>`, `name add <name>`, `name remove <name>` | the team settings; removing needs a person at a terminal |
+| `confidential` | `add <term>`, `remove <term>`, `list`, `none --yes`, `scan` | confidential terms; remove and none: a person at a terminal |
+| `promote` | `<ID> [--as lesson\|howto]` | copies a project entry into the team dossier as a draft, after the check |
+| `close` | — | a decider at a terminal sorts the approved findings, lessons and how-tos not yet promoted |
+| `howto` | `--software <name> --title <t> [--section "Name=text"]… [--from <file>] [--stdin] [--review <date>] [tag options]` | a how-to (team with `--team`) |
+| `tool` | `add --title <t> --type <type> [--location <x>] [--software <s>] [--language <l>] [--section …]… [--from <file>] [--stdin]`, `update <ID>` | a tool; update records the script's checksum again |
+| `where-used` | `<software> [--analysis <a>] [--machine <m>]` | the team's usage index, newest first |
+| `term` | `add <term> <meaning> [--symbol <s>] [--unit <u>] [--also <list>]`, or `<word>` | glossary terms (team with `--team`) |
+| `glossary` | — | every term of the project and the team |
+| `reviewed` | `<ID> [--next <date>]` | a person confirms an entry still holds |
+| `review-folder` | `[<path>] [--depth <n>]` | the material for drafting from an old folder |
+| `review-document` | `<file>` | records that a document is being reviewed; prints the import rules |
+| `reviewed-document` | `<file> [--nothing]` | marks a document done |
+| `import` | `status` | documents found, reviewed, nothing, drafts, approved, promoted |
+
+Global options gain `--team` (work on the team dossier) and `--from-document <file>` (entries
+written are imported drafts from that document).
+
+Changed commands: `used` adds a line to the team's usage index; `search` searches the project and
+the team together, marking the place, and finds a term's other spellings; `list` marks
+`[due for review]`, `[imported]` and `[file changed since approval]`; `show` the same; `brief`
+adds the team's lessons and how-tos that match the project's tags and the news line; `brief
+--task` adds team entries, glossary terms and the last three usage-index lines; `status --since
+last` includes the team dossier; `drafts --imported`; `check` reports entries due for review and
+changed tool files; `hooks install` also writes `.claude/settings.local.json` (D34).
