@@ -17,6 +17,10 @@ const LESSON_TITLE: &str = "Steady mixing-plane runs overpredict stall margin";
 /// The statement after the change a test makes to the approved lesson by hand.
 const CHANGED_STATEMENT: &str =
     "Steady runs with a mixing-plane interface underpredict the stall margin.";
+/// Invented text: why a proposal is turned down in the test that declines one.
+const DECLINE_REASON: &str = "An invented reason: the inlet profile was not checked.";
+/// The time of that declining: a day after the fixed clock of `common::Project`.
+const DECLINED_AT: &str = "2026-11-21T09:30:00+01:00";
 
 /// The file text of the entry with `id`.
 fn text_of(project: &Project, id: &str) -> String {
@@ -229,6 +233,102 @@ fn the_status_marks_of_rejected_retired_and_superseded_entries() {
     let data = show_data(&project, "FND-003");
     assert_eq!(data["marks"], json!(["[superseded by DEC-002]"]));
     assert_eq!(data["fields"]["superseded-by"], "DEC-002");
+}
+
+#[test]
+fn a_proposal_starts_with_the_proposed_mark() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &[
+            "propose",
+            "Use the transient runs for the last three points.",
+            "--reason",
+            "Steady runs converged where the transient run already showed rotating stall.",
+        ],
+    );
+
+    let text = text_of(&project, "DEC-001");
+    assert_eq!(
+        project.stdout("anna", &["show", "DEC-001"]),
+        format!("[proposed]\n{text}")
+    );
+    let data = show_data(&project, "DEC-001");
+    assert_eq!(data["status"], "proposed");
+    assert_eq!(data["marks"], json!(["[proposed]"]));
+}
+
+#[test]
+fn a_declined_proposal_starts_with_the_declined_mark() {
+    let project = Project::new();
+    project.stdout(
+        "ben",
+        &[
+            "propose",
+            "Use the transient runs.",
+            "--reason",
+            "Steady runs converged.",
+        ],
+    );
+    project
+        .command("ben", DECLINED_AT)
+        .env("DOSSIER_ANSWERS", "")
+        .args(["decline", "DEC-001", "--reason", DECLINE_REASON])
+        .assert()
+        .success()
+        .stdout("DEC-001: declined\n");
+
+    let text = text_of(&project, "DEC-001");
+    assert_eq!(
+        project.stdout("anna", &["show", "DEC-001"]),
+        format!("[declined]\n{text}")
+    );
+    let data = show_data(&project, "DEC-001");
+    assert_eq!(data["status"], "declined");
+    assert_eq!(data["marks"], json!(["[declined]"]));
+}
+
+#[test]
+fn an_entry_resting_on_wrong_assumptions_shows_the_rests_on_mark() {
+    let project = Project::new();
+    project.write(
+        "DOSSIER/findings/FND-001-rests-on-two.md",
+        &hand_written_finding("FND-001", "approved", "- rests-on: ASM-001, ASM-002\n"),
+    );
+
+    let text = text_of(&project, "FND-001");
+    assert_eq!(
+        project.stdout("anna", &["show", "FND-001"]),
+        format!("[rests on ASM-001, ASM-002]\n{text}")
+    );
+    let data = show_data(&project, "FND-001");
+    assert_eq!(data["marks"], json!(["[rests on ASM-001, ASM-002]"]));
+    assert_eq!(data["fields"]["rests-on"], "ASM-001, ASM-002");
+}
+
+#[test]
+fn a_proposal_resting_on_a_wrong_assumption_has_both_marks_in_order() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &[
+            "propose",
+            "Use the transient runs.",
+            "--reason",
+            "Steady runs converged.",
+        ],
+    );
+    let original = text_of(&project, "DEC-001");
+    let changed = original.replacen("- history: ", "- rests-on: ASM-001\n- history: ", 1);
+    assert_ne!(changed, original);
+    fs::write(project.entry_file("DEC-001"), &changed).expect("the entry is changed by hand");
+
+    assert_eq!(
+        project.stdout("anna", &["show", "DEC-001"]),
+        format!("[proposed] [rests on ASM-001]\n{changed}")
+    );
+    let data = show_data(&project, "DEC-001");
+    assert_eq!(data["marks"], json!(["[proposed]", "[rests on ASM-001]"]));
 }
 
 #[test]

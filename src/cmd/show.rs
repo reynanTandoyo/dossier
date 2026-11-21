@@ -5,7 +5,7 @@
 use crate::approval::{self, Mark};
 use crate::cli::Global;
 use crate::ctx::Ctx;
-use crate::entry::{Kind, Status};
+use crate::entry::{Entry, Kind, Status};
 use crate::error::Result;
 use crate::output::Output;
 use crate::store::{self, Item};
@@ -42,7 +42,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
 
 /// The marks of an entry, in the order of design.md section 5: its status, then
 /// `[changed after approval]` for an approved lesson whose text differs from its recorded
-/// checksum.
+/// checksum, then `[rests on <IDs>]` when its `rests-on` field names a wrong assumption.
 fn marks(ctx: &Ctx, item: &Item) -> Vec<String> {
     let entry = &item.entry;
     let mut marks = Vec::new();
@@ -69,7 +69,17 @@ fn marks(ctx: &Ctx, item: &Item) -> Vec<String> {
     {
         marks.push("[changed after approval]".to_string());
     }
+    if let Some(mark) = rests_on_mark(entry) {
+        marks.push(mark);
+    }
     marks
+}
+
+/// `[rests on <IDs>]` from the field `rests-on` (format.md §14), the IDs joined with `, `. None
+/// when the field names no ID.
+fn rests_on_mark(entry: &Entry) -> Option<String> {
+    let ids = entry.list("rests-on");
+    (!ids.is_empty()).then(|| format!("[rests on {}]", ids.join(", ")))
 }
 
 /// The data of `--json`: the ID, title, kind, status, marks, the fields (each non-history field
