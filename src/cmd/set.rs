@@ -154,8 +154,8 @@ fn status_name(entry: &Entry) -> &'static str {
 }
 
 /// The `--field key=value` options as pairs: the key lower-cased, key and value trimmed. An
-/// option without `=`, a key that is not letters, digits and `-`, and a key the tool writes
-/// itself are refused (Code::BadValue).
+/// option without `=`, a key that is not letters, digits and `-`, a key the tool writes itself,
+/// and `kind` (the folder and the ID prefix depend on it) are refused (Code::BadValue).
 fn field_pairs(items: &[String]) -> Result<Vec<(String, String)>> {
     items
         .iter()
@@ -171,6 +171,11 @@ fn field_pairs(items: &[String]) -> Result<Vec<(String, String)>> {
             }
             if TOOL_OWNED.contains(&key.as_str()) {
                 return Err(bad("this field is written by the tool"));
+            }
+            if key == "kind" {
+                return Err(bad(
+                    "the kind of an entry cannot change; add a new entry instead",
+                ));
             }
             Ok((key, value.trim().to_string()))
         })

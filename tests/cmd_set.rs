@@ -294,6 +294,42 @@ fn a_field_the_tool_writes_is_refused() {
 }
 
 #[test]
+fn the_kind_of_an_entry_cannot_be_changed() {
+    let project = Project::new();
+    anna_finds(&project);
+    let before = text_of(&project, "FND-001");
+
+    for key in ["kind=decision", "Kind=lesson"] {
+        project
+            .run("anna", &["set", "FND-001", "--field", key])
+            .failure()
+            .code(1)
+            .stderr(contains(
+                "the kind of an entry cannot change; add a new entry instead",
+            ));
+    }
+    // A refused kind stops the whole call: the valid field named with it is not written either.
+    project
+        .run(
+            "anna",
+            &[
+                "set",
+                "FND-001",
+                "--field",
+                "machine=fan",
+                "--field",
+                "kind=lesson",
+            ],
+        )
+        .failure()
+        .code(1)
+        .stderr(contains("the kind of an entry cannot change"));
+
+    assert_eq!(text_of(&project, "FND-001"), before);
+    assert!(!snapshot_exists(&project, "FND-001", "000001"));
+}
+
+#[test]
 fn a_set_with_nothing_to_change_is_a_usage_error() {
     let project = Project::new();
     anna_finds(&project);
