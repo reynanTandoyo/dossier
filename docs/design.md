@@ -603,7 +603,9 @@ pub fn unchecked(flag: Option<&str>) -> Who;
 // gets status `proposed` instead of `draft`. That is a decision written with `draft: true` (this
 // is how `propose` and `add decision --draft` write), and a decision whose author may not decide
 // (names::may_decide). It has no `approved` and `valid-from` fields, the history lines `created`
-// and `proposed`, and Change detail `proposed`. A usage record is approved at once like a
+// and `proposed`, and Change detail `proposed`. An LLM's draft decision without `said_by` is
+// such a proposal too (author: its person, via: the LLM; R-WRITE-12); only an LLM's decision
+// that is not a draft still needs `said_by` (Code::NeedsPerson). A usage record is approved at once like a
 // finding.
 
 // tx.rs
