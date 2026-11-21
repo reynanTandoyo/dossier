@@ -1111,8 +1111,10 @@
 - note (2026-11-21, haiku-t-180): done
 
 ### T-181 · ids.rs: next_prefix for record numbers
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-181
+- claimed: 2026-11-21T11:19+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-039
 - why: Records must be citable by a number that never changes (R-ID-1, R-ID-3).
@@ -1204,10 +1206,8 @@
 - note (2026-11-21, planner): split into T-178, T-179
 
 ### T-178 · mapfile.rs: the map of a code project
-- status: claimed
+- status: done
 - owner: haiku-t-178
-- claimed: 2026-11-21T11:09+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-040
 - why: An LLM needs orientation in a code base (R-CODE-1).
@@ -1220,8 +1220,12 @@
   3. Run cargo test --lib mapfile::.
 - accept: map.md is read and printed as lines.
 - verify: cargo test --lib mapfile::
+- verified: 2026-11-21
+- commit: f0d9e0b
 - reqs: R-CODE-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-178): done
 
 ### T-179 · map: describe the parts of a code project
 - status: open
@@ -4043,8 +4047,10 @@
 - note (2026-11-21, haiku-t-163): done
 
 ### T-164 · agents/mod.rs: the Claude Code skill text
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-164
+- claimed: 2026-11-21T11:19+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-031
 - why: The skill gives Claude Code the same rules as AGENTS.md (D33).
