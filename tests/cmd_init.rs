@@ -1,27 +1,43 @@
-//! Runs the built program for `init`: the folders and the settings of a new project dossier, and
-//! the refusals. Each test runs in its own temporary folder.
+//! Runs the built program for `init`: the folders and the settings of a new project dossier, the
+//! journal line that records who created it, and the refusals. Each test runs in its own
+//! temporary folder.
 
 use assert_cmd::Command;
+use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
 use std::path::Path;
 
-/// `init` with `args` run in `folder`, not yet checked. The agent names are removed from the
-/// environment, and the clock is fixed.
-fn init(folder: &Path, args: &[&str]) -> assert_cmd::assert::Assert {
-    Command::cargo_bin("dossier")
-        .unwrap()
+/// The fixed clock of every test in this file.
+const NOW: &str = "2026-11-21T09:00:00+01:00";
+
+/// `init` with `args` run in `folder` with `vars` set, not yet checked. The agent names are
+/// removed from the environment, and the clock is fixed.
+fn init_with(folder: &Path, vars: &[(&str, &str)], args: &[&str]) -> assert_cmd::assert::Assert {
+    let mut command = Command::cargo_bin("dossier").unwrap();
+    command
         .current_dir(folder)
-        .env("DOSSIER_NOW", "2026-11-21T09:00:00+01:00")
+        .env("DOSSIER_NOW", NOW)
         .env_remove("DOSSIER_AGENT")
-        .env_remove("TODO_AGENT")
-        .arg("init")
-        .args(args)
-        .assert()
+        .env_remove("TODO_AGENT");
+    for (key, value) in vars {
+        command.env(key, value);
+    }
+    command.arg("init").args(args).assert()
+}
+
+/// `init` with `args` run in `folder`, not yet checked. See `init_with`.
+fn init(folder: &Path, args: &[&str]) -> assert_cmd::assert::Assert {
+    init_with(folder, &[], args)
 }
 
 /// The text of dossier.toml in the dossier of `folder`.
 fn settings(folder: &Path) -> String {
     std::fs::read_to_string(folder.join("DOSSIER").join("dossier.toml")).unwrap()
+}
+
+/// The journal records of the dossier of `folder`, oldest first.
+fn journal_of(folder: &Path) -> Vec<dossier::journal::Record> {
+    dossier::journal::read(&folder.join("DOSSIER").join(".state")).unwrap()
 }
 
 #[test]
@@ -32,7 +48,14 @@ fn init_creates_the_folders_and_a_settings_file_with_the_code() {
         .stdout(contains("created DOSSIER for P-001"))
         .stdout(contains("next: dossier people add <person> --llm <name>"));
     let dossier = folder.path().join("DOSSIER");
-    for name in ["decisions", "assumptions", "findings", "lessons", ".state"] {
+    for name in [
+        "decisions",
+        "assumptions",
+        "findings",
+        "lessons",
+        "usage",
+        ".state",
+    ] {
         assert!(dossier.join(name).is_dir(), "{name} is missing");
     }
     assert!(settings(folder.path()).contains("code = \"P-001\""));
@@ -50,6 +73,7 @@ fn a_second_init_is_refused_and_changes_nothing() {
         .code(1)
         .stderr(contains("error: DOSSIER already exists here"));
     assert_eq!(settings(folder.path()), before);
+    assert_eq!(journal_of(folder.path()).len(), 1);
 }
 
 #[test]
@@ -131,6 +155,88 @@ fn a_refused_init_as_json_gives_the_error_name() {
         .stdout(contains("\"code\":\"BAD_VALUE\""));
 }
 
+#[test]
+fn init_appends_one_journal_line_with_the_agent_and_the_time() {
+    let folder = tempfile::tempdir().unwrap();
+    init_with(
+        folder.path(),
+        &[("DOSSIER_AGENT", "anna")],
+        &["--code", "P-001"],
+    )
+    .success();
+    let records = journal_of(folder.path());
+    assert_eq!(records.len(), 1);
+    let record = &records[0];
+    assert_eq!(record.time, NOW);
+    assert_eq!(record.name, "anna");
+    assert_eq!(record.person, "anna");
+    assert!(!record.llm);
+    assert_eq!(record.command, "init");
+    assert_eq!(record.id, "DOSSIER");
+    assert_eq!(record.event, "created");
+    assert_eq!(record.detail, "code P-001");
+}
+
+#[test]
+fn the_agent_option_gives_the_name_in_the_journal_before_the_environment() {
+    let folder = tempfile::tempdir().unwrap();
+    init_with(
+        folder.path(),
+        &[("DOSSIER_AGENT", "anna")],
+        &["--code", "P-001", "--agent", "ben"],
+    )
+    .success();
+    let records = journal_of(folder.path());
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].name, "ben");
+    assert_eq!(records[0].person, "ben");
+}
+
+#[test]
+fn without_a_name_the_journal_names_the_operating_system_user() {
+    let folder = tempfile::tempdir().unwrap();
+    init_with(
+        folder.path(),
+        &[("USERNAME", "osuser"), ("USER", "osuser")],
+        &["--code", "P-001"],
+    )
+    .success();
+    let records = journal_of(folder.path());
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].name, "osuser");
+    assert_eq!(records[0].person, "osuser");
+    assert_eq!(records[0].event, "created");
+}
+
+#[test]
+fn init_creates_the_usage_folder() {
+    let folder = tempfile::tempdir().unwrap();
+    init(folder.path(), &["--code", "P-001"]).success();
+    assert!(folder.path().join("DOSSIER").join("usage").is_dir());
+}
+
+#[test]
+fn code_project_marks_the_settings_and_says_so() {
+    let folder = tempfile::tempdir().unwrap();
+    init(folder.path(), &["--code", "P-001", "--code-project"])
+        .success()
+        .stdout(contains("code project: map and code pointers are on"));
+    assert!(settings(folder.path()).contains("code = \"P-001\"\ncode_project = true\n"));
+    let cfg = dossier::config::load(&folder.path().join("DOSSIER")).unwrap();
+    assert!(cfg.code_project);
+}
+
+#[test]
+fn without_the_flag_the_project_is_not_a_code_project() {
+    let folder = tempfile::tempdir().unwrap();
+    init(folder.path(), &["--code", "P-001"])
+        .success()
+        .stdout(contains("code project:").not());
+    assert!(!settings(folder.path()).contains("code_project"));
+    let cfg = dossier::config::load(&folder.path().join("DOSSIER")).unwrap();
+    assert!(!cfg.code_project);
+}
+
 #[cfg(unix)]
 #[test]
 fn on_linux_the_folders_and_the_settings_are_group_writable() {
@@ -144,16 +250,23 @@ fn on_linux_the_folders_and_the_settings_are_group_writable() {
     let dossier = folder.path().join("DOSSIER");
     let mode = |path: &Path| std::fs::metadata(path).unwrap().permissions().mode() & 0o7777;
     assert_eq!(mode(&dossier), 0o2775);
-    for name in ["decisions", "assumptions", "findings", "lessons", ".state"] {
+    for name in [
+        "decisions",
+        "assumptions",
+        "findings",
+        "lessons",
+        "usage",
+        ".state",
+    ] {
         assert_eq!(mode(&dossier.join(name)), 0o2775, "{name}");
     }
     assert_eq!(mode(&dossier.join("dossier.toml")), 0o664);
+    assert_eq!(mode(&dossier.join(".state").join("journal.jsonl")), 0o664);
 }
 
 #[cfg(not(unix))]
 #[test]
 fn on_windows_no_group_line_is_written() {
-    use predicates::prelude::PredicateBooleanExt;
     let folder = tempfile::tempdir().unwrap();
     init(folder.path(), &["--code", "P-001"])
         .success()
