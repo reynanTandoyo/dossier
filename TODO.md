@@ -1999,10 +1999,8 @@
 - note (2026-11-21, haiku-t-114): done
 
 ### T-115 · history: what happened to an entry or a task
-- status: claimed
+- status: done
 - owner: haiku-t-115
-- claimed: 2026-11-21T01:22+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: Why an entry looks the way it does must be answerable from its history.
@@ -2018,8 +2016,12 @@
   6. Run cargo test --test cmd_history.
 - accept: history shows an entry's events and snapshots, or the entries of a task in time order.
 - verify: cargo test --test cmd_history
+- verified: 2026-11-21
+- commit: e181a08
 - reqs: R-READ-6, R-HIST-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-115): done
 
 ### T-116 · diff: what changed since a snapshot
 - status: open
