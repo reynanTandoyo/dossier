@@ -4061,10 +4061,8 @@
 - note (2026-11-21, haiku-t-163): done
 
 ### T-164 · agents/mod.rs: the Claude Code skill text
-- status: claimed
+- status: done
 - owner: haiku-t-164
-- claimed: 2026-11-21T11:19+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-031
 - why: The skill gives Claude Code the same rules as AGENTS.md (D33).
@@ -4077,8 +4075,12 @@
   3. Run cargo test --lib agents::.
 - accept: The skill text is the rules with a front matter.
 - verify: cargo test --lib agents::
+- verified: 2026-11-21
+- commit: 8f07873
 - reqs: R-AGENT-4, D33
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-164): done
 
 ### T-165 · hooks install and uninstall
 - status: open
