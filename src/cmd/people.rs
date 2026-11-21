@@ -1,16 +1,27 @@
 //! The `people` command: adds a person and the LLMs that write for them to dossier.toml, and lists
-//! them (format.md §10). No name is needed, because the names are what it sets up.
+//! them (format.md §10). No name is needed, because the names are what it sets up. Each added
+//! person is recorded in the journal with who and when (D29).
 
 use crate::cli::Global;
 use crate::config;
 use crate::error::{Code, Error, Result};
 use crate::find;
+use crate::journal;
+use crate::names;
 use crate::output::Output;
+use crate::time;
 use serde_json::{Value, json};
 use std::path::Path;
 
 /// The settings file inside the DOSSIER folder (format.md §10).
 const SETTINGS: &str = "dossier.toml";
+
+/// The state folder inside the DOSSIER folder (format.md §9).
+const STATE: &str = ".state";
+
+/// The journal ID of a settings change. Settings are not entries, so the ID is not an entry ID
+/// (format.md §11).
+const SETTINGS_ID: &str = "SETTINGS";
 
 /// The arguments of `people`.
 #[derive(clap::Args, Debug)]
@@ -47,7 +58,8 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     }
 }
 
-/// Adds `person` with `llms` to dossier.toml. With --dry-run nothing is written.
+/// Adds `person` with `llms` to dossier.toml, and journals the change. With --dry-run nothing is
+/// written.
 fn add(dossier: &Path, g: &Global, person: &str, llms: &[String]) -> Result<Output> {
     check_name(person, "a person's name")?;
     for llm in llms {
@@ -59,6 +71,7 @@ fn add(dossier: &Path, g: &Global, person: &str, llms: &[String]) -> Result<Outp
         return Ok(Output::text(text).warn(format!("dry run: would write {}", file.display())));
     }
     config::add_person(dossier, person, llms)?;
+    record_change(dossier, g, person, llms)?;
     Ok(Output::with(text, json!({"person": person, "llms": llms})))
 }
 
@@ -68,6 +81,32 @@ fn added_text(person: &str, llms: &[String]) -> String {
         format!("added {person}")
     } else {
         format!("added {person} with {}", llms.join(", "))
+    }
+}
+
+/// Appends the journal line of an add: the settings event `changed`, with who and when (D29) and
+/// the person and LLMs as its detail.
+fn record_change(dossier: &Path, g: &Global, person: &str, llms: &[String]) -> Result<()> {
+    let who = names::unchecked(g.agent.as_deref());
+    let record = journal::Record {
+        time: time::now(),
+        name: who.name,
+        person: who.person,
+        llm: who.is_llm,
+        command: "people".to_string(),
+        id: SETTINGS_ID.to_string(),
+        event: "changed".to_string(),
+        detail: change_detail(person, llms),
+    };
+    journal::append(&dossier.join(STATE), &record)
+}
+
+/// `person anna`, or `person anna with anna-claude, anna-codex` when LLMs were given.
+fn change_detail(person: &str, llms: &[String]) -> String {
+    if llms.is_empty() {
+        format!("person {person}")
+    } else {
+        format!("person {person} with {}", llms.join(", "))
     }
 }
 

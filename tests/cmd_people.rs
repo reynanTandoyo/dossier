@@ -36,6 +36,17 @@ fn stdout_of(folder: &Path, args: &[&str]) -> String {
     String::from_utf8(stdout).unwrap()
 }
 
+/// The records of the journal of the dossier of `folder`, oldest first.
+fn journal_records(folder: &Path) -> Vec<dossier::journal::Record> {
+    dossier::journal::read(&folder.join("DOSSIER").join(".state")).unwrap()
+}
+
+/// The text of the journal file of the dossier of `folder`.
+fn journal_text(folder: &Path) -> String {
+    let path = folder.join("DOSSIER").join(".state").join("journal.jsonl");
+    std::fs::read_to_string(&path).unwrap()
+}
+
 #[test]
 fn add_one_llm_then_a_second_later_lists_one_person_with_both() {
     let folder = project();
@@ -308,4 +319,87 @@ fn a_relative_dossier_option_is_taken_from_the_current_folder() {
     .stdout("added anna\n");
     let cfg = dossier::config::load(&project_folder.join("DOSSIER")).unwrap();
     assert_eq!(cfg.people[0].name, "anna");
+}
+
+#[test]
+fn adding_a_person_with_an_llm_is_journaled_with_who_and_when() {
+    let folder = project();
+    let before = journal_records(folder.path()).len();
+    dossier(
+        folder.path(),
+        &[
+            "--agent",
+            "anna",
+            "people",
+            "add",
+            "anna",
+            "--llm",
+            "anna-claude",
+        ],
+    )
+    .success();
+
+    let records = journal_records(folder.path());
+    assert_eq!(records.len(), before + 1);
+    let change = records.last().unwrap();
+    assert_eq!(change.id, "SETTINGS");
+    assert_eq!(change.event, "changed");
+    assert_eq!(change.command, "people");
+    assert_eq!(change.detail, "person anna with anna-claude");
+    assert_eq!(change.name, "anna");
+    assert_eq!(change.person, "anna");
+    assert!(!change.llm);
+    assert_eq!(change.time, "2026-11-21T09:00:00+01:00");
+}
+
+#[test]
+fn a_person_added_without_llms_or_with_several_is_journaled_with_its_detail() {
+    let folder = project();
+    dossier(folder.path(), &["--agent", "ben", "people", "add", "ben"]).success();
+    dossier(
+        folder.path(),
+        &[
+            "--agent",
+            "ben",
+            "people",
+            "add",
+            "ben",
+            "--llm",
+            "ben-codex",
+            "--llm",
+            "ben-claude",
+        ],
+    )
+    .success();
+
+    let details: Vec<String> = journal_records(folder.path())
+        .into_iter()
+        .filter(|record| record.id == "SETTINGS")
+        .map(|record| record.detail)
+        .collect();
+    assert_eq!(
+        details,
+        ["person ben", "person ben with ben-codex, ben-claude"]
+    );
+}
+
+#[test]
+fn a_dry_run_adds_no_journal_line() {
+    let folder = project();
+    let before = journal_text(folder.path());
+    dossier(
+        folder.path(),
+        &[
+            "--agent",
+            "anna",
+            "people",
+            "add",
+            "anna",
+            "--llm",
+            "anna-claude",
+            "--dry-run",
+        ],
+    )
+    .success();
+    assert_eq!(journal_text(folder.path()), before);
 }
