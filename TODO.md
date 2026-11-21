@@ -2144,10 +2144,8 @@
 - note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
 
 ### T-122 · drafts: what is waiting for approval
-- status: claimed
+- status: done
 - owner: haiku-t-122
-- claimed: 2026-11-21T01:11+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: A person must see in one list what their LLM proposed.
@@ -2163,8 +2161,12 @@
   6. Run cargo test --test cmd_drafts.
 - accept: drafts lists waiting entries oldest first with proposer, task and age.
 - verify: cargo test --test cmd_drafts
+- verified: 2026-11-21
+- commit: 5197207
 - reqs: R-DRAFT-3, R-DRAFT-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-122): done
 
 ### T-123 · approve: a person at a terminal approves drafts
 - status: done
