@@ -2197,10 +2197,8 @@
 - note (2026-11-21, haiku-t-123): done
 
 ### T-124 · reject: turn a draft down
-- status: claimed
+- status: done
 - owner: haiku-t-124
-- claimed: 2026-11-21T01:13+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: A rejected proposal must be kept so the same one is recognised next time.
@@ -2216,8 +2214,12 @@
   6. Run cargo test --test cmd_reject.
 - accept: A person can reject a draft with a reason; the entry is kept with status rejected.
 - verify: cargo test --test cmd_reject
+- verified: 2026-11-21
+- commit: 1574827
 - reqs: R-DRAFT-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-124): done
 
 ### T-125 · supersede: replace an entry with a newer one
 - status: done
@@ -2348,8 +2350,10 @@
 - note (2026-11-21, planner): added
 
 ### T-131 · brief: what an LLM should know at session start
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-131
+- claimed: 2026-11-21T01:17+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-130
 - why: An LLM that starts without the project's decisions will contradict them.
@@ -2431,8 +2435,10 @@
 - note (2026-11-21, planner): Tasks part reads data.milestones and data.counts: todo summary --json has no text field.
 
 ### T-134 · decide: show related decisions, and --replaces or --besides for an LLM
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-134
+- claimed: 2026-11-21T01:17+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-130
 - why: Two LLMs must not record contradicting decisions without anyone noticing.
