@@ -1524,13 +1524,15 @@
 - note (2026-11-21, haiku-t-205): done
 
 ### T-206 · Release 0.2.0
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-206
+- claimed: 2026-11-21T13:27+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 2 · type: chore
 - milestone: T-041
 - why: Phase 2 ends with a release that is used on real work.
 - final: Checking every command by hand cannot be listed in advance.
-- depends: T-199, T-200, T-201, T-202, T-203, T-204, T-205, T-032, T-033, T-034, T-035, T-036, T-037, T-038, T-039, T-040, T-155, T-156, T-157, T-158, T-159, T-160, T-161, T-162, T-163, T-164, T-165, T-166, T-167, T-207
+- depends: T-199, T-200, T-201, T-202, T-203, T-204, T-205, T-032, T-033, T-034, T-035, T-036, T-037, T-038, T-039, T-040, T-155, T-156, T-157, T-158, T-159, T-160, T-161, T-162, T-163, T-164, T-165, T-166, T-167, T-207, T-208, T-209
 - files: Cargo.toml, Cargo.lock
 - read: docs/requirements.md
 - steps:
@@ -1541,6 +1543,7 @@
 - verify: cargo build
 - reqs: REL-1
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): forced set (owner was haiku-t-206)
 
 ### T-042 · Team: knowledge reaches the next project without customer data
 - status: open
@@ -4290,6 +4293,44 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, haiku-t-207): done
+
+### T-208 · status: map, open assumptions and what rests on a wrong assumption as lists
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-041
+- why: R-CTX-16 and design.md section 9: status must print these, not only count them (found by the release check).
+- files: src/cmd/status.rs, tests/cmd_status.rs
+- read: docs/requirements.md, docs/design.md, docs/format.md
+- steps:
+  1. Add '## Map' to status (not with --on, not with --since), right after the project lines, with mapfile::load and mapfile::lines, at most 10 lines; leave it out when there are none.
+  2. Under the decisions part, add '## Open assumptions' listing each approved assumption with state open as '<ID> · <title>', and '## Rests on a wrong assumption' listing each approved entry with a rests-on field ('<ID> · <title> [rests on <IDs>]') and each non-detached file block with one ('<task> <path> [rests on <IDs>]'); copy the way src/cmd/brief.rs (on main) builds these lists. Keep the counts in Unsettled. Leave each part out when empty; keep status_lines (cut these lists before decisions).
+  3. JSON gains map, open_assumptions and rests (lists).
+  4. Tests in tests/cmd_status.rs: a map line, an open assumption and a refuted assumption's marked entry and file appear in the lists.
+  5. Run cargo test --test cmd_status.
+- accept: status lists the map, the open assumptions and everything that rests on a wrong assumption.
+- verify: cargo test --test cmd_status
+- reqs: R-CTX-16
+- note (2026-11-21, planner): added
+
+### T-209 · README: three corrections found by the release check
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: docs
+- milestone: T-041
+- why: The README must match what the program does (REL-2).
+- files: README.md
+- read: docs/format.md, docs/design.md
+- steps:
+  1. Fix three things in README.md, running each changed example again with target/debug/dossier.exe in a temporary folder and copying the real output:
+  2. (1) The runs example: dossier used refreshes an attached model that changed since (its file-list block gets the new checksum and a reattached line), so remove the separate reattach step after the run and say that used does this.
+  3. (2) The files example: the date column is the file's modification time (format.md section 17, modified), not the attach date; make the text and the shown output say so.
+  4. (3) 'What it needs': status works without todo and leaves the task parts out with one line; only brief --task, review-task and dossier todo need todo.
+  5. Change nothing else.
+- accept: The runs, files and requirements parts of the README match the program.
+- verify: git ls-files --error-unmatch README.md
+- reqs: REL-2
+- note (2026-11-21, planner): added
 
 ## Questions
 
