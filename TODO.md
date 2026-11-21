@@ -1620,10 +1620,8 @@
 - note (2026-11-21, planner): added
 
 ### T-217 · config.rs: set_list and set_value keep every other line
-- status: claimed
+- status: done
 - owner: haiku-t-217
-- claimed: 2026-11-21T23:43+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: team, member and init change dossier.toml without rewriting it.
@@ -1637,8 +1635,12 @@
   3. Run cargo test --lib config::.
 - accept: Top-level settings are changed line by line.
 - verify: cargo test --lib config::
+- verified: 2026-11-21
+- commit: c03923b
 - reqs: D29, R-EDIT-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-217): done
 
 ### T-218 · ctx.rs: load the team dossier of a project, --team and team_ctx
 - status: open
