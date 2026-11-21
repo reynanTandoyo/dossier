@@ -547,8 +547,10 @@
 - note (2026-11-21, haiku-t-176): done
 
 ### T-177 · values: the values in force
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-177
+- claimed: 2026-11-21T11:39+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-032
 - why: An LLM takes numbers from values, never from memory (R-VALUE-4, R-LIFE-9).
@@ -654,8 +656,10 @@
 - note (2026-11-21, haiku-t-170): done
 
 ### T-171 · detach: a file no longer belongs to a task
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-171
+- claimed: 2026-11-21T11:39+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-033
 - why: File lists change only through the tool and keep what was true on a date (R-FILE-13, R-LIFE-9).
@@ -692,8 +696,10 @@
 - note (2026-11-21, planner): added
 
 ### T-173 · files: the file lists, grouped by role, with marks
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-173
+- claimed: 2026-11-21T11:39+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-033
 - why: Readers see which files belong to a task and which results are outdated (R-FILE-11).
@@ -980,10 +986,8 @@
 - note (2026-11-21, planner): split into T-191, T-192, T-193, T-194
 
 ### T-191 · affects.rs: the items an assumption affects
-- status: claimed
+- status: done
 - owner: haiku-t-191
-- claimed: 2026-11-21T11:32+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-037
 - why: refute must find what rests on a wrong assumption (R-WRITE-15).
@@ -996,8 +1000,12 @@
   3. Run cargo test --lib affects::.
 - accept: The Affects section is turned into tasks, entries, values, paths and text.
 - verify: cargo test --lib affects::
+- verified: 2026-11-21
+- commit: 449d71b
 - reqs: R-WRITE-15
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-191): done
 
 ### T-192 · confirm: an assumption turned out true
 - status: open
