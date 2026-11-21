@@ -2159,10 +2159,8 @@
 - note (2026-11-21, planner): added
 
 ### T-123 · approve: a person at a terminal approves drafts
-- status: claimed
+- status: done
 - owner: haiku-t-123
-- claimed: 2026-11-21T01:06+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: This is the step that keeps wrong LLM conclusions out of the team's knowledge.
@@ -2179,10 +2177,14 @@
   7. Run cargo test --test cmd_approve.
 - accept: Only a person at a terminal approves; the entry records who approved and when; incomplete drafts are not approved.
 - verify: cargo test --test cmd_approve
+- verified: 2026-11-21
+- commit: d2dbb58
 - reqs: R-DRAFT-4, D5, D6, R-HIST-5, TEST-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
 - note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
+- note (2026-11-21, haiku-t-123): done
 
 ### T-124 · reject: turn a draft down
 - status: open
