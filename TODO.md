@@ -1596,10 +1596,8 @@
 - note (2026-11-21, planner): split into T-216, T-217, T-218, T-219, T-220, T-221, T-222, T-223, T-224, T-225, T-226, T-227, T-228, T-229
 
 ### T-216 · names.rs: usernames, plain names and '<person> - <anything>' LLM names (D34)
-- status: claimed
+- status: done
 - owner: haiku-t-216
-- claimed: 2026-11-21T23:43+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: D34: simple names, no registration of LLM names.
@@ -1616,8 +1614,12 @@
   6. Run cargo test --lib names:: and cargo test --all-features.
 - accept: Writers are members, LLMs are '<member> - <anything>', the OS user is the default, and plain names are known but never write.
 - verify: cargo test --lib names::
+- verified: 2026-11-21
+- commit: 6ffe372
 - reqs: D34, R-CFG-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-216): done
 
 ### T-217 · config.rs: set_list and set_value keep every other line
 - status: done
