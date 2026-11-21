@@ -1524,10 +1524,8 @@
 - note (2026-11-21, haiku-t-205): done
 
 ### T-206 · Release 0.2.0
-- status: claimed
+- status: done
 - owner: haiku-t-206
-- claimed: 2026-11-21T13:27+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 2 · type: chore
 - milestone: T-041
 - why: Phase 2 ends with a release that is used on real work.
@@ -1541,9 +1539,13 @@
   3. Tell the owner that the tag v0.2.0 can be pushed after CI passes; do not push.
 - accept: Version 0.2.0 builds and every check passes on both systems.
 - verify: cargo build
+- verified: 2026-11-21
+- commit: 4fbcf4f
 - reqs: REL-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): forced set (owner was haiku-t-206)
+- note (2026-11-21, haiku-t-206): done
 
 ### T-042 · Team: knowledge reaches the next project without customer data
 - status: open
