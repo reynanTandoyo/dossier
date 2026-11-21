@@ -115,7 +115,9 @@ impl Project {
             )
             .env("DOSSIER_TODO", self.stand_in("todo"))
             .env("DOSSIER_SSH", self.stand_in("ssh"))
-            .env_remove("TODO_AGENT");
+            .env_remove("TODO_AGENT")
+            // A test run inside an ssh session must not look like remote mode (R-REMOTE-12).
+            .env_remove("SSH_CONNECTION");
         if agent.is_empty() {
             command.env_remove("DOSSIER_AGENT");
         } else {
