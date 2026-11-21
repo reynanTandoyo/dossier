@@ -134,18 +134,18 @@ fn a_draft_can_neither_be_superseded_nor_replace_an_entry_and_nothing_is_written
     );
     let old_before = entry_text(&project, "DEC-001");
     let draft_before = entry_text(&project, "DEC-002");
-    assert!(draft_before.contains("\n- status: draft\n"));
+    assert!(draft_before.contains("\n- status: proposed\n"));
 
     project
         .run("anna", &["supersede", "DEC-001", "--by", "DEC-002"])
         .failure()
         .code(1)
-        .stderr(contains("DEC-002 is not approved (status: draft)"));
+        .stderr(contains("DEC-002 is not approved (status: proposed)"));
     project
         .run("anna", &["supersede", "DEC-002", "--by", "DEC-001"])
         .failure()
         .code(1)
-        .stderr(contains("DEC-002 is not approved (status: draft)"));
+        .stderr(contains("DEC-002 is not approved (status: proposed)"));
 
     assert_eq!(entry_text(&project, "DEC-001"), old_before);
     assert_eq!(entry_text(&project, "DEC-002"), draft_before);
