@@ -1054,10 +1054,8 @@
 - note (2026-11-21, planner): added
 
 ### T-193 · refute: an assumption was wrong; mark what rests on it
-- status: claimed
+- status: done
 - owner: haiku-t-193
-- claimed: 2026-11-21T11:48+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-037
 - why: Results built on a wrong assumption must be found again (R-WRITE-15).
@@ -1074,8 +1072,12 @@
   7. Run cargo test --test cmd_refute.
 - accept: refute closes a wrong assumption and marks every entry and file that rests on it.
 - verify: cargo test --test cmd_refute
+- verified: 2026-11-21
+- commit: f688a32
 - reqs: R-WRITE-15
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-193): done
 
 ### T-194 · cleared: a person clears a rests-on mark
 - status: open
