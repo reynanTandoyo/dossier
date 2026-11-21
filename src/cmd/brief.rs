@@ -4,9 +4,10 @@
 //! the same on every run. Nothing is changed.
 //!
 //! The project brief also prints the map of the code (R-CODE-1), the key values (R-VALUE-4), the
-//! decisions proposed and waiting for a decider (R-CTX-16), and the marks `rests on <ID>` of what
-//! rests on a wrong assumption. With `--on <date>` it prints what was in force on that day
-//! instead (R-LIFE-9); the proposals and the drafts are then left out.
+//! decisions proposed and waiting for a decider (R-CTX-16), and what rests on a wrong assumption
+//! (R-CTX-16): the entries and file blocks marked `rests on <ID>`, under their own heading. With
+//! `--on <date>` it prints what was in force on that day instead (R-LIFE-9); the proposals, the
+//! drafts and what rests on a wrong assumption are then left out.
 
 use crate::approval::{self, Mark};
 use crate::blockfile::BlockFile;
@@ -16,6 +17,7 @@ use crate::config::Tags;
 use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
+use crate::filelist;
 use crate::mapfile;
 use crate::output::Output;
 use crate::store::{self, Item};
@@ -46,6 +48,7 @@ const ASSUMPTIONS: &str = "## Open assumptions";
 const FINDINGS: &str = "## Findings";
 const LESSONS: &str = "## Lessons";
 const PROPOSALS: &str = "## Proposals waiting";
+const RESTS: &str = "## Rests on a wrong assumption";
 
 /// The most lines of the map the brief prints (R-CODE-1), and the most values (R-VALUE-4).
 const MAX_MAP_LINES: usize = 25;
@@ -106,7 +109,23 @@ fn for_project(ctx: &Ctx, remote: bool, day: Option<&str>) -> Result<Output> {
             Vec::new()
         }
     };
-    let mut brief = Brief::collect(ctx, &items, remote, day, map_section, value_section);
+    let rests_section = match day {
+        Some(_) => Vec::new(),
+        None => {
+            let (lines, found) = rests_lines(&ctx.dossier, &items);
+            problems.extend(found);
+            lines
+        }
+    };
+    let mut brief = Brief::collect(
+        ctx,
+        &items,
+        remote,
+        day,
+        map_section,
+        value_section,
+        rests_section,
+    );
     let lines = brief.fit(ctx.cfg.brief_lines);
     let mut output = Output::with(lines.join("\n"), brief.data(&ctx.cfg.code));
     for warning in warnings.iter().chain(&problems) {
@@ -133,12 +152,17 @@ struct Brief {
     lessons: Vec<Line>,
     /// The decisions proposed and waiting for a decider, by ID. Left out with `--on`.
     proposals: Vec<Line>,
+    /// What rests on a wrong assumption (R-CTX-16): the approved entries, then the file blocks.
+    /// Left out with `--on`.
+    rests: Vec<Line>,
     /// The number of drafts waiting for approval. Left out with `--on`.
     drafts: usize,
     /// The number of entries cut to fit the limit (lessons, findings, decisions, assumptions).
     left_out: usize,
     /// The number of proposals cut to fit the limit.
     proposals_left_out: usize,
+    /// The number of lines of what rests on a wrong assumption cut to fit the limit.
+    rests_left_out: usize,
     /// The number of values cut to fit the limit.
     values_left_out: usize,
     /// Whether the map was cut to fit the limit.
@@ -197,11 +221,7 @@ impl Wrong {
             .into_iter()
             .filter(|id| self.holds(id))
             .collect();
-        if ids.is_empty() {
-            String::new()
-        } else {
-            format!(" [rests on {}]", ids.join(", "))
-        }
+        rests_mark(&ids)
     }
 
     /// Whether an ID counts in the brief: every ID does for the present brief; for a day, the
@@ -225,6 +245,7 @@ impl Brief {
         day: Option<&str>,
         map_section: Vec<String>,
         value_section: Vec<Line>,
+        rests_section: Vec<Line>,
     ) -> Brief {
         let wrong = Wrong::of(items, day);
         let mut decisions = shown(items, Kind::Decision, day);
@@ -273,6 +294,7 @@ impl Brief {
             } else {
                 proposals_of(items, &wrong)
             },
+            rests: rests_section,
             drafts: if day.is_some() {
                 0
             } else {
@@ -283,6 +305,7 @@ impl Brief {
             },
             left_out: 0,
             proposals_left_out: 0,
+            rests_left_out: 0,
             values_left_out: 0,
             map_left_out: false,
             day: day.map(str::to_string),
@@ -302,6 +325,7 @@ impl Brief {
         push_section(&mut lines, FINDINGS, &texts(&self.findings));
         push_section(&mut lines, LESSONS, &texts(&self.lessons));
         push_section(&mut lines, PROPOSALS, &texts(&self.proposals));
+        push_section(&mut lines, RESTS, &texts(&self.rests));
         if self.drafts > 0 {
             lines.push(drafts_line(self.drafts));
         }
@@ -319,6 +343,14 @@ impl Brief {
                 "proposal",
                 "proposals",
                 "dossier list --status proposed",
+            ));
+        }
+        if self.rests_left_out > 0 {
+            lines.push(left_out_text(
+                self.rests_left_out,
+                "line resting on a wrong assumption",
+                "lines resting on a wrong assumption",
+                "dossier list and dossier files",
             ));
         }
         if self.values_left_out > 0 {
@@ -358,14 +390,16 @@ impl Brief {
     }
 
     /// Cuts one thing to fit the limit, in this order: the last lesson, the last finding, the last
-    /// proposal, the last value, the whole map, the oldest decision, the last open assumption.
-    /// Returns false when nothing is left to cut. Each step stops at the first list that had
-    /// something, so only one thing is cut per call.
+    /// proposal, the last line that rests on a wrong assumption, the last value, the whole map, the
+    /// oldest decision, the last open assumption. Returns false when nothing is left to cut. Each
+    /// step stops at the first list that had something, so only one thing is cut per call.
     fn cut_one(&mut self) -> bool {
         if self.lessons.pop().is_some() || self.findings.pop().is_some() {
             self.left_out += 1;
         } else if self.proposals.pop().is_some() {
             self.proposals_left_out += 1;
+        } else if self.rests.pop().is_some() {
+            self.rests_left_out += 1;
         } else if self.values.pop().is_some() {
             self.values_left_out += 1;
         } else if !self.map.is_empty() {
@@ -380,7 +414,8 @@ impl Brief {
     }
 
     /// The data of `--json`: the day, the map lines, and the IDs (values: names) of the entries
-    /// printed, and the number of drafts.
+    /// printed, and the number of drafts. A file block that rests on a wrong assumption is named
+    /// by its task and path, as `<task> <path>`.
     fn data(&self, code: &str) -> Value {
         json!({
             "code": code,
@@ -392,6 +427,7 @@ impl Brief {
             "findings": ids(&self.findings),
             "lessons": ids(&self.lessons),
             "proposals": ids(&self.proposals),
+            "rests": ids(&self.rests),
             "drafts": self.drafts,
         })
     }
@@ -431,6 +467,67 @@ fn proposals_of(items: &[Item], wrong: &Wrong) -> Vec<Line> {
                 && item.entry.status() == Some(Status::Proposed)
         })
         .map(|item| line(&item.entry, &format!(" ({})", author(&item.entry)), wrong))
+        .collect()
+}
+
+/// What rests on a wrong assumption, as the brief of now prints it (R-CTX-16): the approved entries
+/// whose `rests-on` field names an ID, in the order of `store::all`, then the blocks of the file
+/// lists that are not detached and whose `rests-on` field names an ID, the tasks in order and the
+/// blocks in the order of their list. Each is one line. A list that cannot be read gives its
+/// problem and no lines.
+fn rests_lines(dossier: &Path, items: &[Item]) -> (Vec<Line>, Vec<String>) {
+    let mut lines: Vec<Line> = items
+        .iter()
+        .filter(|item| item.entry.status() == Some(Status::Approved))
+        .filter_map(|item| {
+            let assumptions = item.entry.list(RESTS_ON);
+            (!assumptions.is_empty()).then(|| Line {
+                id: item.entry.id(),
+                text: format!("{}{}", entry_text(&item.entry), rests_mark(&assumptions)),
+            })
+        })
+        .collect();
+    let mut problems = Vec::new();
+    for task in filelist::tasks(dossier) {
+        let (list, _) = match filelist::load(dossier, &task) {
+            Ok(loaded) => loaded,
+            Err(error) => {
+                problems.push(error.message);
+                continue;
+            }
+        };
+        for key in list.keys() {
+            let detached = list
+                .field(&key, "detached")
+                .is_some_and(|at| !at.is_empty());
+            let assumptions = ids_of(&list.field(&key, RESTS_ON).unwrap_or_default());
+            if !detached && !assumptions.is_empty() {
+                let id = format!("{task} {key}");
+                lines.push(Line {
+                    text: format!("{id}{}", rests_mark(&assumptions)),
+                    id,
+                });
+            }
+        }
+    }
+    (lines, problems)
+}
+
+/// The mark ` [rests on <IDs>]` of IDs, joined with `, `; nothing when there are none.
+fn rests_mark(assumptions: &[String]) -> String {
+    if assumptions.is_empty() {
+        String::new()
+    } else {
+        format!(" [rests on {}]", assumptions.join(", "))
+    }
+}
+
+/// The IDs of a comma-separated field, trimmed, without the empty ones.
+fn ids_of(text: &str) -> Vec<String> {
+    text.split(',')
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+        .map(str::to_string)
         .collect()
 }
 

@@ -2,8 +2,9 @@
 //! findings and lessons by title, the drafts line, the marks of a lesson changed by hand and of
 //! a dead end, the line limit with 70 decisions, the same output on every run, the server line
 //! of remote mode, and `--task` through a stand-in for todo. Phase 2 adds the map first, the key
-//! values, the proposals waiting, the `rests on` marks, `--on <date>` and the order in which the
-//! line limit cuts. Each test runs in its own temporary project folder (common::Project), with
+//! values, the proposals waiting, the `rests on` marks and the heading of what rests on a wrong
+//! assumption, `--on <date>` and the order in which the line limit cuts. Each test runs in its own
+//! temporary project folder (common::Project), with
 //! the clock fixed at 2026-11-20T10:00:00+01:00.
 
 mod common;
@@ -958,4 +959,218 @@ fn the_map_and_the_values_are_cut_before_any_decision_and_the_decisions_are_shor
         "{text}"
     );
     assert!(!text.contains("Reason number"), "{text}");
+}
+
+/// A project with the file data/model.sim attached to T-001 (as anna), a decision DEC-001 for
+/// T-001 and an assumption ASM-001 that affects T-001, as anna on 2026-11-20.
+fn project_with_a_file_and_a_decision_resting_on_an_assumption() -> Project {
+    let project = Project::new();
+    project.write("data/model.sim", "invented model");
+    project
+        .run(
+            "anna",
+            &["attach", "T-001", "data/model.sim", "--role", "model"],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "assume",
+                "The inlet profile is uniform.",
+                "--reason",
+                "No measured profile was delivered.",
+                "--title",
+                "Uniform inlet profile",
+                "--affects",
+                "T-001",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Run the last speedline points transient.",
+                "--reason",
+                "Steady runs stall first.",
+                "--title",
+                "Transient speedline points",
+                "--task",
+                "T-001",
+            ],
+        )
+        .success();
+    project
+}
+
+#[test]
+fn what_rests_on_a_wrong_assumption_is_listed_under_its_own_heading() {
+    let project = project_with_a_file_and_a_decision_resting_on_an_assumption();
+    refute(&project, NOW, "ASM-001");
+
+    let text = brief(&project, &[], None);
+
+    assert_eq!(
+        text.lines().collect::<Vec<&str>>(),
+        vec![
+            "Project P-001",
+            "## Decisions in force",
+            "DEC-001 · Transient speedline points (anna, 2026-11-20) [rests on ASM-001]",
+            "  Run the last speedline points transient.",
+            "  Steady runs stall first.",
+            "## Rests on a wrong assumption",
+            "DEC-001 · Transient speedline points [rests on ASM-001]",
+            "T-001 data/model.sim [rests on ASM-001]",
+        ],
+        "{text}"
+    );
+    let envelope =
+        serde_json::from_str::<serde_json::Value>(brief(&project, &["--json"], None).trim())
+            .expect("one JSON line");
+    assert_eq!(
+        envelope["data"]["rests"],
+        serde_json::json!(["DEC-001", "T-001 data/model.sim"]),
+    );
+}
+
+#[test]
+fn a_brief_with_no_such_marks_has_no_such_heading() {
+    let project = project_with_entries();
+    let text = brief(&project, &[], None);
+    assert!(!text.contains("## Rests on a wrong assumption"), "{text}");
+
+    project
+        .run(
+            "anna",
+            &[
+                "assume",
+                "The gas is ideal.",
+                "--reason",
+                "No gas data yet.",
+                "--title",
+                "Ideal gas",
+            ],
+        )
+        .success();
+    refute(&project, NOW, "ASM-002");
+
+    let text = brief(&project, &[], None);
+    assert!(!text.contains("## Rests on a wrong assumption"), "{text}");
+}
+
+#[test]
+fn a_detached_file_that_rests_on_a_wrong_assumption_is_not_listed() {
+    let project = project_with_a_file_and_a_decision_resting_on_an_assumption();
+    refute(&project, NOW, "ASM-001");
+    project
+        .run("anna", &["detach", "T-001", "data/model.sim"])
+        .success();
+
+    let text = brief(&project, &[], None);
+
+    assert!(
+        !text
+            .lines()
+            .any(|line| line.starts_with("T-001 data/model.sim")),
+        "{text}"
+    );
+    assert!(
+        text.lines()
+            .any(|line| line == "DEC-001 · Transient speedline points [rests on ASM-001]"),
+        "{text}"
+    );
+}
+
+#[test]
+fn on_leaves_out_what_rests_on_a_wrong_assumption() {
+    let project = project_with_a_file_and_a_decision_resting_on_an_assumption();
+    refute(&project, NOW, "ASM-001");
+
+    let now = brief(&project, &[], None);
+    assert!(now.contains("## Rests on a wrong assumption"), "{now}");
+
+    let on = brief(&project, &["--on", "2026-11-20"], None);
+    assert!(!on.contains("## Rests on a wrong assumption"), "{on}");
+    assert!(
+        on.lines().any(|line| line
+            == "DEC-001 · Transient speedline points (anna, 2026-11-20) [rests on ASM-001]"),
+        "{on}"
+    );
+    assert!(
+        !on.lines()
+            .any(|line| line.starts_with("T-001 data/model.sim")),
+        "{on}"
+    );
+}
+
+#[test]
+fn what_rests_on_a_wrong_assumption_is_cut_after_the_proposals_and_says_how_many_are_left_out() {
+    let project = Project::new();
+    let mut paths = Vec::new();
+    for number in 1..=60 {
+        let path = format!("data/part{number:02}.sim");
+        project.write(&path, "invented part");
+        paths.push(path);
+    }
+    let mut args = vec!["attach", "T-001"];
+    args.extend(paths.iter().map(String::as_str));
+    args.extend(["--role", "model"]);
+    project.run("anna", &args).success();
+    project
+        .run(
+            "anna",
+            &[
+                "assume",
+                "The inlet profile is uniform.",
+                "--reason",
+                "No measured profile was delivered.",
+                "--title",
+                "Uniform inlet profile",
+                "--affects",
+                "T-001",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "ben-codex",
+            &[
+                "propose",
+                "Mesh the blades with 1 mm cells.",
+                "--reason",
+                "The tip gap needs fine cells.",
+                "--title",
+                "Blade mesh size",
+            ],
+        )
+        .success();
+    refute(&project, NOW, "ASM-001");
+
+    let text = brief(&project, &[], None);
+
+    // 60 files rest on the assumption and 1 proposal waits: the proposal is cut first, then 4
+    // lines of the files, so 56 file lines and 2 left-out lines make the 60 lines.
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 60, "{text}");
+    assert_eq!(lines[1], "## Rests on a wrong assumption", "{text}");
+    assert_eq!(
+        lines
+            .iter()
+            .filter(|line| line.starts_with("T-001 data/"))
+            .count(),
+        56,
+        "{text}"
+    );
+    assert!(!text.contains("Blade mesh size"), "{text}");
+    assert!(
+        lines.contains(&"1 proposal left out: dossier list --status proposed"),
+        "{text}"
+    );
+    assert_eq!(
+        lines.last(),
+        Some(&"4 lines resting on a wrong assumption left out: dossier list and dossier files"),
+        "{text}"
+    );
 }
