@@ -848,6 +848,7 @@ pub fn is_known(cfg: &Config, name: &str) -> bool;
 // ctx.rs: Ctx gains
 pub team: Option<PathBuf>,            // the team dossier of a project (cfg.team), if it exists
 pub from_document: Option<String>,    // g.from_document, stored (paths::stored)
+pub project: Option<PathBuf>,         // with --team from a project: that project's DOSSIER
 // Ctx::load: when g.team is set and the current dossier is a project, the context is the team
 // dossier's (its folders and settings) and `who` is resolved against the project's and the
 // team's people together; a project's cfg gains the team's members and names in memory.
@@ -857,6 +858,8 @@ pub fn team_ctx(&self) -> Result<Ctx>;
 
 // create.rs: with ctx.from_document the entry is a draft and gets imported: yes and
 // source-document; approval::record for every guarded kind (not only lessons).
+// When ctx.project is Some (a team write from a project), create first runs
+// conf::gate(project) and conf::check(terms, rendered text) (R-WRITE-6, R-CONF-2).
 
 // tx.rs: after the changes of a team dossier (cfg.kind == "team") are written,
 // gitcommit::commit(<folder holding DOSSIER>, <DOSSIER>, "<command>: <ids>"); a failure is a
