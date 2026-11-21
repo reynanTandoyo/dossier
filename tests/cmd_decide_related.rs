@@ -258,3 +258,25 @@ fn replacing_a_missing_decision_is_not_found() {
         .stderr(contains("no entry DEC-009"));
     assert_eq!(decision_count(&project), 1);
 }
+
+#[test]
+fn decisions_that_share_only_common_words_are_not_related() {
+    let project = Project::new();
+    decide_first(&project);
+
+    // Shares only "the" and "for" with FIRST, both common words: the LLM records it without
+    // --besides or --replaces, and nothing is listed as related.
+    let output = project.stdout(
+        "anna-claude",
+        &[
+            "decide",
+            "Each of these holes is open for the test.",
+            "--reason",
+            "The holes were checked.",
+            "--said-by",
+            "anna",
+        ],
+    );
+    assert_eq!(output, "DEC-002: added (approved)\n");
+    assert_eq!(decision_count(&project), 2);
+}

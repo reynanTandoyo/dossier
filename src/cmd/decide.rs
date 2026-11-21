@@ -26,6 +26,18 @@ const TITLE_CHARS: usize = 80;
 /// The most related decisions that are looked for and shown.
 const RELATED_LIMIT: usize = 5;
 
+/// Common English words. They say nothing about what a decision is about, so they are left out
+/// of the title and decision words the related decisions are looked for with: two decisions that
+/// share only these words are not related.
+const COMMON_WORDS: &[&str] = &[
+    "the", "and", "for", "with", "from", "this", "that", "these", "those", "are", "was", "were",
+    "will", "would", "should", "can", "not", "all", "any", "but", "use", "used", "uses", "using",
+    "has", "have", "had", "into", "than", "then", "its", "our", "your", "you", "per", "via",
+    "each", "only", "also", "when", "where", "which", "who", "what", "more", "most", "less", "new",
+    "one", "two", "out", "off", "does", "did", "been", "being", "they", "them", "their", "there",
+    "here",
+];
+
 /// The arguments of `decide`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
@@ -171,7 +183,7 @@ fn new_decision(args: &Args) -> New {
 }
 
 /// What the new decision is related to: each value of the four tag options, split at commas,
-/// and the words of its title and of its decision.
+/// and the words of its title and of its decision, without the COMMON_WORDS.
 fn search_query(args: &Args, title: &str) -> Query {
     let tags = [&args.machine, &args.analysis, &args.software, &args.tags]
         .into_iter()
@@ -181,10 +193,11 @@ fn search_query(args: &Args, title: &str) -> Query {
         .filter(|tag| !tag.is_empty())
         .map(str::to_string)
         .collect();
-    Query {
-        tags,
-        words: select::words(&format!("{title} {}", args.decision)),
-    }
+    let words = select::words(&format!("{title} {}", args.decision))
+        .into_iter()
+        .filter(|word| !COMMON_WORDS.contains(&word.as_str()))
+        .collect();
+    Query { tags, words }
 }
 
 /// The approved decisions most related to the query, best first, as (ID, title). The store's
