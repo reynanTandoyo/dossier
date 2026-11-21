@@ -3946,10 +3946,8 @@
 - note (2026-11-21, haiku-t-158): done
 
 ### T-159 · people add: journal line
-- status: claimed
+- status: done
 - owner: haiku-t-159
-- claimed: 2026-11-21T11:14+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-031
 - why: Every change is saved with who and when, also settings changes (D29).
@@ -3962,9 +3960,13 @@
   3. Run cargo test --test cmd_people.
 - accept: Adding a person is saved with who and when.
 - verify: cargo test --test cmd_people
+- verified: 2026-11-21
+- commit: 66f54e4
 - reqs: D29
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): tests/cmd_log.rs and tests/xos.rs added: the people journal lines change log output and the xos digest.
+- note (2026-11-21, haiku-t-159): done
 
 ### T-160 · agents install: journal line
 - status: open
