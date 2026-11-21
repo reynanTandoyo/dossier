@@ -767,8 +767,10 @@
 - note (2026-11-21, planner): split into T-195, T-196
 
 ### T-195 · used: record a run of a software
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-195
+- claimed: 2026-11-21T12:19+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-034
 - why: Which software version and parameters produced a result is asked in every review (R-USE-2, R-USE-14).
@@ -1088,8 +1090,8 @@
 - note (2026-11-21, haiku-t-193): done
 
 ### T-194 · cleared: a person clears a rests-on mark
-- status: open
-- owner: —
+- status: done
+- owner: haiku-t-194
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-037
 - why: R-WRITE-15.
@@ -1104,8 +1106,12 @@
   5. Run cargo test --test cmd_cleared.
 - accept: A person clears a mark with a note; the history keeps it.
 - verify: cargo test --test cmd_cleared
+- verified: 2026-11-21
+- commit: 3422ac7
 - reqs: R-WRITE-15
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-194): done
 
 ### T-038 · What was in force on a date: --on
 - status: open
@@ -1252,8 +1258,10 @@
 - note (2026-11-21, haiku-t-183): done
 
 ### T-184 · exchange: list what was received and delivered
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-184
+- claimed: 2026-11-21T12:19+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-039
 - why: R-EXCH-3.
@@ -1361,8 +1369,10 @@
 - note (2026-11-21, planner): added
 
 ### T-200 · brief: map, key values, proposals, rests-on marks and --on
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-200
+- claimed: 2026-11-21T12:19+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-041
 - why: What phase 2 records only helps when it reaches the LLM's context (R-CTX-16, R-CODE-1, R-LIFE-9).
@@ -1384,8 +1394,10 @@
 - note (2026-11-21, planner): added
 
 ### T-201 · status: key values, proposals, marks, last exchange and --on
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-201
+- claimed: 2026-11-21T12:19+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-041
 - why: R-CTX-16, R-EXCH-5, R-LIFE-9.
@@ -1405,8 +1417,10 @@
 - note (2026-11-21, planner): added
 
 ### T-202 · brief --task: files, dead ends, pictures and code pointers
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-202
+- claimed: 2026-11-21T12:19+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-041
 - why: R-CTX-16, R-FILE-14, R-ENTRY-17, R-CODE-4.
