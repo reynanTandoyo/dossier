@@ -2836,10 +2836,8 @@
 - note (2026-11-21, haiku-t-148): done
 
 ### T-149 · Test: Windows and Linux write the same files
-- status: claimed
+- status: done
 - owner: haiku-t-149
-- claimed: 2026-11-21T01:38+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: test
 - milestone: T-139
 - why: The dossier lives on Linux and is used from Windows; nothing may depend on where a command was typed.
@@ -2856,9 +2854,13 @@
   7. Run cargo test --test xos.
 - accept: The same commands give byte-identical dossier files and the same search order on Windows and Linux; CRLF files keep their endings.
 - verify: cargo test --test xos
+- verified: 2026-11-21
+- commit: ad40269
 - reqs: R-XOS-4, R-XOS-6, R-XOS-7, TEST-11, TEST-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
+- note (2026-11-21, haiku-t-149): done
 
 ### T-150 · Ship v0.1: proven fast enough, documented, released
 - status: open
