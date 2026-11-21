@@ -1,18 +1,25 @@
-//! The `check` command: reads every entry of the dossier and reports each problem on its own
-//! line as `<file>:<line>: <ID> <KIND> <message>` (R-CHECK-1, design.md section 5). Nothing is
-//! changed. A dossier without problems says `DOSSIER: ok (0 problems)`; otherwise the command
-//! fails with exit code 1, with or without `--json`.
+//! The `check` command: reads every entry of the dossier and every block file (values.md, map.md,
+//! exchange.md and files/<task>.md, format.md §17), and reports each problem on its own line as
+//! `<file>:<line>: <ID> <KIND> <message>` (R-CHECK-1, design.md section 5). A block file has no
+//! entry ID, so its ID is `-`. Nothing is changed. A dossier without problems says
+//! `DOSSIER: ok (0 problems)`; otherwise the command fails with exit code 1, with or without
+//! `--json`.
 
 use crate::approval::{self, Mark};
+use crate::blockfile::BlockFile;
 use crate::cli::Global;
 use crate::ctx::Ctx;
 use crate::entry::rules;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
+use crate::exchange;
+use crate::filelist;
+use crate::mapfile;
 use crate::output::Output;
 use crate::paths;
 use crate::store::{self, Item};
 use crate::time;
+use crate::values;
 use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
 
@@ -41,6 +48,7 @@ pub fn run(_args: &Args, g: &Global) -> Result<Output> {
     for item in &items {
         found.extend(entry_problems(&ctx, item, &known));
     }
+    found.extend(block_problems(&ctx, &known));
     if found.is_empty() {
         return Ok(Output::text(OK));
     }
@@ -92,14 +100,14 @@ impl Found {
 /// `<path>: <message>`. The problem has no ID, so it shows `-`.
 fn parse_problem(root: &Path, warning: &str) -> Found {
     let (path, message) = split_warning(warning);
+    parse_found(root, Path::new(path), message)
+}
+
+/// The PARSE problem of the file at `path`, from a parse message: `line <n>: <message>` gives
+/// line n, anything else gives line 1.
+fn parse_found(root: &Path, path: &Path, message: &str) -> Found {
     let (line, message) = numbered(message);
-    Found::new(
-        &relative(root, Path::new(path)),
-        line,
-        "-",
-        "PARSE",
-        message,
-    )
+    Found::new(&relative(root, path), line, "-", "PARSE", message)
 }
 
 /// Splits a warning into its path and its message. The path ends at the first `: ` that is
@@ -209,11 +217,12 @@ fn entry_problems(ctx: &Ctx, item: &Item, known: &HashSet<String>) -> Vec<Found>
         }
     }
 
-    // LINK: every ID that a link field names must be an entry of the dossier.
+    // LINK: every ID that a link field names must be an entry of the dossier (format.md §14).
     let links = [
         ("related", entry.list("related")),
         ("supersedes", single_id(entry, "supersedes")),
         ("superseded-by", single_id(entry, "superseded-by")),
+        ("rests-on", entry.list("rests-on")),
     ];
     for (key, targets) in links {
         for target in targets {
@@ -278,6 +287,84 @@ fn entry_problems(ctx: &Ctx, item: &Item, known: &HashSet<String>) -> Vec<Found>
     found
 }
 
+/// The problems of the block files (format.md §17): values.md, map.md, exchange.md and every
+/// files/<task>.md. A file that cannot be read, is not UTF-8 or does not parse is PARSE. A
+/// `rests-on` field of one of its blocks that names an ID which is not an entry is LINK. A file
+/// that does not exist has no problem.
+fn block_problems(ctx: &Ctx, known: &HashSet<String>) -> Vec<Found> {
+    let mut paths = vec![
+        ctx.dossier.join(values::FILE),
+        ctx.dossier.join(mapfile::FILE),
+        ctx.dossier.join(exchange::FILE),
+    ];
+    // filelist::tasks gives each name without `.md`, so this is the file name as it is on disk
+    // (filelist::path would upper-case it).
+    paths.extend(
+        filelist::tasks(&ctx.dossier)
+            .iter()
+            .map(|task| ctx.dossier.join("files").join(format!("{task}.md"))),
+    );
+    let mut found = Vec::new();
+    for path in &paths {
+        match read_block(&ctx.root, path) {
+            Ok(Some(file)) => found.extend(block_links(&ctx.root, path, &file, known)),
+            Ok(None) => {}
+            Err(problem) => found.push(problem),
+        }
+    }
+    found
+}
+
+/// Reads a block file as BlockFile::parse reads it: None when the file does not exist. A file
+/// that cannot be read, is not UTF-8 or does not parse gives its PARSE problem.
+fn read_block(root: &Path, path: &Path) -> std::result::Result<Option<BlockFile>, Found> {
+    let bytes = match std::fs::read(path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(error) => return Err(parse_found(root, path, &error.to_string())),
+    };
+    let text = std::str::from_utf8(&bytes).map_err(|_| parse_found(root, path, "not UTF-8"))?;
+    BlockFile::parse(text)
+        .map(Some)
+        .map_err(|error| parse_found(root, path, &error.message))
+}
+
+/// The LINK problems of the `rests-on` fields of one block file (format.md §14, §17). Every block
+/// counts, and each field is reported on the line it is written on. A block has no entry ID, so
+/// the ID column is `-`.
+fn block_links(root: &Path, path: &Path, file: &BlockFile, known: &HashSet<String>) -> Vec<Found> {
+    let file_name = relative(root, path);
+    let mut found = Vec::new();
+    let mut block: Option<&str> = None;
+    for (number, text) in numbered_lines(&file.lines) {
+        if let Some(key) = text.strip_prefix("## ") {
+            block = Some(key.trim());
+            continue;
+        }
+        let (Some(key), Some(value)) = (block, field_value(text, "rests-on")) else {
+            continue;
+        };
+        for target in value.split(',').map(str::trim).filter(|id| !id.is_empty()) {
+            if !known.contains(&target_id(target)) {
+                found.push(Found::new(
+                    &file_name,
+                    number,
+                    "-",
+                    "LINK",
+                    format!("{key} rests-on names {target}, which does not exist"),
+                ));
+            }
+        }
+    }
+    found
+}
+
+/// The trimmed value of a field line `- <name>: <value>` (format.md §3), None for any other line.
+fn field_value<'a>(text: &'a str, name: &str) -> Option<&'a str> {
+    let (key, value) = text.strip_prefix("- ")?.split_once(':')?;
+    (key == name).then_some(value.trim())
+}
+
 /// The path of a file relative to the project folder, with `/` between its parts on every
 /// system.
 fn relative(root: &Path, path: &Path) -> String {
@@ -289,11 +376,10 @@ fn relative(root: &Path, path: &Path) -> String {
         .join("/")
 }
 
-/// The lines of an entry without their line endings (the byte-order mark of the first line is
-/// removed), each with its 1-based number.
-fn numbered_lines(entry: &Entry) -> Vec<(usize, &str)> {
-    entry
-        .lines
+/// The lines of a file (an entry or a block file) without their line endings (the byte-order mark
+/// of the first line is removed), each with its 1-based number.
+fn numbered_lines(lines: &[String]) -> Vec<(usize, &str)> {
+    lines
         .iter()
         .enumerate()
         .map(|(index, line)| {
@@ -314,7 +400,7 @@ fn numbered_lines(entry: &Entry) -> Vec<(usize, &str)> {
 
 /// The line of the heading (`# `, format.md §3); 1 when there is none.
 fn heading_line(entry: &Entry) -> usize {
-    numbered_lines(entry)
+    numbered_lines(&entry.lines)
         .into_iter()
         .find(|(_, text)| text.starts_with("# "))
         .map_or(1, |(number, _)| number)
@@ -323,7 +409,7 @@ fn heading_line(entry: &Entry) -> usize {
 /// The line of the first field `- <key>: ...` in the field block (format.md §3); 1 when there
 /// is none.
 fn field_line(entry: &Entry, key: &str) -> usize {
-    numbered_lines(entry)
+    numbered_lines(&entry.lines)
         .into_iter()
         .take_while(|(_, text)| !text.starts_with("## "))
         .find(|(_, text)| {
@@ -336,7 +422,7 @@ fn field_line(entry: &Entry, key: &str) -> usize {
 
 /// The line of the `## <name>` heading of a section; 1 when there is none.
 fn section_line(entry: &Entry, name: &str) -> usize {
-    numbered_lines(entry)
+    numbered_lines(&entry.lines)
         .into_iter()
         .find(|(_, text)| {
             text.strip_prefix("## ")

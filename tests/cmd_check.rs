@@ -331,3 +331,99 @@ fn problems_fail_with_exit_one_and_refused_in_json() {
     assert!(message.ends_with("DOSSIER: 1 problems"), "{message}");
     assert!(message.contains(" WHO missing field author\n"), "{message}");
 }
+
+#[test]
+fn well_formed_block_files_are_ok() {
+    let project = Project::new();
+    project.write(
+        "DOSSIER/values.md",
+        "<!-- dossier-format: 1 -->\n# Values of P-001\n\n## design.massflow\n\n- value: 12.4\n- unit: kg/s\n- source: docs/invented-spec.pdf\n- key: yes\n- valid-from: 2026-11-20T10:00:00+01:00\n- history: 2026-11-20T10:00:00+01:00 anna: set — 12.4 kg/s\n",
+    );
+    project.write(
+        "DOSSIER/map.md",
+        "<!-- dossier-format: 1 -->\n# Map of P-001\n\n## src/solver\n\n- purpose: time integration\n- history: 2026-11-20T10:00:00+01:00 anna via anna-claude: set\n",
+    );
+    project.write(
+        "DOSSIER/exchange.md",
+        "<!-- dossier-format: 1 -->\n# Exchange of P-001\n\n## RCV-001\n\n- date: 2026-11-02\n- from: Customer A\n- history: 2026-11-02T10:00:00+01:00 anna: received\n",
+    );
+    project.write(
+        "DOSSIER/files/T-001.md",
+        "<!-- dossier-format: 1 -->\n# Files of T-001\n\n## results/run1.csv\n\n- role: result\n- type: file\n- size: 3\n- history: 2026-11-20T10:00:00+01:00 ben: attached\n",
+    );
+
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+}
+
+#[test]
+fn block_files_that_do_not_parse_give_parse_with_their_line() {
+    let project = Project::new();
+    project.write(
+        "DOSSIER/values.md",
+        "<!-- dossier-format: 1 -->\nthis file has no heading\n",
+    );
+    project.write(
+        "DOSSIER/map.md",
+        "<!-- dossier-format: 2 -->\n# Map of P-001\n",
+    );
+    project.write(
+        "DOSSIER/files/T-001.md",
+        "<!-- dossier-format: 1 -->\nno heading\n## results/run1.csv\n",
+    );
+    fs::write(
+        project.root().join("DOSSIER/exchange.md"),
+        [0xFF, 0xFE, b'#', b' ', b'x'],
+    )
+    .expect("exchange.md is written");
+
+    assert_eq!(
+        problems(&project),
+        "error: DOSSIER/exchange.md:1: - PARSE not UTF-8\n\
+         DOSSIER/files/T-001.md:2: - PARSE no heading\n\
+         DOSSIER/map.md:1: - PARSE this file needs a newer dossier program\n\
+         DOSSIER/values.md:2: - PARSE no heading\n\
+         DOSSIER: 4 problems\n"
+    );
+}
+
+#[test]
+fn a_rests_on_field_naming_a_missing_assumption_gives_link() {
+    let project = Project::new();
+    decide(&project);
+    let text = text_of(&project, "DEC-001");
+    let changed = text.replacen("- history:", "- rests-on: ASM-999\n- history:", 1);
+    write_entry(&project, "DEC-001", &changed);
+
+    let line = line_of(&changed, "- rests-on: ASM-999");
+    assert_eq!(
+        problems(&project),
+        format!(
+            "error: {}:{line}: DEC-001 LINK rests-on names ASM-999, which does not exist\nDOSSIER: 1 problems\n",
+            shown(&project.entry_file("DEC-001"))
+        )
+    );
+}
+
+#[test]
+fn a_rests_on_field_of_a_file_block_is_checked_like_an_entry_link() {
+    let project = Project::new();
+    project.stdout(
+        "ben",
+        &[
+            "assume",
+            "The inlet profile is uniform.",
+            "--reason",
+            "No measured profile was delivered.",
+        ],
+    );
+    let text = "<!-- dossier-format: 1 -->\n# Files of T-001\n\n## results/run1.csv\n\n- role: result\n- type: file\n- rests-on: ASM-001, ASM-999\n- history: 2026-11-20T10:00:00+01:00 ben: attached\n";
+    project.write("DOSSIER/files/T-001.md", text);
+
+    let line = line_of(text, "- rests-on: ASM-001, ASM-999");
+    assert_eq!(
+        problems(&project),
+        format!(
+            "error: DOSSIER/files/T-001.md:{line}: - LINK results/run1.csv rests-on names ASM-999, which does not exist\nDOSSIER: 1 problems\n"
+        )
+    );
+}
