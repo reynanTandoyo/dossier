@@ -4295,10 +4295,8 @@
 - note (2026-11-21, haiku-t-207): done
 
 ### T-208 · status: map, open assumptions and what rests on a wrong assumption as lists
-- status: claimed
+- status: done
 - owner: haiku-t-208
-- claimed: 2026-11-21T13:37+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-041
 - why: R-CTX-16 and design.md section 9: status must print these, not only count them (found by the release check).
@@ -4312,8 +4310,12 @@
   5. Run cargo test --test cmd_status.
 - accept: status lists the map, the open assumptions and everything that rests on a wrong assumption.
 - verify: cargo test --test cmd_status
+- verified: 2026-11-21
+- commit: 218a876
 - reqs: R-CTX-16
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-208): done
 
 ### T-209 · README: three corrections found by the release check
 - status: done
