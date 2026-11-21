@@ -356,9 +356,9 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
         .copied()
         .filter(|item| is_open_assumption(item))
         .collect();
-    let resting = resting_lines(&scope, &rests_files);
+    let resting = resting_lines(&rests_entries, &rests_files);
     counts.proposals = proposals.len();
-    counts.resting = rests_entries.len() + rests_files.len();
+    counts.resting = resting.len();
     let (received, delivered) = last_exchange(ctx, day, &mut warnings);
 
     sections.push(Section::list(
@@ -1081,20 +1081,26 @@ fn exchange_lines(received: Option<&Exchanged>, delivered: Option<&Exchanged>) -
     ]
 }
 
-/// The entries of `scope` that rest on a wrong assumption (format.md §14): the `rests-on` field
-/// names one, and the entry is a draft, a proposal or approved. Each with its assumptions.
-fn rests_on_entries(scope: &[&Item]) -> Vec<(String, Vec<String>)> {
+/// The entries of `scope` that rest on a wrong assumption (format.md §14), each with its
+/// assumptions: the `rests-on` field names one, and the entry is in use (see `in_use`). Drafts and
+/// proposals count, as the Unsettled part counts them.
+fn rests_on_entries<'a>(scope: &[&'a Item]) -> Vec<(&'a Item, Vec<String>)> {
     scope
         .iter()
-        .filter(|item| {
-            matches!(
-                item.entry.status(),
-                Some(Status::Draft | Status::Proposed | Status::Approved)
-            )
-        })
-        .map(|item| (item.entry.id(), item.entry.list("rests-on")))
+        .copied()
+        .filter(|item| in_use(item.entry.status()))
+        .map(|item| (item, item.entry.list("rests-on")))
         .filter(|(_, assumptions)| !assumptions.is_empty())
         .collect()
+}
+
+/// Whether an entry with this status is in use, so that a wrong assumption it rests on counts
+/// (R-CTX-16): every status but rejected, declined, superseded and retired.
+fn in_use(status: Option<Status>) -> bool {
+    !matches!(
+        status,
+        Some(Status::Rejected | Status::Declined | Status::Superseded | Status::Retired)
+    )
 }
 
 /// The blocks of the file lists that rest on a wrong assumption and are not detached (format.md
@@ -1144,32 +1150,40 @@ fn comma_list(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// What rests on a wrong assumption as the screen lists it (R-CTX-16): each approved entry of
-/// `scope` whose `rests-on` field names an ID, in the order of `scope`, then each file block of
-/// `files` (task, path, assumptions), as `<ID> · <title> [rests on <IDs>]` and
-/// `<task> <path> [rests on <IDs>]`. Each line comes with the ID it is listed by.
+/// What rests on a wrong assumption as the screen lists it (R-CTX-16): each entry of `entries` (see
+/// `rests_on_entries`) as `<ID> · <title>`, its status mark and `[rests on <IDs>]`, then each file
+/// block of `files` (task, path, assumptions) as `<task> <path> [rests on <IDs>]`. Each line comes
+/// with the ID it is listed by.
 fn resting_lines(
-    scope: &[&Item],
+    entries: &[(&Item, Vec<String>)],
     files: &[(String, String, Vec<String>)],
 ) -> Vec<(String, String)> {
-    let entries = scope
-        .iter()
-        .copied()
-        .filter(|item| item.entry.status() == Some(Status::Approved))
-        .filter_map(|item| {
-            let assumptions = item.entry.list("rests-on");
-            (!assumptions.is_empty()).then(|| {
-                (
-                    item.entry.id(),
-                    format!("{}{}", heading_of(item), rests_mark(&assumptions)),
-                )
-            })
-        });
+    let entries = entries.iter().map(|(item, assumptions)| {
+        (
+            item.entry.id(),
+            format!(
+                "{}{}{}",
+                heading_of(item),
+                status_mark(item),
+                rests_mark(assumptions)
+            ),
+        )
+    });
     let blocks = files.iter().map(|(task, path, assumptions)| {
         let id = format!("{task} {path}");
         (id.clone(), format!("{id}{}", rests_mark(assumptions)))
     });
     entries.chain(blocks).collect()
+}
+
+/// The status mark of an entry in the list of what rests on a wrong assumption: `[draft]` or
+/// `[proposed]` with its leading space, and nothing for an approved entry.
+fn status_mark(item: &Item) -> &'static str {
+    match item.entry.status() {
+        Some(Status::Draft) => " [draft]",
+        Some(Status::Proposed) => " [proposed]",
+        _ => "",
+    }
 }
 
 /// The mark ` [rests on <IDs>]` of IDs, joined with `, `; nothing when there are none.
@@ -1184,12 +1198,14 @@ fn rests_mark(assumptions: &[String]) -> String {
 /// The entries and blocks that rest on a wrong assumption, as data: `kind` is `entry` with its
 /// `id`, or `file` with its `task` and `path`; each with the assumptions it rests on.
 fn rests_on_json(
-    entries: &[(String, Vec<String>)],
+    entries: &[(&Item, Vec<String>)],
     files: &[(String, String, Vec<String>)],
 ) -> Value {
     let mut all: Vec<Value> = entries
         .iter()
-        .map(|(id, assumptions)| json!({"kind": "entry", "id": id, "rests_on": assumptions}))
+        .map(|(item, assumptions)| {
+            json!({"kind": "entry", "id": item.entry.id(), "rests_on": assumptions})
+        })
         .collect();
     all.extend(files.iter().map(|(task, path, assumptions)| {
         json!({"kind": "file", "task": task, "path": path, "rests_on": assumptions})

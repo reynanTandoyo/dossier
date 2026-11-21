@@ -1128,3 +1128,172 @@ fn the_open_assumptions_are_cut_before_the_decisions_when_the_screen_is_too_long
          3 open assumptions\n"
     );
 }
+
+/// Writes `deciders = ["anna"]` into dossier.toml after the `code` line, so that anna may decline.
+fn only_anna_decides(project: &Project) {
+    let text = project.read("DOSSIER/dossier.toml");
+    let mut edited = String::new();
+    for line in text.split_inclusive('\n') {
+        edited.push_str(line);
+        if line.starts_with("code = ") {
+            edited.push_str("deciders = [\"anna\"]\n");
+        }
+    }
+    assert!(edited.contains("deciders = [\"anna\"]\n"), "{edited}");
+    project.write("DOSSIER/dossier.toml", &edited);
+}
+
+#[test]
+fn a_proposal_that_rests_on_a_refuted_assumption_is_listed_with_its_mark_and_counted() {
+    let project = Project::new();
+    project.stdout(
+        "ben",
+        &[
+            "propose",
+            "Use the steady runs",
+            "--reason",
+            "They converged.",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "assume",
+            "The inlet profile is uniform",
+            "--reason",
+            "No measured profile was delivered.",
+            "--affects",
+            "DEC-001",
+        ],
+    );
+    project
+        .command("anna", NOW)
+        .env("DOSSIER_ANSWERS", "")
+        .args([
+            "refute",
+            "ASM-001",
+            "--by",
+            "anna, from the rig measurements",
+        ])
+        .assert()
+        .success();
+    assert_eq!(
+        project.stdout("anna", &["status"]),
+        "Project P-001\n\
+         tasks: todo is not installed\n\
+         ## Decisions in force\n\
+         none\n\
+         ## Rests on a wrong assumption\n\
+         DEC-001 · Use the steady runs [proposed] [rests on ASM-001]\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         1 proposal waiting\n\
+         1 entry or file rests on a wrong assumption\n"
+    );
+    let data = status_data(&project, &[]);
+    assert_eq!(data["proposals"], json!(["DEC-001"]));
+    assert_eq!(data["rests"], json!(["DEC-001"]));
+}
+
+#[test]
+fn an_entry_that_is_rejected_declined_or_retired_leaves_the_list_and_the_count() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Use the transient runs",
+            "--reason",
+            "Steady runs converged where rotating stall already shows.",
+        ],
+    );
+    project.stdout(
+        "ben",
+        &[
+            "propose",
+            "Use the steady runs",
+            "--reason",
+            "They converged.",
+        ],
+    );
+    project.stdout(
+        "ben",
+        &["found", "The mass flow still oscillates", "--later"],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "assume",
+            "The inlet profile is uniform",
+            "--reason",
+            "No measured profile was delivered.",
+            "--affects",
+            "DEC-001, DEC-002, FND-001",
+        ],
+    );
+    project
+        .command("anna", NOW)
+        .env("DOSSIER_ANSWERS", "")
+        .args([
+            "refute",
+            "ASM-001",
+            "--by",
+            "anna, from the rig measurements",
+        ])
+        .assert()
+        .success();
+    assert_eq!(
+        project.stdout("anna", &["status"]),
+        "Project P-001\n\
+         tasks: todo is not installed\n\
+         ## Decisions in force\n\
+         DEC-001 · Use the transient runs (anna, 2026-11-20)\n\
+         ## Rests on a wrong assumption\n\
+         DEC-001 · Use the transient runs [rests on ASM-001]\n\
+         FND-001 · The mass flow still oscillates [draft] [rests on ASM-001]\n\
+         DEC-002 · Use the steady runs [proposed] [rests on ASM-001]\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         1 draft waiting\n\
+         1 proposal waiting\n\
+         3 entries and files rest on a wrong assumption\n"
+    );
+
+    project
+        .run("anna", &["reject", "FND-001", "--reason", "Not needed."])
+        .success();
+    project
+        .run(
+            "anna",
+            &["retire", "DEC-001", "--reason", "The plan changed."],
+        )
+        .success();
+    project
+        .command("anna", NOW)
+        .env("DOSSIER_ANSWERS", "")
+        .args([
+            "decline",
+            "DEC-002",
+            "--reason",
+            "The inlet profile was measured later.",
+        ])
+        .assert()
+        .success();
+    assert_eq!(
+        project.stdout("anna", &["status"]),
+        "Project P-001\n\
+         tasks: todo is not installed\n\
+         ## Decisions in force\n\
+         none\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         nothing waiting\n"
+    );
+    let data = status_data(&project, &[]);
+    assert_eq!(data["rests"], json!([]));
+    assert_eq!(data["rests_on"], json!([]));
+}
