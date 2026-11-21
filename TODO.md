@@ -1767,10 +1767,8 @@
 - note (2026-11-21, haiku-t-104): done
 
 ### T-105 · retitle: change a title and rename the file
-- status: claimed
+- status: done
 - owner: haiku-t-105
-- claimed: 2026-11-21T01:15+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: Titles are what people search and read; fixing one must keep the ID.
@@ -1786,8 +1784,12 @@
   6. Run cargo test --test cmd_retitle.
 - accept: retitle renames the file to the new slug and keeps the ID.
 - verify: cargo test --test cmd_retitle
+- verified: 2026-11-21
+- commit: bffe643
 - reqs: R-WRITE-8, R-ID-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-105): done
 
 ### T-106 · link: relate two entries
 - status: done
