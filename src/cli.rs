@@ -31,7 +31,7 @@ pub struct Cli {
     pub command: Command,
 }
 
-/// The commands of v0.1: one variant per file of `src/cmd/`, named after the command.
+/// The commands of v0.1 and v0.2: one variant per file of `src/cmd/`, named after the command.
 #[derive(clap::Subcommand, Debug)]
 // The command line is parsed once per run, so the size of the largest variant does not matter.
 #[allow(clippy::large_enum_variant)]
@@ -73,6 +73,29 @@ pub enum Command {
     Connect(cmd::connect::Args),
     Projects(cmd::projects::Args),
     Todo(cmd::todo::Args),
+    Propose(cmd::propose::Args),
+    Accept(cmd::accept::Args),
+    Decline(cmd::decline::Args),
+    Confirm(cmd::confirm::Args),
+    Refute(cmd::refute::Args),
+    Cleared(cmd::cleared::Args),
+    Value(cmd::value::Args),
+    Values(cmd::values::Args),
+    Attach(cmd::attach::Args),
+    Detach(cmd::detach::Args),
+    Reattach(cmd::reattach::Args),
+    Files(cmd::files::Args),
+    Which(cmd::which::Args),
+    Used(cmd::used::Args),
+    Runs(cmd::runs::Args),
+    Image(cmd::image::Args),
+    Received(cmd::received::Args),
+    Delivered(cmd::delivered::Args),
+    Exchange(cmd::exchange::Args),
+    Map(cmd::map::Args),
+    Hooks(cmd::hooks::Args),
+    Guard(cmd::guard::Args),
+    Skill(cmd::skill::Args),
 }
 
 /// On Linux, files and folders this program creates are writable by the group (R-XOS-8): the
@@ -153,6 +176,29 @@ pub fn main_exit() -> u8 {
         Command::Connect(a) => ("connect", cmd::connect::run(a, g)),
         Command::Projects(a) => ("projects", cmd::projects::run(a, g)),
         Command::Todo(a) => ("todo", cmd::todo::run(a, g)),
+        Command::Propose(a) => ("propose", cmd::propose::run(a, g)),
+        Command::Accept(a) => ("accept", cmd::accept::run(a, g)),
+        Command::Decline(a) => ("decline", cmd::decline::run(a, g)),
+        Command::Confirm(a) => ("confirm", cmd::confirm::run(a, g)),
+        Command::Refute(a) => ("refute", cmd::refute::run(a, g)),
+        Command::Cleared(a) => ("cleared", cmd::cleared::run(a, g)),
+        Command::Value(a) => ("value", cmd::value::run(a, g)),
+        Command::Values(a) => ("values", cmd::values::run(a, g)),
+        Command::Attach(a) => ("attach", cmd::attach::run(a, g)),
+        Command::Detach(a) => ("detach", cmd::detach::run(a, g)),
+        Command::Reattach(a) => ("reattach", cmd::reattach::run(a, g)),
+        Command::Files(a) => ("files", cmd::files::run(a, g)),
+        Command::Which(a) => ("which", cmd::which::run(a, g)),
+        Command::Used(a) => ("used", cmd::used::run(a, g)),
+        Command::Runs(a) => ("runs", cmd::runs::run(a, g)),
+        Command::Image(a) => ("image", cmd::image::run(a, g)),
+        Command::Received(a) => ("received", cmd::received::run(a, g)),
+        Command::Delivered(a) => ("delivered", cmd::delivered::run(a, g)),
+        Command::Exchange(a) => ("exchange", cmd::exchange::run(a, g)),
+        Command::Map(a) => ("map", cmd::map::run(a, g)),
+        Command::Hooks(a) => ("hooks", cmd::hooks::run(a, g)),
+        Command::Guard(a) => ("guard", cmd::guard::run(a, g)),
+        Command::Skill(a) => ("skill", cmd::skill::run(a, g)),
     };
     crate::output::emit(name, g.json, &result)
 }

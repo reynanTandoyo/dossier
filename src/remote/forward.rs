@@ -13,11 +13,16 @@ use std::io::Write;
 const VALUE_OPTIONS: [&str; 3] = ["--dossier", "--agent", "--project"];
 
 /// The commands that stay on the PC: `connect` and `projects` manage the PC's files, `help`
-/// prints the text of the program on the PC.
-const LOCAL_COMMANDS: [&str; 3] = ["connect", "projects", "help"];
+/// prints the text of the program on the PC, and `hooks`, `guard` and `skill` work with the
+/// Claude Code on the PC.
+const LOCAL_COMMANDS: [&str; 6] = ["connect", "projects", "help", "hooks", "guard", "skill"];
 
-/// The commands that ask ssh for a terminal when the PC has one (R-REMOTE-3).
-const TERMINAL_COMMANDS: [&str; 4] = ["approve", "remove", "restore", "edit"];
+/// The commands that ask ssh for a terminal when the PC has one (R-REMOTE-3): the approvals and
+/// changes of a person, and the decisions of a decider.
+const TERMINAL_COMMANDS: [&str; 10] = [
+    "approve", "remove", "restore", "edit", "accept", "decline", "confirm", "refute", "cleared",
+    "value",
+];
 
 /// The time limit of the connection in seconds (R-REMOTE-11).
 const TIMEOUT_SECONDS: u64 = 10;
@@ -43,7 +48,7 @@ enum ProjectOption {
 
 /// Called first by `main_exit`. Some(exit code) when the command was run on a server: the
 /// `--project <code>` option is given, or the current folder has a pointer file and the command
-/// is not `connect`, `projects` or `help`. None: run locally.
+/// is not one of `LOCAL_COMMANDS`. None: run locally.
 pub fn maybe(args: &[String]) -> Option<u8> {
     // The program name comes first; everything after it is the command line.
     let (_, args) = args.split_first()?;
@@ -337,10 +342,13 @@ mod tests {
         );
 
         // Commands that stay on the PC, with a pointer present.
-        let local: [&[&str]; 4] = [
+        let local: [&[&str]; 7] = [
             &["dossier", "connect", "anna@sim01:/srv/P-001"],
             &["dossier", "projects"],
             &["dossier", "help"],
+            &["dossier", "hooks", "install"],
+            &["dossier", "guard"],
+            &["dossier", "skill", "install"],
             &["dossier", "--json"],
         ];
         for words in local {
@@ -375,6 +383,9 @@ mod tests {
         // SAFETY: ENV_LOCK is still held.
         unsafe { std::env::set_var("DOSSIER_ANSWERS", "") };
         let (_, written) = maybe_with(&args_file, &["dossier", "approve", "DEC-001"]);
+        assert!(tokens(&written).contains(&"-t"), "{written}");
+        let (code, written) = maybe_with(&args_file, &["dossier", "accept", "DEC-001"]);
+        assert_eq!(code, Some(7));
         assert!(tokens(&written).contains(&"-t"), "{written}");
         let (_, written) = maybe_with(&args_file, &["dossier", "list"]);
         assert!(!tokens(&written).contains(&"-t"), "{written}");

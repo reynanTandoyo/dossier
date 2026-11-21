@@ -13,8 +13,9 @@ pub struct Args {
     pub topic: Option<String>,
 }
 
-/// Every command of docs/design.md section 5, in that order, each with a five-word description.
-const COMMANDS: [(&str, &str); 37] = [
+/// Every command of docs/design.md sections 5 and 9, in that order, each with a description of at
+/// most five words.
+const COMMANDS: [(&str, &str); 60] = [
     ("init", "Creates the dossier folder here"),
     ("where", "Shows folders and project code"),
     ("people", "Adds or extends a person"),
@@ -52,6 +53,29 @@ const COMMANDS: [(&str, &str); 37] = [
     ("connect", "Points a folder at server"),
     ("projects", "Lists or removes registered projects"),
     ("todo", "Runs todo in project folder"),
+    ("propose", "Proposes a decision for approval"),
+    ("accept", "Accepts a proposal, at terminal"),
+    ("decline", "Declines a proposal, at terminal"),
+    ("confirm", "Confirms an assumption"),
+    ("refute", "Refutes an assumption, at terminal"),
+    ("cleared", "Clears one rests-on mark"),
+    ("value", "Sets, shows, approves key values"),
+    ("values", "Lists values in force"),
+    ("attach", "Attaches files to a task"),
+    ("detach", "Marks a task file detached"),
+    ("reattach", "Records a file's checksum again"),
+    ("files", "Lists task files, with marks"),
+    ("which", "Shows where a file belongs"),
+    ("used", "Records a software usage run"),
+    ("runs", "Lists usage records, newest first"),
+    ("image", "Adds or removes entry pictures"),
+    ("received", "Records files received from someone"),
+    ("delivered", "Records files delivered to someone"),
+    ("exchange", "Lists received and delivered records"),
+    ("map", "Shows or sets the map"),
+    ("hooks", "Installs or removes Claude hooks"),
+    ("guard", "Blocks edits inside dossier folders"),
+    ("skill", "Installs the Claude Code skill"),
 ];
 
 /// Runs `help`.
