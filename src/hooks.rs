@@ -59,6 +59,16 @@ pub fn guard(payload: &str) -> Option<String> {
     ))
 }
 
+/// .claude/settings.local.json with env.DOSSIER_AGENT set to `agent` (D34), other keys kept.
+pub fn local_installed(_existing: &str, _agent: &str) -> Result<String> {
+    Err(Error::new(Code::NotImplemented, "hooks::local_installed"))
+}
+
+/// The local settings text with that one key removed.
+pub fn local_uninstalled(_existing: &str) -> Result<String> {
+    Err(Error::new(Code::NotImplemented, "hooks::local_uninstalled"))
+}
+
 /// The text without a leading UTF-8 byte-order mark, which a Windows editor may have saved.
 fn without_mark(text: &str) -> &str {
     text.strip_prefix('\u{feff}').unwrap_or(text)
