@@ -295,7 +295,9 @@ mod tests {
 
     /// Holds ENV_LOCK and sets DOSSIER_NOW for as long as it lives, so that every time of the
     /// tests is NOW.
-    struct FixedClock(std::sync::MutexGuard<'static, ()>);
+    struct FixedClock {
+        _env: std::sync::MutexGuard<'static, ()>,
+    }
 
     impl FixedClock {
         fn new() -> FixedClock {
@@ -303,7 +305,7 @@ mod tests {
             // SAFETY: ENV_LOCK is held until this value is dropped, so no other test in this
             // process reads or changes the environment meanwhile.
             unsafe { std::env::set_var("DOSSIER_NOW", NOW) };
-            FixedClock(guard)
+            FixedClock { _env: guard }
         }
     }
 

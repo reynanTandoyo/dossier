@@ -1,11 +1,7 @@
 //! dossier: keeps what a team learns and decides in its projects.
 //!
-//! Every library module is declared here. The command line (`cli`, `cmd`) is added by the
-//! next skeleton task.
-
-// Temporary: every function is a stub until its task fills it in. The release task removes
-// this line.
-#![allow(dead_code, unused_variables)]
+//! Every module is declared here: the library modules, the command line (`cli`) and the
+//! commands (`cmd`).
 
 pub mod agents;
 pub mod approval;

@@ -10,7 +10,8 @@ const POLL: Duration = Duration::from_millis(50);
 
 /// A held write lock. The lock is released when the guard is dropped.
 pub struct Guard {
-    file: File,
+    /// Held, never read: the lock lasts as long as this file is open.
+    _file: File,
     holder: PathBuf,
 }
 
@@ -54,7 +55,10 @@ pub fn acquire(state: &Path, wait_seconds: u64, name: &str, command: &str) -> Re
 
     // The guard is built before holder.json is written: if writing fails, dropping the guard
     // removes whatever was written and releases the lock.
-    let guard = Guard { file, holder };
+    let guard = Guard {
+        _file: file,
+        holder,
+    };
     let text = serde_json::json!({
         "name": name,
         "command": command,
@@ -219,7 +223,9 @@ mod tests {
 
     /// Holds ENV_LOCK and sets DOSSIER_NOW for as long as it lives, so that holder.json has a
     /// known time.
-    struct FixedClock(std::sync::MutexGuard<'static, ()>);
+    struct FixedClock {
+        _env: std::sync::MutexGuard<'static, ()>,
+    }
 
     impl FixedClock {
         fn new() -> FixedClock {
@@ -227,7 +233,7 @@ mod tests {
             // SAFETY: ENV_LOCK is held until this value is dropped, so no other test in this
             // process reads or changes the environment meanwhile.
             unsafe { std::env::set_var("DOSSIER_NOW", NOW) };
-            FixedClock(guard)
+            FixedClock { _env: guard }
         }
     }
 
