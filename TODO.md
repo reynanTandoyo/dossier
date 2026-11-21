@@ -2574,10 +2574,8 @@
 - note (2026-11-21, haiku-t-142): done
 
 ### T-143 · remote/forward.rs: run a command on the server
-- status: claimed
+- status: done
 - owner: haiku-t-143
-- claimed: 2026-11-21T00:55+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-139
 - why: From a PC, dossier must behave as if the project were local.
@@ -2596,9 +2594,13 @@
   9. Run cargo test --lib remote::forward::.
 - accept: In a connected folder, or with --project, a command is run on the server with its output and exit code passed through; connect, projects and help stay local.
 - verify: cargo test --lib remote::forward::
+- verified: 2026-11-21
+- commit: 47fa687
 - reqs: R-REMOTE-1 to R-REMOTE-3, R-REMOTE-5, R-REMOTE-10, R-REMOTE-11, TEST-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Test holds crate::ENV_LOCK (see T-067): unit tests run in parallel threads and share the environment.
+- note (2026-11-21, haiku-t-143): done
 
 ### T-144 · connect: tie a PC folder to a project on the server
 - status: claimed
