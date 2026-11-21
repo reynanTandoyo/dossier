@@ -88,7 +88,7 @@ pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
             out.extend(picture_lines(item));
         }
     }
-    out.extend(files_lines(ctx, task)?);
+    out.extend(files_lines(ctx, task));
 
     let query = Query {
         tags: about.tags(),
@@ -306,9 +306,21 @@ fn picture_line(line: &str) -> Option<String> {
 /// The Files heading (R-FILE-14): the task's file list, descriptions and models first, then the
 /// other roles, each in the order of the list. A detached block is left out. One line per file:
 /// `<path> (<role>)`, with its marks in brackets. At most FILES_LINES lines; no heading when the
-/// list has no file.
-fn files_lines(ctx: &Ctx, task: &str) -> Result<Vec<String>> {
-    let (file, _bytes) = filelist::load(&ctx.dossier, task)?;
+/// list has no file. A list that cannot be read gives the heading and one line that says so, and
+/// brief --task goes on with its other parts.
+fn files_lines(ctx: &Ctx, task: &str) -> Vec<String> {
+    let (file, _bytes) = match filelist::load(&ctx.dossier, task) {
+        Ok(loaded) => loaded,
+        Err(error) => {
+            return vec![
+                FILES.to_string(),
+                format!(
+                    "file list cannot be read: {}; run dossier check",
+                    error.message
+                ),
+            ];
+        }
+    };
     let mut keys: Vec<String> = file
         .keys()
         .into_iter()
@@ -320,11 +332,11 @@ fn files_lines(ctx: &Ctx, task: &str) -> Result<Vec<String>> {
         .map(|key| file_line(&ctx.root, &file, key))
         .collect();
     if rows.is_empty() {
-        return Ok(Vec::new());
+        return Vec::new();
     }
     let mut out = vec![FILES.to_string()];
     out.extend(cut(rows, FILES_LINES));
-    Ok(out)
+    out
 }
 
 /// Whether the block's role is `description` or `model`, ignoring case (R-FILE-14).
@@ -963,6 +975,51 @@ mod tests {
         assert_eq!(found[2], "data/part-01.csv (result) [missing]");
         assert_eq!(found[15], "data/part-14.csv (result) [missing]");
         assert_eq!(found[16], "3 more left out");
+    }
+
+    #[test]
+    fn a_broken_file_list_is_reported_and_the_other_parts_go_on() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, ctx) = project();
+        write_task_material(&ctx);
+        fs::create_dir_all(ctx.dossier.join("files")).expect("the files folder");
+        // A list with no heading line is broken (format.md §17).
+        fs::write(
+            ctx.dossier.join("files").join("T-132.md"),
+            "<!-- dossier-format: 1 -->\nno heading in this file\n",
+        )
+        .expect("the broken list of T-132");
+        let show = stand_in(dir.path(), "todo-show", &envelope(speedline_task()));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let found = lines(&ctx, "T-132", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        assert_eq!(
+            found.expect("brief --task goes on"),
+            vec![
+                "Task T-132 · Speedline of the compressor",
+                "## Decisions of its milestones",
+                "DEC-010 · decision · Use transient runs on the speedline",
+                "  Run the last three speedline points transient.",
+                "  picture: images/DEC-010/speedline-stage-1.png — Speedline of stage 1 at design speed",
+                "## Files",
+                "file list cannot be read: line 2: no heading; run dossier check",
+                "## Dead ends",
+                "FND-010 · finding · Higher seal pressure on the compressor did not help",
+                "  Observation: The leak stayed at 0.2 kg/s with twice the seal pressure.",
+                "## Related",
+                "LES-010 · lesson · Steady runs overpredict stall margin of the compressor",
+                "  Statement: Steady mixing-plane runs converge at mass flows where rotating stall is seen.",
+                "  Valid for: Transonic front stages.",
+                "  picture: images/LES-010/stall-margin-by-method.svg — Stall margin by method",
+                "FND-011 · finding · Seal leak model checked against the rig",
+                "FND-013 · finding · Setup notes checked against rig",
+            ]
+        );
     }
 
     #[test]
