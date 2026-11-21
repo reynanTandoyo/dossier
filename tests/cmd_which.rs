@@ -1,0 +1,312 @@
+//! Runs the built program for `which`: the tasks whose file list has a path, with its role and
+//! marks, what those blocks were made from, the blocks made from the path, and the entries whose
+//! `code` field points at it (R-FILE-15, R-CODE-2). Each test runs in its own temporary project
+//! folder with the clock fixed by `common::Project` (2026-11-20T10:00:00+01:00).
+
+mod common;
+
+use common::Project;
+use predicates::str::contains;
+use serde_json::json;
+
+/// Invented contents of the files of the tests.
+const MODEL: &str = "invented model data\n";
+const RESULT: &str = "time;value\n0;1\n1;2\n";
+
+/// Writes the invented model and attaches it to `task` as a model, with the note "first mesh".
+fn attach_model(project: &Project, task: &str) {
+    project.write("models/wing-v3.step", MODEL);
+    project.stdout(
+        "anna",
+        &[
+            "attach",
+            task,
+            "models/wing-v3.step",
+            "--role",
+            "model",
+            "--note",
+            "first mesh",
+        ],
+    );
+}
+
+/// Writes the invented result and attaches it to `task` as a result made from the model.
+fn attach_result_of_model(project: &Project, task: &str, path: &str) {
+    project.write(path, RESULT);
+    project.stdout(
+        "anna",
+        &[
+            "attach",
+            task,
+            path,
+            "--role",
+            "result",
+            "--from",
+            "models/wing-v3.step",
+        ],
+    );
+}
+
+#[test]
+fn a_path_that_no_list_or_entry_has_is_not_attached_to_any_task() {
+    let project = Project::new();
+    project.write("notes/loose.txt", "invented notes\n");
+
+    // Reading needs no name, so the command runs without one.
+    assert_eq!(
+        project.stdout("", &["which", "notes/loose.txt"]),
+        "not attached to any task\n"
+    );
+    let output = project.stdout("", &["which", "notes/loose.txt", "--json"]);
+    let value: serde_json::Value =
+        serde_json::from_str(output.trim_end()).expect("one line of JSON");
+    assert_eq!(value["schema"], "dossier.which.v1");
+    assert_eq!(value["ok"], true);
+    assert_eq!(
+        value["data"],
+        json!({
+            "path": "notes/loose.txt",
+            "tasks": [],
+            "made_into": [],
+            "entries": [],
+        })
+    );
+}
+
+#[test]
+fn a_model_names_the_result_made_from_it_and_a_result_names_its_model() {
+    let project = Project::new();
+    attach_model(&project, "T-001");
+    attach_result_of_model(&project, "T-001", "results/run1.csv");
+
+    assert_eq!(
+        project.stdout("anna", &["which", "models/wing-v3.step"]),
+        "T-001  model\nmade into: T-001 results/run1.csv\n"
+    );
+    assert_eq!(
+        project.stdout("anna", &["which", "results/run1.csv"]),
+        "T-001  result\n  made from: models/wing-v3.step\n"
+    );
+}
+
+#[test]
+fn marks_of_each_block_are_shown_and_a_result_whose_model_changed_is_outdated() {
+    let project = Project::new();
+    attach_model(&project, "T-001");
+    attach_result_of_model(&project, "T-001", "results/run1.csv");
+    project.write("models/wing-v3.step", "invented model data, revision 2\n");
+
+    assert_eq!(
+        project.stdout("anna", &["which", "models/wing-v3.step"]),
+        "T-001  model  [changed since attached]\nmade into: T-001 results/run1.csv\n"
+    );
+    assert_eq!(
+        project.stdout("anna", &["which", "results/run1.csv"]),
+        "T-001  result  [outdated]\n  made from: models/wing-v3.step\n"
+    );
+}
+
+#[test]
+fn a_detached_block_keeps_what_it_was_made_from_and_is_marked_detached() {
+    let project = Project::new();
+    attach_model(&project, "T-001");
+    attach_result_of_model(&project, "T-001", "results/run1.csv");
+    project.stdout("anna", &["detach", "T-001", "results/run1.csv"]);
+
+    assert_eq!(
+        project.stdout("anna", &["which", "results/run1.csv"]),
+        "T-001  result  [detached]\n  made from: models/wing-v3.step\n"
+    );
+}
+
+#[test]
+fn a_file_in_two_lists_is_named_with_each_task_and_its_role_and_made_into_across_tasks() {
+    let project = Project::new();
+    attach_model(&project, "T-001");
+    project.stdout(
+        "anna",
+        &[
+            "attach",
+            "T-002",
+            "models/wing-v3.step",
+            "--role",
+            "reference",
+        ],
+    );
+    attach_result_of_model(&project, "T-002", "results/run2.csv");
+
+    assert_eq!(
+        project.stdout("anna", &["which", "models/wing-v3.step"]),
+        "T-001  model\nT-002  reference\nmade into: T-002 results/run2.csv\n"
+    );
+}
+
+#[test]
+fn an_entry_whose_code_points_at_the_path_is_named_with_its_marks() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &[
+            "found",
+            "The tip mesh is coarse",
+            "--title",
+            "Coarse tip mesh",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "set",
+            "FND-001",
+            "--field",
+            "code=solver/io.py::MeshReader.read",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "found",
+            "The old reader is slow",
+            "--title",
+            "Slow reader",
+            "--later",
+        ],
+    );
+    project.stdout("anna", &["set", "FND-002", "--field", "code=solver/io.py"]);
+    project.stdout(
+        "anna",
+        &[
+            "found",
+            "A longer name of the file",
+            "--title",
+            "Other file",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &["set", "FND-003", "--field", "code=solver/io.pyx::Reader"],
+    );
+
+    assert_eq!(
+        project.stdout("anna", &["which", "solver/io.py"]),
+        "not attached to any task\n\
+         entries: FND-001 Coarse tip mesh\n\
+         entries: FND-002 Slow reader  [draft]\n"
+    );
+}
+
+#[test]
+fn json_gives_the_same_parts_as_the_text() {
+    let project = Project::new();
+    attach_model(&project, "T-001");
+    attach_result_of_model(&project, "T-001", "results/run1.csv");
+    project.stdout(
+        "anna",
+        &[
+            "found",
+            "The model mesh is coarse",
+            "--title",
+            "Coarse mesh",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "set",
+            "FND-001",
+            "--field",
+            "code=models/wing-v3.step::Mesh",
+        ],
+    );
+
+    let output = project.stdout("anna", &["which", "models/wing-v3.step", "--json"]);
+    let value: serde_json::Value =
+        serde_json::from_str(output.trim_end()).expect("one line of JSON");
+    assert_eq!(value["schema"], "dossier.which.v1");
+    assert_eq!(value["ok"], true);
+    assert_eq!(
+        value["data"],
+        json!({
+            "path": "models/wing-v3.step",
+            "tasks": [{
+                "task": "T-001",
+                "role": "model",
+                "marks": [],
+                "made_from": [],
+            }],
+            "made_into": [{"task": "T-001", "path": "results/run1.csv"}],
+            "entries": [{"id": "FND-001", "title": "Coarse mesh", "marks": []}],
+        })
+    );
+}
+
+#[test]
+fn a_path_with_spaces_and_non_ascii_letters_works() {
+    let project = Project::new();
+    project.write("Modelle ü/Lauf 1.sim", MODEL);
+    project.stdout(
+        "anna",
+        &["attach", "T-001", "Modelle ü/Lauf 1.sim", "--role", "model"],
+    );
+    project.write("Ergebnisse/Lauf 1.csv", RESULT);
+    project.stdout(
+        "anna",
+        &[
+            "attach",
+            "T-001",
+            "Ergebnisse/Lauf 1.csv",
+            "--role",
+            "result",
+            "--from",
+            "Modelle ü/Lauf 1.sim",
+        ],
+    );
+
+    assert_eq!(
+        project.stdout("anna", &["which", "Modelle ü/Lauf 1.sim"]),
+        "T-001  model\nmade into: T-001 Ergebnisse/Lauf 1.csv\n"
+    );
+    assert_eq!(
+        project.stdout("anna", &["which", "Ergebnisse/Lauf 1.csv"]),
+        "T-001  result\n  made from: Modelle ü/Lauf 1.sim\n"
+    );
+}
+
+#[test]
+fn a_folder_made_from_is_named_by_its_path_without_a_checksum() {
+    let project = Project::new();
+    project.write("results/out/a.csv", "1\n");
+    project.write("results/out/b.csv", "2\n");
+    project.stdout(
+        "anna",
+        &["attach", "T-001", "results/out", "--role", "result"],
+    );
+    project.write("reports/summary.csv", "total\n");
+    project.stdout(
+        "anna",
+        &[
+            "attach",
+            "T-001",
+            "reports/summary.csv",
+            "--role",
+            "report",
+            "--from",
+            "results/out",
+        ],
+    );
+
+    assert_eq!(
+        project.stdout("anna", &["which", "results/out"]),
+        "T-001  result\nmade into: T-001 reports/summary.csv\n"
+    );
+}
+
+#[test]
+fn a_path_outside_the_project_folder_is_refused() {
+    let project = Project::new();
+    project
+        .run("", &["which", "../elsewhere.step"])
+        .failure()
+        .code(1)
+        .stderr(contains("the path is outside the project folder"));
+}
