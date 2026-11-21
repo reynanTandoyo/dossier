@@ -730,10 +730,8 @@
 - note (2026-11-21, haiku-t-173): done
 
 ### T-174 · which: what a file belongs to
-- status: claimed
+- status: done
 - owner: haiku-t-174
-- claimed: 2026-11-21T11:55+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-033
 - why: The opposite question of files (R-FILE-15).
@@ -748,8 +746,12 @@
   5. Run cargo test --test cmd_which.
 - accept: which answers which tasks a file belongs to, what it was made from and what was made from it.
 - verify: cargo test --test cmd_which
+- verified: 2026-11-21
+- commit: 3ec4c43
 - reqs: R-FILE-15, R-CODE-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-174): done
 
 ### T-034 · Software use and simulation runs: used, ran, runs
 - status: open
