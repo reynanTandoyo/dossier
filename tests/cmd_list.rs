@@ -1,0 +1,207 @@
+//! Runs the built program for `list`: approved entries by default, the filters, `--wide` with who
+//! and when, the JSON data, the marks of entries that are not plainly approved, and a broken
+//! entry file that gives a warning while the list still works. Each test runs in its own
+//! temporary project folder (common::Project), with the clock fixed at 2026-11-20T10:00:00+01:00
+//! unless a test gives another time.
+
+mod common;
+
+use common::Project;
+use predicates::str::contains;
+use serde_json::{Value, json};
+use std::fs;
+
+/// Invented text for the approved finding and the draft lesson.
+const OBSERVATION: &str = "The invented test rig stalls above a tip Mach number of 1.1.";
+const FINDING_TITLE: &str = "Stall above Mach 1.1";
+const STATEMENT: &str = "Steady runs with a mixing-plane interface overpredict the stall margin.";
+const LESSON_TITLE: &str = "Mixing plane margin";
+const VALID_FOR: &str = "An invented test rig with a tip Mach number above 1.1.";
+const EVIDENCE: &str = "An invented comparison of two speedlines, section 1.";
+
+/// The time of the lesson, a day after the clock of the other commands.
+const LATER: &str = "2026-11-21T09:00:00+01:00";
+
+/// `learn` arguments for a complete lesson with the invented texts above, followed by `extra`.
+fn learn<'a>(extra: &[&'a str]) -> Vec<&'a str> {
+    let mut args = vec![
+        "learn",
+        STATEMENT,
+        "--valid-for",
+        VALID_FOR,
+        "--evidence",
+        EVIDENCE,
+        "--title",
+        LESSON_TITLE,
+    ];
+    args.extend_from_slice(extra);
+    args
+}
+
+/// A project with two entries: FND-001, an approved finding that anna wrote, and LES-001, a draft
+/// lesson that anna-claude wrote on LATER (so its author is anna, through anna-claude).
+fn project_with_two_entries() -> Project {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "found",
+                OBSERVATION,
+                "--title",
+                FINDING_TITLE,
+                "--evidence",
+                EVIDENCE,
+            ],
+        )
+        .success();
+    project
+        .run_at("anna-claude", LATER, &learn(&["--confidence", "simulated"]))
+        .success();
+    project
+}
+
+/// The text of an entry file in the form of format.md §1, with an invented statement.
+fn entry_text(heading: &str, kind: &str, status: &str, extra: &str) -> String {
+    format!(
+        "<!-- dossier-format: 1 -->\n# {heading}\n\n- kind: {kind}\n- status: {status}\n- created: 2026-11-10T09:00:00+01:00\n- author: anna\n{extra}\n## Statement\n\nAn invented statement written for a test.\n"
+    )
+}
+
+#[test]
+fn by_default_only_approved_entries_are_listed_and_the_count_follows() {
+    let project = project_with_two_entries();
+
+    assert_eq!(
+        project.stdout("anna", &["list"]),
+        "FND-001  finding  Stall above Mach 1.1\n1 entry\n"
+    );
+    assert_eq!(
+        project.stdout("anna", &["list", "--kind", "lesson"]),
+        "0 entries\n"
+    );
+}
+
+#[test]
+fn drafts_adds_the_draft_and_the_filters_choose_the_entries() {
+    let project = project_with_two_entries();
+
+    assert_eq!(
+        project.stdout("anna", &["list", "--drafts"]),
+        "FND-001  finding  Stall above Mach 1.1\nLES-001  lesson  [draft] Mixing plane margin\n2 entries\n"
+    );
+    assert_eq!(
+        project.stdout("anna", &["list", "--kind", "lesson", "--all"]),
+        "LES-001  lesson  [draft] Mixing plane margin\n1 entry\n"
+    );
+    assert_eq!(
+        project.stdout("anna", &["list", "--author", "ben", "--all"]),
+        "0 entries\n"
+    );
+}
+
+#[test]
+fn wide_shows_who_created_and_approved_each_entry_and_when() {
+    let project = project_with_two_entries();
+
+    assert_eq!(
+        project.stdout("anna", &["list", "--drafts", "--wide"]),
+        "FND-001  finding  Stall above Mach 1.1  (created 2026-11-20T10:00:00+01:00 by anna, approved 2026-11-20T10:00:00+01:00 by anna)\nLES-001  lesson  [draft] Mixing plane margin  (created 2026-11-21T09:00:00+01:00 by anna)\n2 entries\n"
+    );
+}
+
+#[test]
+fn json_gives_one_object_per_entry_with_null_where_a_value_is_missing() {
+    let project = project_with_two_entries();
+
+    let stdout = project.stdout("anna", &["list", "--drafts", "--json"]);
+    let value: Value = serde_json::from_str(&stdout).expect("the JSON parses");
+
+    assert_eq!(value["schema"], "dossier.list.v1");
+    assert_eq!(value["ok"], true);
+    assert_eq!(value["warnings"], json!([]));
+    assert_eq!(
+        value["data"],
+        json!([
+            {
+                "id": "FND-001",
+                "kind": "finding",
+                "status": "approved",
+                "title": FINDING_TITLE,
+                "author": "anna",
+                "created": "2026-11-20T10:00:00+01:00",
+                "approved": "2026-11-20T10:00:00+01:00 by anna"
+            },
+            {
+                "id": "LES-001",
+                "kind": "lesson",
+                "status": "draft",
+                "title": LESSON_TITLE,
+                "author": "anna",
+                "created": LATER,
+                "approved": null
+            }
+        ])
+    );
+}
+
+#[test]
+fn a_broken_entry_file_gives_a_warning_and_the_list_still_works() {
+    let project = project_with_two_entries();
+    project.write(
+        "DOSSIER/findings/FND-009-broken.md",
+        "<!-- dossier-format: 1 -->\nthis file has no heading\n",
+    );
+
+    assert_eq!(
+        project.stdout("anna", &["list"]),
+        "FND-001  finding  Stall above Mach 1.1\n1 entry\n"
+    );
+    project.run("anna", &["list"]).success().stderr(contains(
+        "warning: DOSSIER/findings/FND-009-broken.md: line 2: no heading",
+    ));
+}
+
+#[test]
+fn a_mark_shows_a_status_other_than_approved_and_a_changed_approved_lesson() {
+    let project = Project::new();
+    project
+        .run("anna", &learn(&["--confidence", "measured"]))
+        .success();
+
+    // A person edits the approved lesson by hand: its text no longer matches the approval.
+    let lesson = project.entry_file("LES-001");
+    let text = fs::read_to_string(&lesson).expect("the lesson file");
+    assert!(text.contains(STATEMENT), "the statement is in the file");
+    fs::write(
+        &lesson,
+        text.replace(
+            STATEMENT,
+            "An edited statement, changed after the approval.",
+        ),
+    )
+    .expect("the lesson file is written");
+
+    project.write(
+        "DOSSIER/decisions/DEC-001-old-choice.md",
+        &entry_text("DEC-001 · Old choice", "decision", "rejected", ""),
+    );
+    project.write(
+        "DOSSIER/assumptions/ASM-001-old-guess.md",
+        &entry_text("ASM-001 · Old guess", "assumption", "retired", ""),
+    );
+    project.write(
+        "DOSSIER/findings/FND-002-old-reading.md",
+        &entry_text(
+            "FND-002 · Old reading",
+            "finding",
+            "superseded",
+            "- superseded-by: DEC-001\n",
+        ),
+    );
+
+    assert_eq!(
+        project.stdout("anna", &["list", "--all"]),
+        "ASM-001  assumption  [retired] Old guess\nDEC-001  decision  [rejected] Old choice\nLES-001  lesson  [changed after approval] Mixing plane margin\nFND-002  finding  [superseded by DEC-001] Old reading\n4 entries\n"
+    );
+}
