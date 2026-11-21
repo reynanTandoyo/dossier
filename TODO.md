@@ -1611,10 +1611,8 @@
 - note (2026-11-21, haiku-t-098): done
 
 ### T-099 · add: create an entry of any kind from options, a file or standard input
-- status: claimed
+- status: done
 - owner: haiku-t-099
-- claimed: 2026-11-21T00:56+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: The general way to write an entry; the short forms are built the same way.
@@ -1632,8 +1630,12 @@
   8. Run cargo test --test cmd_add.
 - accept: add writes an entry of any kind; tool-owned fields cannot be set; special characters survive.
 - verify: cargo test --test cmd_add
+- verified: 2026-11-21
+- commit: ee2bd1f
 - reqs: R-WRITE-1, R-HIST-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-099): done
 
 ### T-100 · decide: record a decision with its reason
 - status: claimed
