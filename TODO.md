@@ -547,10 +547,8 @@
 - note (2026-11-21, haiku-t-176): done
 
 ### T-177 · values: the values in force
-- status: claimed
+- status: done
 - owner: haiku-t-177
-- claimed: 2026-11-21T11:39+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-032
 - why: An LLM takes numbers from values, never from memory (R-VALUE-4, R-LIFE-9).
@@ -565,8 +563,12 @@
   5. Run cargo test --test cmd_values.
 - accept: values lists the values in force, also on a past date.
 - verify: cargo test --test cmd_values
+- verified: 2026-11-21
+- commit: 802cab7
 - reqs: R-VALUE-4, R-LIFE-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-177): done
 
 ### T-033 · Files of a task: attach, detach, reattach, files, which
 - status: open
