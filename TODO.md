@@ -2060,10 +2060,8 @@
 - note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
 
 ### T-118 · log: who did what when
-- status: claimed
+- status: done
 - owner: haiku-t-118
-- claimed: 2026-11-21T01:13+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: The owner wants to see what was decided by whom and when, across the whole dossier.
@@ -2081,9 +2079,13 @@
   8. Run cargo test --test cmd_log.
 - accept: log prints each event with time, person, LLM, entry and title, newest first, and can be narrowed by kind, person, event and date.
 - verify: cargo test --test cmd_log
+- verified: 2026-11-21
+- commit: 9aea7dc
 - reqs: R-HIST-3, R-HIST-4, R-HIST-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
+- note (2026-11-21, haiku-t-118): done
 
 ### T-119 · Approval and life: a person decides what counts as knowledge
 - status: open
