@@ -495,10 +495,8 @@
 - note (2026-11-21, planner): split into T-175, T-176, T-177
 
 ### T-175 · values.rs: the key values file
-- status: claimed
+- status: done
 - owner: haiku-t-175
-- claimed: 2026-11-21T11:09+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-032
 - why: The key numbers live in one sheet (R-VALUE-1 to R-VALUE-4).
@@ -513,8 +511,12 @@
   5. Run cargo test --lib values::.
 - accept: values.md is read, and the value in force on a date is known.
 - verify: cargo test --lib values::
+- verified: 2026-11-21
+- commit: 422daaf
 - reqs: R-VALUE-1, R-VALUE-3, R-VALUE-4, R-LIFE-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-175): done
 
 ### T-176 · value set, show, approve and reject
 - status: open
