@@ -576,3 +576,41 @@ fn a_dry_run_writes_nothing() {
     assert!(!project.root().join("DOSSIER/files/T-001.md").exists());
     assert!(journal_of(&project, "USE-NEW").is_empty());
 }
+
+#[test]
+fn a_changed_model_that_is_attached_already_is_described_again() {
+    let project = Project::new();
+    write_files(&project);
+    let run = [
+        "used",
+        "ExampleSolver",
+        "--version",
+        "2406",
+        "--task",
+        "T-001",
+        "--model",
+        "sim/m.sim",
+        "--output",
+        "out.csv",
+    ];
+    project.stdout("anna", &run);
+    project.write("sim/m.sim", "invented model data, second version\n");
+
+    project.stdout("anna", &run);
+
+    let list = list_of(&project);
+    assert_eq!(
+        list.field("sim/m.sim", "checksum"),
+        Some(checksum_of("invented model data, second version\n"))
+    );
+    assert!(
+        list.history("sim/m.sim")
+            .iter()
+            .any(|line| line.ends_with("reattached"))
+    );
+    let entry = entry_of(&project, "USE-002");
+    assert_eq!(
+        entry.field("model-checksum"),
+        list.field("sim/m.sim", "checksum")
+    );
+}

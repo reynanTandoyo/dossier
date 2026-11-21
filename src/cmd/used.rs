@@ -161,12 +161,20 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         // described again when it is attached already.
         let mut new_paths: Vec<String> = Vec::new();
         let mut touched: Vec<String> = Vec::new();
-        let new_model = run.model.as_ref().filter(|model| !before.contains(model));
-        if let (Some(model), Some(described)) = (new_model, model_described) {
-            let fields = block_fields(MODEL_ROLE, described, "");
-            attach_block(&mut file, model, &fields, &time, &who);
-            new_paths.push(model.clone());
-            touched.push(model.clone());
+        // A model that is attached already and changed since is described again: the run used
+        // this version, so the list says it is current.
+        if let (Some(model), Some(described)) = (run.model.as_ref(), model_described) {
+            if !before.contains(model) {
+                let fields = block_fields(MODEL_ROLE, described, "");
+                attach_block(&mut file, model, &fields, &time, &who);
+                new_paths.push(model.clone());
+                touched.push(model.clone());
+            } else if value_of(&described, "checksum")
+                != file.field(model, "checksum").unwrap_or_default()
+            {
+                refresh_block(&mut file, model, &described, "", &time, &who);
+                touched.push(model.clone());
+            }
         }
         for (output, described) in outputs {
             if before.contains(output) {
