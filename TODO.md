@@ -1503,10 +1503,8 @@
 - note (2026-11-21, haiku-t-204): done
 
 ### T-205 · README for v0.2
-- status: claimed
+- status: done
 - owner: haiku-t-205
-- claimed: 2026-11-21T13:09+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-041
 - why: The team must be able to use phase 2 without the author (REL-2).
@@ -1518,8 +1516,12 @@
   2. Keep invented names only (anna, ben, P-001).
 - accept: The README explains every phase 2 feature with a tested example.
 - verify: git ls-files --error-unmatch README.md
+- verified: 2026-11-21
+- commit: 762a59f
 - reqs: REL-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-205): done
 
 ### T-206 · Release 0.2.0
 - status: open
