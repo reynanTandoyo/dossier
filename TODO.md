@@ -1045,10 +1045,8 @@
 - note (2026-11-21, planner): split into T-185
 
 ### T-185 · filter.rs: --on <date> and proposals
-- status: claimed
+- status: done
 - owner: haiku-t-185
-- claimed: 2026-11-21T10:56+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-038
 - why: What did we know and decide on the day the report went out (R-LIFE-9).
@@ -1062,8 +1060,12 @@
   4. Run cargo test --lib filter:: and cargo test --test cmd_list.
 - accept: list and search show what was in force on a date; proposals are hidden like drafts.
 - verify: cargo test --lib filter::
+- verified: 2026-11-21
+- commit: e1b48cd
 - reqs: R-LIFE-9, R-WRITE-12
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-185): done
 
 ### T-039 · Exchange with the customer: received, delivered, exchange
 - status: open
