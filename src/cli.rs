@@ -33,6 +33,8 @@ pub struct Cli {
 
 /// The commands of v0.1: one variant per file of `src/cmd/`, named after the command.
 #[derive(clap::Subcommand, Debug)]
+// The command line is parsed once per run, so the size of the largest variant does not matter.
+#[allow(clippy::large_enum_variant)]
 pub enum Command {
     Init(cmd::init::Args),
     Where(cmd::where_cmd::Args),
