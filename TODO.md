@@ -1913,10 +1913,8 @@
 - note (2026-11-21, haiku-t-111): done
 
 ### T-112 · list: one line per entry
-- status: claimed
+- status: done
 - owner: haiku-t-112
-- claimed: 2026-11-21T01:06+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: An overview of what is recorded, narrowed by kind, tag, author or task.
@@ -1933,8 +1931,12 @@
   7. Run cargo test --test cmd_list.
 - accept: list shows approved entries by default, obeys the filters, and --wide shows who and when.
 - verify: cargo test --test cmd_list
+- verified: 2026-11-21
+- commit: 5435d47
 - reqs: R-READ-2, R-READ-5, R-HIST-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-112): done
 
 ### T-113 · select.rs: score entries against tags and words
 - status: done
@@ -2200,8 +2202,10 @@
 - note (2026-11-21, planner): added
 
 ### T-125 · supersede: replace an entry with a newer one
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-125
+- claimed: 2026-11-21T01:10+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: Knowledge is never overwritten; the old entry is closed with a date and points to its replacement.
