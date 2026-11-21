@@ -2364,10 +2364,8 @@
 - note (2026-11-21, planner): added
 
 ### T-131 · brief: what an LLM should know at session start
-- status: claimed
+- status: done
 - owner: haiku-t-131
-- claimed: 2026-11-21T01:17+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-130
 - why: An LLM that starts without the project's decisions will contradict them.
@@ -2385,9 +2383,13 @@
   8. Run cargo test --test cmd_brief.
 - accept: brief shows decisions in full, open assumptions, findings and lessons by title, never unapproved entries, within the line limit and the same on every run.
 - verify: cargo test --test cmd_brief
+- verified: 2026-11-21
+- commit: b0a9f93
 - reqs: R-CTX-1, R-CTX-4, R-CTX-5, TEST-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
+- note (2026-11-21, haiku-t-131): done
 
 ### T-132 · brief_task.rs: what matters for one task
 - status: done
