@@ -1456,10 +1456,8 @@
 - note (2026-11-21, haiku-t-202): done
 
 ### T-203 · check: block files and rests-on links
-- status: claimed
+- status: done
 - owner: haiku-t-203
-- claimed: 2026-11-21T12:42+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-041
 - why: R-CHECK-1.
@@ -1474,8 +1472,12 @@
   5. Run cargo test --test cmd_check.
 - accept: check covers the new files and links.
 - verify: cargo test --test cmd_check
+- verified: 2026-11-21
+- commit: e086c4f
 - reqs: R-CHECK-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-203): done
 
 ### T-204 · The rules text for LLMs: phase 2 commands
 - status: claimed
