@@ -925,7 +925,7 @@ pub fn documents(root: &Path) -> Result<Vec<Doc>>;
 
 | Command | Arguments | Result |
 |---|---|---|
-| `init` | also `--team-dossier`, `--team <path>`, `--past`, `--in <folder>` | a team dossier; a project linked to its team and registered in `projects.md`; a finished project |
+| `init` | also `--team-dossier`, `--with-team <path>`, `--past`, `--in <folder>` | a team dossier; a project linked to its team and registered in `projects.md`; a finished project |
 | `team` | (none), `use <path>`, `member add <username>`, `member remove <username>`, `name add <name>`, `name remove <name>` | the team settings; removing needs a person at a terminal |
 | `confidential` | `add <term>`, `remove <term>`, `list`, `none --yes`, `scan` | confidential terms; remove and none: a person at a terminal |
 | `promote` | `<ID> [--as lesson\|howto]` | copies a project entry into the team dossier as a draft, after the check |
@@ -941,7 +941,7 @@ pub fn documents(root: &Path) -> Result<Vec<Doc>>;
 | `reviewed-document` | `<file> [--nothing]` | marks a document done |
 | `import` | `status` | documents found, reviewed, nothing, drafts, approved, promoted |
 
-Global options gain `--team` (work on the team dossier) and `--from-document <file>` (entries
+Global options gain `--team` (work on the team dossier; `init` names a team path with `--with-team` instead, R-PLACE-2) and `--from-document <file>` (entries
 written are imported drafts from that document).
 
 Changed commands: `used` adds a line to the team's usage index; `search` searches the project and
