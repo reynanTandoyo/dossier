@@ -1,13 +1,16 @@
 //! The lines of `brief --task`: what a session needs to know about one task.
 
+use crate::blockfile::BlockFile;
 use crate::ctx::Ctx;
-use crate::entry::{Kind, Status};
+use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
+use crate::filelist;
 use crate::select::{self, Query};
 use crate::store::{self, Item};
 use crate::todo_bridge;
 use serde_json::Value;
 use std::collections::HashSet;
+use std::path::Path;
 
 /// The heading over the approved entries whose `task` field names the task.
 const RECORDED: &str = "## Recorded for this task";
@@ -17,13 +20,28 @@ const MILESTONES: &str = "## Decisions of its milestones";
 const RELATED: &str = "## Related";
 /// The most entries `select::best` chooses for the Related heading.
 const RELATED_LIMIT: usize = 10;
+/// The heading over the task's file list (R-FILE-14).
+const FILES: &str = "## Files";
+/// The most lines of the file list (R-FILE-14).
+const FILES_LINES: usize = 15;
+/// The heading over the approved dead ends that match the task's tags and title words (R-CTX-16).
+const DEAD_ENDS: &str = "## Dead ends";
+/// The most dead ends `select::best` chooses for the Dead ends heading.
+const DEAD_ENDS_LIMIT: usize = 5;
+/// The heading over the approved entries whose code pointers lie in the files todo names for the
+/// task (R-CODE-4).
+const CODE: &str = "## Code";
+/// The section of an entry that holds its pictures (format.md §16).
+const PICTURES: &str = "Pictures";
 /// What `brief --task` says when todo is not installed (R-CTX-5).
 const NEEDS_TODO: &str = "brief --task needs todo";
 
 /// The lines of `brief --task`: the task's title and goal lines from todo, the entries whose
-/// `task` field names it, the decisions whose task is one of its milestones, then
-/// select::best over the remaining approved entries with the task's machine, analysis and
-/// software fields as tags and its title as words.
+/// `task` field names it, the decisions whose task is one of its milestones, the task's file list
+/// (R-FILE-14), the approved dead ends that match it (R-CTX-16), the entries whose code pointers
+/// lie in the files todo names for it (R-CODE-4), then select::best over the remaining approved
+/// entries with the task's machine, analysis and software fields as tags and its title as words.
+/// A decision or lesson printed with its text is followed by its pictures (R-ENTRY-17).
 pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
     let data = todo_bridge::json(&ctx.root, &["show", task]).map_err(|error| {
         if error.code == Code::TodoMissing {
@@ -67,14 +85,51 @@ pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
             out.extend(indented(
                 &item.entry.section("Decision").unwrap_or_default(),
             ));
+            out.extend(picture_lines(item));
         }
     }
+    out.extend(files_lines(ctx, task)?);
 
     let query = Query {
         tags: about.tags(),
         words: select::words(&about.title),
     };
-    let pool: Vec<Item> = approved
+    let (dead_ends, mut pool): (Vec<Item>, Vec<Item>) = approved
+        .into_iter()
+        .filter(|item| !listed.contains(&item.entry.id()))
+        .partition(is_dead_end);
+    let found = select::best(&dead_ends, &query, DEAD_ENDS_LIMIT);
+    if !found.is_empty() {
+        out.push(DEAD_ENDS.to_string());
+        for item in &found {
+            out.push(summary(item));
+            out.extend(section_line(item, "Observation"));
+        }
+    }
+    listed.extend(found.iter().map(|item| item.entry.id()));
+    pool.extend(
+        dead_ends
+            .into_iter()
+            .filter(|item| !listed.contains(&item.entry.id())),
+    );
+
+    if let Some(paths) = &about.files {
+        let code: Vec<(&Item, Vec<String>)> = pool
+            .iter()
+            .map(|item| (item, pointers_in(&item.entry, paths)))
+            .filter(|(_, pointers)| !pointers.is_empty())
+            .collect();
+        if !code.is_empty() {
+            out.push(CODE.to_string());
+            for (item, pointers) in &code {
+                out.push(summary(item));
+                out.push(format!("  code: {}", pointers.join(", ")));
+            }
+        }
+        listed.extend(code.iter().map(|(item, _)| item.entry.id()));
+    }
+
+    let pool: Vec<Item> = pool
         .into_iter()
         .filter(|item| !listed.contains(&item.entry.id()))
         .collect();
@@ -96,6 +151,8 @@ struct About {
     analysis: String,
     software: String,
     milestones: Vec<String>,
+    /// The paths of todo's `files` field; None when the data has no such field.
+    files: Option<Vec<String>>,
 }
 
 impl About {
@@ -106,6 +163,7 @@ impl About {
             analysis: first_text([inner(data, "analysis"), data.get("analysis")]),
             software: first_text([inner(data, "software"), data.get("software")]),
             milestones: milestone_ids(data),
+            files: todo_files(data),
         }
     }
 
@@ -203,20 +261,161 @@ fn indented(body: &str) -> Vec<String> {
         .collect()
 }
 
-/// Under a lesson in Related: the first line of its Statement and of its Valid for. A section
-/// that is missing or empty gives no line; other kinds give none.
+/// Under a lesson in Related: the first line of its Statement and of its Valid for, then one line
+/// per picture (R-ENTRY-17). A section that is missing or empty gives no line; other kinds give
+/// none.
 fn lesson_lines(item: &Item) -> Vec<String> {
     if item.entry.kind() != Some(Kind::Lesson) {
         return Vec::new();
     }
-    ["Statement", "Valid for"]
+    let mut lines: Vec<String> = ["Statement", "Valid for"]
         .into_iter()
-        .filter_map(|name| {
-            let body = item.entry.section(name)?;
-            let first = body.lines().next()?;
-            Some(format!("  {name}: {first}"))
+        .filter_map(|name| section_line(item, name))
+        .collect();
+    lines.extend(picture_lines(item));
+    lines
+}
+
+/// The first line of the section `name` of the entry, as `  <name>: <line>`. A missing or empty
+/// section gives None.
+fn section_line(item: &Item, name: &str) -> Option<String> {
+    let body = item.entry.section(name)?;
+    let first = body.lines().next()?;
+    Some(format!("  {name}: {first}"))
+}
+
+/// One line per picture of the entry's Pictures section (R-ENTRY-17), as
+/// `  picture: images/<ID>/<file> — <caption>`.
+fn picture_lines(item: &Item) -> Vec<String> {
+    item.entry
+        .section(PICTURES)
+        .unwrap_or_default()
+        .lines()
+        .filter_map(picture_line)
+        .collect()
+}
+
+/// The picture line of one line `![<caption>](../images/<ID>/<file>)` (format.md §16). Other text
+/// gives None.
+fn picture_line(line: &str) -> Option<String> {
+    let (caption, path) = line.strip_prefix("![")?.rsplit_once("](../")?;
+    let path = path.strip_suffix(')')?;
+    Some(format!("  picture: {path} — {caption}"))
+}
+
+/// The Files heading (R-FILE-14): the task's file list, descriptions and models first, then the
+/// other roles, each in the order of the list. A detached block is left out. One line per file:
+/// `<path> (<role>)`, with its marks in brackets. At most FILES_LINES lines; no heading when the
+/// list has no file.
+fn files_lines(ctx: &Ctx, task: &str) -> Result<Vec<String>> {
+    let (file, _bytes) = filelist::load(&ctx.dossier, task)?;
+    let mut keys: Vec<String> = file
+        .keys()
+        .into_iter()
+        .filter(|key| !file.field(key, "detached").is_some_and(|at| !at.is_empty()))
+        .collect();
+    keys.sort_by_key(|key| u8::from(!main_role(&file, key)));
+    let rows: Vec<String> = keys
+        .iter()
+        .map(|key| file_line(&ctx.root, &file, key))
+        .collect();
+    if rows.is_empty() {
+        return Ok(Vec::new());
+    }
+    let mut out = vec![FILES.to_string()];
+    out.extend(cut(rows, FILES_LINES));
+    Ok(out)
+}
+
+/// Whether the block's role is `description` or `model`, ignoring case (R-FILE-14).
+fn main_role(file: &BlockFile, key: &str) -> bool {
+    let role = file
+        .field(key, "role")
+        .unwrap_or_default()
+        .trim()
+        .to_lowercase();
+    role == "description" || role == "model"
+}
+
+/// One file of the list as a line: `<path> (<role>)`, then its marks in brackets. A block without
+/// a role has the path alone.
+fn file_line(root: &Path, file: &BlockFile, key: &str) -> String {
+    let role = file.field(key, "role").unwrap_or_default();
+    let role = role.trim();
+    let line = if role.is_empty() {
+        key.to_string()
+    } else {
+        format!("{key} ({role})")
+    };
+    let marks = filelist::marks(root, file, key);
+    if marks.is_empty() {
+        line
+    } else {
+        format!("{line} [{}]", marks.join(", "))
+    }
+}
+
+/// Whether the entry is a finding whose outcome is a dead end (format.md §5, §8).
+fn is_dead_end(item: &Item) -> bool {
+    item.entry.kind() == Some(Kind::Finding)
+        && item
+            .entry
+            .field("outcome")
+            .is_some_and(|outcome| same(&outcome, "dead end"))
+}
+
+/// The code pointers of the entry that lie in one of `paths` (R-CODE-4). A pointer is `path` or
+/// `path::name` (format.md §14). Its path lies in one of `paths` when they are the same, or when
+/// it is inside that folder.
+fn pointers_in(entry: &Entry, paths: &[String]) -> Vec<String> {
+    entry
+        .list("code")
+        .into_iter()
+        .filter(|pointer| {
+            let path = clean_path(
+                pointer
+                    .split_once("::")
+                    .map_or(pointer.as_str(), |(path, _)| path),
+            );
+            paths.iter().any(|wanted| {
+                path == wanted.as_str()
+                    || path
+                        .strip_prefix(wanted.as_str())
+                        .is_some_and(|rest| rest.starts_with('/'))
+            })
         })
         .collect()
+}
+
+/// A stored path as a list writes it: trimmed, with `/` for `\`, and without a leading `./` and a
+/// trailing `/`.
+fn clean_path(text: &str) -> String {
+    text.trim()
+        .replace('\\', "/")
+        .trim_start_matches("./")
+        .trim_end_matches('/')
+        .to_string()
+}
+
+/// The paths of the todo data's `files` field (todo 0.8 file scopes): a comma-separated string or
+/// a list of strings, at the top of the data or under `fields`. None when there is no such field.
+fn todo_files(data: &Value) -> Option<Vec<String>> {
+    let value = [data.get("files"), inner(data, "files")]
+        .into_iter()
+        .flatten()
+        .find(|value| value.is_string() || value.is_array())?;
+    let items: Vec<&str> = match value {
+        Value::String(text) => text.split(',').collect(),
+        Value::Array(list) => list.iter().filter_map(Value::as_str).collect(),
+        _ => Vec::new(),
+    };
+    Some(
+        items
+            .into_iter()
+            .map(clean_path)
+            .filter(|path| !path.is_empty())
+            .collect(),
+    )
 }
 
 /// The first `limit` lines. When there are more, the last line kept is replaced by
@@ -565,5 +764,286 @@ mod tests {
             vec!["line 1", "line 2", "2 more left out"]
         );
         assert!(cut(numbered(4), 0).is_empty());
+    }
+
+    /// The file list of T-132 (invented): a result that is not on disk, a model and a description
+    /// (both written to disk here) and a detached result.
+    fn write_task_files(ctx: &Ctx) {
+        fs::create_dir_all(ctx.dossier.join("files")).expect("the files folder");
+        let list = "<!-- dossier-format: 1 -->\n# Files of T-132\n\n## results/extra.csv\n\n- role: result\n\n## data/speedline.sim\n\n- role: model\n\n## results/old.csv\n\n- role: result\n- detached: 2026-11-21T09:00:00+01:00 by anna\n\n## notes/setup.md\n\n- role: description\n";
+        fs::write(ctx.dossier.join("files").join("T-132.md"), list).expect("the list of T-132");
+        for path in ["data/speedline.sim", "notes/setup.md"] {
+            let full = ctx.root.join(path);
+            fs::create_dir_all(full.parent().expect("a folder")).expect("the folder");
+            fs::write(full, "invented content").expect("the file");
+        }
+    }
+
+    /// Entries for the test of the files, dead ends, pictures and code pointers of T-132 (invented).
+    /// DEC-011 is a draft, so it is never listed.
+    fn write_task_material(ctx: &Ctx) {
+        write_entry(
+            ctx,
+            Kind::Decision,
+            "DEC-010",
+            "Use transient runs on the speedline",
+            "approved",
+            &[("task", "T-130"), ("machine", "axial compressor")],
+            &[
+                ("Decision", "Run the last three speedline points transient."),
+                ("Reason", "Steady runs stall early."),
+                (
+                    "Pictures",
+                    "![Speedline of stage 1 at design speed](../images/DEC-010/speedline-stage-1.png)",
+                ),
+            ],
+        );
+        write_entry(
+            ctx,
+            Kind::Decision,
+            "DEC-011",
+            "Run steady points as well",
+            "draft",
+            &[("task", "T-130")],
+            &[
+                ("Decision", "Never listed."),
+                (
+                    "Pictures",
+                    "![Draft plot](../images/DEC-011/draft-plot.png)",
+                ),
+            ],
+        );
+        write_entry(
+            ctx,
+            Kind::Finding,
+            "FND-010",
+            "Higher seal pressure on the compressor did not help",
+            "approved",
+            &[
+                ("task", "T-050"),
+                ("machine", "axial compressor"),
+                ("outcome", "dead end"),
+            ],
+            &[(
+                "Observation",
+                "The leak stayed at 0.2 kg/s with twice the seal pressure.",
+            )],
+        );
+        write_entry(
+            ctx,
+            Kind::Finding,
+            "FND-011",
+            "Seal leak model checked against the rig",
+            "approved",
+            &[("task", "T-050"), ("code", "src/pump/seal.rs::leak_model")],
+            &[(
+                "Observation",
+                "The model gives the leak of the rig within ten percent.",
+            )],
+        );
+        write_entry(
+            ctx,
+            Kind::Finding,
+            "FND-012",
+            "Mesh independence reached",
+            "approved",
+            &[
+                ("task", "T-050"),
+                ("machine", "radial turbine"),
+                ("code", "src/other/valve.rs"),
+            ],
+            &[("Observation", "Grid counts were compared.")],
+        );
+        write_entry(
+            ctx,
+            Kind::Finding,
+            "FND-013",
+            "Setup notes checked against rig",
+            "approved",
+            &[("task", "T-050"), ("code", "docs/setup.md")],
+            &[("Observation", "The notes match the rig.")],
+        );
+        write_entry(
+            ctx,
+            Kind::Lesson,
+            "LES-010",
+            "Steady runs overpredict stall margin of the compressor",
+            "approved",
+            &[
+                ("task", "T-042"),
+                ("machine", "axial compressor"),
+                ("confidence", "simulated"),
+            ],
+            &[
+                (
+                    "Statement",
+                    "Steady mixing-plane runs converge at mass flows where rotating stall is seen.",
+                ),
+                ("Valid for", "Transonic front stages."),
+                (
+                    "Pictures",
+                    "![Stall margin by method](../images/LES-010/stall-margin-by-method.svg)",
+                ),
+            ],
+        );
+    }
+
+    #[test]
+    fn brief_task_gives_the_files_dead_ends_pictures_and_code_of_the_task() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, ctx) = project();
+        write_task_files(&ctx);
+        write_task_material(&ctx);
+        let mut data = speedline_task();
+        data["files"] = serde_json::json!("src/pump, docs/setup.md");
+        let show = stand_in(dir.path(), "todo-show", &envelope(data));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let found = lines(&ctx, "T-132", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        assert_eq!(
+            found.expect("the lines"),
+            vec![
+                "Task T-132 · Speedline of the compressor",
+                "## Decisions of its milestones",
+                "DEC-010 · decision · Use transient runs on the speedline",
+                "  Run the last three speedline points transient.",
+                "  picture: images/DEC-010/speedline-stage-1.png — Speedline of stage 1 at design speed",
+                "## Files",
+                "data/speedline.sim (model)",
+                "notes/setup.md (description)",
+                "results/extra.csv (result) [missing]",
+                "## Dead ends",
+                "FND-010 · finding · Higher seal pressure on the compressor did not help",
+                "  Observation: The leak stayed at 0.2 kg/s with twice the seal pressure.",
+                "## Code",
+                "FND-011 · finding · Seal leak model checked against the rig",
+                "  code: src/pump/seal.rs::leak_model",
+                "FND-013 · finding · Setup notes checked against rig",
+                "  code: docs/setup.md",
+                "## Related",
+                "LES-010 · lesson · Steady runs overpredict stall margin of the compressor",
+                "  Statement: Steady mixing-plane runs converge at mass flows where rotating stall is seen.",
+                "  Valid for: Transonic front stages.",
+                "  picture: images/LES-010/stall-margin-by-method.svg — Stall margin by method",
+            ]
+        );
+    }
+
+    #[test]
+    fn the_file_list_gives_at_most_fifteen_lines() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, ctx) = project();
+        fs::create_dir_all(ctx.dossier.join("files")).expect("the files folder");
+        let mut list = String::from("<!-- dossier-format: 1 -->\n# Files of T-132\n\n");
+        for number in 1..=17 {
+            list.push_str(&format!(
+                "## data/part-{number:02}.csv\n\n- role: result\n\n"
+            ));
+        }
+        fs::write(ctx.dossier.join("files").join("T-132.md"), list).expect("the list of T-132");
+        let show = stand_in(dir.path(), "todo-show", &envelope(speedline_task()));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let found = lines(&ctx, "T-132", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        // The task line, the heading, then fifteen file lines: fourteen files and the count of the
+        // three left out.
+        let found = found.expect("the lines");
+        assert_eq!(found.len(), 17, "{found:?}");
+        assert_eq!(found[1], "## Files");
+        assert_eq!(found[2], "data/part-01.csv (result) [missing]");
+        assert_eq!(found[15], "data/part-14.csv (result) [missing]");
+        assert_eq!(found[16], "3 more left out");
+    }
+
+    #[test]
+    fn at_most_five_dead_ends_are_listed_and_the_others_go_to_related() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, ctx) = project();
+        for number in 1..=6 {
+            write_entry(
+                &ctx,
+                Kind::Finding,
+                &format!("FND-{number:03}"),
+                &format!("Compressor run variant {number} failed"),
+                "approved",
+                &[("outcome", "dead end"), ("machine", "axial compressor")],
+                &[("Observation", "The run stalled.")],
+            );
+        }
+        let show = stand_in(dir.path(), "todo-show", &envelope(speedline_task()));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let found = lines(&ctx, "T-132", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        let found = found.expect("the lines");
+        let dead = found
+            .iter()
+            .position(|line| line == "## Dead ends")
+            .expect("the Dead ends heading");
+        let related = found
+            .iter()
+            .position(|line| line == "## Related")
+            .expect("the Related heading");
+        let listed = found[dead + 1..related]
+            .iter()
+            .filter(|line| line.starts_with("FND-"))
+            .count();
+        assert_eq!(listed, 5, "{found:?}");
+        assert!(
+            found[related..]
+                .contains(&"FND-006 · finding · Compressor run variant 6 failed".to_string()),
+            "{found:?}"
+        );
+    }
+
+    #[test]
+    fn the_todo_files_field_takes_a_string_or_a_list() {
+        let text = serde_json::json!({"files": "src\\pump/, ./docs/setup.md ,"});
+        assert_eq!(
+            todo_files(&text),
+            Some(vec!["src/pump".to_string(), "docs/setup.md".to_string()])
+        );
+        let list = serde_json::json!({"fields": {"files": ["data", " results\\run 1/ "]}});
+        assert_eq!(
+            todo_files(&list),
+            Some(vec!["data".to_string(), "results/run 1".to_string()])
+        );
+        assert_eq!(todo_files(&serde_json::json!({"id": "T-132"})), None);
+        assert_eq!(todo_files(&serde_json::json!({"files": 3})), None);
+    }
+
+    #[test]
+    fn a_code_pointer_lies_in_a_path_when_it_is_the_path_or_inside_it() {
+        let text = "<!-- dossier-format: 1 -->\n# FND-020 · Pointers\n\n- kind: finding\n- status: approved\n- code: src/pump/seal.rs::leak, src/pumps/x.rs, docs\\setup.md\n\n## Observation\n\nText.\n";
+        let entry = Entry::parse(text).expect("the entry parses");
+        let paths = ["src/pump".to_string(), "docs/setup.md".to_string()];
+        assert_eq!(
+            pointers_in(&entry, &paths),
+            ["src/pump/seal.rs::leak", "docs\\setup.md"]
+        );
+        assert!(pointers_in(&entry, &["src/pum".to_string()]).is_empty());
+    }
+
+    #[test]
+    fn a_picture_line_gives_the_path_and_the_caption() {
+        assert_eq!(
+            picture_line("![Contour, hot spot](../images/FND-004/contour-plot.png)").as_deref(),
+            Some("  picture: images/FND-004/contour-plot.png — Contour, hot spot")
+        );
+        assert_eq!(picture_line("Some other text"), None);
     }
 }
