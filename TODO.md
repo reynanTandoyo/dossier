@@ -793,8 +793,10 @@
 - note (2026-11-21, haiku-t-195): done
 
 ### T-196 · runs: the recorded runs, and what differs between two
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-196
+- claimed: 2026-11-21T12:42+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-034
 - why: R-USE-15.
@@ -1427,10 +1429,8 @@
 - note (2026-11-21, haiku-t-201): done
 
 ### T-202 · brief --task: files, dead ends, pictures and code pointers
-- status: claimed
+- status: done
 - owner: haiku-t-202
-- claimed: 2026-11-21T12:19+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-041
 - why: R-CTX-16, R-FILE-14, R-ENTRY-17, R-CODE-4.
@@ -1446,12 +1446,18 @@
   6. Run cargo test --lib brief_task::.
 - accept: brief --task shows the task's files, matching dead ends, pictures and code pointers.
 - verify: cargo test --lib brief_task::
+- verified: 2026-11-21
+- commit: 2fe7a71
 - reqs: R-CTX-16, R-FILE-14, R-ENTRY-17, R-CODE-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-202): done
 
 ### T-203 · check: block files and rests-on links
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-203
+- claimed: 2026-11-21T12:42+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-041
 - why: R-CHECK-1.
@@ -4063,8 +4069,10 @@
 - note (2026-11-21, haiku-t-159): done
 
 ### T-160 · agents install: journal line
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-160
+- claimed: 2026-11-21T12:42+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-031
 - why: Every change is saved with who and when (D29).
