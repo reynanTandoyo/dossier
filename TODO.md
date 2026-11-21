@@ -5474,8 +5474,8 @@
 - note (2026-11-21, haiku-t-210): done
 
 ### T-211 · v0.3 skeleton: the new library modules as stubs
-- status: open
-- owner: —
+- status: done
+- owner: haiku-t-211
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-042
 - why: With every type in place, each later task fills in one file.
@@ -5492,7 +5492,11 @@
   5. Run both clippy commands (Windows and --target x86_64-unknown-linux-gnu) and cargo test --all-features.
 - accept: Every module of design.md section 11 exists with its exact signatures; every check passes.
 - verify: cargo clippy --all-targets --all-features -- -D warnings
+- verified: 2026-11-21
+- commit: 0e04f46
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-211): done
 
 ### T-212 · v0.3 skeleton: command stubs, help overview and forwarding lists
 - status: open
