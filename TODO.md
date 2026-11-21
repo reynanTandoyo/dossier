@@ -799,8 +799,10 @@
 - note (2026-11-21, planner): split into T-197, T-198
 
 ### T-197 · picture.rs: picture type, name and line
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-197
+- claimed: 2026-11-21T11:32+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-035
 - why: R-ENTRY-16.
@@ -902,8 +904,10 @@
 - note (2026-11-21, haiku-t-187): done
 
 ### T-188 · accept: a decider puts a proposal in force
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-188
+- claimed: 2026-11-21T11:32+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-036
 - why: R-WRITE-12, D28.
@@ -972,8 +976,10 @@
 - note (2026-11-21, planner): split into T-191, T-192, T-193, T-194
 
 ### T-191 · affects.rs: the items an assumption affects
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-191
+- claimed: 2026-11-21T11:32+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-037
 - why: refute must find what rests on a wrong assumption (R-WRITE-15).
@@ -1145,8 +1151,10 @@
 - note (2026-11-21, haiku-t-181): done
 
 ### T-182 · received: record what came from the customer
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-182
+- claimed: 2026-11-21T11:32+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-039
 - why: What was received, when and in which version, is the first thing asked in a dispute (R-EXCH-1).
@@ -1242,10 +1250,8 @@
 - note (2026-11-21, haiku-t-178): done
 
 ### T-179 · map: describe the parts of a code project
-- status: claimed
+- status: done
 - owner: haiku-t-179
-- claimed: 2026-11-21T11:24+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-040
 - why: brief prints the map first in a code project (R-CODE-1).
@@ -1260,8 +1266,12 @@
   5. Run cargo test --test cmd_map.
 - accept: map set, map remove and map print the map of a code project with who and when.
 - verify: cargo test --test cmd_map
+- verified: 2026-11-21
+- commit: f357321
 - reqs: R-CODE-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-179): done
 
 ### T-041 · brief and status show values, open assumptions, proposals and dead ends; release 0.2.0
 - status: open
