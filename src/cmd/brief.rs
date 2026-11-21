@@ -2,20 +2,29 @@
 //! (R-CTX-1), or with `--task` what matters for one task (R-CTX-2, see `brief_task`). Only
 //! approved entries are printed (R-CTX-4). The output stays within `brief_lines` lines and is
 //! the same on every run. Nothing is changed.
+//!
+//! The project brief also prints the map of the code (R-CODE-1), the key values (R-VALUE-4), the
+//! decisions proposed and waiting for a decider (R-CTX-16), and the marks `rests on <ID>` of what
+//! rests on a wrong assumption. With `--on <date>` it prints what was in force on that day
+//! instead (R-LIFE-9); the proposals and the drafts are then left out.
 
 use crate::approval::{self, Mark};
+use crate::blockfile::BlockFile;
 use crate::brief_task;
 use crate::cli::Global;
 use crate::config::Tags;
 use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status};
-use crate::error::Result;
+use crate::error::{Code, Error, Result};
+use crate::mapfile;
 use crate::output::Output;
 use crate::store::{self, Item};
 use crate::time;
-use chrono::{DateTime, FixedOffset};
+use crate::values;
+use chrono::{DateTime, FixedOffset, NaiveDate};
 use serde_json::{Value, json};
 use std::cmp::Ordering;
+use std::collections::BTreeMap;
 use std::path::{MAIN_SEPARATOR, Path};
 
 /// The arguments of `brief`.
@@ -24,13 +33,28 @@ pub struct Args {
     /// What matters for one todo task, such as T-042, instead of the whole project
     #[arg(long)]
     pub task: Option<String>,
+    /// The day, YYYY-MM-DD: what was in force on that day instead of now (R-LIFE-9)
+    #[arg(long, value_name = "date", conflicts_with = "task")]
+    pub on: Option<String>,
 }
 
-/// The headings of the project brief.
+/// The headings of the project brief, in the order they are printed.
+const MAP: &str = "## Map";
+const KEY_VALUES: &str = "## Key values";
 const DECISIONS: &str = "## Decisions in force";
 const ASSUMPTIONS: &str = "## Open assumptions";
 const FINDINGS: &str = "## Findings";
 const LESSONS: &str = "## Lessons";
+const PROPOSALS: &str = "## Proposals waiting";
+
+/// The most lines of the map the brief prints (R-CODE-1), and the most values (R-VALUE-4).
+const MAX_MAP_LINES: usize = 25;
+const MAX_VALUES: usize = 15;
+
+/// The field that names the wrong assumptions an entry rests on (format.md §14), and the field
+/// that gives the time an assumption was found wrong.
+const RESTS_ON: &str = "rests-on";
+const REFUTED: &str = "refuted";
 
 /// The variable that is set when the command was started through ssh (R-REMOTE-12).
 const SSH_VARIABLE: &str = "SSH_CONNECTION";
@@ -42,7 +66,10 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let remote = std::env::var(SSH_VARIABLE).is_ok_and(|value| !value.is_empty());
     match &args.task {
         Some(task) => for_task(&ctx, task, remote),
-        None => for_project(&ctx, remote),
+        None => {
+            let day = args.on.as_deref().map(day_option).transpose()?;
+            for_project(&ctx, remote, day.as_deref())
+        }
     }
 }
 
@@ -59,14 +86,30 @@ fn for_task(ctx: &Ctx, task: &str, remote: bool) -> Result<Output> {
     Ok(Output::with(lines.join("\n"), data))
 }
 
-/// `brief` for the project, fitted to `brief_lines`. The warnings of reading the dossier are
-/// passed on with their paths shown relative to the project folder.
-fn for_project(ctx: &Ctx, remote: bool) -> Result<Output> {
+/// `brief` for the project, fitted to `brief_lines`, for the day `day` when it is given. The
+/// warnings of reading the dossier are passed on with their paths shown relative to the project
+/// folder. A map or values file that cannot be read gives a warning and is left out.
+fn for_project(ctx: &Ctx, remote: bool, day: Option<&str>) -> Result<Output> {
     let (items, warnings) = store::all(&ctx.dossier);
-    let mut brief = Brief::collect(ctx, &items, remote);
+    let mut problems = Vec::new();
+    let map_section = match mapfile::load(&ctx.dossier, &ctx.cfg.code) {
+        Ok((file, _)) => map_lines(&file),
+        Err(error) => {
+            problems.push(error.message);
+            Vec::new()
+        }
+    };
+    let value_section = match values::load(&ctx.dossier, &ctx.cfg.code) {
+        Ok((file, _)) => key_values(&file, day),
+        Err(error) => {
+            problems.push(error.message);
+            Vec::new()
+        }
+    };
+    let mut brief = Brief::collect(ctx, &items, remote, day, map_section, value_section);
     let lines = brief.fit(ctx.cfg.brief_lines);
     let mut output = Output::with(lines.join("\n"), brief.data(&ctx.cfg.code));
-    for warning in &warnings {
+    for warning in warnings.iter().chain(&problems) {
         output = output.warn(shown_warning(&ctx.root, warning));
     }
     Ok(output)
@@ -76,22 +119,36 @@ fn for_project(ctx: &Ctx, remote: bool) -> Result<Output> {
 struct Brief {
     /// The project line (or the server line in remote mode) and the tags line.
     head: Vec<String>,
-    /// The approved decisions, newest first.
+    /// The lines of the map, at most MAX_MAP_LINES; empty when there is no map or it was cut.
+    map: Vec<String>,
+    /// The values in force: key values first, then by name, at most MAX_VALUES.
+    values: Vec<Line>,
+    /// The decisions in force (approved, or with `--on` in force on the day), newest first.
     decisions: Vec<Decision>,
-    /// The approved assumptions whose state is open, by ID.
+    /// The assumptions that are open, by ID.
     assumptions: Vec<Line>,
-    /// The approved findings, by ID.
+    /// The findings, by ID.
     findings: Vec<Line>,
-    /// The approved lessons, by ID.
+    /// The lessons, by ID.
     lessons: Vec<Line>,
-    /// The number of drafts waiting for approval.
+    /// The decisions proposed and waiting for a decider, by ID. Left out with `--on`.
+    proposals: Vec<Line>,
+    /// The number of drafts waiting for approval. Left out with `--on`.
     drafts: usize,
-    /// The number of entries cut to fit the limit.
+    /// The number of entries cut to fit the limit (lessons, findings, decisions, assumptions).
     left_out: usize,
+    /// The number of proposals cut to fit the limit.
+    proposals_left_out: usize,
+    /// The number of values cut to fit the limit.
+    values_left_out: usize,
+    /// Whether the map was cut to fit the limit.
+    map_left_out: bool,
+    /// The day of `--on`, as YYYY-MM-DD.
+    day: Option<String>,
 }
 
-/// One approved decision: its summary line, then the bodies of its Decision and Reason
-/// sections. Shortened, only the summary line is printed.
+/// One decision: its summary line, then the bodies of its Decision and Reason sections. Shortened,
+/// only the summary line is printed.
 struct Decision {
     id: String,
     summary: String,
@@ -99,35 +156,105 @@ struct Decision {
     shortened: bool,
 }
 
-/// One entry printed as one line, with its ID.
+/// One entry or value printed as one line, with its ID or name.
 struct Line {
     id: String,
     text: String,
 }
 
+/// Which wrong assumptions a line names in its `rests on` mark. With `--on` a mark names only the
+/// assumptions that were found wrong on or before that day (their `refuted` date): on an earlier
+/// day nobody knew yet that they were wrong.
+struct Wrong {
+    day: Option<String>,
+    /// The day each assumption was found wrong, by ID.
+    found: BTreeMap<String, String>,
+}
+
+impl Wrong {
+    /// The assumptions of the dossier with their `refuted` day, for the brief of `day`.
+    fn of(items: &[Item], day: Option<&str>) -> Wrong {
+        let found = items
+            .iter()
+            .filter(|item| item.entry.kind() == Some(Kind::Assumption))
+            .filter_map(|item| {
+                let stamp = item.entry.field(REFUTED).unwrap_or_default();
+                let date = time::date(stamp.trim());
+                is_whole_date(date).then(|| (item.entry.id(), date.to_string()))
+            })
+            .collect();
+        Wrong {
+            day: day.map(str::to_string),
+            found,
+        }
+    }
+
+    /// The mark ` [rests on <IDs>]` of an entry, from its `rests-on` field (format.md §14), or
+    /// nothing when no ID counts.
+    fn mark(&self, entry: &Entry) -> String {
+        let ids: Vec<String> = entry
+            .list(RESTS_ON)
+            .into_iter()
+            .filter(|id| self.holds(id))
+            .collect();
+        if ids.is_empty() {
+            String::new()
+        } else {
+            format!(" [rests on {}]", ids.join(", "))
+        }
+    }
+
+    /// Whether an ID counts in the brief: every ID does for the present brief; for a day, the
+    /// assumption must have been found wrong on or before it.
+    fn holds(&self, id: &str) -> bool {
+        match (&self.day, self.found.get(id)) {
+            (None, _) => true,
+            (Some(day), Some(found)) => found.as_str() <= day.as_str(),
+            (Some(_), None) => false,
+        }
+    }
+}
+
 impl Brief {
-    /// Reads the approved entries of the dossier into the brief, in the order it prints them.
-    fn collect(ctx: &Ctx, items: &[Item], remote: bool) -> Brief {
-        let mut decisions: Vec<&Item> = approved(items, Kind::Decision).collect();
+    /// Reads the dossier into the brief, in the order it prints it. With `day`, the entries and
+    /// values in force on that day; without it, the approved entries and the values now.
+    fn collect(
+        ctx: &Ctx,
+        items: &[Item],
+        remote: bool,
+        day: Option<&str>,
+        map_section: Vec<String>,
+        value_section: Vec<Line>,
+    ) -> Brief {
+        let wrong = Wrong::of(items, day);
+        let mut decisions = shown(items, Kind::Decision, day);
         decisions.sort_by(|a, b| newest_first(&a.entry, &b.entry));
         Brief {
             head: head(ctx, remote),
-            decisions: decisions.into_iter().map(decision_of).collect(),
-            assumptions: approved(items, Kind::Assumption)
-                .filter(|item| is_open(&item.entry))
-                .map(|item| line(&item.entry, ""))
+            map: map_section,
+            values: value_section,
+            decisions: decisions
+                .into_iter()
+                .map(|item| decision_of(item, &wrong))
                 .collect(),
-            findings: approved(items, Kind::Finding)
+            assumptions: shown(items, Kind::Assumption, day)
+                .into_iter()
+                .filter(|item| is_open(&item.entry, day))
+                .map(|item| line(&item.entry, "", &wrong))
+                .collect(),
+            findings: shown(items, Kind::Finding, day)
+                .into_iter()
                 .map(|item| {
                     let mark = if is_dead_end(&item.entry) {
                         " (dead end)"
                     } else {
                         ""
                     };
-                    line(&item.entry, mark)
+                    line(&item.entry, mark, &wrong)
                 })
                 .collect(),
-            lessons: approved(items, Kind::Lesson)
+            lessons: shown(items, Kind::Lesson, day)
+                .into_iter()
                 .map(|item| {
                     let changed = matches!(
                         approval::mark(&ctx.state, &item.entry.id(), &item.raw),
@@ -138,38 +265,79 @@ impl Brief {
                     } else {
                         ""
                     };
-                    line(&item.entry, mark)
+                    line(&item.entry, mark, &wrong)
                 })
                 .collect(),
-            drafts: items
-                .iter()
-                .filter(|item| item.entry.status() == Some(Status::Draft))
-                .count(),
+            proposals: if day.is_some() {
+                Vec::new()
+            } else {
+                proposals_of(items, &wrong)
+            },
+            drafts: if day.is_some() {
+                0
+            } else {
+                items
+                    .iter()
+                    .filter(|item| item.entry.status() == Some(Status::Draft))
+                    .count()
+            },
             left_out: 0,
+            proposals_left_out: 0,
+            values_left_out: 0,
+            map_left_out: false,
+            day: day.map(str::to_string),
         }
     }
 
     /// The lines as they would be printed now: the head, then each heading with its lines (a
-    /// heading with no lines is left out), the drafts line and the left-out line.
+    /// heading with no lines is left out), the drafts line and the left-out lines.
     fn lines(&self) -> Vec<String> {
+        let day = self.day.as_deref();
         let mut lines = self.head.clone();
+        push_section(&mut lines, MAP, &self.map);
+        push_section(&mut lines, KEY_VALUES, &texts(&self.values));
         let decisions: Vec<String> = self.decisions.iter().flat_map(Decision::lines).collect();
         push_section(&mut lines, DECISIONS, &decisions);
         push_section(&mut lines, ASSUMPTIONS, &texts(&self.assumptions));
         push_section(&mut lines, FINDINGS, &texts(&self.findings));
         push_section(&mut lines, LESSONS, &texts(&self.lessons));
+        push_section(&mut lines, PROPOSALS, &texts(&self.proposals));
         if self.drafts > 0 {
             lines.push(drafts_line(self.drafts));
         }
         if self.left_out > 0 {
-            lines.push(left_out_line(self.left_out));
+            lines.push(left_out_text(
+                self.left_out,
+                "entry",
+                "entries",
+                &command_text("list", day),
+            ));
+        }
+        if self.proposals_left_out > 0 {
+            lines.push(left_out_text(
+                self.proposals_left_out,
+                "proposal",
+                "proposals",
+                "dossier list --status proposed",
+            ));
+        }
+        if self.values_left_out > 0 {
+            lines.push(left_out_text(
+                self.values_left_out,
+                "value",
+                "values",
+                &command_text("values", day),
+            ));
+        }
+        if self.map_left_out {
+            lines.push("the map is left out: dossier map".to_string());
         }
         lines
     }
 
     /// Fits the brief to `limit` lines. First the decisions are shortened to their title lines,
-    /// oldest first, until it fits. Then entries are cut in the order of `cut_one`, and the last
-    /// line says how many were left out. A limit too small even for that keeps the first lines.
+    /// oldest first, until it fits. Then things are cut in the order of `cut_one`, and the
+    /// left-out lines say what was left out. A limit too small even for that keeps the first lines.
     fn fit(&mut self, limit: usize) -> Vec<String> {
         if self.lines().len() > limit {
             for index in (0..self.decisions.len()).rev() {
@@ -189,28 +357,41 @@ impl Brief {
         lines
     }
 
-    /// Cuts one entry: the last lesson, then the last finding, then the oldest decision, then
-    /// the last open assumption. Returns false when nothing is left to cut. The `||` chain stops
-    /// at the first list that had an entry, so only one entry is cut per call.
+    /// Cuts one thing to fit the limit, in this order: the last lesson, the last finding, the last
+    /// proposal, the last value, the whole map, the oldest decision, the last open assumption.
+    /// Returns false when nothing is left to cut. Each step stops at the first list that had
+    /// something, so only one thing is cut per call.
     fn cut_one(&mut self) -> bool {
-        let cut = self.lessons.pop().is_some()
-            || self.findings.pop().is_some()
-            || self.decisions.pop().is_some()
-            || self.assumptions.pop().is_some();
-        if cut {
+        if self.lessons.pop().is_some() || self.findings.pop().is_some() {
             self.left_out += 1;
+        } else if self.proposals.pop().is_some() {
+            self.proposals_left_out += 1;
+        } else if self.values.pop().is_some() {
+            self.values_left_out += 1;
+        } else if !self.map.is_empty() {
+            self.map.clear();
+            self.map_left_out = true;
+        } else if self.decisions.pop().is_some() || self.assumptions.pop().is_some() {
+            self.left_out += 1;
+        } else {
+            return false;
         }
-        cut
+        true
     }
 
-    /// The data of `--json`: the IDs of the entries printed, and the number of drafts.
+    /// The data of `--json`: the day, the map lines, and the IDs (values: names) of the entries
+    /// printed, and the number of drafts.
     fn data(&self, code: &str) -> Value {
         json!({
             "code": code,
+            "on": self.day,
+            "map": self.map,
+            "values": ids(&self.values),
             "decisions": self.decisions.iter().map(|decision| decision.id.as_str()).collect::<Vec<_>>(),
             "assumptions": ids(&self.assumptions),
             "findings": ids(&self.findings),
             "lessons": ids(&self.lessons),
+            "proposals": ids(&self.proposals),
             "drafts": self.drafts,
         })
     }
@@ -227,11 +408,30 @@ impl Decision {
     }
 }
 
-/// The approved entries of one kind, in the order of `store::all` (by ID).
-fn approved(items: &[Item], kind: Kind) -> impl Iterator<Item = &Item> {
-    items.iter().filter(move |item| {
-        item.entry.kind() == Some(kind) && item.entry.status() == Some(Status::Approved)
-    })
+/// The entries of one kind that the brief shows, in the order of `store::all`: the approved ones,
+/// or with `day` the ones in force on that day (R-LIFE-9).
+fn shown<'a>(items: &'a [Item], kind: Kind, day: Option<&str>) -> Vec<&'a Item> {
+    items
+        .iter()
+        .filter(|item| item.entry.kind() == Some(kind))
+        .filter(|item| match day {
+            Some(day) => in_force(&item.entry, day),
+            None => item.entry.status() == Some(Status::Approved),
+        })
+        .collect()
+}
+
+/// The decisions waiting for a decider (status `proposed`), in the order of `store::all`, each as
+/// `<ID> · <title> (<author>)`.
+fn proposals_of(items: &[Item], wrong: &Wrong) -> Vec<Line> {
+    items
+        .iter()
+        .filter(|item| {
+            item.entry.kind() == Some(Kind::Decision)
+                && item.entry.status() == Some(Status::Proposed)
+        })
+        .map(|item| line(&item.entry, &format!(" ({})", author(&item.entry)), wrong))
+        .collect()
 }
 
 /// The first two lines of the brief: the project line (the server line in remote mode), then
@@ -277,13 +477,10 @@ fn tags_line(tags: &Tags) -> Option<String> {
     (!parts.is_empty()).then(|| format!("tags: {}", parts.join("; ")))
 }
 
-/// The decision as printed: `<ID> · <title> (<author>, <date>)`, with its bodies.
-fn decision_of(item: &Item) -> Decision {
+/// The decision as printed: `<ID> · <title> (<author>, <date>)`, with its rests-on mark, and its
+/// bodies.
+fn decision_of(item: &Item, wrong: &Wrong) -> Decision {
     let entry = &item.entry;
-    let author = entry
-        .field("author")
-        .filter(|author| !author.is_empty())
-        .unwrap_or_else(|| "-".to_string());
     let date = entry
         .field("created")
         .map(|stamp| time::date(&stamp).to_string())
@@ -291,7 +488,12 @@ fn decision_of(item: &Item) -> Decision {
         .unwrap_or_else(|| "-".to_string());
     Decision {
         id: entry.id(),
-        summary: format!("{} ({author}, {date})", entry_text(entry)),
+        summary: format!(
+            "{} ({}, {date}){}",
+            entry_text(entry),
+            author(entry),
+            wrong.mark(entry)
+        ),
         body: bodies(entry),
         shortened: false,
     }
@@ -320,11 +522,11 @@ fn indented(body: &str) -> Vec<String> {
         .collect()
 }
 
-/// An entry as one line with `suffix` after its heading.
-fn line(entry: &Entry, suffix: &str) -> Line {
+/// An entry as one line: its heading, then `suffix`, then its rests-on mark.
+fn line(entry: &Entry, suffix: &str, wrong: &Wrong) -> Line {
     Line {
         id: entry.id(),
-        text: format!("{}{suffix}", entry_text(entry)),
+        text: format!("{}{suffix}{}", entry_text(entry), wrong.mark(entry)),
     }
 }
 
@@ -338,11 +540,28 @@ fn entry_text(entry: &Entry) -> String {
     }
 }
 
-/// Whether an assumption's `state` is `open`.
-fn is_open(entry: &Entry) -> bool {
+/// The author of an entry, or `-` when it has none.
+fn author(entry: &Entry) -> String {
     entry
-        .field("state")
-        .is_some_and(|state| state.eq_ignore_ascii_case("open"))
+        .field("author")
+        .filter(|author| !author.is_empty())
+        .unwrap_or_else(|| "-".to_string())
+}
+
+/// Whether an assumption is open. Now: its `state` is `open`. On a day (`--on`): it was not yet
+/// confirmed on that day; a refuted one is open until its `valid-until` day, which `in_force`
+/// has already checked.
+fn is_open(entry: &Entry, day: Option<&str>) -> bool {
+    match day {
+        Some(day) => {
+            let confirmed = entry.field("confirmed").unwrap_or_default();
+            let date = time::date(confirmed.trim());
+            !is_whole_date(date) || date > day
+        }
+        None => entry
+            .field("state")
+            .is_some_and(|state| state.eq_ignore_ascii_case("open")),
+    }
 }
 
 /// Whether a finding's `outcome` is `dead end`.
@@ -350,6 +569,35 @@ fn is_dead_end(entry: &Entry) -> bool {
     entry
         .field("outcome")
         .is_some_and(|outcome| outcome.eq_ignore_ascii_case("dead end"))
+}
+
+/// Whether an entry was in force on the day `day` (YYYY-MM-DD), by the rule of filter.rs for
+/// `--on` (R-LIFE-9): its valid-from date is on or before the day, and its valid-until is empty or
+/// after the day. An entry with no valid-from was never in force.
+fn in_force(entry: &Entry, day: &str) -> bool {
+    let from = entry.field("valid-from").unwrap_or_default();
+    let from = time::date(from.trim());
+    if !is_whole_date(from) || from > day {
+        return false;
+    }
+    let until = entry.field("valid-until").unwrap_or_default();
+    let until = until.trim();
+    if until.is_empty() {
+        return true;
+    }
+    let end = time::date(until);
+    is_whole_date(end) && end > day
+}
+
+/// A whole date as format.md §7 writes its day, `2026-11-15`: ten characters, digits, with a dash
+/// at the fifth and the eighth place.
+fn is_whole_date(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    bytes.len() == 10
+        && bytes.iter().enumerate().all(|(index, byte)| match index {
+            4 | 7 => *byte == b'-',
+            _ => byte.is_ascii_digit(),
+        })
 }
 
 /// The order of decisions: newest `created` first, then the higher number first, then the ID
@@ -375,6 +623,58 @@ fn number(id: &str) -> u64 {
         .next()
         .and_then(|digits| digits.parse().ok())
         .unwrap_or(0)
+}
+
+/// The map lines to print (`mapfile::lines`), at most MAX_MAP_LINES. When there are more, the last
+/// line says how many folders are left out and where to see them.
+fn map_lines(file: &BlockFile) -> Vec<String> {
+    let mut lines = mapfile::lines(file);
+    if lines.len() > MAX_MAP_LINES {
+        let more = lines.len() - (MAX_MAP_LINES - 1);
+        lines.truncate(MAX_MAP_LINES - 1);
+        lines.push(format!("{more} more folders in the map: dossier map"));
+    }
+    lines
+}
+
+/// The values the brief prints: the values in force, key values first and then by name, at most
+/// MAX_VALUES, each as `<name> = <value>[ <unit>]`. With `day`, the values in force on that day.
+fn key_values(file: &BlockFile, day: Option<&str>) -> Vec<Line> {
+    let mut all = values::all(file);
+    all.sort_by(|a, b| b.key.cmp(&a.key).then_with(|| a.name.cmp(&b.name)));
+    all.iter()
+        .filter_map(|value| {
+            value_text(file, value, day).map(|text| Line {
+                id: value.name.clone(),
+                text: format!("{} = {text}", value.name),
+            })
+        })
+        .take(MAX_VALUES)
+        .collect()
+}
+
+/// The value as printed, `<value>[ <unit>]`: the value in force now, or with `day` the value in
+/// force at the end of that day (`values::on`). None when no value is in force.
+fn value_text(file: &BlockFile, value: &values::Value, day: Option<&str>) -> Option<String> {
+    match day {
+        Some(day) => values::on(file, &value.name, day),
+        None => (!value.value.is_empty()).then(|| match &value.unit {
+            Some(unit) => format!("{} {unit}", value.value),
+            None => value.value.clone(),
+        }),
+    }
+}
+
+/// The `--on` day as YYYY-MM-DD. Code::BadValue when it is not a date of that form.
+fn day_option(text: &str) -> Result<String> {
+    NaiveDate::parse_from_str(text.trim(), "%Y-%m-%d")
+        .map(|day| day.format("%Y-%m-%d").to_string())
+        .map_err(|_| {
+            Error::new(
+                Code::BadValue,
+                format!("--on needs a date such as 2026-11-21, not \"{text}\""),
+            )
+        })
 }
 
 /// The text of each line.
@@ -404,12 +704,20 @@ fn drafts_line(n: usize) -> String {
     }
 }
 
-/// `1 entry left out: dossier list`, or `<m> entries left out: dossier list`.
-fn left_out_line(n: usize) -> String {
+/// `dossier <command>`, with ` --on <day>` after it when the brief is for a day.
+fn command_text(command: &str, day: Option<&str>) -> String {
+    match day {
+        Some(day) => format!("dossier {command} --on {day}"),
+        None => format!("dossier {command}"),
+    }
+}
+
+/// `1 <one> left out: <command>`, or `<n> <many> left out: <command>`.
+fn left_out_text(n: usize, one: &str, many: &str, command: &str) -> String {
     if n == 1 {
-        "1 entry left out: dossier list".to_string()
+        format!("1 {one} left out: {command}")
     } else {
-        format!("{n} entries left out: dossier list")
+        format!("{n} {many} left out: {command}")
     }
 }
 

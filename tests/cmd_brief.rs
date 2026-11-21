@@ -1,8 +1,10 @@
 //! Runs the built program for `brief`: the approved decisions in full, the open assumptions,
 //! findings and lessons by title, the drafts line, the marks of a lesson changed by hand and of
 //! a dead end, the line limit with 70 decisions, the same output on every run, the server line
-//! of remote mode, and `--task` through a stand-in for todo. Each test runs in its own temporary
-//! project folder (common::Project), with the clock fixed at 2026-11-20T10:00:00+01:00.
+//! of remote mode, and `--task` through a stand-in for todo. Phase 2 adds the map first, the key
+//! values, the proposals waiting, the `rests on` marks, `--on <date>` and the order in which the
+//! line limit cuts. Each test runs in its own temporary project folder (common::Project), with
+//! the clock fixed at 2026-11-20T10:00:00+01:00.
 
 mod common;
 
@@ -442,4 +444,518 @@ fn brief_task_prints_the_task_from_todo_and_its_recorded_decision() {
         Some("Task T-132 · Speedline check"),
         "{text}"
     );
+}
+
+/// Describes a folder of the code as anna: writes a file in it, so that the folder exists.
+fn describe(project: &Project, folder: &str, purpose: &str) {
+    project.write(&format!("{folder}/file.txt"), "");
+    project
+        .run("anna", &["map", "set", folder, purpose])
+        .success();
+}
+
+/// Finds the assumption `id` wrong as a person at a terminal (DOSSIER_ANSWERS is set), at `now`.
+fn refute(project: &Project, now: &str, id: &str) {
+    project
+        .command("anna", now)
+        .env("DOSSIER_ANSWERS", "")
+        .args(["refute", id, "--by", "anna, from the rig measurements"])
+        .assert()
+        .success();
+}
+
+/// A project with one decision (DEC-001, task T-042) and one assumption (ASM-001, affecting
+/// T-042), as anna on 2026-11-20.
+fn project_with_a_decision_resting_on_an_assumption() -> Project {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "assume",
+                "The inlet profile is uniform.",
+                "--reason",
+                "No measured profile was delivered.",
+                "--title",
+                "Uniform inlet profile",
+                "--affects",
+                "T-042",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Run the last speedline points transient.",
+                "--reason",
+                "Steady runs stall first.",
+                "--title",
+                "Transient speedline points",
+                "--task",
+                "T-042",
+            ],
+        )
+        .success();
+    project
+}
+
+#[test]
+fn the_map_comes_first_after_the_project_lines() {
+    let project = project_with_entries();
+    describe(
+        &project,
+        "src/solver",
+        "time integration and the linear solver",
+    );
+    describe(&project, "src/io", "reading the input decks");
+
+    let text = brief(&project, &[], None);
+
+    assert_eq!(
+        text.lines().take(4).collect::<Vec<&str>>(),
+        vec![
+            "Project P-001",
+            "## Map",
+            "src/io  reading the input decks",
+            "src/solver  time integration and the linear solver",
+        ],
+        "{text}"
+    );
+    assert_eq!(text.lines().nth(4), Some("## Decisions in force"), "{text}");
+}
+
+#[test]
+fn the_map_prints_at_most_25_lines_and_says_how_many_are_left_out() {
+    let project = Project::new();
+    for number in 1..=27 {
+        let folder = format!("pkg{number:02}");
+        describe(&project, &folder, &format!("the part number {number}"));
+    }
+
+    let text = brief(&project, &[], None);
+
+    let lines: Vec<&str> = text.lines().collect();
+    let heading = lines
+        .iter()
+        .position(|line| *line == "## Map")
+        .expect("a map heading");
+    assert_eq!(lines.len(), heading + 26, "{text}");
+    assert_eq!(lines[heading + 1], "pkg01  the part number 1", "{text}");
+    assert_eq!(lines[heading + 24], "pkg24  the part number 24", "{text}");
+    assert_eq!(
+        lines[heading + 25],
+        "3 more folders in the map: dossier map",
+        "{text}"
+    );
+}
+
+#[test]
+fn key_values_come_first_then_by_name() {
+    let project = Project::new();
+    project
+        .run("anna", &["value", "set", "design.speed", "3900 rpm"])
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "value",
+                "set",
+                "design.gas",
+                "air, ideal gas",
+                "--dimensionless",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &["value", "set", "design.massflow", "12.4 kg/s", "--key"],
+        )
+        .success();
+
+    let text = brief(&project, &[], None);
+
+    assert_eq!(
+        text.lines().collect::<Vec<&str>>(),
+        vec![
+            "Project P-001",
+            "## Key values",
+            "design.massflow = 12.4 kg/s",
+            "design.gas = air, ideal gas",
+            "design.speed = 3900 rpm",
+        ],
+        "{text}"
+    );
+}
+
+#[test]
+fn at_most_15_values_are_printed_with_the_key_value_first() {
+    let project = Project::new();
+    project
+        .run("anna", &["value", "set", "design.key", "1 kg", "--key"])
+        .success();
+    for number in 1..=16 {
+        let name = format!("design.v{number:02}");
+        project
+            .run("anna", &["value", "set", name.as_str(), "2 m"])
+            .success();
+    }
+
+    let text = brief(&project, &[], None);
+
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 17, "{text}");
+    assert_eq!(lines[2], "design.key = 1 kg", "{text}");
+    assert_eq!(lines[16], "design.v14 = 2 m", "{text}");
+}
+
+#[test]
+fn a_proposal_waits_under_its_own_heading_with_its_author_and_is_no_draft() {
+    let project = Project::new();
+    project
+        .run(
+            "ben-codex",
+            &[
+                "propose",
+                "Mesh the blades with 1 mm cells.",
+                "--reason",
+                "The tip gap needs fine cells.",
+                "--title",
+                "Blade mesh size",
+            ],
+        )
+        .success();
+
+    let text = brief(&project, &[], None);
+
+    assert_eq!(
+        text.lines().collect::<Vec<&str>>(),
+        vec![
+            "Project P-001",
+            "## Proposals waiting",
+            "DEC-001 · Blade mesh size (ben)",
+        ],
+        "{text}"
+    );
+}
+
+#[test]
+fn an_entry_resting_on_a_wrong_assumption_is_marked_and_the_assumption_is_not_open() {
+    let project = project_with_a_decision_resting_on_an_assumption();
+    refute(&project, NOW, "ASM-001");
+
+    let text = brief(&project, &[], None);
+
+    assert!(
+        text.lines().any(|line| line
+            == "DEC-001 · Transient speedline points (anna, 2026-11-20) [rests on ASM-001]"),
+        "{text}"
+    );
+    assert!(!text.contains("## Open assumptions"), "{text}");
+}
+
+#[test]
+fn on_a_past_day_an_assumption_was_open_and_the_mark_appears_from_the_day_it_was_found_wrong() {
+    let project = project_with_a_decision_resting_on_an_assumption();
+    refute(&project, "2026-11-22T09:00:00+01:00", "ASM-001");
+
+    let before = brief(&project, &["--on", "2026-11-21"], None);
+    assert!(before.contains("## Open assumptions"), "{before}");
+    assert!(
+        before
+            .lines()
+            .any(|line| line == "ASM-001 · Uniform inlet profile"),
+        "{before}"
+    );
+    assert!(
+        before
+            .lines()
+            .any(|line| line == "DEC-001 · Transient speedline points (anna, 2026-11-20)"),
+        "{before}"
+    );
+
+    let after = brief(&project, &["--on", "2026-11-22"], None);
+    assert!(!after.contains("## Open assumptions"), "{after}");
+    assert!(
+        after.lines().any(|line| line
+            == "DEC-001 · Transient speedline points (anna, 2026-11-20) [rests on ASM-001]"),
+        "{after}"
+    );
+}
+
+#[test]
+fn on_a_day_before_a_decision_leaves_it_out_and_its_own_day_keeps_it() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Run the first speedline plan.",
+                "--reason",
+                "It was the first plan.",
+                "--title",
+                "First plan",
+            ],
+        )
+        .success();
+
+    let before = brief(&project, &["--on", "2026-11-19"], None);
+    assert!(!before.contains("DEC-001"), "{before}");
+    assert!(!before.contains("## Decisions in force"), "{before}");
+
+    let on = brief(&project, &["--on", "2026-11-20"], None);
+    assert!(
+        on.lines()
+            .any(|line| line == "DEC-001 · First plan (anna, 2026-11-20)"),
+        "{on}"
+    );
+}
+
+#[test]
+fn on_leaves_out_proposals_and_drafts_and_gives_the_values_of_that_day() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &["value", "set", "design.massflow", "12.1 kg/s", "--key"],
+        )
+        .success();
+    project
+        .run_at(
+            "anna",
+            "2026-11-25T09:00:00+01:00",
+            &["value", "set", "design.massflow", "12.4 kg/s"],
+        )
+        .success();
+    project
+        .run(
+            "ben-codex",
+            &[
+                "propose",
+                "Use 1 mm cells.",
+                "--reason",
+                "The tip gap needs them.",
+                "--title",
+                "Mesh cells",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "ben-codex",
+            &[
+                "learn",
+                "A draft statement.",
+                "--valid-for",
+                "Nothing yet.",
+                "--evidence",
+                "Nothing yet.",
+                "--confidence",
+                "guess",
+                "--title",
+                "Draft lesson",
+            ],
+        )
+        .success();
+
+    let now = brief(&project, &[], None);
+    assert!(now.contains("## Proposals waiting"), "{now}");
+    assert!(now.contains("1 draft is waiting"), "{now}");
+
+    let on = brief(&project, &["--on", "2026-11-21"], None);
+    assert!(
+        on.lines().any(|line| line == "design.massflow = 12.1 kg/s"),
+        "{on}"
+    );
+    assert!(!on.contains("waiting"), "{on}");
+    assert!(!on.contains("Mesh cells"), "{on}");
+    assert!(!on.contains("Draft lesson"), "{on}");
+
+    let later = brief(&project, &["--on", "2026-11-26"], None);
+    assert!(
+        later
+            .lines()
+            .any(|line| line == "design.massflow = 12.4 kg/s"),
+        "{later}"
+    );
+}
+
+#[test]
+fn on_is_refused_with_task_and_a_day_must_be_a_date() {
+    let project = Project::new();
+
+    project
+        .command("anna", NOW)
+        .args(["brief", "--on", "2026-11-20", "--task", "T-042"])
+        .assert()
+        .failure()
+        .code(2);
+    project
+        .command("anna", NOW)
+        .args(["brief", "--on", "20.11.2026"])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(contains("--on needs a date"));
+}
+
+#[test]
+fn the_json_data_names_the_day_and_the_new_parts() {
+    let project = Project::new();
+    project
+        .run(
+            "ben-codex",
+            &[
+                "propose",
+                "Mesh the blades with 1 mm cells.",
+                "--reason",
+                "The tip gap needs fine cells.",
+                "--title",
+                "Blade mesh size",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &["value", "set", "design.massflow", "12.4 kg/s", "--key"],
+        )
+        .success();
+
+    let text = brief(&project, &["--json"], None);
+    let envelope: serde_json::Value = serde_json::from_str(text.trim()).expect("one JSON line");
+    assert_eq!(envelope["data"]["on"], serde_json::Value::Null, "{text}");
+    assert_eq!(
+        envelope["data"]["proposals"],
+        serde_json::json!(["DEC-001"]),
+        "{text}"
+    );
+    assert_eq!(
+        envelope["data"]["values"],
+        serde_json::json!(["design.massflow"]),
+        "{text}"
+    );
+
+    let text = brief(&project, &["--json", "--on", "2026-11-20"], None);
+    let envelope: serde_json::Value = serde_json::from_str(text.trim()).expect("one JSON line");
+    assert_eq!(envelope["data"]["on"], "2026-11-20", "{text}");
+    assert_eq!(
+        envelope["data"]["proposals"],
+        serde_json::json!([]),
+        "{text}"
+    );
+}
+
+#[test]
+fn proposals_are_cut_to_fit_the_limit_before_the_decisions() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Run the first speedline plan.",
+                "--reason",
+                "It was the first plan.",
+                "--title",
+                "First plan",
+            ],
+        )
+        .success();
+    for number in 1..=60 {
+        let title = format!("Proposal {number}");
+        project
+            .run(
+                "ben-codex",
+                &[
+                    "propose",
+                    "A proposed decision.",
+                    "--reason",
+                    "It may be needed.",
+                    "--title",
+                    title.as_str(),
+                ],
+            )
+            .success();
+    }
+
+    let text = brief(&project, &[], None);
+
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 60, "{text}");
+    assert_eq!(
+        lines.last(),
+        Some(&"5 proposals left out: dossier list --status proposed"),
+        "{text}"
+    );
+    assert!(
+        lines.contains(&"DEC-001 · First plan (anna, 2026-11-20)"),
+        "{text}"
+    );
+    assert!(lines.contains(&"DEC-056 · Proposal 55 (ben)"), "{text}");
+    assert!(!text.contains("DEC-057"), "{text}");
+}
+
+#[test]
+fn the_map_and_the_values_are_cut_before_any_decision_and_the_decisions_are_shortened_first() {
+    let project = Project::new();
+    for number in 1..=40 {
+        let decision = format!("Decision number {number} of the invented project.");
+        let reason = format!("Reason number {number} of the invented project.");
+        let title = format!("Decision {number}");
+        project
+            .run(
+                "anna",
+                &[
+                    "decide",
+                    decision.as_str(),
+                    "--reason",
+                    reason.as_str(),
+                    "--title",
+                    title.as_str(),
+                ],
+            )
+            .success();
+    }
+    for number in 1..=25 {
+        describe(
+            &project,
+            &format!("pkg{number:02}"),
+            &format!("part {number}"),
+        );
+    }
+    for number in 1..=15 {
+        let name = format!("design.v{number:02}");
+        project
+            .run("anna", &["value", "set", name.as_str(), "2 m"])
+            .success();
+    }
+
+    let text = brief(&project, &[], None);
+
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 44, "{text}");
+    assert_eq!(
+        lines[lines.len() - 2],
+        "15 values left out: dossier values",
+        "{text}"
+    );
+    assert_eq!(
+        lines.last(),
+        Some(&"the map is left out: dossier map"),
+        "{text}"
+    );
+    assert!(
+        lines.contains(&"DEC-001 · Decision 1 (anna, 2026-11-20)"),
+        "{text}"
+    );
+    assert!(
+        lines.contains(&"DEC-040 · Decision 40 (anna, 2026-11-20)"),
+        "{text}"
+    );
+    assert!(!text.contains("Reason number"), "{text}");
 }
