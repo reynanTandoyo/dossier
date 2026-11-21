@@ -1,8 +1,8 @@
 //! The `exchange` command (docs/design.md section 9, R-EXCH-3): the received and delivered records
 //! of exchange.md in time order, one heading per record with its files and, for a delivery, what
 //! it is based on. `--received` or `--delivered` shows one kind; with both or neither, every record
-//! is shown. Records are sorted by date, then by key: the prefix (`DLV` before `RCV`), then the
-//! number. The file holds no time of day, so two records of one date keep that key order. Reading
+//! is shown. Records are sorted by date, then by the time they were written (the start of the
+//! first history line), then by key: the prefix (`DLV` before `RCV`), then the number. Reading
 //! writes nothing, and needs no name.
 
 use crate::blockfile::BlockFile;
@@ -127,6 +127,10 @@ impl BasedOn {
     }
 }
 
+/// The number of characters at the start of a history line that give its time: the local time
+/// with its UTC offset of format.md §7, such as `2026-11-10T09:00:00+01:00`.
+const TIME_CHARS: usize = 25;
+
 /// One record of exchange.md, read for listing.
 #[derive(Debug, Clone, PartialEq)]
 struct Record {
@@ -134,6 +138,8 @@ struct Record {
     direction: Direction,
     /// The number after the prefix. A number too large for a u64 is u64::MAX.
     number: u64,
+    /// When the record was written, from its first history line (`written_at`).
+    written: String,
     /// The `date` field, `YYYY-MM-DD`; None when it is missing or empty.
     date: Option<String>,
     /// The `from` or `to` field; None when it is missing or empty.
@@ -196,6 +202,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     records.sort_by(|a, b| {
         a.date
             .cmp(&b.date)
+            .then_with(|| a.written.cmp(&b.written))
             .then_with(|| a.direction.prefix().cmp(b.direction.prefix()))
             .then_with(|| a.number.cmp(&b.number))
     });
@@ -259,6 +266,7 @@ fn record_of(file: &BlockFile, key: &str, direction: Direction, number: u64) -> 
         key: key.to_string(),
         direction,
         number,
+        written: written_at(file, key),
         date: text("date"),
         who: text(direction.word()),
         files: list(file, key, "files")
@@ -271,6 +279,16 @@ fn record_of(file: &BlockFile, key: &str, direction: Direction, number: u64) -> 
             .collect(),
         note: text("note"),
     }
+}
+
+/// When a record was written: the first `TIME_CHARS` characters of its first history line, which
+/// begins with that time (format.md §6, §7). Times with the same offset sort in time order as text.
+/// A record with no history line has "", which sorts first.
+fn written_at(file: &BlockFile, key: &str) -> String {
+    file.history(key)
+        .first()
+        .map(|line| line.chars().take(TIME_CHARS).collect::<String>())
+        .unwrap_or_default()
 }
 
 /// The items of a comma-separated field of a block, trimmed. Empty items are left out.

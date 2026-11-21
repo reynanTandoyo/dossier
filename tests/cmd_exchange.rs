@@ -198,16 +198,100 @@ fn an_empty_exchange_lists_no_records_needs_no_name_and_writes_nothing() {
 }
 
 #[test]
-fn records_of_one_date_keep_key_order_and_numbers_are_read_as_numbers() {
+fn records_written_at_the_same_time_keep_key_order_and_numbers_are_read_as_numbers() {
     let project = Project::new();
     project.write(
         "DOSSIER/exchange.md",
-        "<!-- dossier-format: 1 -->\n# Exchange of P-001\n\n## RCV-10\n\n- date: 2026-11-10\n- from: the customer\n- history: 2026-11-10T09:00:00+01:00 anna: received\n\n## RCV-9\n\n- date: 2026-11-10\n- from: the customer\n- history: 2026-11-10T09:05:00+01:00 anna: received\n\n## DLV-1\n\n- date: 2026-11-10\n- to: the customer\n- history: 2026-11-10T16:00:00+01:00 anna: delivered\n",
+        "<!-- dossier-format: 1 -->\n# Exchange of P-001\n\n## RCV-10\n\n- date: 2026-11-10\n- from: the customer\n- history: 2026-11-10T09:00:00+01:00 anna: received\n\n## RCV-9\n\n- date: 2026-11-10\n- from: the customer\n- history: 2026-11-10T09:00:00+01:00 anna: received\n\n## DLV-1\n\n- date: 2026-11-10\n- to: the customer\n- history: 2026-11-10T09:00:00+01:00 anna: delivered\n",
     );
     let stdout = project.stdout("anna", &["exchange"]);
     assert_eq!(
         stdout,
         "2026-11-10  DLV-1  to the customer\n2026-11-10  RCV-9  from the customer\n2026-11-10  RCV-10  from the customer\n3 records\n"
+    );
+}
+
+#[test]
+fn a_delivery_written_before_a_receipt_on_the_same_date_comes_first() {
+    let project = Project::new();
+    project.write("spec.pdf", SPEC);
+    project.write("report.pdf", REPORT);
+    project
+        .run_at(
+            "anna",
+            "2026-11-20T09:00:00+01:00",
+            &[
+                "delivered",
+                "report.pdf",
+                "--to",
+                "the customer",
+                "--date",
+                "2026-11-10",
+            ],
+        )
+        .success();
+    project
+        .run_at(
+            "anna",
+            "2026-11-20T10:00:00+01:00",
+            &[
+                "received",
+                "spec.pdf",
+                "--from",
+                "the customer",
+                "--date",
+                "2026-11-10",
+            ],
+        )
+        .success();
+
+    let stdout = project.stdout("anna", &["exchange"]);
+    assert_eq!(
+        stdout,
+        "2026-11-10  DLV-001  to the customer\n  report.pdf\n2026-11-10  RCV-001  from the customer\n  spec.pdf\n2 records\n"
+    );
+}
+
+#[test]
+fn a_receipt_written_before_a_delivery_on_the_same_date_comes_first() {
+    // The key order alone would put DLV-001 first. The time each record was written puts RCV-001
+    // first, because it was written first.
+    let project = Project::new();
+    project.write("spec.pdf", SPEC);
+    project.write("report.pdf", REPORT);
+    project
+        .run_at(
+            "anna",
+            "2026-11-20T09:00:00+01:00",
+            &[
+                "received",
+                "spec.pdf",
+                "--from",
+                "the customer",
+                "--date",
+                "2026-11-10",
+            ],
+        )
+        .success();
+    project
+        .run_at(
+            "anna",
+            "2026-11-20T10:00:00+01:00",
+            &[
+                "delivered",
+                "report.pdf",
+                "--to",
+                "the customer",
+                "--date",
+                "2026-11-10",
+            ],
+        )
+        .success();
+
+    let stdout = project.stdout("anna", &["exchange"]);
+    assert_eq!(
+        stdout,
+        "2026-11-10  RCV-001  from the customer\n  spec.pdf\n2026-11-10  DLV-001  to the customer\n  report.pdf\n2 records\n"
     );
 }
 
