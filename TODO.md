@@ -2909,8 +2909,8 @@
 - note (2026-11-21, haiku-t-151): done
 
 ### T-152 · README for v0.1
-- status: open
-- owner: —
+- status: done
+- owner: haiku-t-152
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-150
 - why: The repository is public and the team has to be able to start without the author.
@@ -2931,8 +2931,12 @@
   11. Building from source: cargo build --release.
 - accept: README has every section above with working example commands in PowerShell and a Linux shell.
 - verify: git ls-files --error-unmatch README.md
+- verified: 2026-11-21
+- commit: 34cd824
 - reqs: REL-2, R-BACKUP-3, R-XOS-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-152): done
 
 ### T-153 · Release workflow for a version tag
 - status: done
