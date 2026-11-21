@@ -2711,10 +2711,8 @@
 - note (2026-11-21, haiku-t-144): done
 
 ### T-145 · projects: list and remove register entries
-- status: claimed
+- status: done
 - owner: haiku-t-145
-- claimed: 2026-11-21T01:22+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-139
 - why: People and LLMs need to see which projects this PC knows and where they are.
@@ -2729,9 +2727,13 @@
   5. Run cargo test --test cmd_projects.
 - accept: projects lists the register and removes entries.
 - verify: cargo test --test cmd_projects
+- verified: 2026-11-21
+- commit: 7170a59
 - reqs: R-REMOTE-10
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
+- note (2026-11-21, haiku-t-145): done
 
 ### T-146 · todo: run todo in the project folder
 - status: done
