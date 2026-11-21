@@ -1660,10 +1660,8 @@
 - note (2026-11-21, planner): added
 
 ### T-101 · found: record an observation, a dead end or a quick note
-- status: claimed
+- status: done
 - owner: haiku-t-101
-- claimed: 2026-11-21T00:56+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: Findings and dead ends are the facts of a project; a thought must cost ten seconds to save.
@@ -1679,8 +1677,12 @@
   6. Run cargo test --test cmd_found.
 - accept: found writes approved findings by people and LLMs; --dead-end and --later behave as described.
 - verify: cargo test --test cmd_found
+- verified: 2026-11-21
+- commit: 1ac6e66
 - reqs: R-WRITE-3, R-WRITE-7, R-WRITE-16, R-ENTRY-7, R-ENTRY-15
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-101): done
 
 ### T-102 · learn: record a lesson with its conditions and evidence
 - status: claimed
