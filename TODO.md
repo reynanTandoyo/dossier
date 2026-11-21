@@ -2813,10 +2813,8 @@
 - note (2026-11-21, haiku-t-147): done
 
 ### T-148 · pack and unpack: one archive of a dossier
-- status: claimed
+- status: done
 - owner: haiku-t-148
-- claimed: 2026-11-21T01:38+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-139
 - why: One copy on a server with no git means the backup is the only protection.
@@ -2830,8 +2828,12 @@
   4. Run cargo test --test cmd_pack.
 - accept: pack writes the whole dossier with its state folder into one archive under the lock; unpack restores it identically.
 - verify: cargo test --test cmd_pack
+- verified: 2026-11-21
+- commit: 274fb49
 - reqs: R-BACKUP-1, R-BACKUP-2, D24
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-148): done
 
 ### T-149 · Test: Windows and Linux write the same files
 - status: claimed
