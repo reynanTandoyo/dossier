@@ -19,29 +19,42 @@ pub fn next(dossier: &Path, state: &Path, kind: Kind) -> Result<String> {
     let prefix = kind.prefix();
     let path = state.join(NUMBERS_FILE);
     let mut numbers = read_numbers(&path)?;
-    let recorded = numbers.get(prefix).copied().unwrap_or(0);
-    let number = recorded
-        .max(highest_on_disk(dossier, kind)?)
-        .checked_add(1)
-        .ok_or_else(|| {
-            Error::new(
-                Code::Parse,
-                format!("the number of {prefix} is too large to count up from"),
-            )
-        })?;
-    numbers.insert(prefix.to_string(), number);
-
-    let mut text = serde_json::to_string(&numbers)
-        .map_err(|error| Error::new(Code::Io, format!("{}: {error}", path.display())))?;
-    text.push('\n');
-    atomic::replace(&path, text.as_bytes(), None)?;
+    let number = give_out(&mut numbers, prefix, highest_on_disk(dossier, kind)?)?;
+    write_numbers(&path, &numbers)?;
     Ok(format!("{prefix}-{number:03}"))
 }
 
 /// The next number for a prefix that is not an entry kind (RCV, DLV): 1 + max(ids.json, on_disk).
 /// Writes ids.json; call under the lock. Returns e.g. "RCV-001".
-pub fn next_prefix(_state: &Path, _prefix: &str, _on_disk: u64) -> Result<String> {
-    Err(Error::new(Code::NotImplemented, "ids::next_prefix"))
+pub fn next_prefix(state: &Path, prefix: &str, on_disk: u64) -> Result<String> {
+    let path = state.join(NUMBERS_FILE);
+    let mut numbers = read_numbers(&path)?;
+    let number = give_out(&mut numbers, prefix, on_disk)?;
+    write_numbers(&path, &numbers)?;
+    Ok(format!("{prefix}-{number:03}"))
+}
+
+/// Gives out the next number of a prefix and records it in `numbers`: 1 + max(the recorded
+/// number, on_disk). A number that cannot be counted up from is Code::Parse.
+fn give_out(numbers: &mut BTreeMap<String, u64>, prefix: &str, on_disk: u64) -> Result<u64> {
+    let recorded = numbers.get(prefix).copied().unwrap_or(0);
+    let number = recorded.max(on_disk).checked_add(1).ok_or_else(|| {
+        Error::new(
+            Code::Parse,
+            format!("the number of {prefix} is too large to count up from"),
+        )
+    })?;
+    numbers.insert(prefix.to_string(), number);
+    Ok(number)
+}
+
+/// Replaces ids.json with the numbers as one JSON line. `atomic::replace` leaves the old file
+/// in place when the write fails.
+fn write_numbers(path: &Path, numbers: &BTreeMap<String, u64>) -> Result<()> {
+    let mut text = serde_json::to_string(numbers)
+        .map_err(|error| Error::new(Code::Io, format!("{}: {error}", path.display())))?;
+    text.push('\n');
+    atomic::replace(path, text.as_bytes(), None)
 }
 
 /// The numbers in ids.json. A missing file is an empty object. A file that cannot be read, or
@@ -447,5 +460,67 @@ mod tests {
         let error = next(&dossier, &state, Kind::Decision).expect_err("no ID");
         assert_eq!(error.code, Code::Io);
         assert!(!state.join(NUMBERS_FILE).exists());
+    }
+
+    #[test]
+    fn the_first_rcv_is_rcv_001() {
+        let (_temp, _dossier, state) = dossier();
+        assert_eq!(next_prefix(&state, "RCV", 0).expect("first ID"), "RCV-001");
+        assert_eq!(ids_json(&state), "{\"RCV\":1}\n");
+    }
+
+    #[test]
+    fn a_number_on_disk_is_counted_up_from() {
+        let (_temp, _dossier, state) = dossier();
+        assert_eq!(next_prefix(&state, "RCV", 4).expect("first ID"), "RCV-005");
+        assert_eq!(next_prefix(&state, "RCV", 4).expect("second ID"), "RCV-006");
+        assert_eq!(ids_json(&state), "{\"RCV\":6}\n");
+    }
+
+    #[test]
+    fn a_prefix_number_past_999_keeps_all_its_digits() {
+        let (_temp, _dossier, state) = dossier();
+        assert_eq!(next_prefix(&state, "DLV", 999).expect("ID"), "DLV-1000");
+    }
+
+    #[test]
+    fn rcv_and_dlv_count_separately_and_do_not_disturb_dec() {
+        let (_temp, dossier, state) = dossier();
+        assert_eq!(
+            next(&dossier, &state, Kind::Decision).expect("decision"),
+            "DEC-001"
+        );
+        assert_eq!(next_prefix(&state, "RCV", 0).expect("received"), "RCV-001");
+        assert_eq!(next_prefix(&state, "RCV", 0).expect("received"), "RCV-002");
+        assert_eq!(next_prefix(&state, "DLV", 0).expect("delivered"), "DLV-001");
+        assert_eq!(
+            next(&dossier, &state, Kind::Decision).expect("decision"),
+            "DEC-002"
+        );
+        assert_eq!(ids_json(&state), "{\"DEC\":2,\"DLV\":1,\"RCV\":2}\n");
+    }
+
+    #[test]
+    fn a_prefix_number_too_large_to_count_up_is_an_error_and_nothing_is_written() {
+        let (_temp, _dossier, state) = dossier();
+        let error = next_prefix(&state, "RCV", u64::MAX).expect_err("no ID");
+        assert_eq!(error.code, Code::Parse);
+        assert_eq!(
+            error.message,
+            "the number of RCV is too large to count up from"
+        );
+        assert!(!state.join(NUMBERS_FILE).exists());
+    }
+
+    #[test]
+    fn an_ids_json_that_is_broken_is_an_error_for_a_prefix_too_and_is_kept() {
+        let (_temp, _dossier, state) = dossier();
+        fs::create_dir_all(&state).expect("state folder");
+        let path = state.join(NUMBERS_FILE);
+        fs::write(&path, "{\"RCV\": \"two\"}\n").expect("ids.json");
+        let error = next_prefix(&state, "RCV", 0).expect_err("no ID");
+        assert_eq!(error.code, Code::Parse);
+        assert_eq!(error.message, not_valid_message(&path));
+        assert_eq!(ids_json(&state), "{\"RCV\": \"two\"}\n");
     }
 }
