@@ -291,3 +291,146 @@ fn a_decider_decides_at_once_and_the_output_says_added_approved() {
     );
     assert_eq!(output, "DEC-001: added (approved)\n");
 }
+
+/// The number of files in the decisions folder.
+fn decision_files(project: &Project) -> usize {
+    let folder = project.root().join("DOSSIER").join("decisions");
+    std::fs::read_dir(folder)
+        .expect("the decisions folder")
+        .count()
+}
+
+/// Anna decides DEC-001 at once, as a decider, so that there is an approved decision to replace.
+fn anna_decides_dec_001(project: &Project) {
+    project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Use the transient runs for the last three points.",
+            "--reason",
+            "Steady runs converged.",
+        ],
+    );
+}
+
+/// The refusal of a proposal that would replace DEC-001, by `author`.
+fn proposal_refusal(author: &str) -> String {
+    format!(
+        "{author} is not in deciders: a proposal cannot replace DEC-001; propose it, and once it is accepted run: dossier supersede DEC-001 --by <new ID>"
+    )
+}
+
+#[test]
+fn a_proposal_cannot_replace_an_approved_decision_and_nothing_is_written() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    anna_decides_dec_001(&project);
+    let decision = decision_text(&project, "DEC-001");
+    let ids_path = project.root().join("DOSSIER/.state/ids.json");
+    let ids = std::fs::read(&ids_path).expect("the ID counter");
+    let journal = project.entry_journal().len();
+
+    project
+        .run(
+            "ben",
+            &[
+                "decide",
+                "Use the steady runs for the last three points.",
+                "--reason",
+                "Cheaper.",
+                "--replaces",
+                "DEC-001",
+            ],
+        )
+        .failure()
+        .code(1)
+        .stderr(contains(proposal_refusal("ben")));
+
+    assert_eq!(decision_text(&project, "DEC-001"), decision);
+    assert_eq!(decision_files(&project), 1, "no new decision file");
+    assert_eq!(
+        std::fs::read(&ids_path).expect("the ID counter"),
+        ids,
+        "no ID was given out"
+    );
+    assert_eq!(project.entry_journal().len(), journal);
+}
+
+#[test]
+fn an_llm_decision_said_by_someone_who_may_not_decide_cannot_replace_either() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    anna_decides_dec_001(&project);
+    let decision = decision_text(&project, "DEC-001");
+
+    project
+        .run(
+            "anna-claude",
+            &[
+                "decide",
+                "Use the steady runs for the last three points.",
+                "--reason",
+                "Cheaper.",
+                "--said-by",
+                "ben",
+                "--replaces",
+                "DEC-001",
+            ],
+        )
+        .failure()
+        .code(1)
+        .stderr(contains(proposal_refusal("ben")));
+
+    assert_eq!(decision_text(&project, "DEC-001"), decision);
+    assert_eq!(decision_files(&project), 1, "no new decision file");
+}
+
+#[test]
+fn an_llm_replacing_without_said_by_is_still_told_to_name_the_person() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    anna_decides_dec_001(&project);
+    let decision = decision_text(&project, "DEC-001");
+
+    project
+        .run(
+            "ben-codex",
+            &[
+                "decide",
+                "Use the steady runs for the last three points.",
+                "--reason",
+                "Cheaper.",
+                "--replaces",
+                "DEC-001",
+            ],
+        )
+        .failure()
+        .code(1)
+        .stderr(contains("--said-by"));
+
+    assert_eq!(decision_text(&project, "DEC-001"), decision);
+    assert_eq!(decision_files(&project), 1, "no new decision file");
+}
+
+#[test]
+fn a_decider_replaces_an_approved_decision_as_before() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    anna_decides_dec_001(&project);
+
+    let output = project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Use the steady runs for the last three points.",
+            "--reason",
+            "Cheaper.",
+            "--replaces",
+            "DEC-001",
+        ],
+    );
+    assert_eq!(
+        output,
+        "DEC-002: added (approved)\nDEC-001: superseded by DEC-002\n"
+    );
+}

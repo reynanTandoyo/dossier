@@ -8,11 +8,12 @@
 //! decisions are listed. A person is only warned (R-CTX-13).
 
 use crate::cli::Global;
+use crate::config::Config;
 use crate::create::{self, New};
 use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
-use crate::names::Who;
+use crate::names::{self, Who};
 use crate::output::Output;
 use crate::select::{self, Query};
 use crate::store::{self, Item};
@@ -80,7 +81,8 @@ pub struct Args {
 
 /// Runs `decide`: looks for the related decisions, refuses an LLM's decision that does not say how
 /// it stands to them, then creates the decision in one transaction and, with `--replaces`,
-/// supersedes the old one in the same transaction. The output is `<ID>: added (<status>)`, or
+/// supersedes the old one in the same transaction; a proposal cannot replace one, which is refused
+/// before anything is written. The output is `<ID>: added (<status>)`, or
 /// `<ID>: proposed (...)` when the decision is only a proposal (see `announce`), and a second line
 /// `<old ID>: superseded by <ID>` when one was replaced.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
@@ -100,6 +102,12 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             .transpose()?;
         if let Some(old) = &replaced {
             check_replaceable(old)?;
+            if let Some(author) = proposing_author(&tx.ctx().cfg, &who, args) {
+                return Err(Error::new(
+                    Code::Refused,
+                    proposal_replaces_refusal(&author, &old.entry.id()),
+                ));
+            }
         }
         let mut new = new_decision(args);
         let related = find_related(&tx.ctx().dossier, &search_query(args, &new.title));
@@ -255,6 +263,31 @@ fn check_replaceable(old: &Item) -> Result<()> {
         ));
     }
     Ok(())
+}
+
+/// The person a new decision is by when it would be a proposal: its author is not in `deciders`
+/// (R-WRITE-13, names::may_decide). That is the writer, or for an LLM the person named with
+/// `--said-by`, written as the settings write the name. None when the decision would be approved,
+/// or when no such person is in the settings: create refuses those cases itself.
+fn proposing_author(cfg: &Config, who: &Who, args: &Args) -> Option<String> {
+    let name = if who.is_llm {
+        non_empty(args.said_by.as_deref())?
+    } else {
+        who.person.clone()
+    };
+    let person = cfg
+        .people
+        .iter()
+        .find(|person| person.name.to_lowercase() == name.to_lowercase())?;
+    (!names::may_decide(cfg, &person.name)).then(|| person.name.clone())
+}
+
+/// The refusal of `--replaces` by a proposal. A proposal is not in force, so the old decision
+/// stays in force until a decider accepts the proposal; then `supersede` links the two.
+fn proposal_replaces_refusal(author: &str, old_id: &str) -> String {
+    format!(
+        "{author} is not in deciders: a proposal cannot replace {old_id}; propose it, and once it is accepted run: dossier supersede {old_id} --by <new ID>"
+    )
 }
 
 /// The old decision is closed in the transaction, as `supersede` closes it: status superseded,
