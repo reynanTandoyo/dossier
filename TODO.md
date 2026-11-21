@@ -3852,10 +3852,8 @@
 - note (2026-11-21, haiku-t-156): done
 
 ### T-157 · v0.2 skeleton: command stubs, help overview and the forwarding lists
-- status: claimed
+- status: done
 - owner: haiku-t-157
-- claimed: 2026-11-21T10:44+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-031
 - why: After this, a command task only fills in its own file.
@@ -3871,9 +3869,13 @@
   5. Run cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features.
 - accept: Every command of design.md section 9 is accepted by the parser and says it is not built yet; help lists them; forwarding knows the local and terminal ones.
 - verify: cargo test --all-features
+- verified: 2026-11-21
+- commit: 5d996f7
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): forced set (owner was haiku-t-157)
 - note (2026-11-21, planner): tests/cmd_agents.rs added: its help test lists every command and must get the 23 new ones (found by the worker).
+- note (2026-11-21, haiku-t-157): done
 
 ### T-158 · init: journal line, the usage folder and --code-project
 - status: open
