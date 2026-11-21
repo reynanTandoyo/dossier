@@ -5444,10 +5444,8 @@
 - note (2026-11-21, haiku-t-209): done
 
 ### T-210 · v0.3 skeleton: how-to and tool kinds, team settings, Ctx and Global fields, guarded kinds
-- status: claimed
+- status: done
 - owner: haiku-t-210
-- claimed: 2026-11-21T23:18+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-042
 - why: New enum variants and struct fields break every literal and exhaustive match at once.
@@ -5466,10 +5464,14 @@
   8. Run cargo build, cargo clippy --all-targets --all-features -- -D warnings, the same with --target x86_64-unknown-linux-gnu, and cargo test --all-features; fix every error inside these files.
 - accept: The two new kinds, the new settings and the new Ctx and Global fields exist everywhere; every check passes.
 - verify: cargo test --all-features
+- verified: 2026-11-21
+- commit: e7d121e
 - reqs: D31, D34, D37, R-ENTRY-8, R-ENTRY-12
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): forced set (owner was haiku-t-210)
 - note (2026-11-21, planner): src/names.rs and src/filelist.rs added: their test modules build Config literals that need the new fields (found by the worker).
+- note (2026-11-21, haiku-t-210): done
 
 ### T-211 · v0.3 skeleton: the new library modules as stubs
 - status: open
