@@ -1740,8 +1740,10 @@
 - note (2026-11-21, haiku-t-103): done
 
 ### T-104 · set: change fields and sections of an entry
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-104
+- claimed: 2026-11-21T01:06+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: Entries need correcting without an editor, and an LLM's change to approved knowledge must not stay approved.
@@ -1885,8 +1887,8 @@
 - note (2026-11-21, haiku-t-110): done
 
 ### T-111 · show: print one entry with its marks
-- status: open
-- owner: —
+- status: done
+- owner: haiku-t-111
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: Reading an entry back, with who wrote and approved it and when, is the point of writing it.
@@ -1903,12 +1905,18 @@
   7. Run cargo test --test cmd_show.
 - accept: show prints the entry as stored, with marks, and --json returns every field, section and history line.
 - verify: cargo test --test cmd_show
+- verified: 2026-11-21
+- commit: d4e2938
 - reqs: R-READ-1, R-LIFE-6, R-HIST-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-111): done
 
 ### T-112 · list: one line per entry
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-112
+- claimed: 2026-11-21T01:06+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: An overview of what is recorded, narrowed by kind, tag, author or task.
@@ -1953,8 +1961,10 @@
 - note (2026-11-21, haiku-t-113): done
 
 ### T-114 · search: find entries by words
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-114
+- claimed: 2026-11-21T01:06+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: Retrieval by words is how a person finds what the team knew.
@@ -2143,8 +2153,10 @@
 - note (2026-11-21, planner): added
 
 ### T-123 · approve: a person at a terminal approves drafts
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-123
+- claimed: 2026-11-21T01:06+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: This is the step that keeps wrong LLM conclusions out of the team's knowledge.
@@ -2363,8 +2375,10 @@
 - note (2026-11-21, haiku-t-132): done
 
 ### T-133 · status: the state of the whole project
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-133
+- claimed: 2026-11-21T01:06+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-130
 - why: Three LLMs working for three people must see the same picture of progress, decisions and what is unsettled.
