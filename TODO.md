@@ -599,10 +599,8 @@
 - note (2026-11-21, haiku-t-168): done
 
 ### T-169 · filelist.rs: the file list of a task
-- status: claimed
+- status: done
 - owner: haiku-t-169
-- claimed: 2026-11-21T11:09+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-033
 - why: The files of a task are found without searching the disk, and outdated results are seen (R-FILE-8 to R-FILE-11).
@@ -617,8 +615,12 @@
   5. Run cargo test --lib filelist::.
 - accept: File lists load, describe files and mark missing, changed and outdated ones.
 - verify: cargo test --lib filelist::
+- verified: 2026-11-21
+- commit: 7442f22
 - reqs: R-FILE-8 to R-FILE-12
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-169): done
 
 ### T-170 · attach: add files of a task, or move one
 - status: open
