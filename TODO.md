@@ -1574,6 +1574,7 @@
 - owner: —
 - priority: P1 · type: milestone
 - goal: One team dossier holds lessons, how-tos, scripts, the software list and a glossary; entries are promoted from projects only after the confidentiality check; finished projects of the past are brought in. Requirements: docs/requirements.md section 11, Phase 3 (v0.3). Each task here is split when the phase starts.
+- summary: Lessons, how-tos and tools from one project reach the next project through a shared team dossier, without any customer data.
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21 (D38): dossier keeps the knowledge, todo the work. No phase 3 feature creates, changes, claims or closes tasks or writes TODO.md; tasks are read only through todo --json.
 
@@ -1583,6 +1584,7 @@
 - priority: P1 · difficulty: 5 · type: feature
 - milestone: T-042
 - why: Knowledge locked in one project folder is lost to the next project.
+- summary: The shared team dossier: its folder, its members (usernames) and a list of plain names, and who may write to it.
 - depends: T-041
 - accept: R-PLACE-3 to R-PLACE-6, R-TEAM-1, R-CFG-2 and R-CFG-4 hold; people move from the project settings to the team settings.
 - reqs: R-PLACE-3 to R-PLACE-6, R-TEAM-1, R-TEAM-7, R-CFG-2, R-CFG-4, D3, D29
@@ -1596,6 +1598,7 @@
 - priority: P0 · difficulty: 5 · type: feature
 - milestone: T-042
 - why: The team works for several customers under confidentiality agreements; this must exist before anything is promoted.
+- summary: Each project lists its confidential terms; nothing is written to the team dossier while one of them appears in the text.
 - depends: T-043
 - accept: R-CONF-1 to R-CONF-6 and R-ENTRY-18 hold, with the tests of TEST-6.
 - reqs: R-CONF-1 to R-CONF-6, R-ENTRY-18, D8, D32, TEST-6
@@ -1608,6 +1611,7 @@
 - priority: P1 · difficulty: 5 · type: feature
 - milestone: T-042
 - why: Promotion is the only way project knowledge becomes team knowledge.
+- summary: A project's lesson or how-to is copied into the team dossier as a draft; at the end of a project, its knowledge is sorted out.
 - depends: T-044
 - accept: promote and close work as in R-TEAM-2 to R-TEAM-4 and R-TEAM-6; search and brief include the team dossier.
 - reqs: R-TEAM-2 to R-TEAM-4, R-TEAM-6, R-WRITE-5, R-WRITE-6, D28, D30
@@ -1620,6 +1624,7 @@
 - priority: P1 · difficulty: 5 · type: feature
 - milestone: T-042
 - why: How and where a software was used for a task is asked at the start of every similar task.
+- summary: How-tos say how a software is used for a task, and a team index shows where and with which version it was used.
 - depends: T-044
 - accept: R-USE-1, R-USE-3 to R-USE-7 and R-ENTRY-8 hold.
 - reqs: R-USE-3 to R-USE-7, R-ENTRY-8, R-ENTRY-9, D31
@@ -1633,6 +1638,7 @@
 - priority: P1 · difficulty: 5 · type: feature
 - milestone: T-042
 - why: A script nobody can find or trust is rewritten.
+- summary: Scripts, commands, installed software and repositories are recorded as tools, with a name and, when known, a location.
 - depends: T-044
 - accept: R-USE-8 to R-USE-13 and R-ENTRY-12 hold.
 - reqs: R-USE-8 to R-USE-13, R-USE-1, R-ENTRY-12, D19, D31
@@ -1646,6 +1652,7 @@
 - priority: P2 · difficulty: 5 · type: feature
 - milestone: T-042
 - why: Every LLM should read the team's abbreviations the same way, and a German word should find the English entries.
+- summary: A team glossary of terms, symbols and abbreviations; a German word finds the English entries.
 - depends: T-043
 - accept: R-TERM-1 to R-TERM-4 hold; check warns about entries that look German as in R-ENTRY-20.
 - reqs: R-TERM-1 to R-TERM-4, R-ENTRY-20
@@ -1657,6 +1664,7 @@
 - priority: P2 · difficulty: 5 · type: feature
 - milestone: T-042
 - why: Colleagues need to see what was added to the team dossier without reading everything.
+- summary: Each person sees what was added or approved since they last looked, in the project and the team dossier.
 - depends: T-043
 - accept: R-READ-10 and R-READ-11 hold.
 - reqs: R-READ-10, R-READ-11
@@ -1668,6 +1676,7 @@
 - priority: P2 · difficulty: 5 · type: feature
 - milestone: T-042
 - why: Lessons and how-tos go out of date quietly.
+- summary: Lessons and how-tos can carry a date to be checked again; how-tos not tested with the newest version are marked.
 - depends: T-043
 - accept: R-LIFE-7 and R-LIFE-8 hold.
 - reqs: R-LIFE-7, R-LIFE-8
@@ -1680,6 +1689,7 @@
 - priority: P1 · difficulty: 5 · type: feature
 - milestone: T-042
 - why: The dossier must not start empty; years of finished projects hold most of what the team knows.
+- summary: Knowledge from finished projects is brought in: the tool prints the material, the LLM drafts, a person approves.
 - depends: T-044
 - accept: R-IMPORT-1 to R-IMPORT-9 hold; format.md and the tests cover every phase 3 addition; version 0.3.0 is released.
 - reqs: R-IMPORT-1 to R-IMPORT-9, D27
@@ -1690,6 +1700,7 @@
 - owner: —
 - priority: P2 · type: milestone
 - goal: A folder on a PC is connected to a project on the server; every dossier and todo command runs there through ssh; large simulation files are taken, worked on locally and returned without overwriting a colleague's version. Requirements: docs/requirements.md section 11, Phase 4 (v0.4). Each task here is split when the phase starts.
+- summary: Team members use the dossier from their Windows PCs as if it were local, and large files are copied out and back safely.
 - note (2026-11-20, planner): added
 
 ### T-053 · Remote mode: connection reuse and connection check
@@ -1698,6 +1709,7 @@
 - priority: P2 · difficulty: 5 · type: feature
 - milestone: T-052
 - why: Team members work on Windows PCs while the one copy of the dossier is on the Linux server.
+- summary: Commands from a PC reuse the ssh connection where possible, and connect --check tests that the server is ready.
 - depends: T-051
 - accept: R-REMOTE-1 to R-REMOTE-3 and R-REMOTE-5 to R-REMOTE-8 hold, with the tests of TEST-8.
 - reqs: R-REMOTE-1 to R-REMOTE-3, R-REMOTE-5 to R-REMOTE-8, D9, TEST-8
@@ -1710,6 +1722,7 @@
 - priority: P2 · difficulty: 5 · type: feature
 - milestone: T-052
 - why: Two people who copy the same simulation file out and back overwrite each other's work.
+- summary: A large simulation file is taken to a PC and returned without overwriting a colleague's newer version.
 - depends: T-053
 - accept: R-FILE-1 to R-FILE-7 and R-REMOTE-4 hold, with the tests of TEST-7; the manual test plan of TEST-10 was run on the real server; version 0.4.0 is released.
 - reqs: R-FILE-1 to R-FILE-7, R-REMOTE-4, D15, TEST-7, TEST-10
@@ -1720,6 +1733,7 @@
 - owner: —
 - priority: P3 · type: milestone
 - goal: In a long project brief still fits its limit and still holds what the LLM needs, and session review, hooks and export take routine work off the people. Requirements: docs/requirements.md section 11, Phase 5 (v0.5). Each task here is split when the phase starts.
+- summary: In a long project the context for an LLM stays small, and routine steps happen by themselves.
 - note (2026-11-20, planner): added
 
 ### T-056 · Milestone digests: digest, and digests in brief and status
@@ -1728,6 +1742,7 @@
 - priority: P3 · difficulty: 5 · type: feature
 - milestone: T-055
 - why: The context an LLM gets must stay small as a project grows.
+- summary: When a milestone is closed its decisions and findings are summed up, and brief shows the summary instead.
 - depends: T-054
 - accept: R-CTX-14 and R-CTX-15 hold.
 - reqs: R-CTX-14, R-CTX-15, D22
@@ -1739,6 +1754,7 @@
 - priority: P3 · difficulty: 5 · type: feature
 - milestone: T-055
 - why: Capture only becomes a habit when the routine steps happen by themselves.
+- summary: At the end of a session the material for drafting lessons is prepared, so drafts are waiting the next morning.
 - depends: T-054
 - accept: R-DRAFT-7, R-DRAFT-9, R-AGENT-3, R-AGENT-4, R-CTX-7 hold.
 - reqs: R-DRAFT-7, R-DRAFT-9, R-AGENT-3, R-AGENT-4, R-CTX-7
@@ -1751,6 +1767,7 @@
 - priority: P3 · difficulty: 5 · type: feature
 - milestone: T-055
 - why: Smaller comforts that are worth having once the daily use is settled.
+- summary: Smaller comforts: the story of decisions, similar entries, a longer brief, repairs, export to Markdown and more.
 - depends: T-054
 - accept: R-READ-7, R-READ-9, R-CTX-6, R-CTX-8, R-CHECK-2, R-OUT-5 to R-OUT-7, R-ENTRY-11, R-TEAM-5 and REL-4 hold; version 0.5.0 is released.
 - reqs: R-READ-7, R-READ-9, R-CTX-6, R-CTX-8, R-CHECK-2, R-OUT-5 to R-OUT-7, R-ENTRY-11, R-TEAM-5, REL-4
