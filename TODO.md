@@ -2130,10 +2130,8 @@
 - note (2026-11-21, haiku-t-120): done
 
 ### T-121 · review-task: the material for drafting lessons
-- status: claimed
+- status: done
 - owner: haiku-t-121
-- claimed: 2026-11-21T01:22+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: The LLM in the session drafts lessons from this text; the tool itself never calls a model.
@@ -2151,9 +2149,13 @@
   8. Run cargo test --test cmd_review_task.
 - accept: review-task prints the task, its entries and the drafting rules, changes nothing, and fails with exit 5 when todo is missing.
 - verify: cargo test --test cmd_review_task
+- verified: 2026-11-21
+- commit: aa95973
 - reqs: R-DRAFT-1, R-DRAFT-2, D7
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
+- note (2026-11-21, haiku-t-121): done
 
 ### T-122 · drafts: what is waiting for approval
 - status: done
