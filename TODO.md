@@ -656,10 +656,8 @@
 - note (2026-11-21, haiku-t-170): done
 
 ### T-171 · detach: a file no longer belongs to a task
-- status: claimed
+- status: done
 - owner: haiku-t-171
-- claimed: 2026-11-21T11:39+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-033
 - why: File lists change only through the tool and keep what was true on a date (R-FILE-13, R-LIFE-9).
@@ -673,8 +671,12 @@
   4. Run cargo test --test cmd_detach.
 - accept: detach marks a file as no longer part of the task and keeps its history.
 - verify: cargo test --test cmd_detach
+- verified: 2026-11-21
+- commit: 33dabd8
 - reqs: R-FILE-13
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-171): done
 
 ### T-172 · reattach: record a file's new size, time and checksum
 - status: open
@@ -832,8 +834,10 @@
 - note (2026-11-21, haiku-t-197): done
 
 ### T-198 · image add and image remove
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-198
+- claimed: 2026-11-21T11:48+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-035
 - why: A lesson whose plot was deleted has lost its evidence (D26, R-ENTRY-16, R-ENTRY-17).
@@ -940,8 +944,10 @@
 - note (2026-11-21, haiku-t-188): done
 
 ### T-189 · decline: a decider turns a proposal down
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-189
+- claimed: 2026-11-21T11:48+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-036
 - why: R-WRITE-12.
@@ -1032,8 +1038,10 @@
 - note (2026-11-21, planner): added
 
 ### T-193 · refute: an assumption was wrong; mark what rests on it
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-193
+- claimed: 2026-11-21T11:48+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-037
 - why: Results built on a wrong assumption must be found again (R-WRITE-15).
@@ -1192,8 +1200,10 @@
 - note (2026-11-21, haiku-t-182): done
 
 ### T-183 · delivered: record what went to the customer
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-183
+- claimed: 2026-11-21T11:48+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-039
 - why: The exact results behind a report version must be named later (R-EXCH-2, R-EXCH-4).
