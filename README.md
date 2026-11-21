@@ -535,8 +535,8 @@ warning: dry run: would write DOSSIER/findings/FND-001-the-steady-speedline-stop
   `dossier` manages it. Neither program changes the other's files.
 - An entry names its task with `--task`, such as `--task T-042`. `dossier` stores the name. It
   does not check the name against `TODO.md` when it writes the entry.
-- `dossier brief --task T-042` prints what matters for one task. `dossier status` shows the tasks
-  and the knowledge together. Both need `todo`.
+- `dossier brief --task T-042` prints what matters for one task; it needs `todo`. `dossier status`
+  shows the tasks and the knowledge together; without `todo` it leaves the task parts out.
 - `dossier todo <arguments>` runs `todo` in the project folder. For example,
   `dossier todo show T-042`.
 
