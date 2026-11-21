@@ -2053,10 +2053,8 @@
 - note (2026-11-21, haiku-t-116): done
 
 ### T-117 · restore: bring a snapshot back
-- status: claimed
+- status: done
 - owner: haiku-t-117
-- claimed: 2026-11-21T01:38+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: A wrong change must be undoable by a person.
@@ -2073,9 +2071,13 @@
   7. Run cargo test --test cmd_restore.
 - accept: A person at a terminal can bring back a snapshot; the history keeps every earlier line and gains a restored line.
 - verify: cargo test --test cmd_restore
+- verified: 2026-11-21
+- commit: f692be2
 - reqs: R-HIST-2, R-HIST-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
+- note (2026-11-21, haiku-t-117): done
 
 ### T-118 · log: who did what when
 - status: done
