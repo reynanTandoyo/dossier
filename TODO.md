@@ -573,10 +573,8 @@
 - note (2026-11-21, planner): split into T-168, T-169, T-170, T-171, T-172, T-173, T-174
 
 ### T-168 · filesum.rs: checksums, size and time of files outside the dossier
-- status: claimed
+- status: done
 - owner: haiku-t-168
-- claimed: 2026-11-21T10:56+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-033
 - why: Every attached file is recorded with size, time and checksum (R-FILE-8, R-FILE-6).
@@ -591,8 +589,12 @@
   5. Run cargo test --lib filesum::.
 - accept: Files get full or short checksums, size and time, without reading big files into memory.
 - verify: cargo test --lib filesum::
+- verified: 2026-11-21
+- commit: b5e7e8d
 - reqs: R-FILE-6, R-FILE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-168): done
 
 ### T-169 · filelist.rs: the file list of a task
 - status: open
@@ -3989,8 +3991,10 @@
 - note (2026-11-21, haiku-t-162): done
 
 ### T-163 · hooks.rs: Claude Code hooks in settings.json and the guard check
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-163
+- claimed: 2026-11-21T11:02+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-031
 - why: Claude Code hooks make brief and the edit guard part of every session (D33).
