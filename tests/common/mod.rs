@@ -123,8 +123,8 @@ impl Project {
     /// The prepared program, not yet run, so that a test can add variables such as
     /// DOSSIER_ANSWERS or EDITOR. Run in the project folder, with DOSSIER_NOW set to `now`,
     /// DOSSIER_REGISTER and the stand-ins of DOSSIER_TODO and DOSSIER_SSH, DOSSIER_AGENT set
-    /// to `agent` (removed when it is empty) and TODO_AGENT removed.
-    /// `run_at` is `command(agent, now).args(args).assert()`.
+    /// to `agent`, and DOSSIER_AGENT, USERNAME and USER removed when it is empty; TODO_AGENT is
+    /// always removed. `run_at` is `command(agent, now).args(args).assert()`.
     pub fn command(&self, agent: &str, now: &str) -> assert_cmd::Command {
         let mut command =
             assert_cmd::Command::cargo_bin("dossier").expect("the dossier program is built");
@@ -141,7 +141,11 @@ impl Project {
             // A test run inside an ssh session must not look like remote mode (R-REMOTE-12).
             .env_remove("SSH_CONNECTION");
         if agent.is_empty() {
-            command.env_remove("DOSSIER_AGENT");
+            // The operating-system user is a name too, so a run without a name has none.
+            command
+                .env_remove("DOSSIER_AGENT")
+                .env_remove("USERNAME")
+                .env_remove("USER");
         } else {
             command.env("DOSSIER_AGENT", agent);
         }

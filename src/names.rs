@@ -11,13 +11,17 @@ pub struct Who {
     pub is_llm: bool,
 }
 
-/// Name from `flag`, else DOSSIER_AGENT, else TODO_AGENT. None: Code::Usage.
-/// Not a person and not an LLM in cfg: Code::UnknownName, message lists the known names.
+/// The name from `flag`, DOSSIER_AGENT, TODO_AGENT, USERNAME, USER (empty counts as unset), then
+/// a person (a member or a [[people]] name), an LLM registered for a person, or `<person> -
+/// <anything>` (format.md §21). A plain name of `names` is known but never writes:
+/// Code::UnknownName. No name at all: Code::Usage.
 pub fn resolve(cfg: &Config, flag: Option<&str>) -> Result<Who> {
     let name = flag
         .and_then(given)
         .or_else(|| env_name("DOSSIER_AGENT"))
         .or_else(|| env_name("TODO_AGENT"))
+        .or_else(|| env_name("USERNAME"))
+        .or_else(|| env_name("USER"))
         .ok_or_else(|| {
             Error::new(
                 Code::Usage,
@@ -25,11 +29,11 @@ pub fn resolve(cfg: &Config, flag: Option<&str>) -> Result<Who> {
             )
         })?;
 
-    // A name that is both a person and an LLM is the person.
-    if let Some(person) = find_person(cfg, &name) {
+    // A name that is a person is that person, even when it contains " - ".
+    if let Some(person) = person_name(cfg, &name) {
         return Ok(Who {
-            name: person.name.clone(),
-            person: person.name.clone(),
+            name: person.to_string(),
+            person: person.to_string(),
             is_llm: false,
         });
     }
@@ -40,12 +44,28 @@ pub fn resolve(cfg: &Config, flag: Option<&str>) -> Result<Who> {
             is_llm: true,
         });
     }
+    let llm_of_person = split_llm(&name).and_then(|(person, _)| person_name(cfg, person));
+    if let Some(person) = llm_of_person {
+        return Ok(Who {
+            name: name.clone(),
+            person: person.to_string(),
+            is_llm: true,
+        });
+    }
+    if is_plain(cfg, &name) {
+        return Err(plain(&name));
+    }
     Err(unknown(cfg, &name))
 }
 
-/// Whether `name` is one of the people of cfg.
+/// Whether `name` is a person: a member or a [[people]] name, ignoring case (format.md §21).
 pub fn is_person(cfg: &Config, name: &str) -> bool {
-    find_person(cfg, name).is_some()
+    person_name(cfg, name).is_some()
+}
+
+/// A person or a plain name of `names`: may be an author, a source or --said-by.
+pub fn is_known(cfg: &Config, name: &str) -> bool {
+    is_person(cfg, name) || is_plain(cfg, name)
 }
 
 /// True when cfg.deciders is empty or names `person` (ignoring case).
@@ -96,8 +116,28 @@ fn same(a: &str, b: &str) -> bool {
     a.to_lowercase() == b.to_lowercase()
 }
 
-fn find_person<'a>(cfg: &'a Config, name: &str) -> Option<&'a Person> {
-    cfg.people.iter().find(|person| same(&person.name, name))
+/// The name of the person called `name` as the settings write it: a [[people]] name first, then
+/// a member. Ignores case and surrounding spaces.
+fn person_name<'a>(cfg: &'a Config, name: &str) -> Option<&'a str> {
+    let name = name.trim();
+    cfg.people
+        .iter()
+        .map(|person| person.name.as_str())
+        .chain(cfg.members.iter().map(String::as_str))
+        .find(|known| same(known, name))
+}
+
+/// Whether `name` is a plain name of `names`: known, but it does not write.
+fn is_plain(cfg: &Config, name: &str) -> bool {
+    let name = name.trim();
+    cfg.names.iter().any(|plain| same(plain, name))
+}
+
+/// `<person> - <anything>` split at its first " - ": both parts trimmed, neither of them empty.
+fn split_llm(name: &str) -> Option<(&str, &str)> {
+    let (person, rest) = name.split_once(" - ")?;
+    let (person, rest) = (person.trim(), rest.trim());
+    (!person.is_empty() && !rest.is_empty()).then_some((person, rest))
 }
 
 /// The LLM called `name` and the person it writes for.
@@ -111,8 +151,26 @@ fn find_llm<'a>(cfg: &'a Config, name: &str) -> Option<(&'a Person, &'a str)> {
     })
 }
 
-/// The refusal for a name that is neither a person nor an LLM: every known name is listed.
+/// The refusal for a plain name: it is known, but it cannot write.
+fn plain(name: &str) -> Error {
+    Error::new(
+        Code::UnknownName,
+        format!(
+            "'{name}' is a plain name in dossier.toml: it may be an author or a source, but it \
+             cannot write. Write as a member (an operating-system user) or as an LLM named \
+             <person> - <anything>"
+        ),
+    )
+}
+
+/// The refusal for a name that is no member, person, LLM or plain name: every known name is
+/// listed, and the form of an LLM.
 fn unknown(cfg: &Config, name: &str) -> Error {
+    let members = if cfg.members.is_empty() {
+        "none".to_string()
+    } else {
+        cfg.members.join(", ")
+    };
     let people = if cfg.people.is_empty() {
         "none".to_string()
     } else {
@@ -137,8 +195,9 @@ fn unknown(cfg: &Config, name: &str) -> Error {
     Error::new(
         Code::UnknownName,
         format!(
-            "'{name}' is neither a person nor an LLM in dossier.toml. People: {people}. \
-             LLMs: {llms}; add one with: dossier people add <person> --llm <name>"
+            "'{name}' is neither a person nor an LLM in dossier.toml. Members: {members}. \
+             People: {people}. LLMs: {llms}; add one with: dossier people add <person> --llm <name>. \
+             An LLM is named <person> - <anything>."
         ),
     )
 }
@@ -268,10 +327,13 @@ mod tests {
     fn without_a_name_it_is_a_usage_error_and_the_environment_supplies_one() {
         let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         // SAFETY: ENV_LOCK is held, so no other test in this process reads or changes the
-        // environment meanwhile. A worker's shell may set TODO_AGENT, so both start removed.
+        // environment meanwhile. A worker's shell may set TODO_AGENT, and the operating-system
+        // user is a name too, so all four start removed.
         unsafe {
             std::env::remove_var("DOSSIER_AGENT");
             std::env::remove_var("TODO_AGENT");
+            std::env::remove_var("USERNAME");
+            std::env::remove_var("USER");
         }
         let cfg = team();
 
@@ -314,6 +376,8 @@ mod tests {
         unsafe {
             std::env::remove_var("DOSSIER_AGENT");
             std::env::remove_var("TODO_AGENT");
+            std::env::remove_var("USERNAME");
+            std::env::remove_var("USER");
         }
     }
 
@@ -387,5 +451,147 @@ mod tests {
         assert_eq!(label(&person), "Anna");
         let llm = who("anna-claude", "Anna", true);
         assert_eq!(label(&llm), "Anna via anna-claude");
+    }
+
+    #[test]
+    fn a_member_writes_as_itself_with_the_name_as_written_in_the_settings() {
+        let cfg = Config {
+            members: vec!["Tony".to_string()],
+            ..team()
+        };
+        assert_eq!(
+            resolve(&cfg, Some("tony")).expect("a member resolves"),
+            who("Tony", "Tony", false)
+        );
+        assert!(is_person(&cfg, "TONY"));
+    }
+
+    #[test]
+    fn a_member_with_a_dash_and_any_text_is_an_llm_of_that_member() {
+        let cfg = Config {
+            members: vec!["tony".to_string()],
+            ..team()
+        };
+        let found = resolve(&cfg, Some("tony - claude opus 5.5 high")).expect("an LLM resolves");
+        assert_eq!(found, who("tony - claude opus 5.5 high", "tony", true));
+        // The name is kept as given (trimmed at its ends); the person is as the settings write it.
+        let found = resolve(&cfg, Some("  TONY  -  claude  ")).expect("an LLM resolves");
+        assert_eq!(found, who("TONY  -  claude", "tony", true));
+    }
+
+    #[test]
+    fn a_name_that_is_a_person_wins_over_the_dash_form() {
+        let cfg = Config {
+            members: vec!["tony".to_string(), "tony - lab".to_string()],
+            ..team()
+        };
+        assert_eq!(
+            resolve(&cfg, Some("tony - lab")).expect("the person resolves"),
+            who("tony - lab", "tony - lab", false)
+        );
+        assert_eq!(
+            resolve(&cfg, Some("tony - claude")).expect("an LLM resolves"),
+            who("tony - claude", "tony", true)
+        );
+    }
+
+    #[test]
+    fn a_dash_name_with_an_unknown_person_or_an_empty_part_is_refused() {
+        let cfg = Config {
+            members: vec!["tony".to_string()],
+            ..team()
+        };
+        for name in ["carl - claude", "tony -", "- claude", "tony - "] {
+            let error = resolve(&cfg, Some(name)).expect_err("refused");
+            assert_eq!(error.code, Code::UnknownName, "{name}");
+        }
+        let error = resolve(&cfg, Some("carl - claude")).expect_err("carl is refused");
+        assert!(
+            error.message.contains("'carl - claude'"),
+            "{}",
+            error.message
+        );
+        assert!(error.message.contains("Members: tony"), "{}", error.message);
+        assert!(
+            error.message.contains("<person> - <anything>"),
+            "{}",
+            error.message
+        );
+    }
+
+    #[test]
+    fn a_plain_name_is_known_but_is_not_a_writer() {
+        let cfg = Config {
+            names: vec!["Dr. Weber".to_string()],
+            ..team()
+        };
+        assert!(is_known(&cfg, "dr. weber"));
+        assert!(!is_person(&cfg, "Dr. Weber"));
+        let error = resolve(&cfg, Some("Dr. Weber")).expect_err("a plain name does not write");
+        assert_eq!(error.code, Code::UnknownName);
+        assert!(error.message.contains("cannot write"), "{}", error.message);
+        // Nothing before the dash of `Dr. Weber - claude` is a person, so it is no LLM either.
+        let error = resolve(&cfg, Some("Dr. Weber - claude")).expect_err("refused");
+        assert_eq!(error.code, Code::UnknownName);
+    }
+
+    #[test]
+    fn is_known_is_a_person_or_a_plain_name_and_never_an_llm() {
+        let cfg = Config {
+            members: vec!["tony".to_string()],
+            names: vec!["Dr. Weber".to_string()],
+            ..team()
+        };
+        assert!(is_known(&cfg, "Anna"));
+        assert!(is_known(&cfg, "TONY"));
+        assert!(is_known(&cfg, "Dr. Weber"));
+        assert!(!is_known(&cfg, "anna-claude"));
+        assert!(!is_known(&cfg, "carl"));
+    }
+
+    #[test]
+    fn without_a_name_the_operating_system_user_is_the_default() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        const KEYS: [&str; 4] = ["DOSSIER_AGENT", "TODO_AGENT", "USERNAME", "USER"];
+        let saved: Vec<Option<std::ffi::OsString>> = KEYS.iter().map(std::env::var_os).collect();
+        for key in KEYS {
+            set_env(key, None);
+        }
+        let cfg = Config {
+            members: vec!["tony".to_string()],
+            ..team()
+        };
+
+        // USERNAME is the operating-system user (Windows); its case does not matter.
+        set_env("USERNAME", Some("TONY".into()));
+        assert_eq!(
+            resolve(&cfg, None).expect("USERNAME gives the name"),
+            who("tony", "tony", false)
+        );
+        // An empty USERNAME counts as unset, so USER is used.
+        set_env("USERNAME", Some("  ".into()));
+        set_env("USER", Some("anna-claude".into()));
+        assert_eq!(
+            resolve(&cfg, None).expect("USER gives the name"),
+            who("anna-claude", "Anna", true)
+        );
+        // An operating-system user that is no member, person or LLM is refused.
+        set_env("USER", Some("carl".into()));
+        let error = resolve(&cfg, None).expect_err("carl is refused");
+        assert_eq!(error.code, Code::UnknownName);
+        // The flag and then DOSSIER_AGENT come before the operating-system user.
+        assert_eq!(
+            resolve(&cfg, Some("tony")).expect("the flag gives the name"),
+            who("tony", "tony", false)
+        );
+        set_env("DOSSIER_AGENT", Some("Ben".into()));
+        assert_eq!(
+            resolve(&cfg, None).expect("DOSSIER_AGENT gives the name"),
+            who("Ben", "Ben", false)
+        );
+
+        for (key, value) in KEYS.into_iter().zip(saved) {
+            set_env(key, value);
+        }
     }
 }

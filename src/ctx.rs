@@ -223,10 +223,13 @@ mod tests {
     fn a_missing_name_is_not_an_error_but_the_writer_is_needed() {
         let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment
-        // meanwhile. A worker's shell may set these, so both start removed.
+        // meanwhile. A worker's shell may set these, and the operating-system user is a name
+        // too, so all four start removed.
         unsafe {
             std::env::remove_var("DOSSIER_AGENT");
             std::env::remove_var("TODO_AGENT");
+            std::env::remove_var("USERNAME");
+            std::env::remove_var("USER");
         }
         let (_dir, dossier) = project();
         let g = Global {
