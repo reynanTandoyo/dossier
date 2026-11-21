@@ -1167,10 +1167,8 @@
 - note (2026-11-21, haiku-t-181): done
 
 ### T-182 · received: record what came from the customer
-- status: claimed
+- status: done
 - owner: haiku-t-182
-- claimed: 2026-11-21T11:32+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-039
 - why: What was received, when and in which version, is the first thing asked in a dispute (R-EXCH-1).
@@ -1186,8 +1184,12 @@
   6. Run cargo test --test cmd_received.
 - accept: received records the files that came from the customer, with checksums, and can attach them to a task.
 - verify: cargo test --test cmd_received
+- verified: 2026-11-21
+- commit: 8bc8762
 - reqs: R-EXCH-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-182): done
 
 ### T-183 · delivered: record what went to the customer
 - status: open
