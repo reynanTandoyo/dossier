@@ -45,7 +45,7 @@ pub fn uninstalled(existing: &str) -> Result<String> {
 /// The message to block with when a Claude Code PreToolUse payload edits a file inside a folder
 /// named DOSSIER; None to allow.
 pub fn guard(payload: &str) -> Option<String> {
-    let value: Value = serde_json::from_str(payload).ok()?;
+    let value: Value = serde_json::from_str(without_mark(payload)).ok()?;
     let input = value.get("tool_input")?;
     let path = input
         .get("file_path")
@@ -59,9 +59,15 @@ pub fn guard(payload: &str) -> Option<String> {
     ))
 }
 
+/// The text without a leading UTF-8 byte-order mark, which a Windows editor may have saved.
+fn without_mark(text: &str) -> &str {
+    text.strip_prefix('\u{feff}').unwrap_or(text)
+}
+
 /// The settings as a JSON object. Blank text is an empty object; any other text that is not a
 /// JSON object is Code::Parse, so that nothing overwrites it.
 fn settings(text: &str) -> Result<Map<String, Value>> {
+    let text = without_mark(text);
     if text.trim().is_empty() {
         return Ok(Map::new());
     }
@@ -337,6 +343,32 @@ mod tests {
             assert_eq!(installed(text).unwrap_err().code, Code::Parse, "{text}");
             assert_eq!(uninstalled(text).unwrap_err().code, Code::Parse, "{text}");
         }
+    }
+
+    #[test]
+    fn a_byte_order_mark_is_skipped_and_not_written_back() {
+        let mark = "\u{feff}";
+        let installed_plain = installed(OTHER).unwrap();
+        assert_eq!(
+            installed(&format!("{mark}{OTHER}")).unwrap(),
+            installed_plain
+        );
+        assert_eq!(
+            uninstalled(&format!("{mark}{installed_plain}")).unwrap(),
+            uninstalled(&installed_plain).unwrap()
+        );
+        assert_eq!(uninstalled(&format!("{mark}  \n")).unwrap(), "{}\n");
+        assert!(
+            !installed(&format!("{mark}{OTHER}"))
+                .unwrap()
+                .starts_with(mark)
+        );
+    }
+
+    #[test]
+    fn guard_skips_a_byte_order_mark_too() {
+        assert!(guard(&format!("\u{feff}{}", payload("DOSSIER/x.md"))).is_some());
+        assert_eq!(guard(&format!("\u{feff}{}", payload("src/main.rs"))), None);
     }
 
     #[test]
