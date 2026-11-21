@@ -4,6 +4,7 @@
 //! `approved`, `valid-from` and `valid-until` lines.
 
 use crate::atomic;
+use crate::entry::Kind;
 use crate::error::{Code, Error, Result};
 use crate::hash;
 use serde_json::{Map, Value};
@@ -27,6 +28,11 @@ const IGNORED_LINES: [&[u8]; 5] = [
 
 /// The file in the state folder that holds the checksums.
 const FILE: &str = "approved.json";
+
+/// Lessons, how-tos and tools: an LLM writes them as drafts, approval records their checksum.
+pub fn guarded(kind: Kind) -> bool {
+    matches!(kind, Kind::Lesson | Kind::Howto | Kind::Tool)
+}
 
 /// Records the checksum of an approved entry. A broken `approved.json` is refused, not replaced.
 pub fn record(state: &Path, id: &str, bytes: &[u8]) -> Result<()> {
@@ -359,5 +365,15 @@ mod tests {
             stable(b"# T\r\n- status: draft\r\n- history: t anna: created\r\n\r\nBody\r\n"),
             b"# T\n\nBody\n".to_vec()
         );
+    }
+
+    #[test]
+    fn lessons_howtos_and_tools_are_guarded_and_the_other_kinds_are_not() {
+        for kind in Kind::all() {
+            let expected = matches!(kind, Kind::Lesson | Kind::Howto | Kind::Tool);
+            assert_eq!(guarded(kind), expected, "{}", kind.name());
+        }
+        assert!(guarded(Kind::Howto));
+        assert!(!guarded(Kind::Usage));
     }
 }

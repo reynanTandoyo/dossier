@@ -34,6 +34,18 @@ pub struct Config {
     pub draft_days: i64,
     pub lock_wait_seconds: u64,
     pub ssh_timeout_seconds: u64,
+    /// "project" or "team" (format.md §26); missing means "project".
+    pub kind: String,
+    /// The team dossier of a project (format.md §26).
+    pub team: Option<String>,
+    /// Usernames of the people (format.md §21).
+    pub members: Vec<String>,
+    /// Plain names that are not users and never write (format.md §21).
+    pub names: Vec<String>,
+    /// True for a finished project brought in later (format.md §25).
+    pub past: bool,
+    /// The project folder a dossier made with `--in` describes (format.md §25).
+    pub describes: Option<String>,
 }
 
 /// The name of the settings file inside the DOSSIER folder.
@@ -61,12 +73,29 @@ struct File {
     roles: Vec<String>,
     #[serde(default)]
     code_project: bool,
+    #[serde(default = "project_kind")]
+    kind: String,
+    #[serde(default)]
+    team: Option<String>,
+    #[serde(default)]
+    members: Vec<String>,
+    #[serde(default)]
+    names: Vec<String>,
+    #[serde(default)]
+    past: bool,
+    #[serde(default)]
+    describes: Option<String>,
     #[serde(default)]
     tags: TagsFile,
     #[serde(default)]
     people: Vec<PersonFile>,
     #[serde(default)]
     limits: LimitsFile,
+}
+
+/// The value of `kind` when dossier.toml has none.
+fn project_kind() -> String {
+    "project".to_string()
 }
 
 #[derive(Default, Deserialize)]
@@ -170,6 +199,18 @@ pub fn add_person(dossier: &Path, person: &str, llms: &[String]) -> Result<()> {
         .map_err(|error| Error::new(Code::Io, format!("{}: {error}", path.display())))
 }
 
+/// Sets a top-level array key (members, names) to `values`, keeping every other line; adds the
+/// line before the first table when it is missing. Not written yet.
+pub fn set_list(_dossier: &Path, _key: &str, _values: &[String]) -> Result<()> {
+    Err(Error::new(Code::NotImplemented, "config::set_list"))
+}
+
+/// Sets a top-level string or bool key (team, past, describes, kind) the same way; `value` is
+/// written as given (already quoted for a string). Not written yet.
+pub fn set_value(_dossier: &Path, _key: &str, _value: &str) -> Result<()> {
+    Err(Error::new(Code::NotImplemented, "config::set_value"))
+}
+
 fn settings_path(dossier: &Path) -> PathBuf {
     dossier.join(FILE)
 }
@@ -219,6 +260,12 @@ fn parse(text: &str, path: &Path) -> Result<Config> {
         draft_days: file.limits.draft_days,
         lock_wait_seconds: file.limits.lock_wait_seconds,
         ssh_timeout_seconds: file.limits.ssh_timeout_seconds,
+        kind: file.kind,
+        team: file.team,
+        members: file.members,
+        names: file.names,
+        past: file.past,
+        describes: file.describes,
     })
 }
 

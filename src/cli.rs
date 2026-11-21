@@ -19,6 +19,12 @@ pub struct Global {
     pub allow_network_drive: bool,
     #[arg(long, global = true)]
     pub project: Option<String>,
+    /// Work on the team dossier (`init` names a team path with `--with-team` instead).
+    #[arg(long, global = true)]
+    pub team: bool,
+    /// Entries written are imported drafts from this document.
+    #[arg(long, global = true)]
+    pub from_document: Option<String>,
 }
 
 /// The whole command line: the global options and one command.

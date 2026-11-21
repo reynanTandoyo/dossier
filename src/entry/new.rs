@@ -12,7 +12,7 @@ const PICTURES: &str = "Pictures";
 /// The known fields in the order of format.md §5, with the fields of §14 and §15 after
 /// `rejected-reason` and after `software`. `history` is not listed: it is always written last.
 /// `kind` is listed first, but `render` writes it from `Draft::kind`.
-const FIELD_ORDER: [&str; 30] = [
+const FIELD_ORDER: [&str; 41] = [
     "kind",
     "status",
     "created",
@@ -43,6 +43,17 @@ const FIELD_ORDER: [&str; 30] = [
     "refuted",
     "rests-on",
     "code",
+    "source",
+    "promoted",
+    "promote",
+    "imported",
+    "source-document",
+    "review",
+    "reviewed",
+    "type",
+    "location",
+    "language",
+    "checksum",
 ];
 
 /// What a new entry file holds before it is rendered.
@@ -155,6 +166,15 @@ fn known_sections(kind: Kind) -> &'static [&'static str] {
         Kind::Finding => &["Observation", "Evidence"],
         Kind::Lesson => &["Statement", "Valid for", "Evidence"],
         Kind::Usage => &["Parameters", "Outputs", "Deviations", "Notes"],
+        Kind::Howto => &["Purpose", "Steps", "Settings", "Traps", "Tested with"],
+        Kind::Tool => &[
+            "Purpose",
+            "How to run",
+            "Inputs",
+            "Outputs",
+            "Traps",
+            "Tested with",
+        ],
     }
 }
 
@@ -826,5 +846,108 @@ Run on the cluster.
         ));
         let entry = Entry::parse(&text).expect("parses");
         assert_eq!(entry.kind(), Some(Kind::Assumption));
+    }
+
+    #[test]
+    fn the_fields_of_format_section_23_follow_code_in_their_order() {
+        let draft = Draft {
+            kind: Kind::Tool,
+            id: "TOOL-001".to_string(),
+            title: "Field order of a tool".to_string(),
+            fields: pairs(&[
+                ("checksum", "sha256:9f2c"),
+                ("language", "python"),
+                ("location", "scripts/run.py"),
+                ("type", "script"),
+                ("reviewed", "2026-11-20T10:00:00+01:00 by anna"),
+                ("review", "2027-11-20"),
+                ("source-document", "docs/a.pdf p. 3"),
+                ("imported", "yes"),
+                ("promote", "no"),
+                ("promoted", "team:TOOL-001"),
+                ("source", "P-017:TOOL-001"),
+                ("code", "run.py"),
+                ("software", "Invented solver"),
+            ]),
+            sections: Vec::new(),
+        };
+        let text = render(&draft);
+        let entry = Entry::parse(&text).expect("parses");
+        let keys: Vec<String> = entry.fields().into_iter().map(|(key, _)| key).collect();
+        assert_eq!(
+            keys,
+            [
+                "kind",
+                "software",
+                "code",
+                "source",
+                "promoted",
+                "promote",
+                "imported",
+                "source-document",
+                "review",
+                "reviewed",
+                "type",
+                "location",
+                "language",
+                "checksum",
+            ]
+        );
+    }
+
+    #[test]
+    fn howto_and_tool_sections_render_in_the_order_of_format_section_22() {
+        let howto = Draft {
+            kind: Kind::Howto,
+            id: "HOW-001".to_string(),
+            title: "Invented how-to".to_string(),
+            fields: Vec::new(),
+            sections: pairs(&[
+                ("Tested with", "Version 1."),
+                ("Traps", "None known."),
+                ("Steps", "1. Go."),
+                ("Purpose", "Why."),
+                ("Settings", "a = 1"),
+            ]),
+        };
+        let text = render(&howto);
+        let headings: Vec<&str> = text.lines().filter(|l| l.starts_with("## ")).collect();
+        assert_eq!(
+            headings,
+            [
+                "## Purpose",
+                "## Steps",
+                "## Settings",
+                "## Traps",
+                "## Tested with"
+            ]
+        );
+        let tool = Draft {
+            kind: Kind::Tool,
+            id: "TOOL-001".to_string(),
+            title: "Invented tool".to_string(),
+            fields: Vec::new(),
+            sections: pairs(&[
+                ("Tested with", "x"),
+                ("Outputs", "x"),
+                ("Traps", "x"),
+                ("Inputs", "x"),
+                ("How to run", "x"),
+                ("Purpose", "x"),
+            ]),
+        };
+        let text = render(&tool);
+        let headings: Vec<&str> = text.lines().filter(|l| l.starts_with("## ")).collect();
+        assert_eq!(
+            headings,
+            [
+                "## Purpose",
+                "## How to run",
+                "## Inputs",
+                "## Outputs",
+                "## Traps",
+                "## Tested with"
+            ]
+        );
     }
 }

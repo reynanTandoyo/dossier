@@ -59,6 +59,12 @@ pub struct Ctx {
     pub json: bool,
     pub dry_run: bool,
     pub command: String,
+    /// The team dossier of a project (cfg.team), if it exists.
+    pub team: Option<PathBuf>,
+    /// `g.from_document`, as given.
+    pub from_document: Option<String>,
+    /// With `--team` from a project: that project's DOSSIER.
+    pub project: Option<PathBuf>,
 }
 
 impl Ctx {
@@ -102,7 +108,16 @@ impl Ctx {
             json: g.json,
             dry_run: g.dry_run,
             command: command.to_string(),
+            team: None,
+            from_document: g.from_document.clone(),
+            project: None,
         })
+    }
+
+    /// The context of this project's team dossier, with the same who, json and dry_run.
+    /// Not written yet.
+    pub fn team_ctx(&self) -> Result<Ctx> {
+        Err(Error::new(Code::NotImplemented, "Ctx::team_ctx"))
     }
 
     /// The name that acts. Code::Usage "this command needs --agent" when there is none.
@@ -161,6 +176,23 @@ mod tests {
         assert!(ctx.json);
         assert!(ctx.dry_run);
         assert_eq!(ctx.command, "add");
+    }
+
+    #[test]
+    fn load_keeps_the_document_and_leaves_team_and_project_empty() {
+        let (_dir, dossier) = project();
+        let g = Global {
+            dossier: Some(dossier),
+            from_document: Some("docs/Bericht Ä.pdf".to_string()),
+            ..Default::default()
+        };
+        let ctx = Ctx::load(&g, "show").expect("the dossier loads");
+        assert_eq!(ctx.from_document.as_deref(), Some("docs/Bericht Ä.pdf"));
+        assert!(ctx.team.is_none());
+        assert!(ctx.project.is_none());
+        assert_eq!(ctx.cfg.kind, "project");
+        let error = ctx.team_ctx().err().expect("not written yet");
+        assert_eq!(error.code, Code::NotImplemented);
     }
 
     #[test]

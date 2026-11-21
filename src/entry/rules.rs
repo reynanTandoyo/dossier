@@ -24,6 +24,8 @@ pub fn required_sections(kind: Kind) -> &'static [&'static str] {
         Kind::Finding => &["Observation"],
         Kind::Lesson => &["Statement", "Valid for", "Evidence"],
         Kind::Usage => &[],
+        Kind::Howto => &["Purpose", "Steps"],
+        Kind::Tool => &["Purpose"],
     }
 }
 
@@ -35,6 +37,15 @@ pub fn section_order(kind: Kind) -> &'static [&'static str] {
         Kind::Finding => &["Observation", "Evidence"],
         Kind::Lesson => &["Statement", "Valid for", "Evidence"],
         Kind::Usage => &["Parameters", "Outputs", "Deviations", "Notes"],
+        Kind::Howto => &["Purpose", "Steps", "Settings", "Traps", "Tested with"],
+        Kind::Tool => &[
+            "Purpose",
+            "How to run",
+            "Inputs",
+            "Outputs",
+            "Traps",
+            "Tested with",
+        ],
     }
 }
 
@@ -91,6 +102,12 @@ pub fn problems(entry: &Entry) -> Vec<Problem> {
                 }
             }
         }
+        Kind::Howto => {
+            if filled_field(entry, "software").is_none() {
+                found.push(problem("missing field software"));
+            }
+        }
+        Kind::Tool => {}
     }
     found
 }
@@ -431,7 +448,7 @@ results/run-1/
 
     #[test]
     fn required_sections_are_those_of_format_section_8_in_their_order() {
-        let expected: [(Kind, &[&str], &[&str]); 5] = [
+        let expected: [(Kind, &[&str], &[&str]); 7] = [
             (
                 Kind::Decision,
                 &["Decision", "Reason"],
@@ -457,10 +474,105 @@ results/run-1/
                 &[],
                 &["Parameters", "Outputs", "Deviations", "Notes"],
             ),
+            (
+                Kind::Howto,
+                &["Purpose", "Steps"],
+                &["Purpose", "Steps", "Settings", "Traps", "Tested with"],
+            ),
+            (
+                Kind::Tool,
+                &["Purpose"],
+                &[
+                    "Purpose",
+                    "How to run",
+                    "Inputs",
+                    "Outputs",
+                    "Traps",
+                    "Tested with",
+                ],
+            ),
         ];
         for (kind, required, order) in expected {
             assert_eq!(required_sections(kind), required, "{}", kind.name());
             assert_eq!(section_order(kind), order, "{}", kind.name());
         }
+    }
+
+    /// A complete how-to. Invented content.
+    const HOWTO: &str = "<!-- dossier-format: 1 -->
+# HOW-101 · Invented how-to
+
+- kind: howto
+- status: draft
+- software: Invented solver
+
+## Purpose
+
+Run the invented case.
+
+## Steps
+
+1. Open it.
+";
+
+    #[test]
+    fn a_complete_howto_has_no_problems() {
+        assert!(whats(HOWTO).is_empty());
+    }
+
+    #[test]
+    fn a_howto_lists_a_missing_section_before_a_missing_software_field() {
+        let text = replacing(
+            HOWTO,
+            "## Steps
+
+1. Open it.
+",
+            "",
+        );
+        assert_eq!(whats(&text), ["missing section Steps"]);
+        let text = replacing(
+            HOWTO,
+            "- software: Invented solver
+",
+            "",
+        );
+        assert_eq!(whats(&text), ["missing field software"]);
+        let text = replacing(
+            &text,
+            "## Steps
+
+1. Open it.
+",
+            "",
+        );
+        assert_eq!(
+            whats(&text),
+            ["missing section Steps", "missing field software"]
+        );
+    }
+
+    #[test]
+    fn a_tool_needs_only_the_purpose_section() {
+        let tool = "<!-- dossier-format: 1 -->
+# TOOL-101 · Invented tool
+
+- kind: tool
+- status: draft
+
+## Purpose
+
+Converts files.
+";
+        assert!(whats(tool).is_empty());
+        let text = replacing(
+            tool,
+            "## Purpose
+
+Converts files.
+",
+            "",
+        );
+        assert_eq!(whats(&text), ["missing section Purpose"]);
     }
 }

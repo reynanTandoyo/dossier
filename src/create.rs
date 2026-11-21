@@ -281,6 +281,9 @@ mod tests {
             json: false,
             dry_run,
             command: "add".to_string(),
+            team: None,
+            from_document: None,
+            project: None,
         };
         (dir, ctx)
     }
