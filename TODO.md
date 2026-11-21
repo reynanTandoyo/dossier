@@ -1638,10 +1638,8 @@
 - note (2026-11-21, haiku-t-099): done
 
 ### T-100 · decide: record a decision with its reason
-- status: claimed
+- status: done
 - owner: haiku-t-100
-- claimed: 2026-11-21T00:56+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: Decisions made in a session must be recorded at once, with who decided.
@@ -1658,8 +1656,12 @@
   7. Run cargo test --test cmd_decide.
 - accept: decide writes an approved decision showing who decided, through which LLM, and when.
 - verify: cargo test --test cmd_decide
+- verified: 2026-11-21
+- commit: 8e20f3d
 - reqs: R-WRITE-2, R-ENTRY-5, R-HIST-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-100): done
 
 ### T-101 · found: record an observation, a dead end or a quick note
 - status: done
