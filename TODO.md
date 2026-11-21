@@ -916,10 +916,8 @@
 - note (2026-11-21, haiku-t-187): done
 
 ### T-188 · accept: a decider puts a proposal in force
-- status: claimed
+- status: done
 - owner: haiku-t-188
-- claimed: 2026-11-21T11:32+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-036
 - why: R-WRITE-12, D28.
@@ -934,8 +932,12 @@
   5. Run cargo test --test cmd_accept.
 - accept: Only a decider at a terminal accepts a proposal, with who and when.
 - verify: cargo test --test cmd_accept
+- verified: 2026-11-21
+- commit: 00144a3
 - reqs: R-WRITE-12, D28
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-188): done
 
 ### T-189 · decline: a decider turns a proposal down
 - status: open
