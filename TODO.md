@@ -1817,8 +1817,10 @@
 - note (2026-11-21, haiku-t-106): done
 
 ### T-107 · edit: open an entry in an editor under the lock
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-107
+- claimed: 2026-11-21T01:38+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: Longer entries are easier to write in an editor than in options.
@@ -2024,8 +2026,8 @@
 - note (2026-11-21, haiku-t-115): done
 
 ### T-116 · diff: what changed since a snapshot
-- status: open
-- owner: —
+- status: done
+- owner: haiku-t-116
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: Before restoring or approving again, a person needs to see what changed.
@@ -2041,12 +2043,18 @@
   6. Run cargo test --test cmd_diff.
 - accept: diff shows the lines removed and added since a snapshot.
 - verify: cargo test --test cmd_diff
+- verified: 2026-11-21
+- commit: 2b48082
 - reqs: R-HIST-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-116): done
 
 ### T-117 · restore: bring a snapshot back
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-117
+- claimed: 2026-11-21T01:38+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: A wrong change must be undoable by a person.
@@ -2316,8 +2324,10 @@
 - note (2026-11-21, haiku-t-127): done
 
 ### T-128 · reopen: back to draft, or a retired entry back in force
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-128
+- claimed: 2026-11-21T01:38+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: A rejection or an approval can turn out to be wrong.
@@ -2797,8 +2807,10 @@
 - note (2026-11-21, haiku-t-147): done
 
 ### T-148 · pack and unpack: one archive of a dossier
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-148
+- claimed: 2026-11-21T01:38+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-139
 - why: One copy on a server with no git means the backup is the only protection.
@@ -2816,8 +2828,10 @@
 - note (2026-11-21, planner): added
 
 ### T-149 · Test: Windows and Linux write the same files
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-149
+- claimed: 2026-11-21T01:38+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: test
 - milestone: T-139
 - why: The dossier lives on Linux and is used from Windows; nothing may depend on where a command was typed.
@@ -2847,8 +2861,10 @@
 - note (2026-11-21, planner): added
 
 ### T-151 · Test: speed with 300 entries
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-151
+- claimed: 2026-11-21T01:38+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: test
 - milestone: T-150
 - why: No index is kept, so the speed limits must be proven before the design is relied on.
