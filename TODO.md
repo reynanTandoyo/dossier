@@ -842,10 +842,8 @@
 - note (2026-11-21, haiku-t-197): done
 
 ### T-198 · image add and image remove
-- status: claimed
+- status: done
 - owner: haiku-t-198
-- claimed: 2026-11-21T11:48+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-035
 - why: A lesson whose plot was deleted has lost its evidence (D26, R-ENTRY-16, R-ENTRY-17).
@@ -861,8 +859,12 @@
   6. Run cargo test --test cmd_image.
 - accept: Pictures are copied into the dossier and shown by any Markdown viewer; who added them and when is recorded.
 - verify: cargo test --test cmd_image
+- verified: 2026-11-21
+- commit: 84b3e76
 - reqs: R-ENTRY-16, R-ENTRY-17
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-198): done
 
 ### T-036 · Proposed decisions: propose, accept, decline, and the deciders
 - status: open
@@ -975,8 +977,10 @@
 - note (2026-11-21, haiku-t-189): done
 
 ### T-190 · decide: say when a decision became a proposal
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-190
+- claimed: 2026-11-21T12:01+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-036
 - why: R-WRITE-13: the command says so.
