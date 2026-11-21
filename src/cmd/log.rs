@@ -1,7 +1,8 @@
 //! The `log` command: who did what when, across the whole dossier, newest first (R-HIST-3,
 //! R-HIST-4, R-HIST-6). One line per journal record: the time, the person (with `via` and the
-//! LLM when an LLM made the change), the event, the entry and its title. The filters narrow the
-//! lines; `--limit` caps how many are printed.
+//! LLM when an LLM made the change), the event, the entry and its title. A record about a
+//! settings file (its ID is not an entry ID, such as DOSSIER) shows its detail in place of the
+//! title. The filters narrow the lines; `--limit` caps how many are printed.
 
 use crate::cli::Global;
 use crate::ctx::Ctx;
@@ -18,6 +19,19 @@ use std::collections::HashMap;
 
 /// The text shown in place of the title of an entry that is no longer in the dossier.
 const REMOVED: &str = "(removed)";
+
+/// The text shown where the title goes: the title of the record's entry, `(removed)` for an
+/// entry that is gone, and for a record about a settings file (its ID is not an entry ID) the
+/// record's detail.
+fn shown_title(record: &Record, titles: &HashMap<String, String>) -> String {
+    if Kind::of_id(&record.id).is_none() {
+        return record.detail.clone();
+    }
+    titles
+        .get(record.id.as_str())
+        .cloned()
+        .unwrap_or_else(|| REMOVED.to_string())
+}
 
 /// The arguments of `log`.
 #[derive(clap::Args, Debug)]
@@ -143,12 +157,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
 
     let mut lines: Vec<String> = shown
         .iter()
-        .map(|record| {
-            let title = titles
-                .get(record.id.as_str())
-                .map_or(REMOVED, String::as_str);
-            line(record, title)
-        })
+        .map(|record| line(record, &shown_title(record, &titles)))
         .collect();
     lines.push(count_line(shown.len()));
     if total > shown.len() {
@@ -193,7 +202,7 @@ fn instant(stamp: &str) -> Option<DateTime<FixedOffset>> {
 }
 
 /// One line: `<time>  <person>[ via <name>]  <event>  <ID>  <title>`. The `via` part is only
-/// there when an LLM made the change.
+/// there when an LLM made the change. A record with no title (no detail either) ends at its ID.
 fn line(record: &Record, title: &str) -> String {
     let via = if record.llm {
         format!(" via {}", record.name)
@@ -204,6 +213,8 @@ fn line(record: &Record, title: &str) -> String {
         "{}  {}{via}  {}  {}  {title}",
         record.time, record.person, record.event, record.id
     )
+    .trim_end()
+    .to_string()
 }
 
 /// `1 event`, or `<n> events`.

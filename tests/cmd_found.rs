@@ -7,7 +7,6 @@ mod common;
 
 use common::Project;
 use dossier::entry::{Entry, Kind, Status};
-use dossier::journal;
 use predicates::str::contains;
 use std::fs;
 
@@ -254,8 +253,8 @@ fn the_write_is_in_the_journal_with_who_and_when() {
     let project = Project::new();
     project.stdout("anna-claude", &["found", "A finding."]);
 
-    let state = project.root().join("DOSSIER").join(".state");
-    let records = journal::read(&state).expect("the journal");
+    // The settings event of init is not about an entry, so it is not among these records.
+    let records = project.entry_journal();
     assert_eq!(records.len(), 1);
     let record = &records[0];
     assert_eq!(record.time, "2026-11-20T10:00:00+01:00");

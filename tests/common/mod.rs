@@ -9,6 +9,16 @@ use std::path::{Path, PathBuf};
 /// The fixed clock of every run that does not say otherwise (25 characters, with a T).
 const NOW: &str = "2026-11-20T10:00:00+01:00";
 
+/// The journal IDs of the settings events: the records about dossier.toml, the state of the
+/// dossier folder, AGENTS.md, the hooks and the skill. They are not entries (format.md §11), so
+/// tests that count entry events leave them out.
+pub const SETTINGS_IDS: [&str; 5] = ["DOSSIER", "SETTINGS", "AGENTS", "HOOKS", "SKILL"];
+
+/// Whether `id` is one of `SETTINGS_IDS`.
+pub fn is_settings_id(id: &str) -> bool {
+    SETTINGS_IDS.contains(&id)
+}
+
 /// A temporary project folder. `dossier init --code P-001` has been run in it, and the people
 /// anna (LLM anna-claude) and ben (LLM ben-codex) are added. The folder is removed on drop.
 pub struct Project {
@@ -16,28 +26,40 @@ pub struct Project {
 }
 
 impl Project {
-    /// A temporary project folder with `dossier init --code P-001` run in it, the people
-    /// anna (LLM anna-claude) and ben (LLM ben-codex) added, DOSSIER_NOW fixed.
+    /// A temporary project folder with `dossier init --code P-001` run in it as anna, the people
+    /// anna (LLM anna-claude) and ben (LLM ben-codex) added as anna, DOSSIER_NOW fixed. The
+    /// journal line of init therefore always names anna, never the machine's user.
     pub fn new() -> Project {
         let project = Project {
             dir: tempfile::TempDir::new().expect("a temporary project folder"),
         };
         project
-            .command("", NOW)
+            .command("anna", NOW)
             .args(["init", "--code", "P-001"])
             .assert()
             .success();
         project
-            .command("", NOW)
+            .command("anna", NOW)
             .args(["people", "add", "anna", "--llm", "anna-claude"])
             .assert()
             .success();
         project
-            .command("", NOW)
+            .command("anna", NOW)
             .args(["people", "add", "ben", "--llm", "ben-codex"])
             .assert()
             .success();
         project
+    }
+
+    /// The journal records of the project's dossier that are about entries, oldest first: the
+    /// settings events (`SETTINGS_IDS`) are left out.
+    pub fn entry_journal(&self) -> Vec<dossier::journal::Record> {
+        let state = self.root().join("DOSSIER").join(".state");
+        dossier::journal::read(&state)
+            .unwrap_or_else(|error| panic!("reading the journal: {error:?}"))
+            .into_iter()
+            .filter(|record| !is_settings_id(&record.id))
+            .collect()
     }
 
     /// The project folder: the folder that holds DOSSIER.

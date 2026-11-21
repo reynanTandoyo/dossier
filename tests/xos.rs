@@ -37,8 +37,10 @@ const AT_4: &str = "2026-11-20T10:04:00+01:00";
 const AT_5: &str = "2026-11-20T10:05:00+01:00";
 
 /// The SHA-256 of the files of `fixed_dossier` other than `LOCK_FILES`: for each file, its path
-/// with `/`, a line break, its bytes and a line break, in path order.
-const EXPECTED_DIGEST: &str = "b2b5a9ca2e199d6313ff31e49851f74e8849140b631e507f55fa136d95ebc716";
+/// with `/`, a line break, its bytes and a line break, in path order. The journal holds init's
+/// line naming anna (Project::new runs as anna), so the value does not depend on the user of the
+/// machine.
+const EXPECTED_DIGEST: &str = "8ef1aa4e8adf1067be22ef292a0b0160a6323680d1452782028c50cddc043729";
 
 /// The paths of the files that the digest covers, in path order.
 const EXPECTED_FILES: &[&str] = &[
