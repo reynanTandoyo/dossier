@@ -1,12 +1,13 @@
 //! The `status` command: the state of the whole project for a person or an LLM who asks "where are
-//! we" (R-CTX-9 to R-CTX-11, R-READ-8). The task part is read from `todo`; without `todo` it is one
-//! line. `--since <date>` prints what was recorded on or after the date, and `--since last` what is
+//! we" (R-CTX-9 to R-CTX-11, R-READ-8). The task parts are read from `todo` (its summary and its task
+//! list); without `todo` they are one line, and a part whose todo call fails is left out. `--since <date>` prints what was recorded on or after the date, and `--since last` what is
 //! new since the person last ran it (R-READ-10). Only a person's run moves that marker: the LLMs of
 //! a person share the person's marker and never move it.
 
 use crate::approval::{self, Mark};
 use crate::atomic;
 use crate::cli::Global;
+use crate::config::Tags;
 use crate::ctx::Ctx;
 use crate::entry::{Kind, Status};
 use crate::error::{Code, Error, Result};
@@ -29,6 +30,9 @@ const TASKS_LINES: usize = 20;
 /// The most milestone lines of the Tasks part. The heading and the counts line take two of the
 /// lines; a "more" line takes its place when there are more milestones than this.
 const MILESTONE_LINES: usize = TASKS_LINES - 2;
+
+/// The most tasks the Next part names.
+const NEXT_TASKS: usize = 5;
 
 /// The arguments of `status`.
 #[derive(clap::Args, Debug)]
@@ -194,11 +198,58 @@ fn in_scope(item: &Item, milestone: Option<&str>) -> bool {
     })
 }
 
-/// The screen without `--since`: the tasks, the decisions in force, the newest findings and what
-/// is unsettled.
+/// The screen without `--since`: the project and its tags, the tasks, who works on what and what
+/// waits (from todo's list), the decisions in force, the newest findings, what is unsettled, and
+/// what is next.
 fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>) -> Screen {
     let mut sections = vec![Section::plain(vec![format!("Project {}", ctx.cfg.code)])];
-    let tasks = task_part(ctx, milestone, &mut sections);
+    if let Some(line) = tags_line(&ctx.cfg.tags) {
+        sections.push(Section::plain(vec![line]));
+    }
+    let available = todo_bridge::available();
+    let tasks = task_part(ctx, milestone, available, &mut sections);
+    let live = live_part(ctx, milestone, available);
+    let claimed: Vec<&Listed> = live
+        .list
+        .iter()
+        .flatten()
+        .filter(|task| task.status == "claimed")
+        .collect();
+    let blocked: Vec<&Listed> = live
+        .list
+        .iter()
+        .flatten()
+        .filter(|task| task.status == "blocked")
+        .collect();
+    let questions: Vec<&Listed> = live.questions.iter().flatten().collect();
+    let next: Vec<&Listed> = live
+        .list
+        .iter()
+        .flatten()
+        .filter(|task| task.ready)
+        .take(NEXT_TASKS)
+        .collect();
+
+    if !claimed.is_empty() {
+        let lines = claimed
+            .iter()
+            .map(|task| format!("{} · {} ({})", task.id, task.title, task.owner))
+            .collect();
+        sections.push(Section::list("## Working now", lines, "none", "todo list"));
+    }
+    let waiting: Vec<String> = blocked
+        .iter()
+        .map(|task| format!("{} · {} (blocked)", task.id, task.title))
+        .chain(
+            questions
+                .iter()
+                .map(|task| format!("{} · {} (question)", task.id, task.title)),
+        )
+        .collect();
+    if !waiting.is_empty() {
+        sections.push(Section::list("## Waiting", waiting, "none", "todo list"));
+    }
+
     let scope: Vec<&Item> = all
         .iter()
         .filter(|item| in_scope(item, milestone))
@@ -223,10 +274,39 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>) -> Screen {
         "dossier list",
     ));
     sections.push(Section::headed("## Unsettled", unsettled_lines(&counts)));
+    if !next.is_empty() {
+        let lines = next
+            .iter()
+            .map(|task| format!("{} · {}", task.id, task.title))
+            .collect();
+        sections.push(Section::list("## Next", lines, "none", "todo list"));
+    }
+
+    // The JSON keys are null when the todo call behind them failed or todo is not installed.
+    let working = if live.list.is_some() {
+        json!(task_ids(&claimed))
+    } else {
+        Value::Null
+    };
+    let mut waiting_ids = task_ids(&blocked);
+    waiting_ids.extend(task_ids(&questions));
+    let waiting = if live.list.is_some() || live.questions.is_some() {
+        json!(waiting_ids)
+    } else {
+        Value::Null
+    };
+    let next_ids = if live.list.is_some() {
+        json!(task_ids(&next))
+    } else {
+        Value::Null
+    };
 
     let data = json!({
         "code": ctx.cfg.code,
         "tasks": tasks,
+        "working": working,
+        "waiting": waiting,
+        "next": next_ids,
         "decisions": ids(&decisions),
         "findings": ids(&findings),
         "unsettled": {
@@ -245,8 +325,13 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>) -> Screen {
 
 /// The Tasks part, from todo's summary. Without todo, or when its summary fails, one line says
 /// so and the part is left out. Returns the summary for the JSON data (null when there is none).
-fn task_part(ctx: &Ctx, milestone: Option<&str>, sections: &mut Vec<Section>) -> Value {
-    if !todo_bridge::available() {
+fn task_part(
+    ctx: &Ctx,
+    milestone: Option<&str>,
+    available: bool,
+    sections: &mut Vec<Section>,
+) -> Value {
+    if !available {
         sections.push(Section::plain(vec![
             "tasks: todo is not installed".to_string(),
         ]));
@@ -301,6 +386,87 @@ fn task_part(ctx: &Ctx, milestone: Option<&str>, sections: &mut Vec<Section>) ->
         object.remove("counts");
     }
     summary
+}
+
+/// The project's tags as one line, `tags: machine <list>; analysis <list>; software <list>`. A kind
+/// with no values is left out, and there is no line when all kinds are empty.
+fn tags_line(tags: &Tags) -> Option<String> {
+    let parts: Vec<String> = [
+        ("machine", &tags.machine),
+        ("analysis", &tags.analysis),
+        ("software", &tags.software),
+    ]
+    .into_iter()
+    .filter(|(_, values)| !values.is_empty())
+    .map(|(name, values)| format!("{name} {}", values.join(", ")))
+    .collect();
+    (!parts.is_empty()).then(|| format!("tags: {}", parts.join("; ")))
+}
+
+/// A task of todo's list, as far as the screen shows it.
+struct Listed {
+    id: String,
+    title: String,
+    status: String,
+    owner: String,
+    ready: bool,
+}
+
+/// What the screen takes from todo's task list: the tasks, and the open questions. None for a
+/// call that failed, or for both when todo is not available; the part that needs it is then
+/// left out.
+struct Live {
+    list: Option<Vec<Listed>>,
+    questions: Option<Vec<Listed>>,
+}
+
+/// Reads todo's task list and its open questions, when todo is available. A call that fails
+/// gives None for its part, and no error.
+fn live_part(ctx: &Ctx, milestone: Option<&str>, available: bool) -> Live {
+    if !available {
+        return Live {
+            list: None,
+            questions: None,
+        };
+    }
+    Live {
+        list: todo_bridge::json(&ctx.root, &["list"])
+            .ok()
+            .map(|data| listed(&data, milestone)),
+        questions: todo_bridge::json(&ctx.root, &["list", "--kind", "question"])
+            .ok()
+            .map(|data| listed(&data, milestone)),
+    }
+}
+
+/// The tasks of a todo list's data that belong to the milestone asked for, by their `milestone`
+/// field (every task when no milestone is asked for). A task without that field belongs to no
+/// milestone.
+fn listed(data: &Value, milestone: Option<&str>) -> Vec<Listed> {
+    data.get("tasks")
+        .and_then(Value::as_array)
+        .map(|tasks| {
+            tasks
+                .iter()
+                .filter(|task| {
+                    milestone
+                        .is_none_or(|wanted| text(task, "milestone").eq_ignore_ascii_case(wanted))
+                })
+                .map(|task| Listed {
+                    id: text(task, "id").to_string(),
+                    title: text(task, "title").to_string(),
+                    status: text(task, "status").to_string(),
+                    owner: text(task, "owner").to_string(),
+                    ready: task.get("ready").and_then(Value::as_bool) == Some(true),
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The IDs of tasks, in their order.
+fn task_ids(tasks: &[&Listed]) -> Vec<String> {
+    tasks.iter().map(|task| task.id.clone()).collect()
 }
 
 /// One milestone of the Tasks part: `<id> · <title> · <done>/<total> done`.
