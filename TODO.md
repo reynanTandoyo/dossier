@@ -1089,10 +1089,8 @@
 - note (2026-11-21, planner): split into T-180, T-181, T-182, T-183, T-184
 
 ### T-180 · exchange.rs: the exchange file
-- status: claimed
+- status: done
 - owner: haiku-t-180
-- claimed: 2026-11-21T11:09+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-039
 - why: What came from and went to the customer is recorded in one file (R-EXCH-3).
@@ -1105,8 +1103,12 @@
   3. Run cargo test --lib exchange::.
 - accept: exchange.md is read and its record numbers are known.
 - verify: cargo test --lib exchange::
+- verified: 2026-11-21
+- commit: 172604d
 - reqs: R-EXCH-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-180): done
 
 ### T-181 · ids.rs: next_prefix for record numbers
 - status: open
