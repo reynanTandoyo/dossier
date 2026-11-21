@@ -681,8 +681,10 @@
 - note (2026-11-21, haiku-t-171): done
 
 ### T-172 · reattach: record a file's new size, time and checksum
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-172
+- claimed: 2026-11-21T11:55+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-033
 - why: After an intended change the list must say the file is current again (R-FILE-13).
@@ -726,8 +728,10 @@
 - note (2026-11-21, haiku-t-173): done
 
 ### T-174 · which: what a file belongs to
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-174
+- claimed: 2026-11-21T11:55+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-033
 - why: The opposite question of files (R-FILE-15).
@@ -948,10 +952,8 @@
 - note (2026-11-21, haiku-t-188): done
 
 ### T-189 · decline: a decider turns a proposal down
-- status: claimed
+- status: done
 - owner: haiku-t-189
-- claimed: 2026-11-21T11:48+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-036
 - why: R-WRITE-12.
@@ -965,8 +967,12 @@
   4. Run cargo test --test cmd_decline.
 - accept: A decider declines a proposal with a reason; it is kept, hidden.
 - verify: cargo test --test cmd_decline
+- verified: 2026-11-21
+- commit: 09f934f
 - reqs: R-WRITE-12
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-189): done
 
 ### T-190 · decide: say when a decision became a proposal
 - status: open
@@ -1022,8 +1028,10 @@
 - note (2026-11-21, haiku-t-191): done
 
 ### T-192 · confirm: an assumption turned out true
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-192
+- claimed: 2026-11-21T11:55+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-037
 - why: R-WRITE-15.
