@@ -793,10 +793,8 @@
 - note (2026-11-21, haiku-t-195): done
 
 ### T-196 · runs: the recorded runs, and what differs between two
-- status: claimed
+- status: done
 - owner: haiku-t-196
-- claimed: 2026-11-21T12:42+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-034
 - why: R-USE-15.
@@ -812,8 +810,12 @@
   6. Run cargo test --test cmd_runs.
 - accept: runs lists the runs and what changed between them.
 - verify: cargo test --test cmd_runs
+- verified: 2026-11-21
+- commit: 367ebff
 - reqs: R-USE-15
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-196): done
 
 ### T-035 · Pictures in entries
 - status: open
