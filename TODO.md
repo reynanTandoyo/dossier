@@ -1663,10 +1663,8 @@
 - note (2026-11-21, planner): added
 
 ### T-219 · gitcommit.rs: commit the team dossier's changes
-- status: claimed
+- status: done
 - owner: haiku-t-219
-- claimed: 2026-11-21T23:43+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: D36 and R-TEAM-6: the team dossier keeps its history in git.
@@ -1680,8 +1678,12 @@
   3. Run cargo test --lib gitcommit::.
 - accept: Changes in a git work tree are committed with a message; outside one nothing happens.
 - verify: cargo test --lib gitcommit::
+- verified: 2026-11-21
+- commit: d2ef2c6
 - reqs: D36, R-TEAM-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-219): done
 
 ### T-220 · tx.rs: commit the team dossier after a write
 - status: open
@@ -2669,8 +2671,10 @@
 - note (2026-11-21, planner): added
 
 ### T-264 · folderscan.rs: the tree and the documents of an old folder
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-264
+- claimed: 2026-11-21T23:53+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-051
 - why: R-IMPORT-2.
