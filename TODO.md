@@ -475,15 +475,17 @@
 - note (2026-11-21, coordinator): done
 
 ### T-031 · Project facts: a result can be traced to what it was made from
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P1 · type: milestone
 - goal: The project's key numbers, the files of each task, the simulation runs and the exchange with the customer are recorded, so that for a delivered report the dossier names the model, runs, values and assumptions behind every result. Requirements: docs/requirements.md section 11, Phase 2 (v0.2). Each task here is split when the phase starts.
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
+- note (2026-11-21, coordinator): done
 
 ### T-032 · Key values: one sheet of named numbers with units
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P1 · type: milestone
 - milestone: T-031
 - goal: value set, value show and values work as in R-VALUE-1 to R-VALUE-6; brief and status print the key values.
@@ -491,8 +493,10 @@
 - depends: T-030
 - accept: value set, value show and values work as in R-VALUE-1 to R-VALUE-6; brief and status print the key values.
 - reqs: R-VALUE-1 to R-VALUE-6, D23
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): split into T-175, T-176, T-177
+- note (2026-11-21, coordinator): done
 
 ### T-175 · values.rs: the key values file
 - status: done
@@ -571,8 +575,8 @@
 - note (2026-11-21, haiku-t-177): done
 
 ### T-033 · Files of a task: attach, detach, reattach, files, which
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P1 · type: milestone
 - milestone: T-031
 - goal: The file list of each task by role with made-from links works as in R-FILE-8 to R-FILE-16.
@@ -580,9 +584,11 @@
 - depends: T-030
 - accept: The file list of each task by role with made-from links works as in R-FILE-8 to R-FILE-16.
 - reqs: R-FILE-8 to R-FILE-16, D18
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-20, planner): Also covers R-XOS-5: warn about file names that cannot exist on Windows or differ only in case.
 - note (2026-11-21, planner): split into T-168, T-169, T-170, T-171, T-172, T-173, T-174
+- note (2026-11-21, coordinator): done
 
 ### T-168 · filesum.rs: checksums, size and time of files outside the dossier
 - status: done
@@ -754,8 +760,8 @@
 - note (2026-11-21, haiku-t-174): done
 
 ### T-034 · Software use and simulation runs: used, ran, runs
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P1 · type: milestone
 - milestone: T-031
 - goal: used, ran, runs and runs --compare work as in R-USE-2, R-USE-14 and R-USE-15, with software names kept in the project.
@@ -763,8 +769,10 @@
 - depends: T-033
 - accept: used, ran, runs and runs --compare work as in R-USE-2, R-USE-14 and R-USE-15, with software names kept in the project.
 - reqs: R-USE-2, R-USE-14, R-USE-15, R-ENTRY-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): split into T-195, T-196
+- note (2026-11-21, coordinator): done
 
 ### T-195 · used: record a run of a software
 - status: done
@@ -818,8 +826,8 @@
 - note (2026-11-21, haiku-t-196): done
 
 ### T-035 · Pictures in entries
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P1 · type: milestone
 - milestone: T-031
 - goal: --image, image add and image remove copy small pictures into the dossier and show them as in R-ENTRY-16 and R-ENTRY-17.
@@ -827,8 +835,10 @@
 - depends: T-030
 - accept: --image, image add and image remove copy small pictures into the dossier and show them as in R-ENTRY-16 and R-ENTRY-17.
 - reqs: R-ENTRY-16, R-ENTRY-17, D26
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): split into T-197, T-198
+- note (2026-11-21, coordinator): done
 
 ### T-197 · picture.rs: picture type, name and line
 - status: done
@@ -879,8 +889,8 @@
 - note (2026-11-21, haiku-t-198): done
 
 ### T-036 · Proposed decisions: propose, accept, decline, and the deciders
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P1 · type: milestone
 - milestone: T-031
 - goal: propose, accept and decline work as in R-WRITE-12, and decide follows R-WRITE-13.
@@ -888,8 +898,10 @@
 - depends: T-030
 - accept: propose, accept and decline work as in R-WRITE-12, and decide follows R-WRITE-13.
 - reqs: R-WRITE-12, R-WRITE-13, D21
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): split into T-186, T-187, T-188, T-189, T-190
+- note (2026-11-21, coordinator): done
 
 ### T-186 · create.rs: proposals for decisions, usage records approved at once
 - status: done
@@ -1011,8 +1023,8 @@
 - note (2026-11-21, haiku-t-190): done
 
 ### T-037 · Assumptions confirmed and refuted, and what rests on them
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P1 · type: milestone
 - milestone: T-031
 - goal: confirm, refute and cleared work as in R-WRITE-15, with marks shown in show, files, status and brief.
@@ -1020,8 +1032,10 @@
 - depends: T-033
 - accept: confirm, refute and cleared work as in R-WRITE-15, with marks shown in show, files, status and brief.
 - reqs: R-WRITE-15
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): split into T-191, T-192, T-193, T-194
+- note (2026-11-21, coordinator): done
 
 ### T-191 · affects.rs: the items an assumption affects
 - status: done
@@ -1120,8 +1134,8 @@
 - note (2026-11-21, haiku-t-194): done
 
 ### T-038 · What was in force on a date: --on
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P2 · type: milestone
 - milestone: T-031
 - goal: --on <date> works on the commands named in R-LIFE-9.
@@ -1129,8 +1143,10 @@
 - depends: T-033
 - accept: --on <date> works on the commands named in R-LIFE-9.
 - reqs: R-LIFE-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): split into T-185
+- note (2026-11-21, coordinator): done
 
 ### T-185 · filter.rs: --on <date> and proposals
 - status: done
@@ -1156,8 +1172,8 @@
 - note (2026-11-21, haiku-t-185): done
 
 ### T-039 · Exchange with the customer: received, delivered, exchange
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P1 · type: milestone
 - milestone: T-031
 - goal: received, delivered and exchange work as in R-EXCH-1 to R-EXCH-5, including the warning before delivering outdated results.
@@ -1165,8 +1181,10 @@
 - depends: T-033
 - accept: received, delivered and exchange work as in R-EXCH-1 to R-EXCH-5, including the warning before delivering outdated results.
 - reqs: R-EXCH-1 to R-EXCH-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): split into T-180, T-181, T-182, T-183, T-184
+- note (2026-11-21, coordinator): done
 
 ### T-180 · exchange.rs: the exchange file
 - status: done
@@ -1287,8 +1305,8 @@
 - note (2026-11-21, haiku-t-184): done
 
 ### T-040 · Code projects: map of the code, pointers into code, init --code-project
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P2 · type: milestone
 - milestone: T-031
 - goal: map set, map, code pointers and init --code-project work as in R-CODE-1 to R-CODE-5.
@@ -1296,8 +1314,10 @@
 - depends: T-030
 - accept: map set, map, code pointers and init --code-project work as in R-CODE-1 to R-CODE-5.
 - reqs: R-CODE-1 to R-CODE-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): split into T-178, T-179
+- note (2026-11-21, coordinator): done
 
 ### T-178 · mapfile.rs: the map of a code project
 - status: done
@@ -1346,8 +1366,8 @@
 - note (2026-11-21, haiku-t-179): done
 
 ### T-041 · brief and status show values, open assumptions, proposals and dead ends; release 0.2.0
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P1 · type: milestone
 - milestone: T-031
 - goal: R-CTX-16 holds; format.md and the tests cover every phase 2 addition; version 0.2.0 is released.
@@ -1355,8 +1375,10 @@
 - depends: T-033
 - accept: R-CTX-16 holds; format.md and the tests cover every phase 2 addition; version 0.2.0 is released.
 - reqs: R-CTX-16
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): split into T-199, T-200, T-201, T-202, T-203, T-204, T-205, T-206
+- note (2026-11-21, coordinator): done
 
 ### T-199 · show: marks for proposals, declined entries and rests-on
 - status: done
