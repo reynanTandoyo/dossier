@@ -3828,8 +3828,8 @@
 - note (2026-11-21, haiku-t-155): done
 
 ### T-156 · v0.2 skeleton: the new library modules as stubs
-- status: open
-- owner: —
+- status: done
+- owner: haiku-t-156
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-031
 - why: With every type in place, each later task fills in one file.
@@ -3845,7 +3845,11 @@
   5. Run cargo clippy --all-targets --all-features -- -D warnings and the same with --target x86_64-unknown-linux-gnu, and cargo test --all-features.
 - accept: Every module of design.md section 8 and the stubs of section 7 exist with their exact signatures; every check passes.
 - verify: cargo clippy --all-targets --all-features -- -D warnings
+- verified: 2026-11-21
+- commit: adfd05c
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-156): done
 
 ### T-157 · v0.2 skeleton: command stubs, help overview and the forwarding lists
 - status: open
