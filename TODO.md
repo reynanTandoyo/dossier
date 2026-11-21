@@ -2457,10 +2457,8 @@
 - note (2026-11-21, haiku-t-133): done
 
 ### T-134 · decide: show related decisions, and --replaces or --besides for an LLM
-- status: claimed
+- status: done
 - owner: haiku-t-134
-- claimed: 2026-11-21T01:17+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-130
 - why: Two LLMs must not record contradicting decisions without anyone noticing.
@@ -2476,8 +2474,12 @@
   6. Run cargo test --test cmd_decide_related and cargo test --test cmd_decide.
 - accept: An LLM cannot record a decision next to related ones without saying whether it replaces them; --replaces supersedes in the same step.
 - verify: cargo test --test cmd_decide_related
+- verified: 2026-11-21
+- commit: 405cb80
 - reqs: R-CTX-13
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-134): done
 
 ### T-135 · learn: show similar entries, and --update
 - status: claimed
