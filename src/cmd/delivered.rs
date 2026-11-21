@@ -7,6 +7,7 @@
 //! person at a terminal is asked to confirm; an LLM, or no terminal, gets Code::NeedsTerminal
 //! listing them, and nothing is written.
 
+use crate::affects;
 use crate::cli::Global;
 use crate::ctx::Ctx;
 use crate::entry::{Kind, Status};
@@ -20,6 +21,7 @@ use crate::store::{self, Item};
 use crate::term;
 use crate::time;
 use crate::tx::{self, Change};
+use crate::values;
 use chrono::NaiveDate;
 use serde_json::json;
 use std::io::Write;
@@ -85,6 +87,16 @@ impl BasedOn {
         match self {
             BasedOn::Task(task) => task.as_str(),
             BasedOn::Path { stored, .. } => stored.as_str(),
+        }
+    }
+
+    /// Whether an item of an Affects section is this task or this file: the same task ID, or the
+    /// same stored path. Nothing else matches.
+    fn is_named_by(&self, item: &affects::Item) -> bool {
+        match (self, item) {
+            (BasedOn::Task(task), affects::Item::Task(id)) => task == id,
+            (BasedOn::Path { stored, .. }, affects::Item::Path(path)) => stored == path,
+            _ => false,
         }
     }
 
@@ -229,8 +241,42 @@ fn warnings_of(ctx: &Ctx, items: &[Item], based_on: &[BasedOn]) -> Result<Vec<St
             BasedOn::Path { stored, .. } => path_warnings(ctx, stored, &mut warnings)?,
         }
     }
-    assumption_warnings(items, based_on, &mut warnings);
+    let value_names = value_names(ctx)?;
+    let known_paths = known_paths(ctx, based_on)?;
+    assumption_warnings(items, &value_names, &known_paths, based_on, &mut warnings);
     Ok(warnings)
+}
+
+/// The names of the values of the project, as `affects::parse` needs them.
+fn value_names(ctx: &Ctx) -> Result<Vec<String>> {
+    let (file, _) = values::load(&ctx.dossier, &ctx.cfg.code)?;
+    Ok(values::all(&file)
+        .into_iter()
+        .map(|value| value.name)
+        .collect())
+}
+
+/// The stored paths that `affects::parse` takes as paths: every path attached to a task, and the
+/// paths the delivery names, so that an Affects item naming one of them is a path even when no
+/// task has it attached.
+fn known_paths(ctx: &Ctx, based_on: &[BasedOn]) -> Result<Vec<String>> {
+    let mut known: Vec<String> = Vec::new();
+    for task in filelist::tasks(&ctx.dossier) {
+        let (list, _) = filelist::load(&ctx.dossier, &task)?;
+        for key in list.keys() {
+            if !known.contains(&key) {
+                known.push(key);
+            }
+        }
+    }
+    for named in based_on {
+        if let BasedOn::Path { stored, .. } = named
+            && !known.contains(stored)
+        {
+            known.push(stored.clone());
+        }
+    }
+    Ok(known)
 }
 
 /// The warnings about a task: its files marked outdated or resting on a wrong assumption, and its
@@ -279,9 +325,15 @@ fn path_warnings(ctx: &Ctx, stored: &str, warnings: &mut Vec<String>) -> Result<
 }
 
 /// The warnings about assumptions: each approved assumption that is still open and whose Affects
-/// section names a task or file named. The name is searched for in the text, without regard to
-/// case.
-fn assumption_warnings(items: &[Item], based_on: &[BasedOn], warnings: &mut Vec<String>) {
+/// section names a task or file named. The Affects items are read with `affects::parse`, and an
+/// item names a task or file only when it is exactly that task ID or that stored path.
+fn assumption_warnings(
+    items: &[Item],
+    value_names: &[String],
+    known_paths: &[String],
+    based_on: &[BasedOn],
+    warnings: &mut Vec<String>,
+) {
     for item in items {
         let entry = &item.entry;
         let open = entry.kind() == Some(Kind::Assumption)
@@ -293,9 +345,9 @@ fn assumption_warnings(items: &[Item], based_on: &[BasedOn], warnings: &mut Vec<
         let Some(affects) = entry.section("Affects") else {
             continue;
         };
-        let affects = affects.to_lowercase();
+        let affected = affects::parse(&affects, value_names, known_paths);
         for named in based_on {
-            if affects.contains(&named.name().to_lowercase()) {
+            if affected.iter().any(|item| named.is_named_by(item)) {
                 push(
                     warnings,
                     format!("{} is open and affects {}", entry.id(), named.name()),

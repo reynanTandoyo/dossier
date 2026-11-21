@@ -519,3 +519,83 @@ fn a_dry_run_names_the_record_and_writes_nothing() {
     assert!(stdout.starts_with("DLV-NEW: delivered 1 files to the customer"));
     assert!(!exchange_exists(&project), "a dry run writes nothing");
 }
+
+#[test]
+fn an_assumption_about_t_010_does_not_warn_for_a_delivery_based_on_t_01() {
+    let project = Project::new();
+    project.write("spec.pdf", SPEC);
+    attach_reference(&project, "T-001", "spec.pdf");
+    assume_open(&project, "The inlet profile is uniform.", "T-010");
+
+    // Affects names T-010 only; T-01 is another task, so the delivery is written without a
+    // question (no DOSSIER_ANSWERS is given, and no terminal is there to answer one).
+    let stdout = project.stdout(
+        "anna",
+        &[
+            "delivered",
+            "spec.pdf",
+            "--to",
+            "the customer",
+            "--based-on",
+            "T-01",
+        ],
+    );
+    assert_eq!(stdout, "DLV-001: delivered 1 files to the customer\n");
+    assert!(exchange_of(&project).contains("- based-on: T-01\n"));
+}
+
+#[test]
+fn an_assumption_about_t_010_does_warn_for_a_delivery_based_on_t_010() {
+    let project = Project::new();
+    project.write("spec.pdf", SPEC);
+    attach_reference(&project, "T-010", "spec.pdf");
+    assume_open(&project, "The inlet profile is uniform.", "T-010");
+
+    project
+        .command("anna", NOW)
+        .env("DOSSIER_ANSWERS", "no")
+        .args([
+            "delivered",
+            "spec.pdf",
+            "--to",
+            "the customer",
+            "--based-on",
+            "T-010",
+        ])
+        .assert()
+        .success()
+        .stdout("nothing changed\n")
+        .stderr(contains("warning: ASM-001 is open and affects T-010"));
+    assert!(!exchange_exists(&project));
+}
+
+#[test]
+fn an_assumption_naming_a_file_warns_for_a_delivery_based_on_that_file_even_when_unattached() {
+    let project = Project::new();
+    project.write("spec.pdf", SPEC);
+    project.write("results/run1.csv", RUN);
+    assume_open(
+        &project,
+        "The run used the design inlet.",
+        "results/run1.csv",
+    );
+
+    project
+        .command("anna", NOW)
+        .env("DOSSIER_ANSWERS", "no")
+        .args([
+            "delivered",
+            "spec.pdf",
+            "--to",
+            "the customer",
+            "--based-on",
+            "results/run1.csv",
+        ])
+        .assert()
+        .success()
+        .stdout("nothing changed\n")
+        .stderr(contains(
+            "warning: ASM-001 is open and affects results/run1.csv",
+        ));
+    assert!(!exchange_exists(&project));
+}
