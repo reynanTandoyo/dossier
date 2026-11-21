@@ -4268,8 +4268,8 @@
 - note (2026-11-21, haiku-t-167): done
 
 ### T-207 · brief: list what rests on a wrong assumption
-- status: open
-- owner: —
+- status: done
+- owner: haiku-t-207
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-041
 - why: R-CTX-16: brief must print anything marked rests on a wrong assumption; status counts them but brief did not show them (found in the end-to-end run).
@@ -4282,8 +4282,12 @@
   4. Run cargo test --test cmd_brief.
 - accept: brief lists every entry and file that rests on a wrong assumption.
 - verify: cargo test --test cmd_brief
+- verified: 2026-11-21
+- commit: 38b4966
 - reqs: R-CTX-16
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-207): done
 
 ## Questions
 
