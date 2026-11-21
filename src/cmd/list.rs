@@ -74,14 +74,28 @@ fn created_and_approved(entry: &Entry) -> String {
     text
 }
 
-/// The mark of an entry (design.md §5): `[draft]`, `[rejected]`, `[superseded by <ID>]`,
-/// `[retired]`, and `[changed after approval]` for an approved lesson whose text differs from
-/// the approved text. An approved entry without a change has no mark.
+/// The marks of an entry, joined with a space: its status mark, then `[rests on <IDs>]` when it
+/// rests on wrong assumptions (format.md §14). An entry with neither has no mark.
 fn mark(ctx: &Ctx, item: &Item) -> Option<String> {
+    let entry = &item.entry;
+    let marks: Vec<String> = status_mark(ctx, item)
+        .into_iter()
+        .chain(rests_on_mark(entry))
+        .collect();
+    (!marks.is_empty()).then(|| marks.join(" "))
+}
+
+/// The status mark of an entry (design.md §5): `[draft]`, `[proposed]`, `[rejected]`,
+/// `[declined]`, `[superseded by <ID>]`, `[retired]`, and `[changed after approval]` for an
+/// approved lesson whose text differs from the approved text. An approved entry without a change
+/// has no status mark.
+fn status_mark(ctx: &Ctx, item: &Item) -> Option<String> {
     let entry = &item.entry;
     match entry.status()? {
         Status::Draft => Some("[draft]".to_string()),
+        Status::Proposed => Some("[proposed]".to_string()),
         Status::Rejected => Some("[rejected]".to_string()),
+        Status::Declined => Some("[declined]".to_string()),
         Status::Superseded => Some(match entry.field("superseded-by") {
             Some(by) => format!("[superseded by {by}]"),
             None => "[superseded]".to_string(),
@@ -96,6 +110,13 @@ fn mark(ctx: &Ctx, item: &Item) -> Option<String> {
             changed.then(|| "[changed after approval]".to_string())
         }
     }
+}
+
+/// `[rests on <IDs>]` from the field `rests-on` (format.md §14), the IDs joined with `, `. None
+/// when the field names no ID.
+fn rests_on_mark(entry: &Entry) -> Option<String> {
+    let ids = entry.list("rests-on");
+    (!ids.is_empty()).then(|| format!("[rests on {}]", ids.join(", ")))
 }
 
 /// The data of one entry: its ID, kind, status, title, author, creation and approval. A value
@@ -134,5 +155,26 @@ fn shown_warning(root: &Path, warning: &str) -> String {
     match rest.split_once(": ") {
         Some((path, message)) => format!("{}: {message}", path.replace(MAIN_SEPARATOR, "/")),
         None => warning.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rests_on_gives_the_mark_with_its_ids_and_none_without_any() {
+        let one = Entry::parse("# DEC-101 · Invented\n- rests-on: ASM-101\n").expect("parses");
+        assert_eq!(rests_on_mark(&one).as_deref(), Some("[rests on ASM-101]"));
+        let two = Entry::parse("# DEC-101 · Invented\n- rests-on: ASM-101,  ASM-102 ,\n")
+            .expect("parses");
+        assert_eq!(
+            rests_on_mark(&two).as_deref(),
+            Some("[rests on ASM-101, ASM-102]")
+        );
+        let empty = Entry::parse("# DEC-101 · Invented\n- rests-on:\n").expect("parses");
+        assert_eq!(rests_on_mark(&empty), None);
+        let missing = Entry::parse("# DEC-101 · Invented\n").expect("parses");
+        assert_eq!(rests_on_mark(&missing), None);
     }
 }

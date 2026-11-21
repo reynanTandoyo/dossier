@@ -23,21 +23,24 @@ pub fn required_sections(kind: Kind) -> &'static [&'static str] {
         Kind::Assumption => &["Assumption", "Reason"],
         Kind::Finding => &["Observation"],
         Kind::Lesson => &["Statement", "Valid for", "Evidence"],
+        Kind::Usage => &[],
     }
 }
 
-/// The order of the sections of an entry of `kind` (format.md §8).
+/// The order of the sections of an entry of `kind` (format.md §8, and §15 for a usage record).
 pub fn section_order(kind: Kind) -> &'static [&'static str] {
     match kind {
         Kind::Decision => &["Decision", "Reason", "Rejected"],
         Kind::Assumption => &["Assumption", "Reason", "Affects", "Confirmation"],
         Kind::Finding => &["Observation", "Evidence"],
         Kind::Lesson => &["Statement", "Valid for", "Evidence"],
+        Kind::Usage => &["Parameters", "Outputs", "Deviations", "Notes"],
     }
 }
 
 /// What is missing for approval: required sections, `confidence` for a lesson with one of the
-/// four values, a valid `state` for an assumption, a valid `outcome` if present.
+/// four values, a valid `state` for an assumption, a valid `outcome` if present, and the fields
+/// `software`, `version` and `task` of a usage record (format.md §15).
 ///
 /// The problems come in this order: the required sections of the kind, then the field of the
 /// kind. A section with no text counts as missing. A field with an empty value counts as
@@ -81,6 +84,13 @@ pub fn problems(entry: &Entry) -> Vec<Problem> {
             )),
             Some(_) => {}
         },
+        Kind::Usage => {
+            for key in ["software", "version", "task"] {
+                if filled_field(entry, key).is_none() {
+                    found.push(problem(format!("missing field {key}")));
+                }
+            }
+        }
     }
     found
 }
@@ -360,9 +370,68 @@ Runs 3 to 5.
         assert!(whats(&finding).is_empty());
     }
 
+    /// A complete usage record (format.md section 15). Invented content.
+    const USAGE: &str = r#"<!-- dossier-format: 1 -->
+# USE-101 · Invented run
+
+- kind: usage
+- status: approved
+- software: Invented solver
+- version: 1.0
+- task: T-101
+
+## Parameters
+
+pressure = 1.4 bar
+
+## Outputs
+
+results/run-1/
+"#;
+
+    #[test]
+    fn a_complete_usage_record_has_no_problems_and_needs_no_sections() {
+        assert!(whats(USAGE).is_empty());
+        let without_sections = "<!-- dossier-format: 1 -->\n# USE-102 · Invented run\n\n- kind: usage\n- status: approved\n- software: Invented solver\n- version: 1.0\n- task: T-101\n";
+        assert!(whats(without_sections).is_empty());
+    }
+
+    #[test]
+    fn a_usage_record_without_software_version_or_task_lists_the_missing_field() {
+        let text = replacing(USAGE, "- software: Invented solver\n", "");
+        assert_eq!(whats(&text), ["missing field software"]);
+        let text = replacing(USAGE, "- version: 1.0\n", "");
+        assert_eq!(whats(&text), ["missing field version"]);
+        let text = replacing(USAGE, "- task: T-101\n", "");
+        assert_eq!(whats(&text), ["missing field task"]);
+    }
+
+    #[test]
+    fn a_usage_record_with_none_of_the_three_fields_lists_them_in_order() {
+        let text = replacing(
+            USAGE,
+            "- software: Invented solver\n- version: 1.0\n- task: T-101\n",
+            "",
+        );
+        assert_eq!(
+            whats(&text),
+            [
+                "missing field software",
+                "missing field version",
+                "missing field task",
+            ]
+        );
+    }
+
+    #[test]
+    fn an_empty_usage_field_counts_as_missing() {
+        let text = replacing(USAGE, "- version: 1.0\n", "- version:\n");
+        assert_eq!(whats(&text), ["missing field version"]);
+    }
+
     #[test]
     fn required_sections_are_those_of_format_section_8_in_their_order() {
-        let expected: [(Kind, &[&str], &[&str]); 4] = [
+        let expected: [(Kind, &[&str], &[&str]); 5] = [
             (
                 Kind::Decision,
                 &["Decision", "Reason"],
@@ -382,6 +451,11 @@ Runs 3 to 5.
                 Kind::Lesson,
                 &["Statement", "Valid for", "Evidence"],
                 &["Statement", "Valid for", "Evidence"],
+            ),
+            (
+                Kind::Usage,
+                &[],
+                &["Parameters", "Outputs", "Deviations", "Notes"],
             ),
         ];
         for (kind, required, order) in expected {

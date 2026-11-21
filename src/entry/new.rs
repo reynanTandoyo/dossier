@@ -5,9 +5,14 @@ use super::Kind;
 /// The first line of every entry file (format.md §1, §3).
 const FORMAT_LINE: &str = "<!-- dossier-format: 1 -->";
 
-/// The known fields in the order of format.md §5. `history` is not listed: it is always written
-/// last. `kind` is listed first, but `render` writes it from `Draft::kind`.
-const FIELD_ORDER: [&str; 21] = [
+/// The name of the section that holds the pictures of an entry; it always comes last (format.md
+/// §16).
+const PICTURES: &str = "Pictures";
+
+/// The known fields in the order of format.md §5, with the fields of §14 and §15 after
+/// `rejected-reason` and after `software`. `history` is not listed: it is always written last.
+/// `kind` is listed first, but `render` writes it from `Draft::kind`.
+const FIELD_ORDER: [&str; 30] = [
     "kind",
     "status",
     "created",
@@ -23,12 +28,21 @@ const FIELD_ORDER: [&str; 21] = [
     "machine",
     "analysis",
     "software",
+    "version",
+    "model",
+    "model-checksum",
+    "howto",
     "tags",
     "related",
     "supersedes",
     "superseded-by",
     "retired-reason",
     "rejected-reason",
+    "declined-reason",
+    "confirmed",
+    "refuted",
+    "rests-on",
+    "code",
 ];
 
 /// What a new entry file holds before it is rendered.
@@ -47,9 +61,10 @@ pub struct Draft {
 /// spaces, its ends are trimmed), an empty value is left out, and a key or section name given
 /// twice is written once, with its first non-empty value. The history lines come last, one per
 /// value, in the order given. A section whose body is blank is left out; the other sections are
-/// the kind's sections of format.md §8 in that order, then the others in the order given. Every
-/// line ends with LF and the text ends with exactly one LF after its last line. A body line that
-/// starts with `## ` would start a section and is not checked here.
+/// the kind's sections of format.md §8 (§15 for usage) in that order, then the others in the order
+/// given, and `Pictures` last of all (§16). Every line ends with LF and the text ends with exactly
+/// one LF after its last line. A body line that starts with `## ` would start a section and is not
+/// checked here.
 pub fn render(draft: &Draft) -> String {
     let mut lines = vec![
         FORMAT_LINE.to_string(),
@@ -115,8 +130,8 @@ fn history(draft: &Draft) -> Vec<String> {
 }
 
 /// The sections with a non-blank body, each name once with its first non-blank body, as the
-/// lines of the body. The kind's sections of format.md §8 come first, in that order; the
-/// others follow in the order given.
+/// lines of the body. The kind's sections of format.md §8 (§15 for usage) come first, in that
+/// order; the others follow in the order given, and `Pictures` comes last of all.
 fn sections(draft: &Draft) -> Vec<(String, Vec<String>)> {
     let mut kept: Vec<(String, Vec<String>)> = Vec::new();
     for (name, body) in &draft.sections {
@@ -128,23 +143,31 @@ fn sections(draft: &Draft) -> Vec<(String, Vec<String>)> {
         }
     }
     let order = known_sections(draft.kind);
-    kept.sort_by_key(|(name, _)| {
-        order
-            .iter()
-            .position(|known| *known == name.as_str())
-            .unwrap_or(order.len())
-    });
+    kept.sort_by_key(|(name, _)| section_rank(order, name));
     kept
 }
 
-/// The sections of each kind, in the order of format.md §8.
+/// The sections of each kind, in the order of format.md §8, and of a usage record in §15.
 fn known_sections(kind: Kind) -> &'static [&'static str] {
     match kind {
         Kind::Decision => &["Decision", "Reason", "Rejected"],
         Kind::Assumption => &["Assumption", "Reason", "Affects", "Confirmation"],
         Kind::Finding => &["Observation", "Evidence"],
         Kind::Lesson => &["Statement", "Valid for", "Evidence"],
+        Kind::Usage => &["Parameters", "Outputs", "Deviations", "Notes"],
     }
+}
+
+/// Where a section goes: among the kind's sections (`order`), the others after them in the order
+/// given, and `Pictures` after all of them.
+fn section_rank(order: &[&str], name: &str) -> usize {
+    if name == PICTURES {
+        return usize::MAX;
+    }
+    order
+        .iter()
+        .position(|known| *known == name)
+        .unwrap_or(order.len())
 }
 
 /// The lines of a section body, each without a CR at its end, without the blank lines at its
@@ -638,6 +661,154 @@ Written after the known sections.
         assert!(!text.contains('\r'));
         assert!(text.ends_with("only\n"));
         assert!(!text.ends_with("\n\n"));
+    }
+
+    #[test]
+    fn the_fields_of_format_sections_14_and_15_follow_the_known_order() {
+        let draft = Draft {
+            kind: Kind::Usage,
+            id: "USE-005".to_string(),
+            title: "Field order".to_string(),
+            fields: pairs(&[
+                ("code", "src/solver.rs::run"),
+                ("rests-on", "ASM-003"),
+                ("refuted", "2026-11-20T10:00:00+01:00 by anna"),
+                ("confirmed", "2026-11-20T09:00:00+01:00 by anna"),
+                ("declined-reason", "Not needed"),
+                ("rejected-reason", "Too slow"),
+                ("howto", "DEC-002"),
+                ("model-checksum", "sha256:9f2c"),
+                ("model", "sim/stage1.sim"),
+                ("version", "2406"),
+                ("software", "ExampleSolver"),
+                ("task", "T-042"),
+            ]),
+            sections: Vec::new(),
+        };
+        let text = render(&draft);
+        let entry = Entry::parse(&text).expect("parses");
+        let keys: Vec<String> = entry.fields().into_iter().map(|(key, _)| key).collect();
+        assert_eq!(
+            keys,
+            [
+                "kind",
+                "task",
+                "software",
+                "version",
+                "model",
+                "model-checksum",
+                "howto",
+                "rejected-reason",
+                "declined-reason",
+                "confirmed",
+                "refuted",
+                "rests-on",
+                "code",
+            ]
+        );
+    }
+
+    #[test]
+    fn a_usage_record_renders_its_sections_in_format_order_with_pictures_last() {
+        let draft = Draft {
+            kind: Kind::Usage,
+            id: "USE-003".to_string(),
+            title: "ExampleSolver 2406 run of speedline point 7".to_string(),
+            fields: pairs(&[
+                ("status", "approved"),
+                ("created", "2026-12-02T10:15:00+01:00"),
+                ("author", "anna"),
+                ("via", "anna-claude"),
+                ("approved", "2026-12-02T10:15:00+01:00 by anna"),
+                ("valid-from", "2026-12-02T10:15:00+01:00"),
+                ("task", "T-042"),
+                ("software", "ExampleSolver"),
+                ("version", "2406"),
+                ("model", "sim/stage1.sim"),
+                ("model-checksum", "sha256:9f2c"),
+                (
+                    "history",
+                    "2026-12-02T10:15:00+01:00 anna via anna-claude: created",
+                ),
+                (
+                    "history",
+                    "2026-12-02T10:15:00+01:00 anna via anna-claude: approved",
+                ),
+            ]),
+            sections: pairs(&[
+                ("Pictures", "![Speedline](../images/USE-003/speedline.png)"),
+                ("Notes", "Run on the cluster."),
+                ("Outputs", "results/point07/"),
+                (
+                    "Parameters",
+                    "backpressure = 1.42 bar\nmassflow = {design.massflow}",
+                ),
+            ]),
+        };
+        let expected = r#"<!-- dossier-format: 1 -->
+# USE-003 · ExampleSolver 2406 run of speedline point 7
+
+- kind: usage
+- status: approved
+- created: 2026-12-02T10:15:00+01:00
+- author: anna
+- via: anna-claude
+- approved: 2026-12-02T10:15:00+01:00 by anna
+- valid-from: 2026-12-02T10:15:00+01:00
+- task: T-042
+- software: ExampleSolver
+- version: 2406
+- model: sim/stage1.sim
+- model-checksum: sha256:9f2c
+- history: 2026-12-02T10:15:00+01:00 anna via anna-claude: created
+- history: 2026-12-02T10:15:00+01:00 anna via anna-claude: approved
+
+## Parameters
+
+backpressure = 1.42 bar
+massflow = {design.massflow}
+
+## Outputs
+
+results/point07/
+
+## Notes
+
+Run on the cluster.
+
+## Pictures
+
+![Speedline](../images/USE-003/speedline.png)
+"#;
+        assert_eq!(render(&draft), expected);
+    }
+
+    #[test]
+    fn pictures_come_after_every_other_section_for_every_kind() {
+        for kind in Kind::all() {
+            let draft = Draft {
+                kind,
+                id: "XXX-001".to_string(),
+                title: "Pictures last".to_string(),
+                fields: Vec::new(),
+                sections: pairs(&[
+                    ("Pictures", "![A plot](../images/XXX-001/plot.png)"),
+                    ("Extra", "Kept after the known sections."),
+                    ("Observation", "Seen."),
+                ]),
+            };
+            let entry = Entry::parse(&render(&draft)).expect("parses");
+            let names: Vec<String> = entry.sections().into_iter().map(|(name, _)| name).collect();
+            assert_eq!(
+                names.last().map(String::as_str),
+                Some("Pictures"),
+                "{kind:?}"
+            );
+            assert_eq!(names.iter().filter(|name| *name == "Pictures").count(), 1);
+            let extra = names.iter().position(|name| name == "Extra");
+            let pictures = names.iter().position(|name| name == "Pictures");
+            assert!(extra < pictures, "{kind:?}: {names:?}");
+        }
     }
 
     #[test]

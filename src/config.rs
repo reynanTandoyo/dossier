@@ -23,6 +23,12 @@ pub struct Config {
     pub code: String,
     pub tags: Tags,
     pub people: Vec<Person>,
+    /// The people who may decide (format.md §19); empty: everyone listed decides.
+    pub deciders: Vec<String>,
+    /// Roles added to the roles of a task's files (format.md §17, §19).
+    pub roles: Vec<String>,
+    /// True after `init --code-project` (format.md §19).
+    pub code_project: bool,
     pub brief_lines: usize,
     pub status_lines: usize,
     pub draft_days: i64,
@@ -49,6 +55,12 @@ struct Probe {
 struct File {
     format: u32,
     code: String,
+    #[serde(default)]
+    deciders: Vec<String>,
+    #[serde(default)]
+    roles: Vec<String>,
+    #[serde(default)]
+    code_project: bool,
     #[serde(default)]
     tags: TagsFile,
     #[serde(default)]
@@ -199,6 +211,9 @@ fn parse(text: &str, path: &Path) -> Result<Config> {
                 llms: person.llms,
             })
             .collect(),
+        deciders: file.deciders,
+        roles: file.roles,
+        code_project: file.code_project,
         brief_lines: file.limits.brief_lines,
         status_lines: file.limits.status_lines,
         draft_days: file.limits.draft_days,
@@ -437,6 +452,9 @@ mod tests {
         assert!(cfg.tags.analysis.is_empty());
         assert!(cfg.tags.software.is_empty());
         assert!(cfg.people.is_empty());
+        assert!(cfg.deciders.is_empty());
+        assert!(cfg.roles.is_empty());
+        assert!(!cfg.code_project);
         assert_eq!(cfg.brief_lines, 60);
         assert_eq!(cfg.status_lines, 60);
         assert_eq!(cfg.draft_days, 14);
@@ -507,6 +525,27 @@ mod tests {
         assert_eq!(cfg.people[0].name, "anna");
         assert_eq!(cfg.people[0].llms, ["anna-claude", "anna-codex"]);
         assert_eq!(cfg.draft_days, 14);
+    }
+
+    #[test]
+    fn the_example_of_format_section_19_loads_its_three_settings() {
+        let dir = dossier_with(
+            "format = 1\ncode = \"P-017\"\ndeciders = [\"anna\"]\nroles = [\"postprocessing\"]\ncode_project = false\n",
+        );
+        let cfg = loaded(&dir);
+        assert_eq!(cfg.deciders, ["anna"]);
+        assert_eq!(cfg.roles, ["postprocessing"]);
+        assert!(!cfg.code_project);
+        let dir = dossier_with("format = 1\ncode = \"P-017\"\ncode_project = true\n");
+        assert!(loaded(&dir).code_project);
+    }
+
+    #[test]
+    fn a_setting_of_the_wrong_type_is_a_config_error() {
+        let dir = dossier_with("format = 1\ncode = \"P-017\"\ncode_project = \"yes\"\n");
+        assert_eq!(refused(&dir).code, Code::Config);
+        let dir = dossier_with("format = 1\ncode = \"P-017\"\ndeciders = \"anna\"\n");
+        assert_eq!(refused(&dir).code, Code::Config);
     }
 
     #[test]

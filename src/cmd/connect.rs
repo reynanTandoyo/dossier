@@ -80,6 +80,7 @@ fn connect(args: &Args, target: &str) -> Result<Output> {
         server: server.clone(),
         folder: folder.clone(),
         local: local.clone(),
+        added: crate::time::now(),
     })?;
     let text = format!("connected {code} -> {server}:{folder}");
     let data = json!({"code": code, "server": server, "folder": folder, "local": local});

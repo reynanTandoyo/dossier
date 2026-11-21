@@ -198,6 +198,8 @@ fn marks(ctx: &Ctx, item: &Item) -> Vec<String> {
             },
         ),
         Some(Status::Retired) => marks.push("[retired]".to_string()),
+        Some(Status::Proposed) => marks.push("[proposed]".to_string()),
+        Some(Status::Declined) => marks.push("[declined]".to_string()),
         Some(Status::Approved) | None => {}
     }
     if entry.kind() == Some(Kind::Lesson)

@@ -48,6 +48,29 @@ pub fn is_person(cfg: &Config, name: &str) -> bool {
     find_person(cfg, name).is_some()
 }
 
+/// True when cfg.deciders is empty or names `person` (ignoring case).
+pub fn may_decide(cfg: &Config, person: &str) -> bool {
+    cfg.deciders.is_empty() || cfg.deciders.iter().any(|decider| same(decider, person))
+}
+
+/// For commands that run before or without people in the settings (init, people add): the name
+/// from `flag`, DOSSIER_AGENT or TODO_AGENT, else the operating-system user (USERNAME, USER),
+/// else "unknown"; person = name; is_llm = false. Never an error.
+pub fn unchecked(flag: Option<&str>) -> Who {
+    let name = flag
+        .and_then(given)
+        .or_else(|| env_name("DOSSIER_AGENT"))
+        .or_else(|| env_name("TODO_AGENT"))
+        .or_else(|| env_name("USERNAME"))
+        .or_else(|| env_name("USER"))
+        .unwrap_or_else(|| "unknown".to_string());
+    Who {
+        name: name.clone(),
+        person: name,
+        is_llm: false,
+    }
+}
+
 /// "anna" or "anna via anna-claude".
 pub fn label(who: &Who) -> String {
     if who.is_llm {
@@ -145,6 +168,9 @@ mod tests {
                     llms: vec!["ben-codex".to_string()],
                 },
             ],
+            deciders: Vec::new(),
+            roles: Vec::new(),
+            code_project: false,
             brief_lines: 60,
             status_lines: 60,
             draft_days: 14,
@@ -282,6 +308,70 @@ mod tests {
         unsafe {
             std::env::remove_var("DOSSIER_AGENT");
             std::env::remove_var("TODO_AGENT");
+        }
+    }
+
+    /// Sets or removes an environment variable. The caller holds `crate::ENV_LOCK`.
+    fn set_env(key: &str, value: Option<std::ffi::OsString>) {
+        // SAFETY: the caller holds crate::ENV_LOCK, so no other unit test reads or changes the
+        // environment meanwhile.
+        unsafe {
+            match value {
+                Some(value) => std::env::set_var(key, value),
+                None => std::env::remove_var(key),
+            }
+        }
+    }
+
+    #[test]
+    fn may_decide_is_true_for_everyone_when_no_decider_is_named() {
+        let cfg = team();
+        assert!(may_decide(&cfg, "Anna"));
+        assert!(may_decide(&cfg, "carl"));
+    }
+
+    #[test]
+    fn may_decide_is_true_only_for_the_named_deciders_ignoring_case() {
+        let cfg = Config {
+            deciders: vec!["Anna".to_string()],
+            ..team()
+        };
+        assert!(may_decide(&cfg, "anna"));
+        assert!(may_decide(&cfg, "ANNA"));
+        assert!(!may_decide(&cfg, "Ben"));
+        assert!(!may_decide(&cfg, "anna-claude"));
+    }
+
+    #[test]
+    fn unchecked_takes_the_name_from_the_flag_or_the_environment_and_never_fails() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        const KEYS: [&str; 4] = ["DOSSIER_AGENT", "TODO_AGENT", "USERNAME", "USER"];
+        let saved: Vec<Option<std::ffi::OsString>> = KEYS.iter().map(std::env::var_os).collect();
+        for key in KEYS {
+            set_env(key, None);
+        }
+        // Nothing names anyone: "unknown", and no error.
+        assert_eq!(unchecked(None), who("unknown", "unknown", false));
+
+        // The operating-system user comes after the dossier and todo names.
+        set_env("USER", Some("tester".into()));
+        assert_eq!(unchecked(None), who("tester", "tester", false));
+        set_env("USERNAME", Some("Windows Tester".into()));
+        assert_eq!(
+            unchecked(None),
+            who("Windows Tester", "Windows Tester", false)
+        );
+        set_env("TODO_AGENT", Some("anna-claude".into()));
+        assert_eq!(unchecked(None), who("anna-claude", "anna-claude", false));
+        set_env("DOSSIER_AGENT", Some("Ben".into()));
+        assert_eq!(unchecked(None), who("Ben", "Ben", false));
+
+        // The flag comes first, and a blank flag falls back to the environment.
+        assert_eq!(unchecked(Some("carl")), who("carl", "carl", false));
+        assert_eq!(unchecked(Some("  ")), who("Ben", "Ben", false));
+
+        for (key, value) in KEYS.into_iter().zip(saved) {
+            set_env(key, value);
         }
     }
 

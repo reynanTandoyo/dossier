@@ -134,13 +134,27 @@ fn created(entry: &Entry) -> Option<DateTime<FixedOffset>> {
     DateTime::parse_from_rfc3339(&entry.field("created")?).ok()
 }
 
-/// The mark of an entry in search (R-READ-1): its status when it is not approved, and
-/// `changed after approval` for an approved lesson whose file changed since it was approved.
+/// The mark of an entry in search (R-READ-1): its status mark, then `[rests on <IDs>]` when it
+/// rests on wrong assumptions (format.md §14), joined with a space. No mark when neither applies.
 fn mark(ctx: &Ctx, item: &Item) -> Option<String> {
+    let entry = &item.entry;
+    let marks: Vec<String> = status_mark(ctx, item)
+        .into_iter()
+        .chain(rests_on_mark(entry))
+        .collect();
+    (!marks.is_empty()).then(|| marks.join(" "))
+}
+
+/// The status mark of an entry: `[draft]`, `[proposed]`, `[rejected]`, `[declined]`, `[superseded
+/// by <ID>]`, `[retired]`, and `[changed after approval]` for an approved lesson whose file
+/// changed since it was approved.
+fn status_mark(ctx: &Ctx, item: &Item) -> Option<String> {
     let entry = &item.entry;
     match entry.status()? {
         Status::Draft => Some("[draft]".to_string()),
+        Status::Proposed => Some("[proposed]".to_string()),
         Status::Rejected => Some("[rejected]".to_string()),
+        Status::Declined => Some("[declined]".to_string()),
         Status::Superseded => Some(match entry.field("superseded-by") {
             Some(by) => format!("[superseded by {by}]"),
             None => "[superseded]".to_string(),
@@ -155,6 +169,13 @@ fn mark(ctx: &Ctx, item: &Item) -> Option<String> {
             (lesson && changed).then(|| "[changed after approval]".to_string())
         }
     }
+}
+
+/// `[rests on <IDs>]` from the field `rests-on` (format.md §14), the IDs joined with `, `. None
+/// when the field names no ID.
+fn rests_on_mark(entry: &Entry) -> Option<String> {
+    let ids = entry.list("rests-on");
+    (!ids.is_empty()).then(|| format!("[rests on {}]", ids.join(", ")))
 }
 
 /// The first line of the entry that contains `word` (lower case), without its line ending and
@@ -225,4 +246,25 @@ fn result_data(hit: &Hit) -> Value {
         "status": entry.status().map_or("", Status::name),
         "line": hit.line,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rests_on_gives_the_mark_with_its_ids_and_none_without_any() {
+        let one = Entry::parse("# DEC-101 · Invented\n- rests-on: ASM-101\n").expect("parses");
+        assert_eq!(rests_on_mark(&one).as_deref(), Some("[rests on ASM-101]"));
+        let two = Entry::parse("# DEC-101 · Invented\n- rests-on: ASM-101,  ASM-102 ,\n")
+            .expect("parses");
+        assert_eq!(
+            rests_on_mark(&two).as_deref(),
+            Some("[rests on ASM-101, ASM-102]")
+        );
+        let empty = Entry::parse("# DEC-101 · Invented\n- rests-on:\n").expect("parses");
+        assert_eq!(rests_on_mark(&empty), None);
+        let missing = Entry::parse("# DEC-101 · Invented\n").expect("parses");
+        assert_eq!(rests_on_mark(&missing), None);
+    }
 }

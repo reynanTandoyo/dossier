@@ -1,4 +1,4 @@
-//! Entries: the files of decisions, assumptions, findings and lessons.
+//! Entries: the files of decisions, assumptions, findings, lessons and usage records.
 
 pub mod edit;
 pub mod new;
@@ -18,16 +18,18 @@ pub enum Kind {
     Assumption,
     Finding,
     Lesson,
+    Usage,
 }
 
 impl Kind {
-    /// The four kinds.
-    pub fn all() -> [Kind; 4] {
+    /// The five kinds.
+    pub fn all() -> [Kind; 5] {
         [
             Kind::Decision,
             Kind::Assumption,
             Kind::Finding,
             Kind::Lesson,
+            Kind::Usage,
         ]
     }
 
@@ -38,6 +40,7 @@ impl Kind {
             Kind::Assumption => "assumption",
             Kind::Finding => "finding",
             Kind::Lesson => "lesson",
+            Kind::Usage => "usage",
         }
     }
 
@@ -48,6 +51,7 @@ impl Kind {
             Kind::Assumption => "ASM",
             Kind::Finding => "FND",
             Kind::Lesson => "LES",
+            Kind::Usage => "USE",
         }
     }
 
@@ -58,6 +62,7 @@ impl Kind {
             Kind::Assumption => "assumptions",
             Kind::Finding => "findings",
             Kind::Lesson => "lessons",
+            Kind::Usage => "usage",
         }
     }
 
@@ -89,6 +94,8 @@ pub enum Status {
     Rejected,
     Superseded,
     Retired,
+    Proposed,
+    Declined,
 }
 
 impl Status {
@@ -100,6 +107,8 @@ impl Status {
             Status::Rejected => "rejected",
             Status::Superseded => "superseded",
             Status::Retired => "retired",
+            Status::Proposed => "proposed",
+            Status::Declined => "declined",
         }
     }
 
@@ -111,6 +120,8 @@ impl Status {
             Status::Rejected,
             Status::Superseded,
             Status::Retired,
+            Status::Proposed,
+            Status::Declined,
         ]
         .into_iter()
         .find(|status| text.eq_ignore_ascii_case(status.name()))
@@ -799,6 +810,7 @@ Comparison of steady and transient speedlines, report section 4.2.
             (Kind::Assumption, "assumption", "ASM", "assumptions"),
             (Kind::Finding, "finding", "FND", "findings"),
             (Kind::Lesson, "lesson", "LES", "lessons"),
+            (Kind::Usage, "usage", "USE", "usage"),
         ];
         assert_eq!(Kind::all().len(), expected.len());
         for (kind, name, prefix, folder) in expected {
@@ -809,6 +821,20 @@ Comparison of steady and transient speedlines, report section 4.2.
     }
 
     #[test]
+    fn kind_all_lists_the_five_kinds_in_order_with_usage_last() {
+        assert_eq!(
+            Kind::all(),
+            [
+                Kind::Decision,
+                Kind::Assumption,
+                Kind::Finding,
+                Kind::Lesson,
+                Kind::Usage,
+            ]
+        );
+    }
+
+    #[test]
     fn kind_parse_takes_a_name_or_a_prefix_in_any_case() {
         assert_eq!(Kind::parse("decision"), Some(Kind::Decision));
         assert_eq!(Kind::parse("DEC"), Some(Kind::Decision));
@@ -816,6 +842,8 @@ Comparison of steady and transient speedlines, report section 4.2.
         assert_eq!(Kind::parse("asm"), Some(Kind::Assumption));
         assert_eq!(Kind::parse("FINDING"), Some(Kind::Finding));
         assert_eq!(Kind::parse("les"), Some(Kind::Lesson));
+        assert_eq!(Kind::parse("usage"), Some(Kind::Usage));
+        assert_eq!(Kind::parse("USE"), Some(Kind::Usage));
         assert_eq!(Kind::parse("note"), None);
         assert_eq!(Kind::parse(""), None);
     }
@@ -828,6 +856,8 @@ Comparison of steady and transient speedlines, report section 4.2.
         assert_eq!(Kind::of_id("p-017:asm-003"), Some(Kind::Assumption));
         assert_eq!(Kind::of_id("FND-007"), Some(Kind::Finding));
         assert_eq!(Kind::of_id("LES-004"), Some(Kind::Lesson));
+        assert_eq!(Kind::of_id("USE-003"), Some(Kind::Usage));
+        assert_eq!(Kind::of_id("p-017:use-003"), Some(Kind::Usage));
         assert_eq!(Kind::of_id("DEC"), Some(Kind::Decision));
         assert_eq!(Kind::of_id("XYZ-001"), None);
         assert_eq!(Kind::of_id("P-017:"), None);
@@ -842,6 +872,8 @@ Comparison of steady and transient speedlines, report section 4.2.
             (Status::Rejected, "rejected"),
             (Status::Superseded, "superseded"),
             (Status::Retired, "retired"),
+            (Status::Proposed, "proposed"),
+            (Status::Declined, "declined"),
         ];
         for (status, name) in expected {
             assert_eq!(status.name(), name);

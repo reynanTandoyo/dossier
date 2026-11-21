@@ -13,6 +13,8 @@ pub struct Project {
     pub server: String,
     pub folder: String,
     pub local: Option<String>,
+    /// The time the project was put in the register (format.md §7); empty when the entry has none.
+    pub added: String,
 }
 
 /// The environment variable that names the register file itself.
@@ -41,6 +43,8 @@ struct ProjectFile {
     folder: String,
     #[serde(default)]
     local: Option<String>,
+    #[serde(default)]
+    added: String,
 }
 
 /// The register as read from its file: its projects, and the file's length and checksum, which
@@ -93,6 +97,7 @@ fn put_at(path: &Path, project: &Project) -> Result<()> {
         server: project.server.clone(),
         folder: project.folder.clone(),
         local: project.local.clone(),
+        added: project.added.clone(),
     });
     write_register(path, projects, &register.seen)
 }
@@ -157,6 +162,7 @@ fn parse(bytes: &[u8], path: &Path) -> Result<Vec<Project>> {
             server: project.server,
             folder: project.folder,
             local: project.local,
+            added: project.added,
         })
         .collect())
 }
@@ -167,7 +173,8 @@ fn render(projects: &[Project]) -> String {
     tables.join("\n")
 }
 
-/// One `[[project]]` table, ending with a line break. `local` is left out when there is none.
+/// One `[[project]]` table, ending with a line break. `local` and `added` are left out when there
+/// is none; `added` comes after `local`.
 fn table(project: &Project) -> String {
     let mut lines = vec![
         "[[project]]".to_string(),
@@ -177,6 +184,9 @@ fn table(project: &Project) -> String {
     ];
     if let Some(local) = &project.local {
         lines.push(format!("local = {}", quoted(local)));
+    }
+    if !project.added.is_empty() {
+        lines.push(format!("added = {}", quoted(&project.added)));
     }
     lines.push(String::new());
     lines.join("\n")
@@ -231,6 +241,7 @@ mod tests {
             server: server.into(),
             folder: folder.into(),
             local: local.map(Into::into),
+            added: String::new(),
         }
     }
 
@@ -374,6 +385,35 @@ folder = "/projects/P-002"
         .unwrap();
         let error = read_register(&path).err().unwrap();
         assert_eq!(error.code, Code::Config);
+    }
+
+    #[test]
+    fn the_added_time_is_written_after_local_and_read_back_and_an_entry_without_it_reads_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("projects.toml");
+        let mut dated = project("P-001", "anna@sim01", "/projects/P-001", Some("C:/p1"));
+        dated.added = "2026-11-21T10:00:00+01:00".to_string();
+        put_at(&path, &dated).unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            "[[project]]\ncode = \"P-001\"\nserver = \"anna@sim01\"\nfolder = \"/projects/P-001\"\nlocal = \"C:/p1\"\nadded = \"2026-11-21T10:00:00+01:00\"\n"
+        );
+        assert_eq!(
+            read_register(&path).unwrap().projects[0].added,
+            "2026-11-21T10:00:00+01:00"
+        );
+
+        // An entry written before the time was kept has no `added` line and reads as "".
+        std::fs::write(
+            &path,
+            "[[project]]\ncode = \"P-002\"\nserver = \"anna@sim02\"\nfolder = \"/projects/P-002\"\n",
+        )
+        .unwrap();
+        let old = read_register(&path).unwrap();
+        assert_eq!(old.projects[0].added, "");
+        // Rewriting it keeps no `added` line for an empty time.
+        put_at(&path, &project("P-003", "anna@sim03", "/p3", None)).unwrap();
+        assert!(!std::fs::read_to_string(&path).unwrap().contains("added"));
     }
 
     #[test]
