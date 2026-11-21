@@ -1503,8 +1503,10 @@
 - note (2026-11-21, haiku-t-204): done
 
 ### T-205 · README for v0.2
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-205
+- claimed: 2026-11-21T13:09+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-041
 - why: The team must be able to use phase 2 without the author (REL-2).
@@ -1526,7 +1528,7 @@
 - milestone: T-041
 - why: Phase 2 ends with a release that is used on real work.
 - final: Checking every command by hand cannot be listed in advance.
-- depends: T-199, T-200, T-201, T-202, T-203, T-204, T-205, T-032, T-033, T-034, T-035, T-036, T-037, T-038, T-039, T-040, T-155, T-156, T-157, T-158, T-159, T-160, T-161, T-162, T-163, T-164, T-165, T-166, T-167
+- depends: T-199, T-200, T-201, T-202, T-203, T-204, T-205, T-032, T-033, T-034, T-035, T-036, T-037, T-038, T-039, T-040, T-155, T-156, T-157, T-158, T-159, T-160, T-161, T-162, T-163, T-164, T-165, T-166, T-167, T-207
 - files: Cargo.toml, Cargo.lock
 - read: docs/requirements.md
 - steps:
@@ -4264,6 +4266,24 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, haiku-t-167): done
+
+### T-207 · brief: list what rests on a wrong assumption
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-041
+- why: R-CTX-16: brief must print anything marked rests on a wrong assumption; status counts them but brief did not show them (found in the end-to-end run).
+- files: src/cmd/brief.rs, tests/cmd_brief.rs
+- read: docs/requirements.md, docs/design.md, docs/format.md
+- steps:
+  1. Add a part '## Rests on a wrong assumption' to brief (without --task), after the proposals: one line per approved entry whose rests-on field is not empty, '<ID> · <title> [rests on <IDs>]', and one line per non-detached block in any file list (filelist::tasks and load) whose rests-on field is not empty, '<task> <path> [rests on <IDs>]'. Leave the part out when it is empty. It is cut with the proposals when the line limit is reached.
+  2. With --on, leave the part out (marks are about now).
+  3. Tests in tests/cmd_brief.rs: after an assumption affecting T-001 and an attached file is refuted (assume, attach and refute are on main; refute needs DOSSIER_ANSWERS=yes through project.command), brief lists the entry and the file under the new heading; a brief without such marks has no such heading.
+  4. Run cargo test --test cmd_brief.
+- accept: brief lists every entry and file that rests on a wrong assumption.
+- verify: cargo test --test cmd_brief
+- reqs: R-CTX-16
+- note (2026-11-21, planner): added
 
 ## Questions
 
