@@ -20,9 +20,19 @@ fn program() -> String {
     }
 }
 
+/// Whether the program is named by a path (not looked up on PATH) that does not exist. Windows
+/// starts a missing `.cmd` path through cmd.exe instead of failing, so it is checked first.
+fn missing_path(program: &str) -> bool {
+    (program.contains('/') || program.contains('\\')) && !Path::new(program).exists()
+}
+
 /// Whether the program runs: `todo --version` starts and exits with 0.
 pub fn available() -> bool {
-    Command::new(program())
+    let program = program();
+    if missing_path(&program) {
+        return false;
+    }
+    Command::new(program)
         .arg("--version")
         .stdin(Stdio::null())
         .output()
@@ -32,7 +42,11 @@ pub fn available() -> bool {
 /// Runs `todo <args> --json` in `root` and returns the `data` of the envelope.
 /// Program missing: Code::TodoMissing. `ok:false`: Code::Refused with todo's message.
 pub fn json(root: &Path, args: &[&str]) -> Result<serde_json::Value> {
-    let output = Command::new(program())
+    let program = program();
+    if missing_path(&program) {
+        return Err(Error::new(Code::TodoMissing, MISSING));
+    }
+    let output = Command::new(program)
         .args(args)
         .arg("--json")
         .current_dir(root)
