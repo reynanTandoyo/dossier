@@ -599,10 +599,12 @@ pub fn may_decide(cfg: &Config, person: &str) -> bool;
 /// else "unknown"; person = name; is_llm = false. Never an error.
 pub fn unchecked(flag: Option<&str>) -> Who;
 
-// create.rs: a decision that would be approved, whose author may not decide
-// (names::may_decide), gets status `proposed` instead: no `approved` and `valid-from` fields, the
-// history lines `created` and `proposed`, Change detail `proposed`. A usage record is approved
-// at once like a finding.
+// create.rs: for a decision, a draft is a proposal (R-LIFE-1): a decision that is not approved
+// gets status `proposed` instead of `draft`. That is a decision written with `draft: true` (this
+// is how `propose` and `add decision --draft` write), and a decision whose author may not decide
+// (names::may_decide). It has no `approved` and `valid-from` fields, the history lines `created`
+// and `proposed`, and Change detail `proposed`. A usage record is approved at once like a
+// finding.
 
 // tx.rs
 /// Queue writing `bytes` to `path` (any file inside the dossier). `old` is the file as read (None
