@@ -1715,10 +1715,8 @@
 - note (2026-11-21, haiku-t-102): done
 
 ### T-103 · assume: record an assumption
-- status: claimed
+- status: done
 - owner: haiku-t-103
-- claimed: 2026-11-21T00:59+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: What had to be assumed must be visible until someone confirms it.
@@ -1734,8 +1732,12 @@
   6. Run cargo test --test cmd_assume.
 - accept: assume writes an approved assumption with state open.
 - verify: cargo test --test cmd_assume
+- verified: 2026-11-21
+- commit: 8920a5a
 - reqs: R-WRITE-14, R-ENTRY-13
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-103): done
 
 ### T-104 · set: change fields and sections of an entry
 - status: open
