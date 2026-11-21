@@ -848,7 +848,7 @@
 - milestone: T-036
 - why: A suggestion must not become binding by accident (D21, D28, R-WRITE-13).
 - depends: T-157
-- files: src/create.rs
+- files: src/create.rs, tests/cmd_supersede.rs
 - read: docs/design.md, docs/format.md
 - steps:
   1. Implement the create.rs rule of docs/design.md section 7: a decision written with draft true, or whose author is not allowed to decide (names::may_decide(cfg, author)), gets status proposed: no approved and valid-from fields, history lines created and proposed, Change detail proposed. A usage record is approved at once like a finding (also for an LLM without said_by).
@@ -858,6 +858,8 @@
 - verify: cargo test --lib create::
 - reqs: R-WRITE-12, R-WRITE-13, D28
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): forced set (owner was haiku-t-186)
+- note (2026-11-21, planner): tests/cmd_supersede.rs added: add decision --draft now writes status proposed (design.md section 7).
 
 ### T-187 · propose: suggest a decision
 - status: open
@@ -3894,7 +3896,7 @@
 - milestone: T-031
 - why: Every change is saved with who and when, also the creation of a dossier (D29).
 - depends: T-157
-- files: src/cmd/init.rs, tests/cmd_init.rs
+- files: src/cmd/init.rs, tests/cmd_init.rs, tests/common/mod.rs, tests/cmd_found.rs, tests/cmd_log.rs, tests/xos.rs, src/cmd/log.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
   1. After the dossier is created, append one journal line with crate::journal::append: time crate::time::now(), name and person from crate::names::unchecked(g.agent.as_deref()), llm false, command init, id DOSSIER, event created, detail 'code <code>' (D29).
@@ -3906,6 +3908,8 @@
 - verify: cargo test --test cmd_init
 - reqs: D29, R-CODE-5
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): forced set (owner was haiku-t-158)
+- note (2026-11-21, planner): Test files added: the init journal line changes log output and the xos digest; tests/common runs init and people add as anna so the journal is the same on every machine; log shows the detail of records that are not entries.
 
 ### T-159 · people add: journal line
 - status: open
@@ -3914,7 +3918,7 @@
 - milestone: T-031
 - why: Every change is saved with who and when, also settings changes (D29).
 - depends: T-157
-- files: src/cmd/people.rs, tests/cmd_people.rs
+- files: src/cmd/people.rs, tests/cmd_people.rs, tests/cmd_log.rs, tests/xos.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
   1. After config::add_person succeeds (not with --dry-run), append one journal line: time crate::time::now(), name and person from crate::names::unchecked(g.agent.as_deref()), llm false, command people, id SETTINGS, event changed, detail 'person <name>' plus ' with <llm1>, <llm2>' when LLMs were given (D29). The state folder is <dossier>/.state.
@@ -3924,6 +3928,7 @@
 - verify: cargo test --test cmd_people
 - reqs: D29
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): tests/cmd_log.rs and tests/xos.rs added: the people journal lines change log output and the xos digest.
 
 ### T-160 · agents install: journal line
 - status: open
