@@ -519,8 +519,10 @@
 - note (2026-11-21, haiku-t-175): done
 
 ### T-176 · value set, show, approve and reject
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-176
+- claimed: 2026-11-21T11:24+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-032
 - why: One number, one place, one history (R-VALUE-1 to R-VALUE-3).
@@ -625,8 +627,10 @@
 - note (2026-11-21, haiku-t-169): done
 
 ### T-170 · attach: add files of a task, or move one
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-170
+- claimed: 2026-11-21T11:24+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-033
 - why: A reader finds the files of a task without searching (R-FILE-8 to R-FILE-10, R-FILE-13).
@@ -880,7 +884,7 @@
 - milestone: T-036
 - why: R-WRITE-12.
 - depends: T-186, T-185
-- files: src/cmd/propose.rs, tests/cmd_propose.rs
+- files: src/cmd/propose.rs, tests/cmd_propose.rs, src/create.rs
 - read: docs/design.md, docs/format.md
 - steps:
   1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
@@ -892,6 +896,8 @@
 - verify: cargo test --test cmd_propose
 - reqs: R-WRITE-12
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): forced set (owner was haiku-t-187)
+- note (2026-11-21, planner): src/create.rs added: an LLM's draft decision without said_by must be a proposal, not NeedsPerson (R-WRITE-12; design.md section 7 corrected).
 
 ### T-188 · accept: a decider puts a proposal in force
 - status: open
@@ -1232,8 +1238,10 @@
 - note (2026-11-21, haiku-t-178): done
 
 ### T-179 · map: describe the parts of a code project
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-179
+- claimed: 2026-11-21T11:24+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-040
 - why: brief prints the map first in a code project (R-CODE-1).
