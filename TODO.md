@@ -767,10 +767,8 @@
 - note (2026-11-21, planner): split into T-195, T-196
 
 ### T-195 · used: record a run of a software
-- status: claimed
+- status: done
 - owner: haiku-t-195
-- claimed: 2026-11-21T12:19+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-034
 - why: Which software version and parameters produced a result is asked in every review (R-USE-2, R-USE-14).
@@ -787,8 +785,12 @@
   7. Run cargo test --test cmd_used.
 - accept: used records a run in one step: the usage record and the files it read and wrote.
 - verify: cargo test --test cmd_used
+- verified: 2026-11-21
+- commit: e6bd1db
 - reqs: R-USE-2, R-USE-14, R-ENTRY-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-195): done
 
 ### T-196 · runs: the recorded runs, and what differs between two
 - status: open
@@ -1351,8 +1353,10 @@
 - note (2026-11-21, planner): split into T-199, T-200, T-201, T-202, T-203, T-204, T-205, T-206
 
 ### T-199 · show: marks for proposals, declined entries and rests-on
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-199
+- claimed: 2026-11-21T12:33+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-041
 - why: R-WRITE-15: marked in show.
