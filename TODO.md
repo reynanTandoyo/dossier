@@ -2965,8 +2965,8 @@
 - note (2026-11-21, haiku-t153): done
 
 ### T-154 · projects --check: whether each server answers
-- status: open
-- owner: —
+- status: done
+- owner: haiku-t-154
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-150
 - why: R-REMOTE-10 asks projects to show whether the server answers; T-145 left it out.
@@ -2980,8 +2980,12 @@
   5. Run cargo test --test cmd_projects.
 - accept: projects --check shows for each project whether its server answers; plain projects runs no ssh.
 - verify: cargo test --test cmd_projects
+- verified: 2026-11-21
+- commit: 9599cd5
 - reqs: R-REMOTE-10
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, coordinator): added
+- note (2026-11-21, haiku-t-154): done
 
 ## Questions
 
