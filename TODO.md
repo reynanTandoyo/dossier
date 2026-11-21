@@ -1963,10 +1963,8 @@
 - note (2026-11-21, haiku-t-113): done
 
 ### T-114 · search: find entries by words
-- status: claimed
+- status: done
 - owner: haiku-t-114
-- claimed: 2026-11-21T01:06+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: Retrieval by words is how a person finds what the team knew.
@@ -1983,8 +1981,12 @@
   7. Run cargo test --test cmd_search.
 - accept: search finds entries containing all words, title matches first, drafts only on request.
 - verify: cargo test --test cmd_search
+- verified: 2026-11-21
+- commit: deaf6a3
 - reqs: R-READ-3, R-READ-4, R-DRAFT-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-114): done
 
 ### T-115 · history: what happened to an entry or a task
 - status: open
@@ -2134,8 +2136,10 @@
 - note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
 
 ### T-122 · drafts: what is waiting for approval
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-122
+- claimed: 2026-11-21T01:11+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: A person must see in one list what their LLM proposed.
