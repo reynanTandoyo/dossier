@@ -4,7 +4,8 @@ use crate::entry::{Entry, Kind, Status};
 use crate::store::Item;
 use crate::time;
 
-/// The filter options. Without `--status`, `--drafts` and `--all`, only approved entries match.
+/// The filter options. Without `--status`, `--drafts`, `--all` and `--on`, only approved entries
+/// match; `--on` chooses by the dates instead (R-LIFE-9).
 #[derive(clap::Args, Debug, Default, Clone)]
 pub struct Filter {
     #[arg(long)]
@@ -25,6 +26,9 @@ pub struct Filter {
     task: Option<String>,
     #[arg(long)]
     since: Option<String>,
+    /// The day, YYYY-MM-DD: the entries that were in force on it (R-LIFE-9)
+    #[arg(long)]
+    on: Option<String>,
     #[arg(long = "where")]
     conditions: Vec<String>,
     #[arg(long)]
@@ -38,6 +42,7 @@ impl Filter {
     pub fn matches(&self, item: &Item) -> bool {
         let entry = &item.entry;
         self.status_holds(entry)
+            && self.on_holds(entry)
             && self.kind_holds(entry)
             && self.lists_hold(entry)
             && self.fields_hold(entry)
@@ -47,18 +52,20 @@ impl Filter {
                 .all(|condition| condition_holds(entry, condition))
     }
 
-    /// The status rule (R-READ-2, R-DRAFT-6). An explicit `--status` decides the status alone;
-    /// otherwise `--all` lets every status through, `--drafts` adds drafts to the approved ones.
+    /// The status rule (R-READ-2, R-DRAFT-6). An explicit `--status` decides the status alone.
+    /// With `--on` the status rule does not apply: the dates decide. Otherwise `--all` lets every
+    /// status through, and `--drafts` adds drafts and proposals to the approved ones (a proposal
+    /// is a draft, a declined decision a rejected one).
     fn status_holds(&self, entry: &Entry) -> bool {
         if let Some(text) = &self.status {
             return Status::parse(text.trim()).is_some_and(|wanted| entry.status() == Some(wanted));
         }
-        if self.all {
+        if self.all || self.on.is_some() {
             return true;
         }
         match entry.status() {
             Some(Status::Approved) => true,
-            Some(Status::Draft) => self.drafts,
+            Some(Status::Draft | Status::Proposed) => self.drafts,
             _ => false,
         }
     }
@@ -97,6 +104,13 @@ impl Filter {
                 .as_deref()
                 .is_none_or(|value| field_is(entry, "task", value.trim()))
             && since_holds(self.since.as_deref(), entry)
+    }
+
+    /// `--on <date>`: the entry was in force on that day (R-LIFE-9), see `in_force_on`.
+    fn on_holds(&self, entry: &Entry) -> bool {
+        self.on
+            .as_deref()
+            .is_none_or(|text| in_force_on(entry, text.trim()))
     }
 }
 
@@ -138,6 +152,39 @@ fn since_holds(since: Option<&str>, entry: &Entry) -> bool {
 /// Digits and dashes only, as a date is written in format.md §7 (`2026-11-15`).
 fn is_date_text(text: &str) -> bool {
     !text.is_empty() && text.chars().all(|c| c.is_ascii_digit() || c == '-')
+}
+
+/// Whether the entry was in force on the day `text` (`2026-11-15`; a time stamp counts by its
+/// date): its valid-from date is on or before the day, and its valid-until is empty or its date
+/// is after the day. An entry without a valid-from matches nothing; the status does not count.
+fn in_force_on(entry: &Entry, text: &str) -> bool {
+    let day = time::date(text);
+    if !is_whole_date(day) {
+        return false;
+    }
+    let stamp = entry.field("valid-from").unwrap_or_default();
+    let from = time::date(stamp.trim());
+    if !is_whole_date(from) || from > day {
+        return false;
+    }
+    let stamp = entry.field("valid-until").unwrap_or_default();
+    let until = stamp.trim();
+    if until.is_empty() {
+        return true;
+    }
+    let end = time::date(until);
+    is_whole_date(end) && end > day
+}
+
+/// A whole date as format.md §7 writes its day, `2026-11-15`: ten characters, digits, with a dash
+/// at the fifth and the eighth place.
+fn is_whole_date(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    bytes.len() == 10
+        && bytes.iter().enumerate().all(|(index, byte)| match index {
+            4 | 7 => *byte == b'-',
+            _ => byte.is_ascii_digit(),
+        })
 }
 
 #[cfg(test)]
@@ -624,6 +671,8 @@ mod tests {
             "T-042",
             "--since",
             "2026-11-01",
+            "--on",
+            "2026-11-22",
             "--where",
             "state=open",
             "--where",
@@ -642,6 +691,7 @@ mod tests {
         assert_eq!(cli.filter.author.as_deref(), Some("anna"));
         assert_eq!(cli.filter.task.as_deref(), Some("T-042"));
         assert_eq!(cli.filter.since.as_deref(), Some("2026-11-01"));
+        assert_eq!(cli.filter.on.as_deref(), Some("2026-11-22"));
         assert_eq!(cli.filter.conditions, ["state=open", "note=a=b"]);
         assert!(cli.filter.drafts);
         assert!(cli.filter.all);
@@ -658,5 +708,239 @@ mod tests {
         let cli = Cli::try_parse_from(["dossier"]).expect("no options parse");
         let items = sample();
         assert_eq!(ids(&cli.filter, &items), ids(&Filter::default(), &items));
+    }
+
+    /// Entries for the `--on` tests, in ID order, with invented dates. DEC-001 was in force from
+    /// 2026-11-10 until 2026-11-20 (superseded by DEC-002); ASM-001 from 2026-11-01 until
+    /// 2026-11-15 (retired); DEC-002 from 2026-11-20 on. DEC-003 (draft), DEC-004 (proposed),
+    /// LES-001 (rejected) and FND-001 (approved) have no valid-from.
+    fn in_force_sample() -> Vec<Item> {
+        vec![
+            item(
+                Kind::Decision,
+                "DEC-001",
+                &[
+                    ("status", "superseded"),
+                    ("created", "2026-11-10T09:00:00+01:00"),
+                    ("valid-from", "2026-11-10T09:00:00+01:00"),
+                    ("valid-until", "2026-11-20T10:00:00+01:00"),
+                    ("superseded-by", "DEC-002"),
+                    ("task", "T-042"),
+                ],
+            ),
+            item(
+                Kind::Assumption,
+                "ASM-001",
+                &[
+                    ("status", "retired"),
+                    ("created", "2026-11-01T12:00:00+01:00"),
+                    ("valid-from", "2026-11-01T12:00:00+01:00"),
+                    ("valid-until", "2026-11-15T12:00:00+01:00"),
+                    ("state", "open"),
+                ],
+            ),
+            item(
+                Kind::Decision,
+                "DEC-002",
+                &[
+                    ("status", "approved"),
+                    ("created", "2026-11-20T10:00:00+01:00"),
+                    ("valid-from", "2026-11-20T10:00:00+01:00"),
+                    ("task", "T-042"),
+                ],
+            ),
+            item(
+                Kind::Decision,
+                "DEC-003",
+                &[
+                    ("status", "draft"),
+                    ("created", "2026-11-12T09:00:00+01:00"),
+                ],
+            ),
+            item(
+                Kind::Decision,
+                "DEC-004",
+                &[
+                    ("status", "proposed"),
+                    ("created", "2026-11-12T09:00:00+01:00"),
+                ],
+            ),
+            item(
+                Kind::Lesson,
+                "LES-001",
+                &[
+                    ("status", "rejected"),
+                    ("created", "2026-11-12T09:00:00+01:00"),
+                    ("confidence", "guess"),
+                ],
+            ),
+            item(
+                Kind::Finding,
+                "FND-001",
+                &[
+                    ("status", "approved"),
+                    ("created", "2026-11-01T09:00:00+01:00"),
+                ],
+            ),
+        ]
+    }
+
+    #[test]
+    fn on_keeps_the_entries_in_force_on_the_day() {
+        let items = in_force_sample();
+        let on = |text: &str| Filter {
+            on: Some(text.to_string()),
+            ..Default::default()
+        };
+        // Before the first entry began (ASM-001, on the 1st), nothing was in force.
+        assert!(ids(&on("2026-10-31"), &items).is_empty());
+        assert_eq!(ids(&on("2026-11-09"), &items), ["ASM-001"]);
+        // ASM-001 and DEC-001 were in force on the 12th; DEC-002 was not yet.
+        assert_eq!(ids(&on("2026-11-12"), &items), ["DEC-001", "ASM-001"]);
+        // ASM-001 ended on the 15th, so the day it ends is not in force.
+        assert_eq!(ids(&on("2026-11-14"), &items), ["DEC-001", "ASM-001"]);
+        assert_eq!(ids(&on("2026-11-15"), &items), ["DEC-001"]);
+        // DEC-001 ended on the 20th, the day DEC-002 began.
+        assert_eq!(ids(&on("2026-11-20"), &items), ["DEC-002"]);
+        // The entries without a valid-from (DEC-003, DEC-004, LES-001, FND-001) never match.
+        assert_eq!(ids(&on("2026-11-30"), &items), ["DEC-002"]);
+    }
+
+    #[test]
+    fn on_ignores_the_status_rule_but_an_explicit_status_still_applies() {
+        let items = in_force_sample();
+        // The retired and the superseded entries match: the status rule does not apply with --on.
+        let on = Filter {
+            on: Some("2026-11-12".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(ids(&on, &items), ["DEC-001", "ASM-001"]);
+        // An explicit --status still chooses by status.
+        let retired = Filter {
+            on: Some("2026-11-12".to_string()),
+            status: Some("retired".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(ids(&retired, &items), ["ASM-001"]);
+        let approved = Filter {
+            on: Some("2026-11-12".to_string()),
+            status: Some("approved".to_string()),
+            ..Default::default()
+        };
+        assert!(ids(&approved, &items).is_empty());
+    }
+
+    #[test]
+    fn on_keeps_the_other_options_and_counts_a_time_stamp_by_its_date() {
+        let items = in_force_sample();
+        let kind_and_task = Filter {
+            on: Some("2026-11-12".to_string()),
+            kind: Some("decision".to_string()),
+            task: Some("T-042".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(ids(&kind_and_task, &items), ["DEC-001"]);
+        // Its date is 2026-11-19, the day before DEC-001 ended.
+        let stamp = Filter {
+            on: Some("2026-11-19T23:00:00+01:00".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(ids(&stamp, &items), ["DEC-001"]);
+    }
+
+    #[test]
+    fn on_needs_a_whole_date() {
+        let items = in_force_sample();
+        let on = |text: &str| Filter {
+            on: Some(text.to_string()),
+            ..Default::default()
+        };
+        assert!(ids(&on("2026-11"), &items).is_empty());
+        assert!(ids(&on("15.11.2026"), &items).is_empty());
+        assert!(ids(&on(""), &items).is_empty());
+    }
+
+    /// Entries with each status that a proposal or a declined decision can have, in ID order:
+    /// DEC-010 approved, DEC-011 draft, DEC-012 proposed, DEC-013 declined, LES-010 rejected.
+    fn proposal_sample() -> Vec<Item> {
+        vec![
+            item(
+                Kind::Decision,
+                "DEC-010",
+                &[
+                    ("status", "approved"),
+                    ("created", "2026-11-10T09:00:00+01:00"),
+                ],
+            ),
+            item(
+                Kind::Decision,
+                "DEC-011",
+                &[
+                    ("status", "draft"),
+                    ("created", "2026-11-11T09:00:00+01:00"),
+                ],
+            ),
+            item(
+                Kind::Decision,
+                "DEC-012",
+                &[
+                    ("status", "proposed"),
+                    ("created", "2026-11-12T09:00:00+01:00"),
+                ],
+            ),
+            item(
+                Kind::Decision,
+                "DEC-013",
+                &[
+                    ("status", "declined"),
+                    ("created", "2026-11-13T09:00:00+01:00"),
+                ],
+            ),
+            item(
+                Kind::Lesson,
+                "LES-010",
+                &[
+                    ("status", "rejected"),
+                    ("created", "2026-11-14T09:00:00+01:00"),
+                    ("confidence", "guess"),
+                ],
+            ),
+        ]
+    }
+
+    #[test]
+    fn a_proposal_is_shown_only_by_drafts_like_a_draft() {
+        let items = proposal_sample();
+        assert_eq!(ids(&Filter::default(), &items), ["DEC-010"]);
+        let drafts = Filter {
+            drafts: true,
+            ..Default::default()
+        };
+        assert_eq!(ids(&drafts, &items), ["DEC-010", "DEC-011", "DEC-012"]);
+        // An explicit status names the proposed entries.
+        let proposed = Filter {
+            status: Some("proposed".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(ids(&proposed, &items), ["DEC-012"]);
+    }
+
+    #[test]
+    fn a_declined_decision_is_hidden_like_a_rejected_one() {
+        let items = proposal_sample();
+        assert_eq!(ids(&Filter::default(), &items), ["DEC-010"]);
+        let all = Filter {
+            all: true,
+            ..Default::default()
+        };
+        assert_eq!(
+            ids(&all, &items),
+            ["DEC-010", "DEC-011", "DEC-012", "DEC-013", "LES-010"]
+        );
+        let declined = Filter {
+            status: Some("declined".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(ids(&declined, &items), ["DEC-013"]);
     }
 }

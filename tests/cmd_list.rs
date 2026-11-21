@@ -205,3 +205,64 @@ fn a_mark_shows_a_status_other_than_approved_and_a_changed_approved_lesson() {
         "ASM-001  assumption  [retired] Old guess\nDEC-001  decision  [rejected] Old choice\nLES-001  lesson  [changed after approval] Mixing plane margin\nFND-002  finding  [superseded by DEC-001] Old reading\n4 entries\n"
     );
 }
+
+#[test]
+fn on_lists_the_decision_in_force_on_a_day_so_a_superseded_one_shows_only_before_it() {
+    let project = Project::new();
+    project
+        .run_at(
+            "anna",
+            "2026-11-20T10:00:00+01:00",
+            &[
+                "decide",
+                "Invented first choice of the rig speed.",
+                "--reason",
+                "An invented reason for the first choice.",
+                "--title",
+                "First choice",
+            ],
+        )
+        .success();
+    project
+        .run_at(
+            "anna",
+            "2026-11-25T10:00:00+01:00",
+            &[
+                "decide",
+                "Invented second choice of the rig speed.",
+                "--reason",
+                "An invented reason for the second choice.",
+                "--title",
+                "Second choice",
+            ],
+        )
+        .success();
+    project
+        .run_at(
+            "anna",
+            "2026-11-25T10:00:00+01:00",
+            &["supersede", "DEC-001", "--by", "DEC-002"],
+        )
+        .success();
+
+    // Nothing was in force before the first decision.
+    assert_eq!(
+        project.stdout("anna", &["list", "--on", "2026-11-19"]),
+        "0 entries\n"
+    );
+    // On the 22nd the first decision was in force and the second was not yet.
+    assert_eq!(
+        project.stdout("anna", &["list", "--on", "2026-11-22"]),
+        "DEC-001  decision  [superseded by DEC-002] First choice\n1 entry\n"
+    );
+    // From the 25th on, the second decision is in force and the first one is not.
+    assert_eq!(
+        project.stdout("anna", &["list", "--on", "2026-11-26"]),
+        "DEC-002  decision  Second choice\n1 entry\n"
+    );
+    // Without --on the list shows only what is approved now.
+    assert_eq!(
+        project.stdout("anna", &["list"]),
+        "DEC-002  decision  Second choice\n1 entry\n"
+    );
+}
