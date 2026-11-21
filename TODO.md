@@ -484,113 +484,907 @@
 ### T-032 · Key values: one sheet of named numbers with units
 - status: open
 - owner: —
-- priority: P1 · difficulty: 5 · type: feature
+- priority: P1 · type: milestone
 - milestone: T-031
+- goal: value set, value show and values work as in R-VALUE-1 to R-VALUE-6; brief and status print the key values.
 - why: One number written in five places is soon five numbers, and an LLM cannot tell which is current.
 - depends: T-030
 - accept: value set, value show and values work as in R-VALUE-1 to R-VALUE-6; brief and status print the key values.
 - reqs: R-VALUE-1 to R-VALUE-6, D23
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): split into T-175, T-176, T-177
+
+### T-175 · values.rs: the key values file
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-032
+- why: The key numbers live in one sheet (R-VALUE-1 to R-VALUE-4).
+- depends: T-161
+- files: src/values.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement every function of docs/design.md section 8 values.rs with the format of format.md section 17 (values.md).
+  2. valid_name: starts with a lower-case letter; then lower-case letters, digits, '.', '_' and '-'.
+  3. on(file, name, date): the newest history line of the block whose event is 'set' and whose time's date (first 10 characters) is on or before the date; return the text after ' — '.
+  4. Tests: the values.md example of format.md parses; get and all; split('12.4 kg/s', false) and split('air, ideal gas', true) and split('12.4', false) fails; on() before, between and after the two set lines.
+  5. Run cargo test --lib values::.
+- accept: values.md is read, and the value in force on a date is known.
+- verify: cargo test --lib values::
+- reqs: R-VALUE-1, R-VALUE-3, R-VALUE-4, R-LIFE-9
+- note (2026-11-21, planner): added
+
+### T-176 · value set, show, approve and reject
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-032
+- why: One number, one place, one history (R-VALUE-1 to R-VALUE-3).
+- depends: T-175, T-162, T-169
+- files: src/cmd/value.rs, tests/cmd_value.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: a subcommand Set { name, value, --dimensionless, --source, --note, --key, --said-by }, Show { name }, Approve { name }, Reject { name }.
+  3. Set: refuse an invalid name (BadValue); split the value with values::split. It comes into force at once when the writer is a person, when an LLM gives --said-by naming a person, or when --source is a stored path attached to some task (filelist::tasks and their keys); otherwise it is proposed (R-VALUE-2).
+  4. In force: a new block gets value, unit (or dimensionless: yes), source, note, key: yes when --key, valid-from <time>, and history 'set — <value>[ <unit>]'; an existing block gets those fields set and the same history line; a pending proposed field is removed. Proposed: set the field proposed '<value>[ <unit>] by <who.name> at <time>' and history 'proposed — <value>[ <unit>]'; the value in force stays.
+  5. After setting a value that changed, add warnings (R-VALUE-3): 'used by <ID>' for each usage record whose Parameters section contains '{<name>}', and 'named in <ID>' for each entry whose text contains the name.
+  6. Write with tx.put_raw(<dossier>/values.md, old, text, Change{id: values::ITEM, event: 'set' or 'proposed', detail: '<name>: <value>[ <unit>]'}).
+  7. Show: the fields and the history lines of the block, or Code::NotFound. Approve (a person at a terminal): the proposed value comes into force as above. Reject (a person): remove proposed, history 'rejected — <proposed value>'.
+  8. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: anna sets design.massflow '12.4 kg/s' and the file matches format.md; anna-claude's change is proposed and the old value stays; approve with DOSSIER_ANSWERS brings it in force; a value without unit fails; --dimensionless works.
+  9. Run cargo test --test cmd_value.
+- accept: Key values are set, shown, proposed and approved with who and when, and their history is kept.
+- verify: cargo test --test cmd_value
+- reqs: R-VALUE-1, R-VALUE-2, R-VALUE-3
+- note (2026-11-21, planner): added
+
+### T-177 · values: the values in force
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-032
+- why: An LLM takes numbers from values, never from memory (R-VALUE-4, R-LIFE-9).
+- depends: T-176
+- files: src/cmd/values.rs, tests/cmd_values.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: prefix: Option<String>, --on <date>. Print one line per value whose name starts with the prefix: '<name>  <value>[ <unit>]  (<source>, <valid-from date>)', key values first, then by name; a pending proposal adds '  [proposed: <text>]'. With --on use values::on and leave out values that did not exist then.
+  3. End with '<n> values' ('1 value'). JSON: list of {name, value, unit, source, valid_from, key, proposed}.
+  4. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: two values, a prefix narrows; --on before the change shows the old value.
+  5. Run cargo test --test cmd_values.
+- accept: values lists the values in force, also on a past date.
+- verify: cargo test --test cmd_values
+- reqs: R-VALUE-4, R-LIFE-9
+- note (2026-11-21, planner): added
 
 ### T-033 · Files of a task: attach, detach, reattach, files, which
 - status: open
 - owner: —
-- priority: P1 · difficulty: 5 · type: feature
+- priority: P1 · type: milestone
 - milestone: T-031
+- goal: The file list of each task by role with made-from links works as in R-FILE-8 to R-FILE-16.
 - why: A reader must find the simulation file, geometry and results of a task without searching the disk, and see which results are outdated.
 - depends: T-030
 - accept: The file list of each task by role with made-from links works as in R-FILE-8 to R-FILE-16.
 - reqs: R-FILE-8 to R-FILE-16, D18
 - note (2026-11-20, planner): added
 - note (2026-11-20, planner): Also covers R-XOS-5: warn about file names that cannot exist on Windows or differ only in case.
+- note (2026-11-21, planner): split into T-168, T-169, T-170, T-171, T-172, T-173, T-174
+
+### T-168 · filesum.rs: checksums, size and time of files outside the dossier
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-033
+- why: Every attached file is recorded with size, time and checksum (R-FILE-8, R-FILE-6).
+- depends: T-157
+- files: src/filesum.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement checksum, stamp and count_files as docs/design.md section 8 and format.md section 18 say. Read files in chunks of 1 MiB with sha2::Sha256 (never the whole file at once). Above SHORT_ABOVE hash the first 16 MiB, the last 16 MiB and the size as 8 bytes little-endian, and prefix 'short-sha256:'.
+  2. stamp: size from metadata; modified as local time in the format of format.md section 7 (chrono::DateTime<chrono::Local> from the SystemTime, formatted %Y-%m-%dT%H:%M:%S%:z).
+  3. Errors are Code::Io naming the path.
+  4. Tests with tempfile: the checksum of a file holding 'abc' is sha256:ba7816bf...; stamp gives the size; count_files counts files in a nested folder. Test the short method by a private helper taking the limit as a parameter, called with a small limit.
+  5. Run cargo test --lib filesum::.
+- accept: Files get full or short checksums, size and time, without reading big files into memory.
+- verify: cargo test --lib filesum::
+- reqs: R-FILE-6, R-FILE-8
+- note (2026-11-21, planner): added
+
+### T-169 · filelist.rs: the file list of a task
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-033
+- why: The files of a task are found without searching the disk, and outdated results are seen (R-FILE-8 to R-FILE-11).
+- depends: T-161, T-168
+- files: src/filelist.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement every function of docs/design.md section 8 filelist.rs with the format of format.md section 17 (files/<task>.md). load parses with BlockFile::parse; a missing file is BlockFile::empty("Files of <TASK>") and None.
+  2. describe(root, stored): for a file the fields type file, size, modified, checksum (filesum); for a folder type folder, files (count), modified. A missing path is Code::NotFound '<stored> does not exist'.
+  3. marks(root, file, key): 'detached' when the field detached is set; else 'missing' when the path is gone; 'changed since attached' when the size or checksum differs from now (compare size first and only hash when the size is equal); 'outdated' when any made-from entry 'path@checksum' differs from filesum::checksum of that path now (or the path is gone); 'rests on a wrong assumption' when rests-on is not empty.
+  4. Tests with tempfile: describe a file and a folder; a block for a changed file is marked changed; a made-from file that changed makes outdated; tasks() lists files/T-001.md and files/T-002.md sorted.
+  5. Run cargo test --lib filelist::.
+- accept: File lists load, describe files and mark missing, changed and outdated ones.
+- verify: cargo test --lib filelist::
+- reqs: R-FILE-8 to R-FILE-12
+- note (2026-11-21, planner): added
+
+### T-170 · attach: add files of a task, or move one
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-033
+- why: A reader finds the files of a task without searching (R-FILE-8 to R-FILE-10, R-FILE-13).
+- depends: T-169, T-162
+- files: src/cmd/attach.rs, tests/cmd_attach.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: task: String, paths: Vec<String>, --role <role>, --note <text>, --from <path> (repeatable), --moved (flag: then paths are exactly <old> <new>).
+  3. Each path is stored with crate::paths::stored(root, cwd, path) (outside the project: refused). The role must pass filelist::valid_role (else Code::BadValue listing the roles). Warn (Output::warn) when a file name is not paths::windows_safe or two paths in the list differ only in case (R-XOS-5).
+  4. Inside tx::write: load the list; for a new path add_block with role, note, the describe fields, made-from ('<from stored>@<checksum>' joined with ', ') and history 'attached'; a detached path is attached again (remove detached, refresh the fields, history 'attached'); an attached one is refused with Code::Exists 'already attached; use dossier reattach'. --moved: the old block gets detached '<time> by <name>' and history 'moved — to <new>'; a new block for the new path copies role, note and made-from, adds moved-from and the describe fields, history 'moved — from <old>'. Write with tx.put_raw(filelist::path, old bytes, text, Change{id: filelist::item(task), event: 'attached', detail: '<path>'}).
+  5. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: attach two files with --role model and result --from the model; the list file has both blocks with checksums; a second attach is refused; --moved keeps the history; a path outside the project fails.
+  6. Run cargo test --test cmd_attach.
+- accept: attach records files with role, note, size, time, checksum and what they were made from; --moved keeps the history.
+- verify: cargo test --test cmd_attach
+- reqs: R-FILE-8, R-FILE-9, R-FILE-10, R-FILE-13, R-XOS-5
+- note (2026-11-21, planner): added
+
+### T-171 · detach: a file no longer belongs to a task
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-033
+- why: File lists change only through the tool and keep what was true on a date (R-FILE-13, R-LIFE-9).
+- depends: T-170
+- files: src/cmd/detach.rs, tests/cmd_detach.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: task: String, path: String. Inside tx::write: the block must exist and not be detached (else Code::NotFound); set detached '<time> by <who.name>' and history 'detached'; put_raw with Change{id: filelist::item(task), event 'detached', detail path}.
+  3. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: after attach and detach the block has detached and keeps its history; detaching again fails.
+  4. Run cargo test --test cmd_detach.
+- accept: detach marks a file as no longer part of the task and keeps its history.
+- verify: cargo test --test cmd_detach
+- reqs: R-FILE-13
+- note (2026-11-21, planner): added
+
+### T-172 · reattach: record a file's new size, time and checksum
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-033
+- why: After an intended change the list must say the file is current again (R-FILE-13).
+- depends: T-170
+- files: src/cmd/reattach.rs, tests/cmd_reattach.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: task: String, path: String. Inside tx::write: the block must exist and not be detached; set the describe fields again; history 'reattached' with detail 'size <old> to <new>' when the size changed, else 'checksum changed' or 'unchanged'; put_raw.
+  3. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: change the file, files shows it changed, reattach, the mark is gone.
+  4. Run cargo test --test cmd_reattach.
+- accept: reattach records an intended change of a file.
+- verify: cargo test --test cmd_reattach
+- reqs: R-FILE-13
+- note (2026-11-21, planner): added
+
+### T-173 · files: the file lists, grouped by role, with marks
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-033
+- why: Readers see which files belong to a task and which results are outdated (R-FILE-11).
+- depends: T-170
+- files: src/cmd/files.rs, tests/cmd_files.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: --task <task>, --role <role>, words: Vec<String>, --on <date>, --all (also detached).
+  3. With --task: that list, grouped by role in the order of filelist::ROLES then other roles, each line '<path>  <note>  <modified date>  [<marks>]'. Without --task: every list (filelist::tasks), each line prefixed with the task; --role and words (all words in path or note, case ignored) narrow it.
+  4. Detached files are left out unless --all. --on <date>: a block counts when its first history line is on or before the date and it was not detached on or before it; marks are left out with --on.
+  5. JSON: list of {task, path, role, note, modified, marks}.
+  6. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: two tasks with files; --task shows one; --role result finds the result; a changed file is marked; --on before the attach shows nothing.
+  7. Run cargo test --test cmd_files.
+- accept: files shows the files of a task or of the project with their marks, also as they were on a date.
+- verify: cargo test --test cmd_files
+- reqs: R-FILE-11, R-LIFE-9
+- note (2026-11-21, planner): added
+
+### T-174 · which: what a file belongs to
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-033
+- why: The opposite question of files (R-FILE-15).
+- depends: T-170
+- files: src/cmd/which.rs, tests/cmd_which.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: path: String (stored with paths::stored). Print: each task whose list has it, with role and marks; 'made from: <paths>' from its made-from; 'made into: <task> <path>' for every block whose made-from names it; 'entries: <ID> <title>' for entries whose code field has a pointer whose path part equals it (R-CODE-2).
+  3. Print 'not attached to any task' when nothing is found (exit 0). JSON with the same parts.
+  4. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: a result made from a model: which on the model shows 'made into' the result, which on the result shows 'made from'.
+  5. Run cargo test --test cmd_which.
+- accept: which answers which tasks a file belongs to, what it was made from and what was made from it.
+- verify: cargo test --test cmd_which
+- reqs: R-FILE-15, R-CODE-2
+- note (2026-11-21, planner): added
 
 ### T-034 · Software use and simulation runs: used, ran, runs
 - status: open
 - owner: —
-- priority: P1 · difficulty: 5 · type: feature
+- priority: P1 · type: milestone
 - milestone: T-031
+- goal: used, ran, runs and runs --compare work as in R-USE-2, R-USE-14 and R-USE-15, with software names kept in the project.
 - why: Which software version and which parameters produced a result is asked in every review.
 - depends: T-033
 - accept: used, ran, runs and runs --compare work as in R-USE-2, R-USE-14 and R-USE-15, with software names kept in the project.
 - reqs: R-USE-2, R-USE-14, R-USE-15, R-ENTRY-9
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): split into T-195, T-196
+
+### T-195 · used: record a run of a software
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-034
+- why: Which software version and parameters produced a result is asked in every review (R-USE-2, R-USE-14).
+- depends: T-186, T-169, T-162
+- files: src/cmd/used.rs, tests/cmd_used.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: software (positional), --version (required), --task (required), --model <path>, --param name=value (repeatable), --output <path> (repeatable), --howto <ID>, --deviations, --note, --title (default '<software> <version> run for <task>').
+  3. Inside one tx::write: create a usage entry (format.md section 15) with create::create: fields software, version, task (upper case), howto, model (stored path) and model-checksum (filesum::checksum); sections Parameters ('name = value' per line), Outputs (stored path per line), Deviations, Notes.
+  4. Attach in the same transaction to the task's file list: the model with role model when it is not attached yet; each output with role result and made-from '<model>@<checksum>' (a new block with the describe fields and history 'attached', or for an attached output the describe fields and made-from refreshed with history 'reattached').
+  5. Message '<USE-ID>: run recorded'. JSON {id}.
+  6. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: used ExampleSolver --version 2406 --task T-001 --model m.sim --param p=1 --output out.csv writes USE-001 with the checksum and attaches both files with made-from.
+  7. Run cargo test --test cmd_used.
+- accept: used records a run in one step: the usage record and the files it read and wrote.
+- verify: cargo test --test cmd_used
+- reqs: R-USE-2, R-USE-14, R-ENTRY-9
+- note (2026-11-21, planner): added
+
+### T-196 · runs: the recorded runs, and what differs between two
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-034
+- why: R-USE-15.
+- depends: T-195
+- files: src/cmd/runs.rs, tests/cmd_runs.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: --task, --model, --software, --compare <ID> <ID> (num_args = 2).
+  3. List approved usage entries, newest created first: '<date>  <author>  <ID>  <software> <version>  <model>', then '  changed: <name> <old> -> <new>' for each parameter that differs from the previous run (in time) with the same model, and '  outputs: <paths>'. Filters compare ignoring case.
+  4. --compare: print each field and each parameter that differs between the two runs as '<name>: <a> | <b>'.
+  5. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: two runs of the same model with a changed parameter show the change; --compare lists it.
+  6. Run cargo test --test cmd_runs.
+- accept: runs lists the runs and what changed between them.
+- verify: cargo test --test cmd_runs
+- reqs: R-USE-15
+- note (2026-11-21, planner): added
 
 ### T-035 · Pictures in entries
 - status: open
 - owner: —
-- priority: P1 · difficulty: 5 · type: feature
+- priority: P1 · type: milestone
 - milestone: T-031
+- goal: --image, image add and image remove copy small pictures into the dossier and show them as in R-ENTRY-16 and R-ENTRY-17.
 - why: Engineering evidence is mostly plots, and a lesson whose plot was deleted has lost its evidence.
 - depends: T-030
 - accept: --image, image add and image remove copy small pictures into the dossier and show them as in R-ENTRY-16 and R-ENTRY-17.
 - reqs: R-ENTRY-16, R-ENTRY-17, D26
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): split into T-197, T-198
+
+### T-197 · picture.rs: picture type, name and line
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-035
+- why: R-ENTRY-16.
+- depends: T-157
+- files: src/picture.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement extension, file_name and line as docs/design.md section 8 and format.md section 16 say. PNG starts with the bytes 89 50 4E 47 0D 0A 1A 0A; JPEG with FF D8 FF; SVG is UTF-8 text whose first non-blank part starts with '<?xml' or '<svg' and contains '<svg'.
+  2. file_name: paths::slug of the name without extension, '.' and ext; when it exists in folder, '-2', '-3', ... before the extension.
+  3. Tests: the three types and a text file; file_name with an existing file; line output.
+  4. Run cargo test --lib picture::.
+- accept: Pictures are recognised by content and get safe names.
+- verify: cargo test --lib picture::
+- reqs: R-ENTRY-16
+- note (2026-11-21, planner): added
+
+### T-198 · image add and image remove
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-035
+- why: A lesson whose plot was deleted has lost its evidence (D26, R-ENTRY-16, R-ENTRY-17).
+- depends: T-197, T-162
+- files: src/cmd/image.rs, tests/cmd_image.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: a subcommand Add { id, file, --caption (required, one line, not blank) } and Remove { id, file }.
+  3. Add: read the file; refuse a size above picture::MAX_BYTES, an unknown type and an 11th picture (count the lines of the Pictures section) with Code::BadValue. Inside tx::write: name = picture::file_name(<dossier>/images/<ID>, original name, ext); tx.put_raw(that path, None, bytes, Change{id: <ID>, event 'picture', detail 'added <name>'}); add the line picture::line to the Pictures section (set_section with the old body plus the line); history 'picture' 'added <name>'; tx.put the entry. The approved-lesson rule of src/cmd/set.rs applies.
+  4. Remove: the line must exist; remove it (an empty section is removed), delete the file with tx.delete_raw, history 'picture' 'removed <name>'.
+  5. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: a small PNG written by the test (the 8 signature bytes plus some bytes) is added with a caption; show prints the line; remove deletes the file; a text file is refused.
+  6. Run cargo test --test cmd_image.
+- accept: Pictures are copied into the dossier and shown by any Markdown viewer; who added them and when is recorded.
+- verify: cargo test --test cmd_image
+- reqs: R-ENTRY-16, R-ENTRY-17
+- note (2026-11-21, planner): added
 
 ### T-036 · Proposed decisions: propose, accept, decline, and the deciders
 - status: open
 - owner: —
-- priority: P1 · difficulty: 5 · type: feature
+- priority: P1 · type: milestone
 - milestone: T-031
+- goal: propose, accept and decline work as in R-WRITE-12, and decide follows R-WRITE-13.
 - why: Three people and three LLMs must be able to suggest a direction without it becoming binding by accident.
 - depends: T-030
 - accept: propose, accept and decline work as in R-WRITE-12, and decide follows R-WRITE-13.
 - reqs: R-WRITE-12, R-WRITE-13, D21
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): split into T-186, T-187, T-188, T-189, T-190
+
+### T-186 · create.rs: proposals for decisions, usage records approved at once
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-036
+- why: A suggestion must not become binding by accident (D21, D28, R-WRITE-13).
+- depends: T-157
+- files: src/create.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement the create.rs rule of docs/design.md section 7: a decision written with draft true, or whose author is not allowed to decide (names::may_decide(cfg, author)), gets status proposed: no approved and valid-from fields, history lines created and proposed, Change detail proposed. A usage record is approved at once like a finding (also for an LLM without said_by).
+  2. Tests in its test module: with deciders = ["anna"], ben's decision is proposed and anna's approved; a decision with draft true is proposed; with no deciders everyone decides; anna-claude's usage record is approved.
+  3. Run cargo test --lib create::.
+- accept: Decisions by people who may not decide, and draft decisions, become proposals; usage records are approved at once.
+- verify: cargo test --lib create::
+- reqs: R-WRITE-12, R-WRITE-13, D28
+- note (2026-11-21, planner): added
+
+### T-187 · propose: suggest a decision
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-036
+- why: R-WRITE-12.
+- depends: T-186, T-185
+- files: src/cmd/propose.rs, tests/cmd_propose.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Copy the argument handling of src/cmd/decide.rs without --said-by, --replaces and --besides: decision (positional), --reason (required), --rejected, --title, --task and the tag options. Create with create::create and New { draft: true, said_by: None, .. }; the result is a proposal.
+  3. Message '<ID>: proposed; a decider accepts it with: dossier accept <ID>'. JSON {id, status}.
+  4. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: anna-claude proposes without --said-by and the file has status proposed and no approved line; list does not show it, list --drafts does.
+  5. Run cargo test --test cmd_propose.
+- accept: Anyone, also an LLM, can suggest a decision; it is not in force until accepted.
+- verify: cargo test --test cmd_propose
+- reqs: R-WRITE-12
+- note (2026-11-21, planner): added
+
+### T-188 · accept: a decider puts a proposal in force
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-036
+- why: R-WRITE-12, D28.
+- depends: T-187
+- files: src/cmd/accept.rs, tests/cmd_accept.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Rules: a person, at a terminal, and names::may_decide(cfg, person) (else Code::Refused '<person> is not in deciders'). The entry must have status proposed (else Code::Refused).
+  3. Ask with term::ask '<ID>: accept? (yes/no) ' after showing the entry text on standard error (as approve does); any answer but yes: 'nothing changed'. Then: status approved, approved '<time> by <person>', valid-from <time>, history 'accepted'; queue with tx.put.
+  4. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: with deciders = ["anna"] written into dossier.toml, ben's decision is a proposal; anna accepts it with DOSSIER_ANSWERS=yes; ben is refused; anna-claude is refused.
+  5. Run cargo test --test cmd_accept.
+- accept: Only a decider at a terminal accepts a proposal, with who and when.
+- verify: cargo test --test cmd_accept
+- reqs: R-WRITE-12, D28
+- note (2026-11-21, planner): added
+
+### T-189 · decline: a decider turns a proposal down
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-036
+- why: R-WRITE-12.
+- depends: T-187
+- files: src/cmd/decline.rs, tests/cmd_decline.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Rules as accept: a person, at a terminal, a decider; status must be proposed. --reason is required. Status declined, declined-reason, history 'declined' with the reason; tx.put.
+  3. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: a proposal is declined with its reason; list does not show it, list --status declined does.
+  4. Run cargo test --test cmd_decline.
+- accept: A decider declines a proposal with a reason; it is kept, hidden.
+- verify: cargo test --test cmd_decline
+- reqs: R-WRITE-12
+- note (2026-11-21, planner): added
+
+### T-190 · decide: say when a decision became a proposal
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-036
+- why: R-WRITE-13: the command says so.
+- depends: T-186
+- files: src/cmd/decide.rs, tests/cmd_decide.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. When the created entry has status proposed, the message is '<ID>: proposed (<author> is not in deciders; a decider accepts it with: dossier accept <ID>)' and the JSON status is proposed. Nothing else changes.
+  2. Test in tests/cmd_decide.rs: with deciders = ["anna"] in dossier.toml, ben's decide prints that message and the file has status proposed.
+  3. Run cargo test --test cmd_decide and cargo test --test cmd_decide_related.
+- accept: decide tells the writer when the decision is only a proposal.
+- verify: cargo test --test cmd_decide
+- reqs: R-WRITE-13
+- note (2026-11-21, planner): added
 
 ### T-037 · Assumptions confirmed and refuted, and what rests on them
 - status: open
 - owner: —
-- priority: P1 · difficulty: 5 · type: feature
+- priority: P1 · type: milestone
 - milestone: T-031
+- goal: confirm, refute and cleared work as in R-WRITE-15, with marks shown in show, files, status and brief.
 - why: Results built on a wrong assumption must be found again.
 - depends: T-033
 - accept: confirm, refute and cleared work as in R-WRITE-15, with marks shown in show, files, status and brief.
 - reqs: R-WRITE-15
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): split into T-191, T-192, T-193, T-194
+
+### T-191 · affects.rs: the items an assumption affects
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-037
+- why: refute must find what rests on a wrong assumption (R-WRITE-15).
+- depends: T-157
+- files: src/affects.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement parse as docs/design.md section 8 and format.md section 14 say: split at commas and line breaks, trim, drop empty items. An item matching T-<digits> (any case) is Task (upper-cased); one for which Kind::of_id is Some and that is a prefix, '-' and digits is Entry (upper-cased); one equal to a name in values is Value; one equal to a stored path in paths (after turning backslashes into '/') is Path; anything else Text.
+  2. Tests: 'T-042, FND-004\ndesign.massflow, sim/a.sim, the inlet' gives the five kinds.
+  3. Run cargo test --lib affects::.
+- accept: The Affects section is turned into tasks, entries, values, paths and text.
+- verify: cargo test --lib affects::
+- reqs: R-WRITE-15
+- note (2026-11-21, planner): added
+
+### T-192 · confirm: an assumption turned out true
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-037
+- why: R-WRITE-15.
+- depends: T-157
+- files: src/cmd/confirm.rs, tests/cmd_confirm.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Rules: a person. The entry must be an approved assumption with state open (else Code::Refused). --by <who and how> is required.
+  3. state confirmed, confirmed '<time> by <person>', section Confirmation = the --by text, history 'confirmed' with the --by text; tx.put.
+  4. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: an open assumption is confirmed; confirming again is refused; anna-claude is refused.
+  5. Run cargo test --test cmd_confirm.
+- accept: A person confirms an assumption with who, when and how.
+- verify: cargo test --test cmd_confirm
+- reqs: R-WRITE-15
+- note (2026-11-21, planner): added
+
+### T-193 · refute: an assumption was wrong; mark what rests on it
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-037
+- why: Results built on a wrong assumption must be found again (R-WRITE-15).
+- depends: T-191, T-175, T-169, T-162
+- files: src/cmd/refute.rs, tests/cmd_refute.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Rules: a person at a terminal; an approved assumption with state open or confirmed; --by required.
+  3. Inside one tx::write: the assumption gets state wrong, refuted '<time> by <person>', valid-until <time>, section Confirmation = --by, history 'refuted'. Then parse its Affects with affects::parse, giving the value names (values::load + all) and every attached stored path (filelist::tasks and their block keys).
+  4. Mark with rests-on (add the assumption ID to the comma list, history 'changed' detail 'rests on <ASM>'): for Task items every approved entry whose task field is that task and every non-detached block of that task's file list; for Entry items that entry; for Path items every block with that key in any list and every block whose made-from names it. Entries via tx.put, file lists via tx.put_raw (one put per list file).
+  5. Print the assumption line, then one line per marked entry and file, then 'values named: <name>' for Value items with the usage records whose Parameters contain '{<name>}', then 'not recognised: <text>' for Text items. JSON with the same lists.
+  6. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: an assumption affecting T-042 and a file; entries of T-042 and the file get rests-on; refute twice is refused; without a terminal it is refused.
+  7. Run cargo test --test cmd_refute.
+- accept: refute closes a wrong assumption and marks every entry and file that rests on it.
+- verify: cargo test --test cmd_refute
+- reqs: R-WRITE-15
+- note (2026-11-21, planner): added
+
+### T-194 · cleared: a person clears a rests-on mark
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-037
+- why: R-WRITE-15.
+- depends: T-193
+- files: src/cmd/cleared.rs, tests/cmd_cleared.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: target (an entry ID or a path), --assumption <ID> (required), --note <text> (required). Rules: a person.
+  3. An entry ID (Kind::of_id is Some): remove the assumption ID from its rests-on list (set_field with the rest; empty removes the line), history 'cleared' with detail '<ASM>: <note>'; tx.put. A path: in every file list whose block for that path has the ID in rests-on, the same on the block; tx.put_raw. Nothing found: Code::NotFound.
+  4. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: after refute, cleared on an entry and on a file removes the mark and adds the history line.
+  5. Run cargo test --test cmd_cleared.
+- accept: A person clears a mark with a note; the history keeps it.
+- verify: cargo test --test cmd_cleared
+- reqs: R-WRITE-15
+- note (2026-11-21, planner): added
 
 ### T-038 · What was in force on a date: --on
 - status: open
 - owner: —
-- priority: P2 · difficulty: 5 · type: feature
+- priority: P2 · type: milestone
 - milestone: T-031
+- goal: --on <date> works on the commands named in R-LIFE-9.
 - why: What did we know and decide on the day the report went out must have an answer.
 - depends: T-033
 - accept: --on <date> works on the commands named in R-LIFE-9.
 - reqs: R-LIFE-9
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): split into T-185
+
+### T-185 · filter.rs: --on <date> and proposals
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-038
+- why: What did we know and decide on the day the report went out (R-LIFE-9).
+- depends: T-157
+- files: src/filter.rs, tests/cmd_list.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add the option --on <date> (YYYY-MM-DD) to Filter and implement it as docs/design.md section 7 says: valid-from date on or before the date, valid-until empty or its date after the date; the status rule is not applied with --on.
+  2. Without --status, --drafts and --all: proposed is treated like draft (only with --drafts), declined like rejected.
+  3. Unit tests in filter.rs for --on and the proposal rule; one test in tests/cmd_list.rs: a decision superseded on a later date is listed with --on before that date and not after it (use run_at for the times).
+  4. Run cargo test --lib filter:: and cargo test --test cmd_list.
+- accept: list and search show what was in force on a date; proposals are hidden like drafts.
+- verify: cargo test --lib filter::
+- reqs: R-LIFE-9, R-WRITE-12
+- note (2026-11-21, planner): added
 
 ### T-039 · Exchange with the customer: received, delivered, exchange
 - status: open
 - owner: —
-- priority: P1 · difficulty: 5 · type: feature
+- priority: P1 · type: milestone
 - milestone: T-031
+- goal: received, delivered and exchange work as in R-EXCH-1 to R-EXCH-5, including the warning before delivering outdated results.
 - why: What was received and delivered, when and in which version, is the first thing asked in a dispute.
 - depends: T-033
 - accept: received, delivered and exchange work as in R-EXCH-1 to R-EXCH-5, including the warning before delivering outdated results.
 - reqs: R-EXCH-1 to R-EXCH-5
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): split into T-180, T-181, T-182, T-183, T-184
+
+### T-180 · exchange.rs: the exchange file
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-039
+- why: What came from and went to the customer is recorded in one file (R-EXCH-3).
+- depends: T-161
+- files: src/exchange.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement load and highest as docs/design.md section 8 says, with the format of format.md section 17 (exchange.md). highest: the largest number among keys '<prefix>-<digits>'.
+  2. Tests: an example with RCV-001, RCV-002 and DLV-001 gives highest RCV 2 and DLV 1; a missing file is empty.
+  3. Run cargo test --lib exchange::.
+- accept: exchange.md is read and its record numbers are known.
+- verify: cargo test --lib exchange::
+- reqs: R-EXCH-3
+- note (2026-11-21, planner): added
+
+### T-181 · ids.rs: next_prefix for record numbers
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-039
+- why: Records must be citable by a number that never changes (R-ID-1, R-ID-3).
+- depends: T-157
+- files: src/ids.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement next_prefix as docs/design.md section 7 says: read ids.json as next() does (a broken file is Code::Parse), the number is 1 + max(ids.json value for the prefix, on_disk), write ids.json, return '<PREFIX>-<number with at least three digits>'.
+  2. Tests: the first RCV is RCV-001; with on_disk 4 it is RCV-005; RCV and DLV count separately and do not disturb DEC.
+  3. Run cargo test --lib ids::.
+- accept: Exchange records get numbers that are never reused.
+- verify: cargo test --lib ids::
+- reqs: R-ID-1, R-ID-3
+- note (2026-11-21, planner): added
+
+### T-182 · received: record what came from the customer
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-039
+- why: What was received, when and in which version, is the first thing asked in a dispute (R-EXCH-1).
+- depends: T-180, T-181, T-169, T-162
+- files: src/cmd/received.rs, tests/cmd_received.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: paths: Vec<String> (at least one), --from <who> (required), --date <YYYY-MM-DD> (default the date of time::now()), --task <task>, --role <description or reference, default reference>, --note.
+  3. Inside tx::write: the key is ids::next_prefix(state, "RCV", exchange::highest(file, "RCV")); add_block with date, from, files ('<stored>@<checksum>' joined with ', '), note, history 'received'; put_raw with Change{id: exchange::ITEM, event 'received', detail key}. With --task also attach each file to that task's list as the attach command does (new block with role, describe fields, history 'attached'; already attached: leave it), in the same transaction.
+  4. Message '<RCV-ID>: received <n> files from <who>'.
+  5. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: received spec.pdf --from 'the customer' --task T-001 writes exchange.md with RCV-001 and attaches the file; a second record is RCV-002.
+  6. Run cargo test --test cmd_received.
+- accept: received records the files that came from the customer, with checksums, and can attach them to a task.
+- verify: cargo test --test cmd_received
+- reqs: R-EXCH-1
+- note (2026-11-21, planner): added
+
+### T-183 · delivered: record what went to the customer
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-039
+- why: The exact results behind a report version must be named later (R-EXCH-2, R-EXCH-4).
+- depends: T-182
+- files: src/cmd/delivered.rs, tests/cmd_delivered.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: paths (at least one), --to <who> (required), --date, --based-on <task or path> (repeatable), --note.
+  3. based-on: a task ID is kept as is; a path is stored with its checksum '<stored>@<checksum>'.
+  4. Warnings (R-EXCH-4): for each based-on task, its attached files marked outdated or resting on a wrong assumption (filelist::marks), and its entries with a rests-on field; for each based-on path, its marks; and every approved assumption with state open whose Affects text names a based-on task or path. With warnings: print them to standard error and ask a person at a terminal 'deliver anyway? (yes/no) ' with term::ask before tx::write; no terminal or an LLM: Code::NeedsTerminal listing the warnings; any answer but yes: 'nothing changed'.
+  5. Inside tx::write: key ids::next_prefix(state, "DLV", ...); add_block date, to, files, based-on, note, history 'delivered'; put_raw.
+  6. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: a delivery based on a task with clean files is written without a question; with an open assumption affecting the task, the run without DOSSIER_ANSWERS fails with exit 1 and with DOSSIER_ANSWERS=yes it is written.
+  7. Run cargo test --test cmd_delivered.
+- accept: delivered records what went to the customer and what it was based on, and stops on outdated or questionable results unless a person confirms.
+- verify: cargo test --test cmd_delivered
+- reqs: R-EXCH-2, R-EXCH-4
+- note (2026-11-21, planner): added
+
+### T-184 · exchange: list what was received and delivered
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-039
+- why: R-EXCH-3.
+- depends: T-183
+- files: src/cmd/exchange.rs, tests/cmd_exchange.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: --received, --delivered (flags). Print every record in time order (date, then key): '<date>  <key>  from <who>' or 'to <who>', then '  <path>' per file and '  based on <item>' per based-on item. End '<n> records'. JSON: list of {key, date, direction, who, files, based_on, note}.
+  3. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: one received and one delivered record in date order; --delivered shows one.
+  4. Run cargo test --test cmd_exchange.
+- accept: exchange lists the records in time order.
+- verify: cargo test --test cmd_exchange
+- reqs: R-EXCH-3
+- note (2026-11-21, planner): added
 
 ### T-040 · Code projects: map of the code, pointers into code, init --code-project
 - status: open
 - owner: —
-- priority: P2 · difficulty: 5 · type: feature
+- priority: P2 · type: milestone
 - milestone: T-031
+- goal: map set, map, code pointers and init --code-project work as in R-CODE-1 to R-CODE-5.
 - why: The owner's own software is the first test bed, and an LLM needs orientation in thousands of files before it searches.
 - depends: T-030
 - accept: map set, map, code pointers and init --code-project work as in R-CODE-1 to R-CODE-5.
 - reqs: R-CODE-1 to R-CODE-5
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): split into T-178, T-179
+
+### T-178 · mapfile.rs: the map of a code project
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-040
+- why: An LLM needs orientation in a code base (R-CODE-1).
+- depends: T-161
+- files: src/mapfile.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement load and lines as docs/design.md section 8 says, with the format of format.md section 17 (map.md).
+  2. Tests: an example map with two blocks and one detached gives two lines sorted by path, with '(start: ...)' when start is set.
+  3. Run cargo test --lib mapfile::.
+- accept: map.md is read and printed as lines.
+- verify: cargo test --lib mapfile::
+- reqs: R-CODE-1
+- note (2026-11-21, planner): added
+
+### T-179 · map: describe the parts of a code project
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-040
+- why: brief prints the map first in a code project (R-CODE-1).
+- depends: T-178, T-162
+- files: src/cmd/map.rs, tests/cmd_map.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 9 for the command and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: an optional subcommand Set { path, purpose, --start <where> } and Remove { path }. Without a subcommand print mapfile::lines (or 'no map yet; add one with: dossier map set <path> "<what it is for>"').
+  3. Set: the path is stored with paths::stored and must exist (else Code::NotFound); a new block gets purpose, start and history 'set'; an existing one gets the fields set and history 'changed'; a detached one is used again. Remove: set detached, history 'detached'. Write with tx.put_raw(<dossier>/map.md, ..., Change{id: mapfile::ITEM, event, detail: path}).
+  4. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: set two folders, print them sorted; change one; remove one and it is gone from the print.
+  5. Run cargo test --test cmd_map.
+- accept: map set, map remove and map print the map of a code project with who and when.
+- verify: cargo test --test cmd_map
+- reqs: R-CODE-1
+- note (2026-11-21, planner): added
 
 ### T-041 · brief and status show values, open assumptions, proposals and dead ends; release 0.2.0
 - status: open
 - owner: —
-- priority: P1 · difficulty: 5 · type: feature
+- priority: P1 · type: milestone
 - milestone: T-031
+- goal: R-CTX-16 holds; format.md and the tests cover every phase 2 addition; version 0.2.0 is released.
 - why: What phase 2 records only helps when it reaches the LLM's context.
 - depends: T-033
 - accept: R-CTX-16 holds; format.md and the tests cover every phase 2 addition; version 0.2.0 is released.
 - reqs: R-CTX-16
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): split into T-199, T-200, T-201, T-202, T-203, T-204, T-205, T-206
+
+### T-199 · show: marks for proposals, declined entries and rests-on
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-041
+- why: R-WRITE-15: marked in show.
+- depends: T-157
+- files: src/cmd/show.rs, tests/cmd_show.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add the marks '[proposed]', '[declined]' and '[rests on <IDs>]' (from the rests-on field) to show's marks line and JSON marks.
+  2. Tests: a proposal shows [proposed]; an entry with rests-on shows its mark.
+  3. Run cargo test --test cmd_show.
+- accept: show marks proposals, declined entries and entries resting on a wrong assumption.
+- verify: cargo test --test cmd_show
+- reqs: R-WRITE-15, R-READ-1
+- note (2026-11-21, planner): added
+
+### T-200 · brief: map, key values, proposals, rests-on marks and --on
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-041
+- why: What phase 2 records only helps when it reaches the LLM's context (R-CTX-16, R-CODE-1, R-LIFE-9).
+- depends: T-175, T-178, T-185
+- files: src/cmd/brief.rs, tests/cmd_brief.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. When map.md has lines (mapfile::load + lines), print '## Map' first (after the project lines), at most 25 lines.
+  2. Print '## Key values' with at most 15 values (values::all, key values first, then by name) as '<name> = <value>[ <unit>]'.
+  3. Print '## Proposals waiting' with '<ID> · <title> (<author>)' for decisions with status proposed.
+  4. Add ' [rests on <IDs>]' to the line of any shown entry with a rests-on field.
+  5. Add --on <date>: entries in force on the date by the rule of filter.rs (valid-from and valid-until), values by values::on; proposals and the drafts line are left out with --on.
+  6. Keep the line limit: the new parts count like the others and are cut after findings and lessons.
+  7. Tests: a key value and a proposal appear; a map appears first; --on before a decision leaves it out.
+  8. Run cargo test --test cmd_brief.
+- accept: brief shows the map, the key values, proposals waiting and what rests on wrong assumptions, also on a past date.
+- verify: cargo test --test cmd_brief
+- reqs: R-CTX-16, R-CODE-1, R-LIFE-9
+- note (2026-11-21, planner): added
+
+### T-201 · status: key values, proposals, marks, last exchange and --on
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-041
+- why: R-CTX-16, R-EXCH-5, R-LIFE-9.
+- depends: T-175, T-180, T-169, T-185
+- files: src/cmd/status.rs, tests/cmd_status.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add '## Key values' (at most 15, key values first) and, under '## Unsettled', '<n> proposals waiting' and '<n> entries and files rest on a wrong assumption' (entries with rests-on plus blocks with rests-on in all file lists).
+  2. Add the last received and the last delivered record (exchange::load): '## Exchange' with 'received <date> <key> from <who>' and 'delivered <date> <key> to <who>' (R-EXCH-5).
+  3. Add --on <date> for the decisions and findings parts (filter.rs rule) and the values (values::on).
+  4. Keep status_lines. JSON gains values, proposals, rests_on, exchange.
+  5. Tests: a key value, a proposal and an exchange record appear.
+  6. Run cargo test --test cmd_status.
+- accept: status shows key values, proposals, marks and the last exchange, also on a past date.
+- verify: cargo test --test cmd_status
+- reqs: R-CTX-16, R-EXCH-5, R-LIFE-9
+- note (2026-11-21, planner): added
+
+### T-202 · brief --task: files, dead ends, pictures and code pointers
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-041
+- why: R-CTX-16, R-FILE-14, R-ENTRY-17, R-CODE-4.
+- depends: T-169, T-185
+- files: src/brief_task.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add '## Files' after the task's own entries: the task's file list (filelist::load), descriptions and models first, then the other roles, at most 15 lines, '<path> (<role>)' plus marks; detached left out.
+  2. Add '## Dead ends': select::best over approved findings with outcome dead end, with the task's tags and title words, at most 5, not already listed.
+  3. For each lesson and decision printed with its text, add one line per picture of its Pictures section: '  picture: images/<ID>/<file> — <caption>' (R-ENTRY-17).
+  4. When the todo data has a files field (todo 0.8 file scopes), add '## Code' with entries whose code pointers lie in those paths (R-CODE-4).
+  5. Tests in the module's test with the stand-in todo: a file list, a dead end and a picture line appear.
+  6. Run cargo test --lib brief_task::.
+- accept: brief --task shows the task's files, matching dead ends, pictures and code pointers.
+- verify: cargo test --lib brief_task::
+- reqs: R-CTX-16, R-FILE-14, R-ENTRY-17, R-CODE-4
+- note (2026-11-21, planner): added
+
+### T-203 · check: block files and rests-on links
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-041
+- why: R-CHECK-1.
+- depends: T-161
+- files: src/cmd/check.rs, tests/cmd_check.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Report PARSE for values.md, map.md, exchange.md and every files/*.md that BlockFile::parse refuses, as '<path>:<line>: - PARSE <message>'.
+  2. Report LINK for every ID in a rests-on field (entries and file blocks) that store::get does not find.
+  3. Usage records are checked like the other kinds through rules::problems (nothing to add).
+  4. Tests: a broken values.md and a rests-on naming ASM-999 are reported.
+  5. Run cargo test --test cmd_check.
+- accept: check covers the new files and links.
+- verify: cargo test --test cmd_check
+- reqs: R-CHECK-1
+- note (2026-11-21, planner): added
+
+### T-204 · The rules text for LLMs: phase 2 commands
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-041
+- why: R-AGENT-1.
+- depends: T-157
+- files: src/agents/rules.md
+- read: docs/requirements.md, docs/design.md
+- steps:
+  1. Add these rules, keeping the file at most 40 lines: 'Take every number from `dossier values`, never from memory.'; 'When your person is not a decider, suggest with `dossier propose`; a decider accepts it.'; 'Attach the files a task reads and writes with `dossier attach <task> <path> --role <role>`.'; 'Record a simulation run with `dossier used <software> --version <v> --task <task> --model <file> --output <path>`.'; 'Never confirm or refute an assumption, never accept or decline a proposal: a person does that.'
+  2. Run cargo test --test cmd_agents (help agents prints the file).
+- accept: The rules tell an LLM how to use values, proposals, file lists and runs.
+- verify: cargo test --test cmd_agents
+- reqs: R-AGENT-1
+- note (2026-11-21, planner): added
+
+### T-205 · README for v0.2
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-041
+- why: The team must be able to use phase 2 without the author (REL-2).
+- depends: T-165, T-167
+- files: README.md
+- read: docs/requirements.md, docs/design.md, docs/format.md
+- steps:
+  1. Change the status line to 'Status: v0.2 (phase 2)' and move the phase 2 items from 'Not in version 0.1' to a section 'What version 0.2 adds' with one short example each (run each one yourself in a temporary folder first): key values, files of a task, runs, pictures, proposals and deciders, confirming and refuting assumptions, --on, the customer exchange, the code map, and Claude Code hooks and skill (dossier hooks install --yes, dossier skill install --yes).
+  2. Keep invented names only (anna, ben, P-001).
+- accept: The README explains every phase 2 feature with a tested example.
+- verify: git ls-files --error-unmatch README.md
+- reqs: REL-2
+- note (2026-11-21, planner): added
+
+### T-206 · Release 0.2.0
+- status: open
+- owner: —
+- priority: P1 · difficulty: 2 · type: chore
+- milestone: T-041
+- why: Phase 2 ends with a release that is used on real work.
+- final: Checking every command by hand cannot be listed in advance.
+- depends: T-199, T-200, T-201, T-202, T-203, T-204, T-205, T-032, T-033, T-034, T-035, T-036, T-037, T-038, T-039, T-040, T-155, T-156, T-157, T-158, T-159, T-160, T-161, T-162, T-163, T-164, T-165, T-166, T-167
+- files: Cargo.toml, Cargo.lock
+- read: docs/requirements.md
+- steps:
+  1. Set the version in Cargo.toml to 0.2.0 and run cargo build so Cargo.lock follows.
+  2. Run every check on Windows, cargo clippy --target x86_64-unknown-linux-gnu --all-targets --all-features -- -D warnings, and run every phase 2 command once by hand in a temporary folder; note anything that fails with todo add.
+  3. Tell the owner that the tag v0.2.0 can be pushed after CI passes; do not push.
+- accept: Version 0.2.0 builds and every check passes on both systems.
+- verify: cargo build
+- reqs: REL-1
+- note (2026-11-21, planner): added
 
 ### T-042 · Team: knowledge reaches the next project without customer data
 - status: open
@@ -746,7 +1540,7 @@
 - reqs: R-CTX-14, R-CTX-15, D22
 - note (2026-11-20, planner): added
 
-### T-057 · Session review and Claude Code hooks and skill
+### T-057 · Session review (R-DRAFT-7, R-DRAFT-9)
 - status: open
 - owner: —
 - priority: P3 · difficulty: 5 · type: feature
@@ -756,6 +1550,7 @@
 - accept: R-DRAFT-7, R-DRAFT-9, R-AGENT-3, R-AGENT-4, R-CTX-7 hold.
 - reqs: R-DRAFT-7, R-DRAFT-9, R-AGENT-3, R-AGENT-4, R-CTX-7
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): Claude Code hooks and the skill (R-AGENT-3, R-AGENT-4, R-CTX-7) moved to phase 2 by the owner (D33): T-163 to T-167. What stays here is the session review (R-DRAFT-7, R-DRAFT-9).
 
 ### T-058 · Extras: story, search --similar, brief --budget, check --fix, export, schema, unit warnings, team summary, readers' guide; release 0.5.0
 - status: open
@@ -2995,6 +3790,262 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-21, coordinator): added
 - note (2026-11-21, haiku-t-154): done
+
+### T-155 · v0.2 skeleton: the usage kind, proposed and declined, new settings, register time
+- status: open
+- owner: —
+- priority: P0 · difficulty: 2 · type: feature
+- milestone: T-031
+- why: New enum variants break every exhaustive match at once, so they come in one step before the phase 2 tasks.
+- final: Adding enum variants touches every exhaustive match at once.
+- files: src/entry/mod.rs, src/entry/new.rs, src/entry/rules.rs, src/cmd/list.rs, src/cmd/search.rs, src/config.rs, src/names.rs, src/remote/register.rs, src/cmd/connect.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. entry/mod.rs: add Kind::Usage (name usage, prefix USE, folder usage) as the last variant; Kind::all() returns [Kind; 5] in the order Decision, Assumption, Finding, Lesson, Usage. Add Status::Proposed (name proposed) and Status::Declined (name declined). Extend the tests.
+  2. entry/rules.rs: for usage, section_order is Parameters, Outputs, Deviations, Notes and required_sections is empty; problems gives 'missing field software', 'missing field version' and 'missing field task' when one is missing or empty. Tests.
+  3. entry/new.rs: the section order for usage as above; a section named Pictures always comes after every other section, for every kind. In the known field order put version, model, model-checksum and howto right after software, and declined-reason, confirmed, refuted, rests-on and code right after rejected-reason (format.md sections 14 and 15). Tests.
+  4. cmd/list.rs and cmd/search.rs: the status mark is '[proposed]' and '[declined]' for those statuses; when the field rests-on is not empty add the mark '[rests on <value>]'. Keep their tests passing.
+  5. config.rs: optional top-level keys deciders (list of strings), roles (list of strings) and code_project (bool), default empty, empty, false (format.md section 19); Config gains pub deciders, pub roles, pub code_project. Unknown keys stay errors. Tests.
+  6. names.rs: add may_decide and unchecked exactly as docs/design.md section 7 says, with tests (unchecked holds crate::ENV_LOCK when it changes variables). Add the new Config fields to every Config literal in its tests.
+  7. remote/register.rs: Project gains pub added: String, written as the line added = "<time>" after local; an entry without it reads as an empty string. cmd/connect.rs sets added to crate::time::now(). Fix every Project literal.
+  8. Run cargo build, cargo clippy --all-targets --all-features -- -D warnings, cargo clippy --target x86_64-unknown-linux-gnu --all-targets --all-features -- -D warnings and cargo test --all-features; fix every error inside these files.
+- accept: The usage kind and the two new statuses exist everywhere; the new settings load; register entries carry their time; every check passes.
+- verify: cargo test --all-features
+- reqs: D28, D29, R-ENTRY-9
+- note (2026-11-21, planner): added
+
+### T-156 · v0.2 skeleton: the new library modules as stubs
+- status: open
+- owner: —
+- priority: P0 · difficulty: 2 · type: feature
+- milestone: T-031
+- why: With every type in place, each later task fills in one file.
+- final: Mechanical, but touches every new library file at once.
+- depends: T-155
+- files: src/lib.rs, src/blockfile.rs, src/filesum.rs, src/values.rs, src/filelist.rs, src/exchange.rs, src/mapfile.rs, src/affects.rs, src/picture.rs, src/hooks.rs, src/tx.rs, src/ids.rs, src/agents/mod.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add one pub mod line to src/lib.rs for each module of docs/design.md section 8.
+  2. Create each module of section 8 with every type, constant and function signature exactly as written there, with their doc comments.
+  3. Add the stubs of section 7 to the existing files: Tx::put_raw and Tx::delete_raw in tx.rs, ids::next_prefix in ids.rs, agents::skill in agents/mod.rs. Do not change anything else in those files.
+  4. Bodies: return Err(Error::new(Code::NotImplemented, "<module>::<function>")) where the result is a Result, else a plain default (empty String or Vec, None, false, 0, BlockFile { lines: Vec::new() }). Name unused parameters with a leading underscore. Never todo!, unimplemented!, unwrap, expect or panic, and no allow attributes.
+  5. Run cargo clippy --all-targets --all-features -- -D warnings and the same with --target x86_64-unknown-linux-gnu, and cargo test --all-features.
+- accept: Every module of design.md section 8 and the stubs of section 7 exist with their exact signatures; every check passes.
+- verify: cargo clippy --all-targets --all-features -- -D warnings
+- note (2026-11-21, planner): added
+
+### T-157 · v0.2 skeleton: command stubs, help overview and the forwarding lists
+- status: open
+- owner: —
+- priority: P0 · difficulty: 2 · type: feature
+- milestone: T-031
+- why: After this, a command task only fills in its own file.
+- final: Mechanical, but touches every new command file at once.
+- depends: T-156
+- files: src/cli.rs, src/cmd/mod.rs, src/cmd/help.rs, src/remote/forward.rs, src/cmd/propose.rs, src/cmd/accept.rs, src/cmd/decline.rs, src/cmd/confirm.rs, src/cmd/refute.rs, src/cmd/cleared.rs, src/cmd/value.rs, src/cmd/values.rs, src/cmd/attach.rs, src/cmd/detach.rs, src/cmd/reattach.rs, src/cmd/files.rs, src/cmd/which.rs, src/cmd/used.rs, src/cmd/runs.rs, src/cmd/image.rs, src/cmd/received.rs, src/cmd/delivered.rs, src/cmd/exchange.rs, src/cmd/map.rs, src/cmd/hooks.rs, src/cmd/guard.rs, src/cmd/skill.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. For every new command of docs/design.md section 9 create src/cmd/<name>.rs as the phase 1 stubs were: #[derive(clap::Args, Debug)] pub struct Args {} and pub fn run(_args: &Args, _g: &crate::cli::Global) -> crate::error::Result<crate::output::Output> returning Err(Error::new(Code::NotImplemented, "<name> is not built yet")).
+  2. Add one pub mod line per file to src/cmd/mod.rs and one Command variant per file to src/cli.rs, with its dispatch line; the command names are those of section 9.
+  3. src/cmd/help.rs: add each new command to the overview in the order of section 9, with a description of at most five words.
+  4. src/remote/forward.rs: hooks, guard and skill run locally like connect; accept, decline, confirm, refute, cleared and value ask for a terminal like approve (design.md section 7). Extend its test for one local and one terminal command.
+  5. Run cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features.
+- accept: Every command of design.md section 9 is accepted by the parser and says it is not built yet; help lists them; forwarding knows the local and terminal ones.
+- verify: cargo test --all-features
+- note (2026-11-21, planner): added
+
+### T-158 · init: journal line, the usage folder and --code-project
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-031
+- why: Every change is saved with who and when, also the creation of a dossier (D29).
+- depends: T-157
+- files: src/cmd/init.rs, tests/cmd_init.rs
+- read: docs/design.md, docs/format.md, docs/requirements.md
+- steps:
+  1. After the dossier is created, append one journal line with crate::journal::append: time crate::time::now(), name and person from crate::names::unchecked(g.agent.as_deref()), llm false, command init, id DOSSIER, event created, detail 'code <code>' (D29).
+  2. The usage folder is created like the other kind folders (Kind::all now has five kinds).
+  3. Add #[arg(long)] code_project: bool. With it, dossier.toml gets the line 'code_project = true' right after the code line, and the output gets a line 'code project: map and code pointers are on'.
+  4. Tests: the journal has one line with event created and the name given by DOSSIER_AGENT; without a name it has the operating-system user or unknown; DOSSIER/usage exists; with --code-project config::load gives code_project true.
+  5. Run cargo test --test cmd_init.
+- accept: init records who created the dossier and when, creates the usage folder, and --code-project marks a code project.
+- verify: cargo test --test cmd_init
+- reqs: D29, R-CODE-5
+- note (2026-11-21, planner): added
+
+### T-159 · people add: journal line
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-031
+- why: Every change is saved with who and when, also settings changes (D29).
+- depends: T-157
+- files: src/cmd/people.rs, tests/cmd_people.rs
+- read: docs/design.md, docs/format.md, docs/requirements.md
+- steps:
+  1. After config::add_person succeeds (not with --dry-run), append one journal line: time crate::time::now(), name and person from crate::names::unchecked(g.agent.as_deref()), llm false, command people, id SETTINGS, event changed, detail 'person <name>' plus ' with <llm1>, <llm2>' when LLMs were given (D29). The state folder is <dossier>/.state.
+  2. Tests: after people add anna --llm anna-claude the journal has a line with id SETTINGS and that detail; a dry run adds no line.
+  3. Run cargo test --test cmd_people.
+- accept: Adding a person is saved with who and when.
+- verify: cargo test --test cmd_people
+- reqs: D29
+- note (2026-11-21, planner): added
+
+### T-160 · agents install: journal line
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-031
+- why: Every change is saved with who and when (D29).
+- depends: T-157
+- files: src/cmd/agents.rs, tests/cmd_agents.rs
+- read: docs/design.md, docs/format.md, docs/requirements.md
+- steps:
+  1. After agents install --yes writes AGENTS.md: when crate::find::find(&current folder, g.dossier) finds a dossier, append one journal line: time now, name and person from crate::names::unchecked(g.agent.as_deref()), llm false, command agents, id AGENTS, event changed, detail 'rules block written'. Without a dossier write no journal line and no error.
+  2. Tests: in a project made with init, the journal gets that line; in a folder without a dossier install still works and no .state folder appears.
+  3. Run cargo test --test cmd_agents.
+- accept: Writing the rules block is saved with who and when when a dossier is there.
+- verify: cargo test --test cmd_agents
+- reqs: D29
+- note (2026-11-21, planner): added
+
+### T-161 · blockfile.rs: read and change block files line by line
+- status: open
+- owner: —
+- priority: P0 · difficulty: 2 · type: feature
+- milestone: T-031
+- why: values.md, the file lists, exchange.md and map.md all use this module.
+- final: Line-level editing has edge cases that are easier to settle in code than in steps.
+- depends: T-157
+- files: src/blockfile.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement BlockFile as docs/design.md section 8 and format.md section 17 describe. Reuse the line handling of src/entry/mod.rs and src/entry/edit.rs (copy what you need; their helpers are private): lines keep their endings, a byte-order mark is kept, the format line is checked (above 1: Code::TooNew), a text without a line starting with '# ' is Code::Parse 'line 1: no heading'.
+  2. A block starts at a line '## <key>' and ends before the next '## ' line or at the end. Its field lines are the '- name: value' lines in it; history lines are '- history: ...'.
+  3. set_field replaces the first line with that name (keeping its ending), or inserts '- <name>: <value>' before the block's first history line, else after its last field line, else right after the blank line under the heading line of the block. An empty value removes the line. The name history changes nothing.
+  4. add_block appends (when the text does not end with a blank line, first a blank line) '## <key>', a blank line, the fields with history pairs last, and a blank line. add_history appends '- history: <time> <names::label(who)>: <event>[ — <detail>]' after the block's last field line. New lines end as format.md section 2 says.
+  5. Tests: the values.md example of format.md section 17 parses and text() equals it; keys, field, fields and history; each change touches only its own lines (compare whole texts); a CRLF file gets CRLF lines; add_block on BlockFile::empty gives the expected text; a block key with spaces works.
+  6. Run cargo test --lib blockfile::.
+- accept: Block files are read and changed line by line, keeping every other byte.
+- verify: cargo test --lib blockfile::
+- reqs: R-EDIT-1, D29
+- note (2026-11-21, planner): added
+
+### T-162 · tx.rs: put_raw and delete_raw for files that are not entries
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-031
+- why: Every write goes through tx, also for values, file lists, exchange records and pictures.
+- depends: T-157
+- files: src/tx.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement Tx::put_raw and Tx::delete_raw as docs/design.md section 7 says, as new queued operations next to the existing ones.
+  2. In write(): check them with the existing check step (the file must still be the old bytes, or not exist for a new file); write with atomic::replace; save the old bytes as a snapshot under change.id only when the path ends with .md; append the journal record as for the other operations. Dry run: 'dry run: would write <path>' and 'dry run: would delete <path>'.
+  3. Tests in the existing test module: a new block file is written with one journal line; a second put_raw over it makes snapshot 1; a picture (bytes, path ending .png) is written and no snapshot is made when it is deleted; a changed file gives Code::Changed; dry run writes nothing.
+  4. Run cargo test --lib tx::.
+- accept: Files other than entries are written and removed through the transaction, with snapshot and journal line.
+- verify: cargo test --lib tx::
+- reqs: R-LOCK-1, R-IO-1, R-HIST-1, D29
+- note (2026-11-21, planner): added
+
+### T-163 · hooks.rs: Claude Code hooks in settings.json and the guard check
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-031
+- why: Claude Code hooks make brief and the edit guard part of every session (D33).
+- depends: T-157
+- files: src/hooks.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement installed, uninstalled and guard as docs/design.md section 8 says. Use serde_json::Value. The SessionStart entry is {"hooks": [{"type": "command", "command": BRIEF}]} under hooks.SessionStart; the PreToolUse entry is {"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": GUARD}]} under hooks.PreToolUse. Add each only when no entry with that command exists; keep every other key and entry.
+  2. uninstalled removes only entries whose command is BRIEF or GUARD, and empty arrays or objects that became empty because of that.
+  3. guard: parse the payload; take tool_input.file_path (or tool_input.path); when it is inside a folder named DOSSIER (any path component equal to DOSSIER) return Some('<path> is inside DOSSIER: change entries with the dossier commands, for example dossier set or dossier edit'); otherwise, and for anything that does not parse, None.
+  4. Return to_string_pretty plus a final LF; an empty or blank text counts as {}; a text that is not a JSON object is Code::Parse.
+  5. Tests: installing into {} and into a file with other hooks; installing twice gives the same text; uninstall after install gives back the other entries; guard blocks DOSSIER/decisions/DEC-001-x.md and allows src/main.rs.
+  6. Run cargo test --lib hooks::.
+- accept: settings.json gets the two dossier hooks once and loses only them; the guard spots edits inside DOSSIER.
+- verify: cargo test --lib hooks::
+- reqs: R-AGENT-3, R-CTX-7, D33
+- note (2026-11-21, planner): added
+
+### T-164 · agents/mod.rs: the Claude Code skill text
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-031
+- why: The skill gives Claude Code the same rules as AGENTS.md (D33).
+- depends: T-157
+- files: src/agents/mod.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement skill(): the lines '---', 'name: dossier', 'description: Record and read the project's decisions, assumptions, findings and lessons with the dossier command.', '---', a blank line, then RULES with CRLF turned into LF and a final LF.
+  2. Test: skill() starts with '---\nname: dossier\n' and contains the first line of RULES.
+  3. Run cargo test --lib agents::.
+- accept: The skill text is the rules with a front matter.
+- verify: cargo test --lib agents::
+- reqs: R-AGENT-4, D33
+- note (2026-11-21, planner): added
+
+### T-165 · hooks install and uninstall
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-031
+- why: The hooks run brief at session start and guard against direct edits (D33).
+- depends: T-163
+- files: src/cmd/hooks.rs, tests/cmd_hooks.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Args: a subcommand Install { #[arg(long)] yes: bool } and Uninstall { #[arg(long)] yes: bool }. No dossier and no name are needed.
+  2. The file is .claude/settings.json in the current folder (missing is empty). Without --yes print what would change and write nothing. With --yes: copy the old file to .claude/settings.json.bak when it exists, then write hooks::installed (or uninstalled) with crate::atomic::replace(path, bytes, None), creating .claude.
+  3. When crate::find::find finds a dossier from the current folder, append a journal line as the agents command does: command hooks, id HOOKS, event changed, detail 'hooks installed' or 'hooks removed' (D29).
+  4. Tests with assert_cmd in a tempfile folder: install --yes writes both hooks; a second install changes nothing; an existing other hook is kept and a .bak is made; uninstall --yes removes only the dossier hooks.
+  5. Run cargo test --test cmd_hooks.
+- accept: hooks install writes the SessionStart and PreToolUse hooks into .claude/settings.json and uninstall removes them.
+- verify: cargo test --test cmd_hooks
+- reqs: R-AGENT-3, R-CTX-7, D33
+- note (2026-11-21, planner): added
+
+### T-166 · guard: the PreToolUse hook that blocks direct edits of DOSSIER
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-031
+- why: LLMs must use the commands, never edit entry files directly (R-AGENT-3).
+- depends: T-163
+- files: src/cmd/guard.rs, tests/cmd_guard.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read all of standard input as text. Call hooks::guard. Some(message): return Err(Error::new(Code::Usage, message)) so the exit code is 2, which Claude Code treats as 'block'. None: return Ok(Output::text("")) (exit 0, nothing printed).
+  2. Tests with assert_cmd write_stdin: a payload editing DOSSIER/findings/FND-001-x.md exits 2 and stderr names DOSSIER; one editing README.md exits 0; garbage exits 0.
+  3. Run cargo test --test cmd_guard.
+- accept: guard blocks Claude Code edits inside DOSSIER with exit code 2 and allows everything else.
+- verify: cargo test --test cmd_guard
+- reqs: R-AGENT-3
+- note (2026-11-21, planner): added
+
+### T-167 · skill install
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-031
+- why: The skill gives Claude Code the rules with examples (R-AGENT-4).
+- depends: T-164
+- files: src/cmd/skill.rs, tests/cmd_skill.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Args: a subcommand Install { #[arg(long)] yes: bool }. Without --yes print 'would write .claude/skills/dossier/SKILL.md; add --yes'. With --yes write crate::agents::skill() to .claude/skills/dossier/SKILL.md in the current folder with crate::atomic::replace(path, bytes, None).
+  2. When a dossier is found from the current folder, a journal line: command skill, id SKILL, event changed, detail 'skill written' (D29).
+  3. Tests in a tempfile folder: install --yes writes the file starting with '---'; without --yes nothing is written.
+  4. Run cargo test --test cmd_skill.
+- accept: skill install writes the Claude Code skill.
+- verify: cargo test --test cmd_skill
+- reqs: R-AGENT-4
+- note (2026-11-21, planner): added
 
 ## Questions
 
