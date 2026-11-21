@@ -1482,10 +1482,8 @@
 - note (2026-11-21, haiku-t-203): done
 
 ### T-204 · The rules text for LLMs: phase 2 commands
-- status: claimed
+- status: done
 - owner: haiku-t-204
-- claimed: 2026-11-21T12:50+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-041
 - why: R-AGENT-1.
@@ -1497,8 +1495,12 @@
   2. Run cargo test --test cmd_agents (help agents prints the file).
 - accept: The rules tell an LLM how to use values, proposals, file lists and runs.
 - verify: cargo test --test cmd_agents
+- verified: 2026-11-21
+- commit: 7eb8b71
 - reqs: R-AGENT-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-204): done
 
 ### T-205 · README for v0.2
 - status: open
