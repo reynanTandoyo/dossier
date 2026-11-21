@@ -16,10 +16,23 @@ const FILE: &str = "confidential.md";
 /// Any white space counts as a space, so that a tab or a no-break space in a text still matches.
 pub fn normalize(text: &str) -> String {
     text.to_lowercase()
-        .split(|c: char| c.is_whitespace() || c == '-' || c == '_')
+        .split(is_separator)
         .filter(|word| !word.is_empty())
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// Lower case with every space, '-' and '_' removed: the spelling of a text without separators.
+fn compact(text: &str) -> String {
+    text.to_lowercase()
+        .chars()
+        .filter(|&c| !is_separator(c))
+        .collect()
+}
+
+/// A white space, '-' or '_'.
+fn is_separator(c: char) -> bool {
+    c.is_whitespace() || c == '-' || c == '_'
 }
 
 /// The terms file of the dossier and its raw bytes, when it exists. A missing file is
@@ -62,20 +75,24 @@ pub fn stated_none(file: &BlockFile) -> bool {
         .is_some_and(|when| !when.is_empty())
 }
 
-/// Each term found in `text` with the 1-based line it is on. A term matches a line when the
-/// normalized line contains the normalized term. The pairs are in line order, and within a line
-/// in the order of `terms`.
+/// Each term found in `text` with the 1-based line it is on. A term is found on a line when the
+/// normalized line contains the normalized term, or when the line without separators contains the
+/// term without separators (format.md §24). Either comparison counts once per term and line. The
+/// pairs are in line order, and within a line in the order of `terms`.
 pub fn find(terms: &[String], text: &str) -> Vec<(String, usize)> {
-    let wanted: Vec<(&String, String)> = terms
+    let wanted: Vec<(&String, String, String)> = terms
         .iter()
-        .map(|term| (term, normalize(term)))
-        .filter(|(_, spelling)| !spelling.is_empty())
+        .map(|term| (term, normalize(term), compact(term)))
+        .filter(|(_, spaced, _)| !spaced.is_empty())
         .collect();
     let mut hits = Vec::new();
     for (index, line) in text.lines().enumerate() {
-        let normal = normalize(line);
-        for (term, spelling) in &wanted {
-            if normal.contains(spelling.as_str()) {
+        let spaced_line = normalize(line);
+        let compact_line = compact(line);
+        for (term, spaced, packed) in &wanted {
+            let found =
+                spaced_line.contains(spaced.as_str()) || compact_line.contains(packed.as_str());
+            if found {
                 hits.push((term.to_string(), index + 1));
             }
         }
@@ -175,6 +192,40 @@ mod tests {
         assert_eq!(find(&terms, "Nt 450"), [("NT-450".to_string(), 1)]);
         let terms = list(&["Falcon"]);
         assert_eq!(find(&terms, "FALCON stage"), [("Falcon".to_string(), 1)]);
+    }
+
+    #[test]
+    fn a_term_matches_a_text_where_the_separators_are_left_out() {
+        let terms = list(&["NT-450"]);
+        assert_eq!(find(&terms, "the NT450 stage"), [("NT-450".to_string(), 1)]);
+        assert_eq!(find(&terms, "nt450"), [("NT-450".to_string(), 1)]);
+        let terms = list(&["Project Falcon"]);
+        assert_eq!(
+            find(&terms, "PROJECTFALCON"),
+            [("Project Falcon".to_string(), 1)]
+        );
+    }
+
+    #[test]
+    fn a_term_written_without_separators_matches_a_text_with_them() {
+        let terms = list(&["NT450"]);
+        assert_eq!(find(&terms, "the NT-450 stage"), [("NT450".to_string(), 1)]);
+        assert_eq!(find(&terms, "see nt 450"), [("NT450".to_string(), 1)]);
+        assert_eq!(find(&terms, "NT_450"), [("NT450".to_string(), 1)]);
+    }
+
+    #[test]
+    fn a_term_is_reported_once_per_line_when_both_comparisons_match() {
+        let terms = list(&["NT-450"]);
+        assert_eq!(
+            find(&terms, "NT-450 and nt 450 and NT450"),
+            [("NT-450".to_string(), 1)]
+        );
+    }
+
+    #[test]
+    fn a_term_does_not_match_a_different_number_without_separators() {
+        assert!(find(&list(&["NT-450"]), "NT 45 and NT-405").is_empty());
     }
 
     #[test]
