@@ -2288,10 +2288,8 @@
 - note (2026-11-21, haiku-t-126): done
 
 ### T-127 · remove: delete an entry for good
-- status: claimed
+- status: done
 - owner: haiku-t-127
-- claimed: 2026-11-21T01:26+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: Customer data entered by mistake must be removable, by a person only.
@@ -2309,9 +2307,13 @@
   8. Run cargo test --test cmd_remove.
 - accept: Only a person at a terminal can remove an entry; no copy of its text remains; its ID is not reused.
 - verify: cargo test --test cmd_remove
+- verified: 2026-11-21
+- commit: 97ee4b7
 - reqs: R-LIFE-3, R-ID-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
+- note (2026-11-21, haiku-t-127): done
 
 ### T-128 · reopen: back to draft, or a retired entry back in force
 - status: open
