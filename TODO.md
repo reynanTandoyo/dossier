@@ -4241,10 +4241,8 @@
 - note (2026-11-21, planner): added
 
 ### T-167 · skill install
-- status: claimed
+- status: done
 - owner: haiku-t-167
-- claimed: 2026-11-21T12:50+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-031
 - why: The skill gives Claude Code the rules with examples (R-AGENT-4).
@@ -4258,8 +4256,12 @@
   4. Run cargo test --test cmd_skill.
 - accept: skill install writes the Claude Code skill.
 - verify: cargo test --test cmd_skill
+- verified: 2026-11-21
+- commit: b38d972
 - reqs: R-AGENT-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-167): done
 
 ## Questions
 
