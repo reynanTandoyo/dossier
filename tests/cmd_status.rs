@@ -1,7 +1,8 @@
 //! Runs the built program for `status`: the project's tags and tasks from todo (or one line without
 //! it), who works on what, what waits, what is next, the decisions in force, the newest findings,
-//! what is unsettled (proposals, what rests on a wrong assumption), the key values, the last
-//! exchange, `--since`, `--milestone` and `--on` (R-CTX-16, R-EXCH-5, R-LIFE-9).
+//! the open assumptions, what rests on a wrong assumption, what is unsettled (proposals, the
+//! counts), the map, the key values, the last exchange, `--since`, `--milestone` and `--on`
+//! (R-CTX-16, R-EXCH-5, R-LIFE-9).
 //! Each test runs in its own temporary project folder with the clock fixed; the entries and the
 //! names are invented.
 
@@ -995,4 +996,135 @@ fn a_values_file_that_cannot_be_read_is_a_warning_and_the_rest_of_the_screen_sho
         .success()
         .stderr(contains("warning: values.md"))
         .stdout(contains("## Decisions in force\nDEC-001 ·"));
+}
+
+#[test]
+fn the_map_is_listed_after_the_project_lines_and_not_with_a_day_or_since() {
+    let project = Project::new();
+    project.write("src/solver/mod.rs", "solver\n");
+    project
+        .run("anna", &["map", "set", "src/solver", "time integration"])
+        .success();
+    assert_eq!(
+        project.stdout("anna", &["status"]),
+        "Project P-001\n\
+         ## Map\n\
+         src/solver  time integration\n\
+         tasks: todo is not installed\n\
+         ## Decisions in force\n\
+         none\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         nothing waiting\n"
+    );
+    assert!(
+        !project
+            .stdout("anna", &["status", "--on", "2026-11-20"])
+            .contains("## Map")
+    );
+    assert!(
+        !project
+            .stdout("anna", &["status", "--since", "2026-11-01"])
+            .contains("## Map")
+    );
+}
+
+#[test]
+fn the_map_names_at_most_ten_lines_and_says_how_many_folders_are_left_out() {
+    let project = Project::new();
+    for number in 1..=11 {
+        let folder = format!("folder-{number:02}");
+        project.write(&format!("{folder}/notes.txt"), "notes\n");
+        let purpose = format!("part {number:02}");
+        project
+            .run("anna", &["map", "set", folder.as_str(), purpose.as_str()])
+            .success();
+    }
+    let stdout = project.stdout("anna", &["status"]);
+    assert!(
+        stdout.starts_with("Project P-001\n## Map\nfolder-01  part 01\n"),
+        "{stdout}"
+    );
+    assert!(
+        stdout.contains("folder-09  part 09\n2 more: dossier map\ntasks: todo is not installed\n"),
+        "{stdout}"
+    );
+    assert!(!stdout.contains("folder-10"), "{stdout}");
+    let data = status_data(&project, &[]);
+    assert_eq!(data["map"].as_array().map(Vec::len), Some(10));
+    assert_eq!(data["map"][9], "2 more: dossier map");
+}
+
+#[test]
+fn open_assumptions_and_what_rests_on_a_wrong_assumption_are_listed_under_the_decisions() {
+    let project = project_resting_on_a_wrong_assumption();
+    project.stdout(
+        "anna",
+        &[
+            "assume",
+            "The wall function is valid",
+            "--reason",
+            "It was used in the last project.",
+            "--affects",
+            "T-042",
+        ],
+    );
+    assert_eq!(
+        project.stdout("anna", &["status"]),
+        "Project P-001\n\
+         tasks: todo is not installed\n\
+         ## Decisions in force\n\
+         DEC-001 · Use transient runs for the last three speedline points (anna, 2026-11-20)\n\
+         ## Open assumptions\n\
+         ASM-002 · The wall function is valid\n\
+         ## Rests on a wrong assumption\n\
+         DEC-001 · Use transient runs for the last three speedline points [rests on ASM-001]\n\
+         T-042 data/model.sim [rests on ASM-001]\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         1 open assumption\n\
+         2 entries and files rest on a wrong assumption\n"
+    );
+    let data = status_data(&project, &[]);
+    assert_eq!(data["open_assumptions"], json!(["ASM-002"]));
+    assert_eq!(data["rests"], json!(["DEC-001", "T-042 data/model.sim"]));
+    assert_eq!(data["map"], json!([]));
+}
+
+#[test]
+fn the_open_assumptions_are_cut_before_the_decisions_when_the_screen_is_too_long() {
+    let project = Project::new();
+    for number in 1..=3 {
+        let title = format!("Decision number {number}");
+        project
+            .run("anna", &["decide", title.as_str(), "--reason", "A reason."])
+            .success();
+    }
+    for number in 1..=3 {
+        let title = format!("Assumption number {number}");
+        project
+            .run("anna", &["assume", title.as_str(), "--reason", "A reason."])
+            .success();
+    }
+    let settings = project
+        .read("DOSSIER/dossier.toml")
+        .replace("status_lines = 60", "status_lines = 12");
+    project.write("DOSSIER/dossier.toml", &settings);
+    assert_eq!(
+        project.stdout("anna", &["status"]),
+        "Project P-001\n\
+         tasks: todo is not installed\n\
+         ## Decisions in force\n\
+         DEC-003 · Decision number 3 (anna, 2026-11-20)\n\
+         DEC-002 · Decision number 2 (anna, 2026-11-20)\n\
+         DEC-001 · Decision number 1 (anna, 2026-11-20)\n\
+         ## Open assumptions\n\
+         3 more: dossier list --kind assumption\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         3 open assumptions\n"
+    );
 }

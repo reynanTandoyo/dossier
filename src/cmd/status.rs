@@ -1,15 +1,16 @@
 //! The `status` command: the state of the whole project for a person or an LLM who asks "where are
 //! we" (R-CTX-9 to R-CTX-11, R-CTX-16, R-READ-8, R-EXCH-5). The task parts are read from `todo`
 //! (its summary and its task list); without `todo` they are one line, and a part whose todo call
-//! fails is left out. The key values, the decisions in force, the findings, the last exchange and
-//! `--on` read the project's files; a file that cannot be read is a warning and its part is left
-//! out. `--since <date>` prints what was recorded on or after the date, and `--since last` what is
-//! new since the person last ran it (R-READ-10). Only a person's run moves that marker: the LLMs of
-//! a person share the person's marker and never move it.
+//! fails is left out. The map, the key values, the decisions in force, the open assumptions, what
+//! rests on a wrong assumption, the findings, the last exchange and `--on` read the project's
+//! files; a file that cannot be read is a warning and its part is left out. `--since <date>` prints
+//! what was recorded on or after the date, and `--since last` what is new since the person last ran
+//! it (R-READ-10). Only a person's run moves that marker: the LLMs of a person share the person's
+//! marker and never move it.
 //!
 //! `--on <date>` gives the decisions, findings, key values and last exchange as they were on that
-//! day (R-LIFE-9). The tasks and the unsettled part (drafts, proposals, open assumptions, marks) are
-//! as of now: a past day has no record of what waited on it.
+//! day (R-LIFE-9), and leaves the map out. The tasks and the unsettled part (drafts, proposals,
+//! open assumptions, marks) are as of now: a past day has no record of what waited on it.
 
 use crate::approval::{self, Mark};
 use crate::atomic;
@@ -24,7 +25,7 @@ use crate::journal::{self, Record};
 use crate::names::{self, Who};
 use crate::output::Output;
 use crate::store::{self, Item};
-use crate::{exchange, filelist, time, todo_bridge, values};
+use crate::{exchange, filelist, mapfile, time, todo_bridge, values};
 use chrono::{DateTime, FixedOffset, NaiveDate};
 use clap::Parser;
 use serde_json::{Value, json};
@@ -46,6 +47,10 @@ const MILESTONE_LINES: usize = TASKS_LINES - 2;
 
 /// The most tasks the Next part names.
 const NEXT_TASKS: usize = 5;
+
+/// The most lines of the Map part. When the map has more folders, the last of these lines says how
+/// many are left out.
+const MAP_LINES: usize = 10;
 
 /// The arguments of `status`.
 #[derive(clap::Args, Debug)]
@@ -109,11 +114,14 @@ struct Marker {
 
 /// One part of the screen: an optional heading and its lines. A part that is cuttable gives up
 /// its last lines when the screen is longer than the limit; `hidden` counts them, and the screen
-/// then ends the part with `<m> more: <hint>`.
+/// then ends the part with `<m> more: <hint>`. A part with `first_cut` gives up its lines before
+/// any other part does, so that the open assumptions and what rests on a wrong assumption are cut
+/// before the decisions.
 struct Section {
     heading: Option<String>,
     lines: Vec<String>,
     cuttable: bool,
+    first_cut: bool,
     hidden: usize,
     hint: String,
 }
@@ -125,6 +133,7 @@ impl Section {
             heading: None,
             lines,
             cuttable: false,
+            first_cut: false,
             hidden: 0,
             hint: String::new(),
         }
@@ -136,6 +145,7 @@ impl Section {
             heading: Some(heading.to_string()),
             lines,
             cuttable: false,
+            first_cut: false,
             hidden: 0,
             hint: String::new(),
         }
@@ -154,6 +164,7 @@ impl Section {
             heading: Some(heading.to_string()),
             lines,
             cuttable,
+            first_cut: false,
             hidden: 0,
             hint: hint.to_string(),
         }
@@ -165,24 +176,38 @@ impl Section {
     }
 }
 
-/// Cuts the longest cuttable part, one line at a time, until the screen has at most `limit`
-/// lines. A screen that cannot be cut enough keeps its length.
+/// Cuts one line at a time, until the screen has at most `limit` lines: the next part is chosen by
+/// `next_to_cut`. A screen that cannot be cut enough keeps its length.
 fn fit(sections: &mut [Section], limit: usize) {
     while sections.iter().map(Section::height).sum::<usize>() > limit {
-        let mut longest: Option<usize> = None;
-        for (index, section) in sections.iter().enumerate() {
-            let longer =
-                longest.is_none_or(|best| section.lines.len() > sections[best].lines.len());
-            if section.cuttable && !section.lines.is_empty() && longer {
-                longest = Some(index);
-            }
-        }
-        let Some(index) = longest else {
+        let Some(index) = next_to_cut(sections) else {
             break;
         };
         sections[index].lines.pop();
         sections[index].hidden += 1;
     }
+}
+
+/// The part to cut next: the longest cuttable part with `first_cut` that still has lines, or when
+/// there is none, the longest cuttable part that still has lines. Among parts of equal length the
+/// first one is cut.
+fn next_to_cut(sections: &[Section]) -> Option<usize> {
+    longest_cuttable(sections, true).or_else(|| longest_cuttable(sections, false))
+}
+
+/// The index of the longest cuttable part that still has lines, of the parts with `first_cut`
+/// only when `first_only` is set. Among parts of equal length the first one.
+fn longest_cuttable(sections: &[Section], first_only: bool) -> Option<usize> {
+    let mut longest: Option<usize> = None;
+    for (index, section) in sections.iter().enumerate() {
+        let eligible =
+            section.cuttable && !section.lines.is_empty() && (section.first_cut || !first_only);
+        let longer = longest.is_none_or(|best| section.lines.len() > sections[best].lines.len());
+        if eligible && longer {
+            longest = Some(index);
+        }
+    }
+    longest
 }
 
 /// The text of the screen: each heading, its lines, and the `more` line of a cut part.
@@ -231,10 +256,11 @@ fn in_scope(item: &Item, milestone: Option<&str>) -> bool {
     })
 }
 
-/// The screen without `--since`: the project and its tags, the key values, the tasks, who works on
-/// what and what waits (from todo's list), the decisions in force, the newest findings, what is
-/// unsettled, the last exchange, and what is next. With a day (`--on`) the decisions, findings, key
-/// values and exchange are those of that day.
+/// The screen without `--since`: the project and its tags, the map (not with a day), the key
+/// values, the tasks, who works on what and what waits (from todo's list), the decisions in force,
+/// the open assumptions, what rests on a wrong assumption, the newest findings, what is unsettled,
+/// the last exchange, and what is next. With a day (`--on`) the decisions, findings, key values and
+/// exchange are those of that day.
 fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<&Day>) -> Screen {
     let mut warnings = Vec::new();
     let mut sections = vec![Section::plain(vec![project_line(ctx)])];
@@ -246,6 +272,13 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
             "as of {} for decisions, findings, values and exchange; the rest is now",
             day.date
         )]));
+    }
+    let (map_section, map_data) = match day {
+        Some(_) => (None, Vec::new()),
+        None => map_part(ctx, &mut warnings),
+    };
+    if let Some(section) = map_section {
+        sections.push(section);
     }
     let shown = key_values_part(ctx, day, &mut warnings);
     if !shown.is_empty() {
@@ -318,6 +351,12 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
         .collect();
     let rests_entries = rests_on_entries(&scope);
     let rests_files = rests_on_files(ctx, milestone, &mut warnings);
+    let open_assumptions: Vec<&Item> = scope
+        .iter()
+        .copied()
+        .filter(|item| is_open_assumption(item))
+        .collect();
+    let resting = resting_lines(&scope, &rests_files);
     counts.proposals = proposals.len();
     counts.resting = rests_entries.len() + rests_files.len();
     let (received, delivered) = last_exchange(ctx, day, &mut warnings);
@@ -328,6 +367,26 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
         "none",
         "dossier list",
     ));
+    if !open_assumptions.is_empty() {
+        let mut section = Section::list(
+            "## Open assumptions",
+            open_assumptions.iter().copied().map(heading_of).collect(),
+            "none",
+            "dossier list --kind assumption",
+        );
+        section.first_cut = true;
+        sections.push(section);
+    }
+    if !resting.is_empty() {
+        let mut section = Section::list(
+            "## Rests on a wrong assumption",
+            resting.iter().map(|(_, text)| text.clone()).collect(),
+            "none",
+            "dossier list and dossier files",
+        );
+        section.first_cut = true;
+        sections.push(section);
+    }
     sections.push(Section::list(
         "## Newest findings",
         findings.iter().copied().map(entry_line).collect(),
@@ -370,6 +429,7 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
 
     let values_data: Vec<Value> = shown.iter().map(Shown::data).collect();
     let rests_data = rests_on_json(&rests_entries, &rests_files);
+    let resting_ids: Vec<String> = resting.iter().map(|(id, _)| id.clone()).collect();
     let data = json!({
         "code": ctx.cfg.code,
         "on": day.map(|day| day.date.as_str()),
@@ -377,11 +437,14 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
         "working": working,
         "waiting": waiting,
         "next": next_ids,
+        "map": map_data,
         "values": values_data,
         "decisions": ids(&decisions),
+        "open_assumptions": ids(&open_assumptions),
         "findings": ids(&findings),
         "proposals": ids(&proposals),
         "rests_on": rests_data,
+        "rests": resting_ids,
         "exchange": {
             "received": received.as_ref().map(Exchanged::data),
             "delivered": delivered.as_ref().map(Exchanged::data),
@@ -478,6 +541,36 @@ fn tags_line(tags: &Tags) -> Option<String> {
     .map(|(name, values)| format!("{name} {}", values.join(", ")))
     .collect();
     (!parts.is_empty()).then(|| format!("tags: {}", parts.join("; ")))
+}
+
+/// The Map part (R-CODE-1): the described folders as `mapfile::lines`, at most MAP_LINES lines.
+/// When there are more, the last line says how many are left out, and the part is cut like the
+/// other lists. Returns the part (None when the map has no folder, or cannot be read: then a
+/// warning says so) and the lines as data, the same lines as the part with the `more` line.
+fn map_part(ctx: &Ctx, warnings: &mut Vec<String>) -> (Option<Section>, Vec<String>) {
+    let file = match mapfile::load(&ctx.dossier, &ctx.cfg.code) {
+        Ok((file, _)) => file,
+        Err(error) => {
+            warnings.push(error.message);
+            return (None, Vec::new());
+        }
+    };
+    let mut lines = mapfile::lines(&file);
+    if lines.is_empty() {
+        return (None, Vec::new());
+    }
+    let mut hidden = 0;
+    if lines.len() > MAP_LINES {
+        hidden = lines.len() - (MAP_LINES - 1);
+        lines.truncate(MAP_LINES - 1);
+    }
+    let mut data = lines.clone();
+    if hidden > 0 {
+        data.push(format!("{hidden} more: dossier map"));
+    }
+    let mut section = Section::list("## Map", lines, "none", "dossier map");
+    section.hidden = hidden;
+    (Some(section), data)
 }
 
 /// A task of todo's list, as far as the screen shows it.
@@ -637,6 +730,16 @@ fn entry_line(item: &Item) -> String {
     )
 }
 
+/// One entry as its heading: `<ID> · <title>`, or the ID alone when it has no title.
+fn heading_of(item: &Item) -> String {
+    let title = item.entry.title();
+    if title.is_empty() {
+        item.entry.id()
+    } else {
+        format!("{} · {title}", item.entry.id())
+    }
+}
+
 /// The IDs of the entries, in their order.
 fn ids(items: &[&Item]) -> Vec<String> {
     items.iter().map(|item| item.entry.id()).collect()
@@ -652,6 +755,14 @@ struct Unsettled {
     resting: usize,
 }
 
+/// Whether an entry is an approved assumption whose `state` is `open`: the open assumptions the
+/// screen lists, and the ones it counts.
+fn is_open_assumption(item: &Item) -> bool {
+    item.entry.kind() == Some(Kind::Assumption)
+        && item.entry.status() == Some(Status::Approved)
+        && item.entry.field("state").as_deref() == Some("open")
+}
+
 /// Counts the drafts, the approved assumptions that are still open, and the approved lessons
 /// whose file was changed by hand after their approval.
 fn count_unsettled(scope: &[&Item], state: &Path) -> Unsettled {
@@ -665,7 +776,7 @@ fn count_unsettled(scope: &[&Item], state: &Path) -> Unsettled {
             continue;
         }
         match item.entry.kind() {
-            Some(Kind::Assumption) if item.entry.field("state").as_deref() == Some("open") => {
+            Some(Kind::Assumption) if is_open_assumption(item) => {
                 counts.open_assumptions += 1;
             }
             Some(Kind::Lesson)
@@ -1033,6 +1144,43 @@ fn comma_list(text: &str) -> Vec<String> {
         .collect()
 }
 
+/// What rests on a wrong assumption as the screen lists it (R-CTX-16): each approved entry of
+/// `scope` whose `rests-on` field names an ID, in the order of `scope`, then each file block of
+/// `files` (task, path, assumptions), as `<ID> · <title> [rests on <IDs>]` and
+/// `<task> <path> [rests on <IDs>]`. Each line comes with the ID it is listed by.
+fn resting_lines(
+    scope: &[&Item],
+    files: &[(String, String, Vec<String>)],
+) -> Vec<(String, String)> {
+    let entries = scope
+        .iter()
+        .copied()
+        .filter(|item| item.entry.status() == Some(Status::Approved))
+        .filter_map(|item| {
+            let assumptions = item.entry.list("rests-on");
+            (!assumptions.is_empty()).then(|| {
+                (
+                    item.entry.id(),
+                    format!("{}{}", heading_of(item), rests_mark(&assumptions)),
+                )
+            })
+        });
+    let blocks = files.iter().map(|(task, path, assumptions)| {
+        let id = format!("{task} {path}");
+        (id.clone(), format!("{id}{}", rests_mark(assumptions)))
+    });
+    entries.chain(blocks).collect()
+}
+
+/// The mark ` [rests on <IDs>]` of IDs, joined with `, `; nothing when there are none.
+fn rests_mark(assumptions: &[String]) -> String {
+    if assumptions.is_empty() {
+        String::new()
+    } else {
+        format!(" [rests on {}]", assumptions.join(", "))
+    }
+}
+
 /// The entries and blocks that rest on a wrong assumption, as data: `kind` is `entry` with its
 /// `id`, or `file` with its `task` and `path`; each with the assumptions it rests on.
 fn rests_on_json(
@@ -1235,6 +1383,7 @@ mod tests {
             heading: Some(heading.to_string()),
             lines: (0..count).map(|index| format!("line {index}")).collect(),
             cuttable,
+            first_cut: false,
             hidden: 0,
             hint: "dossier list".to_string(),
         }
