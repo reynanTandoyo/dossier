@@ -2259,10 +2259,8 @@
 - note (2026-11-21, haiku-t-125): done
 
 ### T-126 · retire: end an entry without a replacement
-- status: claimed
+- status: done
 - owner: haiku-t-126
-- claimed: 2026-11-21T01:22+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: An entry that no longer holds must stop being shown as knowledge.
@@ -2278,12 +2276,18 @@
   6. Run cargo test --test cmd_retire.
 - accept: A person can retire an approved entry with a reason; it is closed with a date.
 - verify: cargo test --test cmd_retire
+- verified: 2026-11-21
+- commit: c2b1c22
 - reqs: R-LIFE-5, R-ENTRY-14
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-126): done
 
 ### T-127 · remove: delete an entry for good
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-127
+- claimed: 2026-11-21T01:26+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: Customer data entered by mistake must be removable, by a person only.
@@ -2474,8 +2478,10 @@
 - note (2026-11-21, planner): added
 
 ### T-135 · learn: show similar entries, and --update
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-135
+- claimed: 2026-11-21T01:26+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-130
 - why: Without it the same lesson is written five times in slightly different words.
