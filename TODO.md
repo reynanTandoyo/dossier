@@ -2871,10 +2871,8 @@
 - note (2026-11-21, planner): added
 
 ### T-151 · Test: speed with 300 entries
-- status: claimed
+- status: done
 - owner: haiku-t-151
-- claimed: 2026-11-21T01:38+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: test
 - milestone: T-150
 - why: No index is kept, so the speed limits must be proven before the design is relied on.
@@ -2889,8 +2887,12 @@
   5. Run cargo test --test perf --release.
 - accept: With 300 entries, brief and search take under 300 ms and a write under 200 ms on a normal PC.
 - verify: cargo test --test perf --release
+- verified: 2026-11-21
+- commit: 06f12f9
 - reqs: NFR-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-151): done
 
 ### T-152 · README for v0.1
 - status: open
