@@ -876,10 +876,8 @@
 - note (2026-11-21, haiku-t-186): done
 
 ### T-187 · propose: suggest a decision
-- status: claimed
+- status: done
 - owner: haiku-t-187
-- claimed: 2026-11-21T11:14+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-036
 - why: R-WRITE-12.
@@ -894,10 +892,14 @@
   5. Run cargo test --test cmd_propose.
 - accept: Anyone, also an LLM, can suggest a decision; it is not in force until accepted.
 - verify: cargo test --test cmd_propose
+- verified: 2026-11-21
+- commit: ac24439
 - reqs: R-WRITE-12
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): forced set (owner was haiku-t-187)
 - note (2026-11-21, planner): src/create.rs added: an LLM's draft decision without said_by must be a proposal, not NeedsPerson (R-WRITE-12; design.md section 7 corrected).
+- note (2026-11-21, haiku-t-187): done
 
 ### T-188 · accept: a decider puts a proposal in force
 - status: open
