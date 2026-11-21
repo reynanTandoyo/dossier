@@ -1790,10 +1790,8 @@
 - note (2026-11-21, planner): added
 
 ### T-106 · link: relate two entries
-- status: claimed
+- status: done
 - owner: haiku-t-106
-- claimed: 2026-11-21T01:15+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: Related entries should lead to each other.
@@ -1809,8 +1807,12 @@
   6. Run cargo test --test cmd_link.
 - accept: link adds each entry to the other's related field once.
 - verify: cargo test --test cmd_link
+- verified: 2026-11-21
+- commit: 98b54cd
 - reqs: R-WRITE-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-106): done
 
 ### T-107 · edit: open an entry in an editor under the lock
 - status: open
