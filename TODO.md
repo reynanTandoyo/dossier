@@ -1260,10 +1260,8 @@
 - note (2026-11-21, haiku-t-183): done
 
 ### T-184 · exchange: list what was received and delivered
-- status: claimed
+- status: done
 - owner: haiku-t-184
-- claimed: 2026-11-21T12:19+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-039
 - why: R-EXCH-3.
@@ -1277,8 +1275,12 @@
   4. Run cargo test --test cmd_exchange.
 - accept: exchange lists the records in time order.
 - verify: cargo test --test cmd_exchange
+- verified: 2026-11-21
+- commit: e2494e9
 - reqs: R-EXCH-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-184): done
 
 ### T-040 · Code projects: map of the code, pointers into code, init --code-project
 - status: open
