@@ -2324,10 +2324,8 @@
 - note (2026-11-21, haiku-t-127): done
 
 ### T-128 · reopen: back to draft, or a retired entry back in force
-- status: claimed
+- status: done
 - owner: haiku-t-128
-- claimed: 2026-11-21T01:38+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: A rejection or an approval can turn out to be wrong.
@@ -2345,9 +2343,13 @@
   8. Run cargo test --test cmd_reopen.
 - accept: The status table of requirement R-LIFE-1 holds for reopen.
 - verify: cargo test --test cmd_reopen
+- verified: 2026-11-21
+- commit: 9106d8e
 - reqs: R-LIFE-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
+- note (2026-11-21, haiku-t-128): done
 
 ### T-129 · check: report problems in a dossier
 - status: done
