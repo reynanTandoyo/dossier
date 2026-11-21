@@ -181,11 +181,11 @@ pub fn add_person(dossier: &Path, person: &str, llms: &[String]) -> Result<()> {
             if all.len() == known.llms.len() {
                 return Ok(());
             }
-            with_llms(&text, person, &llms_array(&all), &path)?
+            with_llms(&text, person, &string_array(&all), &path)?
         }
         None => {
             let eol = line_ending(&text);
-            let list = llms_array(&merged(&[], llms));
+            let list = string_array(&merged(&[], llms));
             let name = quoted(person);
             format!(
                 "{}{eol}[[people]]{eol}name = {name}{eol}llms = {list}{eol}",
@@ -200,15 +200,27 @@ pub fn add_person(dossier: &Path, person: &str, llms: &[String]) -> Result<()> {
 }
 
 /// Sets a top-level array key (members, names) to `values`, keeping every other line; adds the
-/// line before the first table when it is missing. Not written yet.
-pub fn set_list(_dossier: &Path, _key: &str, _values: &[String]) -> Result<()> {
-    Err(Error::new(Code::NotImplemented, "config::set_list"))
+/// line before the first table when it is missing.
+pub fn set_list(dossier: &Path, key: &str, values: &[String]) -> Result<()> {
+    set_top_level(dossier, key, &string_array(values))
 }
 
 /// Sets a top-level string or bool key (team, past, describes, kind) the same way; `value` is
-/// written as given (already quoted for a string). Not written yet.
-pub fn set_value(_dossier: &Path, _key: &str, _value: &str) -> Result<()> {
-    Err(Error::new(Code::NotImplemented, "config::set_value"))
+/// written as given (already quoted for a string).
+pub fn set_value(dossier: &Path, key: &str, value: &str) -> Result<()> {
+    set_top_level(dossier, key, value)
+}
+
+/// Writes `key = value` at the top level of dossier.toml, after checking that the edited file
+/// still loads.
+fn set_top_level(dossier: &Path, key: &str, value: &str) -> Result<()> {
+    let path = settings_path(dossier);
+    let text = read_text(&path)?;
+    let edited = with_top_level(&text, key, value);
+    // The edited file must still be a valid settings file before anything is written.
+    parse(&edited, &path)?;
+    std::fs::write(&path, edited)
+        .map_err(|error| Error::new(Code::Io, format!("{}: {error}", path.display())))
 }
 
 fn settings_path(dossier: &Path) -> PathBuf {
@@ -285,8 +297,8 @@ fn quoted(text: &str) -> String {
 }
 
 /// A TOML array of strings, such as `["anna-claude", "anna-codex"]`.
-fn llms_array(llms: &[String]) -> String {
-    let items: Vec<String> = llms.iter().map(|llm| quoted(llm)).collect();
+fn string_array(values: &[String]) -> String {
+    let items: Vec<String> = values.iter().map(|value| quoted(value)).collect();
     format!("[{}]", items.join(", "))
 }
 
@@ -440,6 +452,83 @@ fn array_end(line: &str) -> Option<usize> {
             }
             '#' => return None,
             _ => {}
+        }
+    }
+    None
+}
+
+/// The text with the top-level `key` line set to `key = value`. An existing line keeps its line
+/// ending and any trailing comment. A missing line goes after the last setting line, before the
+/// first table, so blank lines and comments that come before that table stay with it. Every
+/// other line is kept.
+fn with_top_level(text: &str, key: &str, value: &str) -> String {
+    let mut lines: Vec<String> = text.split_inclusive('\n').map(str::to_string).collect();
+    let tables = lines
+        .iter()
+        .position(|line| is_table_header(line))
+        .unwrap_or(lines.len());
+    match (0..tables).find(|&at| key_is(lines[at].trim_start_matches('\u{feff}'), key)) {
+        Some(at) => {
+            let old = lines[at].clone();
+            // The byte-order mark and the indentation before the key stay.
+            let body = old.trim_start_matches('\u{feff}');
+            let head = &old[..old.len() - body.trim_start().len()];
+            let tail = match value_end(&old) {
+                Some(end) => &old[end..],
+                None => line_end(&old),
+            };
+            lines[at] = format!("{head}{key} = {value}{tail}");
+        }
+        None => {
+            let eol = line_ending(text);
+            let at = (0..tables)
+                .rev()
+                .find(|&at| !is_blank_or_comment(&lines[at]))
+                .map_or(tables, |at| at + 1);
+            if at > 0 {
+                lines[at - 1] = terminated(&lines[at - 1], eol);
+            }
+            lines.insert(at, format!("{key} = {value}{eol}"));
+        }
+    }
+    lines.concat()
+}
+
+/// A line with nothing on it but spaces, a comment or a line ending.
+fn is_blank_or_comment(line: &str) -> bool {
+    let line = line.trim();
+    line.is_empty() || line.starts_with('#')
+}
+
+/// The byte index just after the value of the `key = value` line `line`, before the spaces, a
+/// trailing comment and the line ending. None when the value does not end on this line.
+fn value_end(line: &str) -> Option<usize> {
+    let after_equals = line.find('=')? + 1;
+    let rest = &line[after_equals..];
+    let at = after_equals + rest.len() - rest.trim_start_matches([' ', '\t']).len();
+    match line[at..].chars().next() {
+        Some('[') => array_end(line),
+        Some(quote @ ('"' | '\'')) => string_end(line, at, quote),
+        _ => {
+            let stop = line[at..]
+                .find(['#', '\r', '\n'])
+                .map_or(line.len(), |found| at + found);
+            Some(at + line[at..stop].trim_end().len())
+        }
+    }
+}
+
+/// The byte index just after the string that opens at `at` with `quote`. None when it does not
+/// close on this line. A basic string (`"`) may hold backslash escapes.
+fn string_end(line: &str, at: usize, quote: char) -> Option<usize> {
+    let mut escaped = false;
+    for (offset, c) in line[at + 1..].char_indices() {
+        if escaped {
+            escaped = false;
+        } else if c == '\\' && quote == '"' {
+            escaped = true;
+        } else if c == quote {
+            return Some(at + 1 + offset + 1);
         }
     }
     None
@@ -801,5 +890,160 @@ mod tests {
         let after = settings(&dir);
         assert!(after.starts_with('\u{feff}'));
         assert_eq!(loaded(&dir).people[0].llms, ["anna-claude"]);
+    }
+
+    fn names(list: &[&str]) -> Vec<String> {
+        list.iter().map(|name| name.to_string()).collect()
+    }
+
+    #[test]
+    fn set_list_adds_the_line_after_the_settings_and_before_the_tables() {
+        let dir = dossier_with(&default_text("P-001"));
+        set_list(dir.path(), "members", &names(&["anna", "ben"])).expect("set");
+        assert_eq!(
+            settings(&dir),
+            default_text("P-001").replace(
+                "code = \"P-001\"\n",
+                "code = \"P-001\"\nmembers = [\"anna\", \"ben\"]\n"
+            )
+        );
+        assert_eq!(loaded(&dir).members, ["anna", "ben"]);
+    }
+
+    #[test]
+    fn set_list_twice_replaces_the_line_and_keeps_the_others() {
+        let dir = dossier_with(&default_text("P-001"));
+        set_list(dir.path(), "members", &names(&["anna", "ben"])).expect("first set");
+        set_list(dir.path(), "members", &names(&["ben"])).expect("second set");
+        assert_eq!(
+            settings(&dir),
+            default_text("P-001").replace(
+                "code = \"P-001\"\n",
+                "code = \"P-001\"\nmembers = [\"ben\"]\n"
+            )
+        );
+        assert_eq!(loaded(&dir).members, ["ben"]);
+        set_list(dir.path(), "members", &[]).expect("empty set");
+        assert_eq!(
+            settings(&dir),
+            default_text("P-001").replace("code = \"P-001\"\n", "code = \"P-001\"\nmembers = []\n")
+        );
+        assert!(loaded(&dir).members.is_empty());
+    }
+
+    #[test]
+    fn set_list_quotes_the_names_it_writes() {
+        let dir = dossier_with(&default_text("P-001"));
+        let plain = ["Dr. \"Weber\"", "C:\\Tom"];
+        set_list(dir.path(), "names", &names(&plain)).expect("set");
+        assert_eq!(loaded(&dir).names, plain);
+    }
+
+    #[test]
+    fn set_value_writes_a_quoted_path_with_spaces_and_non_ascii() {
+        let dir = dossier_with(&default_text("P-001"));
+        set_value(dir.path(), "team", &quoted("/projects/Team Dossier/Équipe")).expect("set");
+        assert_eq!(
+            settings(&dir),
+            default_text("P-001").replace(
+                "code = \"P-001\"\n",
+                "code = \"P-001\"\nteam = \"/projects/Team Dossier/Équipe\"\n"
+            )
+        );
+        assert_eq!(
+            loaded(&dir).team.as_deref(),
+            Some("/projects/Team Dossier/Équipe")
+        );
+    }
+
+    #[test]
+    fn set_value_writes_a_windows_path_with_backslashes_escaped() {
+        let dir = dossier_with(&default_text("P-001"));
+        set_value(dir.path(), "team", &quoted("C:\\Team Dossier")).expect("set");
+        assert!(settings(&dir).contains("team = \"C:\\\\Team Dossier\"\n"));
+        assert_eq!(loaded(&dir).team.as_deref(), Some("C:\\Team Dossier"));
+    }
+
+    #[test]
+    fn set_value_replaces_a_value_and_keeps_its_trailing_comment() {
+        let dir = dossier_with("format = 1\ncode = \"P-001\"\npast = false  # brought in later\n");
+        set_value(dir.path(), "past", "true").expect("set");
+        assert_eq!(
+            settings(&dir),
+            "format = 1\ncode = \"P-001\"\npast = true  # brought in later\n"
+        );
+        assert!(loaded(&dir).past);
+    }
+
+    #[test]
+    fn set_list_and_set_value_keep_the_tables_byte_for_byte() {
+        let text = "format = 1\ncode = \"P-001\"\n\n[tags]\nmachine = [\"axial compressor\"]  # sizes\nanalysis = []\nsoftware = []\n\n[limits]\nbrief_lines = 60\n\n[[people]]\nname = \"anna\"\nllms = [\"anna-claude\"]\n";
+        let dir = dossier_with(text);
+        set_list(dir.path(), "members", &names(&["anna"])).expect("set members");
+        set_value(dir.path(), "team", &quoted("/projects/TEAM")).expect("set team");
+        set_value(dir.path(), "past", "true").expect("set past");
+        let after = settings(&dir);
+        let tables = text.find("[tags]").expect("the tags table");
+        assert!(after.starts_with("format = 1\ncode = \"P-001\"\n"));
+        assert!(after.ends_with(&text[tables..]), "{after}");
+        let cfg = loaded(&dir);
+        assert_eq!(cfg.members, ["anna"]);
+        assert_eq!(cfg.team.as_deref(), Some("/projects/TEAM"));
+        assert!(cfg.past);
+        assert_eq!(cfg.people[0].llms, ["anna-claude"]);
+        assert_eq!(cfg.tags.machine, ["axial compressor"]);
+    }
+
+    #[test]
+    fn a_crlf_file_keeps_crlf_for_new_and_replaced_lines() {
+        let crlf = default_text("P-001").replace('\n', "\r\n");
+        let dir = dossier_with(&crlf);
+        set_list(dir.path(), "members", &names(&["anna"])).expect("first set");
+        set_list(dir.path(), "members", &names(&["ben"])).expect("second set");
+        assert_eq!(
+            settings(&dir),
+            crlf.replace(
+                "code = \"P-001\"\r\n",
+                "code = \"P-001\"\r\nmembers = [\"ben\"]\r\n"
+            )
+        );
+        assert_eq!(loaded(&dir).members, ["ben"]);
+    }
+
+    #[test]
+    fn a_file_without_a_final_line_break_ends_its_last_line_first() {
+        let dir = dossier_with("format = 1\ncode = \"P-001\"");
+        set_list(dir.path(), "members", &names(&["anna"])).expect("set");
+        assert_eq!(
+            settings(&dir),
+            "format = 1\ncode = \"P-001\"\nmembers = [\"anna\"]\n"
+        );
+    }
+
+    #[test]
+    fn a_change_that_does_not_load_is_refused_and_writes_nothing() {
+        let text = default_text("P-001");
+        let dir = dossier_with(&text);
+        let error = set_value(dir.path(), "past", "maybe").expect_err("set refused");
+        assert_eq!(error.code, Code::Config);
+        assert_eq!(settings(&dir), text);
+    }
+
+    #[test]
+    fn a_multi_line_array_that_is_replaced_is_refused_and_writes_nothing() {
+        let text = "format = 1\ncode = \"P-001\"\nmembers = [\n  \"anna\",\n]\n";
+        let dir = dossier_with(text);
+        let error = set_list(dir.path(), "members", &names(&["ben"])).expect_err("set refused");
+        assert_eq!(error.code, Code::Config);
+        assert_eq!(settings(&dir), text);
+    }
+
+    #[test]
+    fn set_list_refuses_a_newer_format_and_writes_nothing() {
+        let text = "format = 2\ncode = \"P-001\"\n";
+        let dir = dossier_with(text);
+        let error = set_list(dir.path(), "members", &names(&["anna"])).expect_err("set refused");
+        assert_eq!(error.code, Code::TooNew);
+        assert_eq!(settings(&dir), text);
     }
 }
