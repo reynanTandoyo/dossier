@@ -80,8 +80,9 @@ pub struct Args {
 
 /// Runs `decide`: looks for the related decisions, refuses an LLM's decision that does not say how
 /// it stands to them, then creates the decision in one transaction and, with `--replaces`,
-/// supersedes the old one in the same transaction. The output is `<ID>: added (<status>)`, and a
-/// second line `<old ID>: superseded by <ID>` when one was replaced.
+/// supersedes the old one in the same transaction. The output is `<ID>: added (<status>)`, or
+/// `<ID>: proposed (...)` when the decision is only a proposal (see `announce`), and a second line
+/// `<old ID>: superseded by <ID>` when one was replaced.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     if args.replaces.is_some() && args.besides {
         return Err(Error::new(
@@ -122,11 +123,12 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             new.fields.push(("supersedes".to_string(), old.entry.id()));
         }
         let (id, text) = create::create(tx, &new)?;
-        let status = Entry::parse(&text)?
+        let entry = Entry::parse(&text)?;
+        let status = entry
             .status()
             .ok_or_else(|| Error::new(Code::Parse, format!("{id} has no status")))?;
 
-        let mut lines = vec![format!("{id}: added ({})", status.name())];
+        let mut lines = vec![announce(&id, status, &entry)?];
         if let Some(old) = replaced {
             lines.push(close_replaced(tx, old, &id, &who));
         }
@@ -144,6 +146,21 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             output.warn(format!("related: {related_id} {title}"))
         }))
     })
+}
+
+/// The first output line of a new decision. A proposal (status `proposed`: its author is not in
+/// `deciders`, R-WRITE-13) says who it is by and how a decider accepts it; any other decision says
+/// its status, as `added (<status>)`.
+fn announce(id: &str, status: Status, entry: &Entry) -> Result<String> {
+    if status != Status::Proposed {
+        return Ok(format!("{id}: added ({})", status.name()));
+    }
+    let author = entry
+        .field("author")
+        .ok_or_else(|| Error::new(Code::Parse, format!("{id} has no author")))?;
+    Ok(format!(
+        "{id}: proposed ({author} is not in deciders; a decider accepts it with: dossier accept {id})"
+    ))
 }
 
 /// The entry that `decide` asks to create: the decision and its reason, the rejected options

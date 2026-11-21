@@ -213,3 +213,81 @@ fn an_explicit_title_and_the_tags_and_task_are_written_as_given() {
     assert!(text.contains("\n- tags: speedline,tail\n"));
     assert!(!text.contains("- software:"), "a blank value is left out");
 }
+
+/// Writes `deciders = ["anna"]` into dossier.toml, after the `code` line, so that it is a
+/// top-level key before the [tags] table (format.md §19).
+fn only_anna_decides(project: &Project) {
+    let text = project.read("DOSSIER/dossier.toml");
+    let mut edited = String::new();
+    for line in text.split_inclusive('\n') {
+        edited.push_str(line);
+        if line.starts_with("code = ") {
+            edited.push_str("deciders = [\"anna\"]\n");
+        }
+    }
+    assert!(edited.contains("deciders = [\"anna\"]\n"), "{edited}");
+    project.write("DOSSIER/dossier.toml", &edited);
+}
+
+#[test]
+fn a_decision_by_someone_not_in_deciders_is_a_proposal_and_the_output_says_so() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    let output = project.stdout(
+        "ben",
+        &[
+            "decide",
+            "Use the transient runs for the last three points.",
+            "--reason",
+            "Steady runs converged where the transient run already showed rotating stall.",
+        ],
+    );
+    assert_eq!(
+        output,
+        "DEC-001: proposed (ben is not in deciders; a decider accepts it with: dossier accept DEC-001)\n"
+    );
+
+    let text = decision_text(&project, "DEC-001");
+    assert!(text.contains("\n- status: proposed\n"));
+    assert!(text.contains("\n- author: ben\n"));
+    assert!(
+        !text.contains("\n- approved:"),
+        "a proposal is not approved"
+    );
+}
+
+#[test]
+fn a_proposal_from_decide_gives_the_status_proposed_in_json() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    let stdout = project.stdout(
+        "ben",
+        &[
+            "decide",
+            "Use the transient runs for the last three points.",
+            "--reason",
+            "Steady runs converged.",
+            "--json",
+        ],
+    );
+    let value: serde_json::Value = serde_json::from_str(stdout.trim()).expect("one line of JSON");
+    assert_eq!(value["ok"], true);
+    assert_eq!(value["data"]["id"], "DEC-001");
+    assert_eq!(value["data"]["status"], "proposed");
+}
+
+#[test]
+fn a_decider_decides_at_once_and_the_output_says_added_approved() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    let output = project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Use the transient runs for the last three points.",
+            "--reason",
+            "Steady runs converged.",
+        ],
+    );
+    assert_eq!(output, "DEC-001: added (approved)\n");
+}
