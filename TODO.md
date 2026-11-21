@@ -2603,10 +2603,8 @@
 - note (2026-11-21, haiku-t-143): done
 
 ### T-144 · connect: tie a PC folder to a project on the server
-- status: claimed
+- status: done
 - owner: haiku-t-144
-- claimed: 2026-11-21T00:55+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-139
 - why: One command per project, once, and nobody types a server or path again.
@@ -2625,8 +2623,12 @@
   9. Run cargo test --test cmd_connect.
 - accept: connect writes the pointer file and the register entry; a bad target is refused.
 - verify: cargo test --test cmd_connect
+- verified: 2026-11-21
+- commit: da36767
 - reqs: R-REMOTE-1, R-REMOTE-9, R-REMOTE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-144): done
 
 ### T-145 · projects: list and remove register entries
 - status: open
