@@ -1,6 +1,7 @@
 //! Runs the built program for `status`: the project's tags and tasks from todo (or one line without
 //! it), who works on what, what waits, what is next, the decisions in force, the newest findings,
-//! what is unsettled, `--since` and `--milestone`.
+//! what is unsettled (proposals, what rests on a wrong assumption), the key values, the last
+//! exchange, `--since`, `--milestone` and `--on` (R-CTX-16, R-EXCH-5, R-LIFE-9).
 //! Each test runs in its own temporary project folder with the clock fixed; the entries and the
 //! names are invented.
 
@@ -8,7 +9,7 @@ mod common;
 
 use common::Project;
 use predicates::str::contains;
-use serde_json::Value;
+use serde_json::{Value, json};
 
 /// The summary of todo with one milestone (invented). Its counts are the whole project's.
 const SUMMARY: &str = r#"{"schema":"todo.summary.v1","ok":true,"data":{"milestones":[{"id":"T-130","title":"Context work","priority":"P0","status":"open","progress":{"done":2,"total":5}}],"counts":{"open":3,"claimed":1,"blocked":1,"done":2,"dropped":0,"total":7,"questions":1,"ideas":0}},"warnings":[]}"#;
@@ -572,4 +573,426 @@ fn over_ssh_the_first_line_names_the_project_folder_on_the_server() {
     // An empty SSH_CONNECTION is not a server session.
     let local = status_over_ssh(&project, "", &["status"]);
     assert_eq!(local.lines().next(), Some("Project P-001"), "{local}");
+}
+
+/// The fixed clock of `common::Project`.
+const NOW: &str = "2026-11-20T10:00:00+01:00";
+/// The time of the change of design.massflow in `dated_project`.
+const CHANGE: &str = "2026-12-01T09:00:00+01:00";
+/// A time after every change of `dated_project`: the project as it is now.
+const LATER: &str = "2026-12-02T09:00:00+01:00";
+
+/// The data of `status --json` run as anna with the arguments given.
+fn status_data(project: &Project, args: &[&str]) -> Value {
+    let mut all = vec!["status", "--json"];
+    all.extend_from_slice(args);
+    let stdout = project.stdout("anna", &all);
+    let value: Value = serde_json::from_str(stdout.trim()).expect("one JSON object");
+    value["data"].clone()
+}
+
+#[test]
+fn key_values_show_the_key_one_first_with_its_source_and_date_and_at_most_fifteen() {
+    let project = Project::new();
+    for number in 1..=15 {
+        let name = format!("test.v{number:02}");
+        project.stdout("anna", &["value", "set", name.as_str(), "1 m"]);
+    }
+    project.stdout(
+        "anna",
+        &[
+            "value",
+            "set",
+            "design.massflow",
+            "12.4 kg/s",
+            "--key",
+            "--source",
+            "spec rev3",
+        ],
+    );
+    let mut expected = String::from(
+        "Project P-001\n\
+         ## Key values\n\
+         design.massflow  12.4 kg/s  (spec rev3, 2026-11-20)\n",
+    );
+    for number in 1..=14 {
+        expected.push_str(&format!("test.v{number:02}  1 m  (2026-11-20)\n"));
+    }
+    expected.push_str(
+        "tasks: todo is not installed\n\
+         ## Decisions in force\n\
+         none\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         nothing waiting\n",
+    );
+    assert_eq!(project.stdout("anna", &["status"]), expected);
+
+    let data = status_data(&project, &[]);
+    assert_eq!(data["values"].as_array().map(Vec::len), Some(15));
+    assert_eq!(data["values"][0]["name"], "design.massflow");
+    assert_eq!(data["values"][0]["key"], true);
+    assert_eq!(data["values"][0]["unit"], "kg/s");
+    assert_eq!(data["values"][1]["name"], "test.v01");
+}
+
+#[test]
+fn a_proposal_waits_in_unsettled_and_is_listed_as_data() {
+    let project = Project::new();
+    project.stdout(
+        "ben",
+        &[
+            "propose",
+            "Use the steady runs",
+            "--reason",
+            "They converged.",
+        ],
+    );
+    assert_eq!(
+        project.stdout("anna", &["status"]),
+        "Project P-001\n\
+         tasks: todo is not installed\n\
+         ## Decisions in force\n\
+         none\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         1 proposal waiting\n"
+    );
+    assert_eq!(status_data(&project, &[])["proposals"], json!(["DEC-001"]));
+}
+
+/// A project where DEC-001 (task T-042) and the file data/model.sim of T-042 rest on ASM-001, which
+/// anna refutes at the fixed clock: the assumption affects T-042 and has no task of its own.
+fn project_resting_on_a_wrong_assumption() -> Project {
+    let project = Project::new();
+    project.write("data/model.sim", "model\n");
+    project.stdout(
+        "anna",
+        &["attach", "T-042", "data/model.sim", "--role", "model"],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "assume",
+            "The inlet profile is uniform",
+            "--reason",
+            "No measured profile was delivered.",
+            "--affects",
+            "T-042",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Use transient runs for the last three speedline points",
+            "--reason",
+            "Steady runs converged where rotating stall already shows.",
+            "--task",
+            "T-042",
+        ],
+    );
+    project
+        .command("anna", "2026-11-20T10:00:00+01:00")
+        .env("DOSSIER_ANSWERS", "")
+        .args([
+            "refute",
+            "ASM-001",
+            "--by",
+            "anna, from the rig measurements",
+        ])
+        .assert()
+        .success();
+    project
+}
+
+#[test]
+fn what_rests_on_a_wrong_assumption_is_counted_in_unsettled_and_listed_as_data() {
+    let project = project_resting_on_a_wrong_assumption();
+    let stdout = project.stdout("anna", &["status"]);
+    assert!(
+        stdout.ends_with("## Unsettled\n2 entries and files rest on a wrong assumption\n"),
+        "{stdout}"
+    );
+    assert_eq!(
+        status_data(&project, &[])["rests_on"],
+        json!([
+            {"kind": "entry", "id": "DEC-001", "rests_on": ["ASM-001"]},
+            {"kind": "file", "task": "T-042", "path": "data/model.sim", "rests_on": ["ASM-001"]}
+        ])
+    );
+}
+
+#[test]
+fn a_detached_file_that_rests_on_a_wrong_assumption_is_not_counted() {
+    let project = project_resting_on_a_wrong_assumption();
+    project.stdout("anna", &["detach", "T-042", "data/model.sim"]);
+    let stdout = project.stdout("anna", &["status"]);
+    assert!(
+        stdout.ends_with("## Unsettled\n1 entry or file rests on a wrong assumption\n"),
+        "{stdout}"
+    );
+    assert_eq!(
+        status_data(&project, &[])["rests_on"],
+        json!([{"kind": "entry", "id": "DEC-001", "rests_on": ["ASM-001"]}])
+    );
+}
+
+#[test]
+fn the_last_received_and_the_last_delivered_record_show_in_their_own_part() {
+    let project = Project::new();
+    project.write("spec.pdf", "spec\n");
+    project.write("spec-rev2.pdf", "spec rev 2\n");
+    project.stdout("anna", &["received", "spec.pdf", "--from", "the customer"]);
+    project
+        .run_at(
+            "anna",
+            "2026-11-22T09:00:00+01:00",
+            &["received", "spec-rev2.pdf", "--from", "the customer"],
+        )
+        .success();
+    project.stdout("anna", &["delivered", "spec.pdf", "--to", "the customer"]);
+
+    assert_eq!(
+        project.stdout("anna", &["status"]),
+        "Project P-001\n\
+         tasks: todo is not installed\n\
+         ## Decisions in force\n\
+         none\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         nothing waiting\n\
+         ## Exchange\n\
+         received 2026-11-22 RCV-002 from the customer\n\
+         delivered 2026-11-20 DLV-001 to the customer\n"
+    );
+    let data = status_data(&project, &[]);
+    assert_eq!(
+        data["exchange"]["received"],
+        json!({"id": "RCV-002", "date": "2026-11-22", "who": "the customer"})
+    );
+    assert_eq!(
+        data["exchange"]["delivered"],
+        json!({"id": "DLV-001", "date": "2026-11-20", "who": "the customer"})
+    );
+}
+
+/// A project with the history that `--on` reads, all of it invented:
+/// - design.massflow is 12.1 kg/s from 2026-11-20 (source spec rev2), and 12.4 kg/s from
+///   2026-12-01 (source spec rev3);
+/// - DEC-001 (task T-042) is approved on 2026-11-20;
+/// - FND-001 (task T-042) is found on 2026-11-22;
+/// - the customer sends spec.pdf on 2026-11-21: RCV-001.
+fn dated_project() -> Project {
+    let project = Project::new();
+    project.write("spec.pdf", "spec\n");
+    project.stdout(
+        "anna",
+        &[
+            "value",
+            "set",
+            "design.massflow",
+            "12.1 kg/s",
+            "--key",
+            "--source",
+            "spec rev2",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Use transient runs for the last three speedline points",
+            "--reason",
+            "Steady runs converged where rotating stall already shows.",
+            "--task",
+            "T-042",
+        ],
+    );
+    project
+        .run_at(
+            "anna",
+            "2026-11-21T09:00:00+01:00",
+            &["received", "spec.pdf", "--from", "the customer"],
+        )
+        .success();
+    project
+        .run_at(
+            "ben",
+            "2026-11-22T09:00:00+01:00",
+            &[
+                "found",
+                "Halving the time step did not remove the oscillation",
+                "--task",
+                "T-042",
+            ],
+        )
+        .success();
+    project
+        .run_at(
+            "anna",
+            CHANGE,
+            &[
+                "value",
+                "set",
+                "design.massflow",
+                "12.4 kg/s",
+                "--key",
+                "--source",
+                "spec rev3",
+            ],
+        )
+        .success();
+    project
+}
+
+#[test]
+fn on_shows_the_decisions_findings_values_and_exchange_as_they_were_on_that_day() {
+    let project = dated_project();
+    assert_eq!(
+        project.stdout("anna", &["status", "--on", "2026-11-21"]),
+        "Project P-001\n\
+         as of 2026-11-21 for decisions, findings, values and exchange; the rest is now\n\
+         ## Key values\n\
+         design.massflow  12.1 kg/s  (2026-11-20)\n\
+         tasks: todo is not installed\n\
+         ## Decisions in force\n\
+         DEC-001 · Use transient runs for the last three speedline points (anna, 2026-11-20)\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         nothing waiting\n\
+         ## Exchange\n\
+         received 2026-11-21 RCV-001 from the customer\n\
+         nothing delivered\n"
+    );
+    assert_eq!(
+        project.stdout("anna", &["status", "--on", "2026-11-23"]),
+        "Project P-001\n\
+         as of 2026-11-23 for decisions, findings, values and exchange; the rest is now\n\
+         ## Key values\n\
+         design.massflow  12.1 kg/s  (2026-11-20)\n\
+         tasks: todo is not installed\n\
+         ## Decisions in force\n\
+         DEC-001 · Use transient runs for the last three speedline points (anna, 2026-11-20)\n\
+         ## Newest findings\n\
+         FND-001 · Halving the time step did not remove the oscillation (ben, 2026-11-22)\n\
+         ## Unsettled\n\
+         nothing waiting\n\
+         ## Exchange\n\
+         received 2026-11-21 RCV-001 from the customer\n\
+         nothing delivered\n"
+    );
+}
+
+#[test]
+fn on_a_day_before_the_first_record_shows_nothing_in_force() {
+    let project = dated_project();
+    assert_eq!(
+        project.stdout("anna", &["status", "--on", "2026-11-19"]),
+        "Project P-001\n\
+         as of 2026-11-19 for decisions, findings, values and exchange; the rest is now\n\
+         tasks: todo is not installed\n\
+         ## Decisions in force\n\
+         none\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         nothing waiting\n"
+    );
+}
+
+#[test]
+fn without_on_the_screen_is_the_project_as_it_is_now() {
+    let project = dated_project();
+    assert_eq!(
+        out_at(&project, "anna", LATER, &["status"]),
+        "Project P-001\n\
+         ## Key values\n\
+         design.massflow  12.4 kg/s  (spec rev3, 2026-12-01)\n\
+         tasks: todo is not installed\n\
+         ## Decisions in force\n\
+         DEC-001 · Use transient runs for the last three speedline points (anna, 2026-11-20)\n\
+         ## Newest findings\n\
+         FND-001 · Halving the time step did not remove the oscillation (ben, 2026-11-22)\n\
+         ## Unsettled\n\
+         nothing waiting\n\
+         ## Exchange\n\
+         received 2026-11-21 RCV-001 from the customer\n\
+         nothing delivered\n"
+    );
+}
+
+#[test]
+fn the_json_of_on_gives_the_day_and_the_parts_as_they_were() {
+    let project = dated_project();
+    let data = status_data(&project, &["--on", "2026-11-21"]);
+    assert_eq!(data["on"], "2026-11-21");
+    assert_eq!(data["values"][0]["name"], "design.massflow");
+    assert_eq!(data["values"][0]["value"], "12.1");
+    assert_eq!(data["values"][0]["unit"], "kg/s");
+    assert_eq!(data["values"][0]["source"], Value::Null);
+    assert_eq!(data["values"][0]["valid_from"], "2026-11-20T10:00:00+01:00");
+    assert_eq!(data["decisions"], json!(["DEC-001"]));
+    assert_eq!(data["findings"], json!([]));
+    assert_eq!(
+        data["exchange"]["received"],
+        json!({"id": "RCV-001", "date": "2026-11-21", "who": "the customer"})
+    );
+    assert_eq!(data["exchange"]["delivered"], Value::Null);
+    assert_eq!(status_data(&project, &[])["on"], Value::Null);
+}
+
+#[test]
+fn proposals_and_marks_show_on_a_past_day_too_as_they_are_now() {
+    let project = project_resting_on_a_wrong_assumption();
+    project.stdout(
+        "ben",
+        &[
+            "propose",
+            "Use the steady runs",
+            "--reason",
+            "They converged.",
+        ],
+    );
+    let stdout = project.stdout("anna", &["status", "--on", "2026-11-20"]);
+    assert!(
+        stdout.ends_with(
+            "## Unsettled\n1 proposal waiting\n2 entries and files rest on a wrong assumption\n"
+        ),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn on_takes_a_date_and_does_not_go_with_since() {
+    let project = dated_project();
+    project
+        .run("anna", &["status", "--on", "2026-13-01"])
+        .failure()
+        .code(1)
+        .stderr(contains("--on takes a date such as 2026-11-21"));
+    project
+        .run("anna", &["status", "--on", "2026-11-21", "--since", "last"])
+        .failure()
+        .code(2);
+}
+
+#[test]
+fn a_values_file_that_cannot_be_read_is_a_warning_and_the_rest_of_the_screen_shows() {
+    let project = project_with_entries();
+    project.write(
+        "DOSSIER/values.md",
+        "<!-- dossier-format: 2 -->\n# Values of P-001\n",
+    );
+    project
+        .command("anna", NOW)
+        .arg("status")
+        .assert()
+        .success()
+        .stderr(contains("warning: values.md"))
+        .stdout(contains("## Decisions in force\nDEC-001 ·"));
 }

@@ -1,28 +1,41 @@
 //! The `status` command: the state of the whole project for a person or an LLM who asks "where are
-//! we" (R-CTX-9 to R-CTX-11, R-READ-8). The task parts are read from `todo` (its summary and its task
-//! list); without `todo` they are one line, and a part whose todo call fails is left out. `--since <date>` prints what was recorded on or after the date, and `--since last` what is
+//! we" (R-CTX-9 to R-CTX-11, R-CTX-16, R-READ-8, R-EXCH-5). The task parts are read from `todo`
+//! (its summary and its task list); without `todo` they are one line, and a part whose todo call
+//! fails is left out. The key values, the decisions in force, the findings, the last exchange and
+//! `--on` read the project's files; a file that cannot be read is a warning and its part is left
+//! out. `--since <date>` prints what was recorded on or after the date, and `--since last` what is
 //! new since the person last ran it (R-READ-10). Only a person's run moves that marker: the LLMs of
 //! a person share the person's marker and never move it.
+//!
+//! `--on <date>` gives the decisions, findings, key values and last exchange as they were on that
+//! day (R-LIFE-9). The tasks and the unsettled part (drafts, proposals, open assumptions, marks) are
+//! as of now: a past day has no record of what waited on it.
 
 use crate::approval::{self, Mark};
 use crate::atomic;
+use crate::blockfile::BlockFile;
 use crate::cli::Global;
 use crate::config::Tags;
 use crate::ctx::Ctx;
 use crate::entry::{Kind, Status};
 use crate::error::{Code, Error, Result};
+use crate::filter::Filter;
 use crate::journal::{self, Record};
 use crate::names::{self, Who};
 use crate::output::Output;
 use crate::store::{self, Item};
-use crate::{time, todo_bridge};
+use crate::{exchange, filelist, time, todo_bridge, values};
 use chrono::{DateTime, FixedOffset, NaiveDate};
+use clap::Parser;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 /// The most findings the screen names.
 const FINDINGS: usize = 5;
+
+/// The most key values the screen names (R-VALUE-4): the key ones first, then by name.
+const KEY_VALUES: usize = 15;
 
 /// The most lines of the Tasks part: its heading and its counts line included.
 const TASKS_LINES: usize = 20;
@@ -39,21 +52,26 @@ const NEXT_TASKS: usize = 5;
 pub struct Args {
     /// Only what was recorded on or after this date, such as 2026-11-20; `last` means since the
     /// person's last run
-    #[arg(long)]
+    #[arg(long, conflicts_with = "on")]
     pub since: Option<String>,
     /// Only the todo milestone of this task, such as T-130, and the entries of its tasks
     #[arg(long)]
     pub milestone: Option<String>,
+    /// The day, such as 2026-11-20: the decisions, findings, key values and last exchange as they
+    /// were on it (R-LIFE-9); the tasks and the unsettled part are as of now
+    #[arg(long, value_name = "date", conflicts_with = "since")]
+    pub on: Option<String>,
 }
 
 /// Runs `status`: the screen of the project, or with `--since` what was recorded since.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "status")?;
     let milestone = milestone_of(args.milestone.as_deref());
+    let day = args.on.as_deref().map(day_of).transpose()?;
     let (all, mut warnings) = store::all(&ctx.dossier);
     let mut screen = match args.since.as_deref() {
         Some(text) => since_screen(&ctx, parse_since(text)?, &all, milestone.as_deref())?,
-        None => project_screen(&ctx, &all, milestone.as_deref()),
+        None => project_screen(&ctx, &all, milestone.as_deref(), day.as_ref()),
     };
     if let Some(marker) = screen.marker.take() {
         if ctx.dry_run {
@@ -213,13 +231,31 @@ fn in_scope(item: &Item, milestone: Option<&str>) -> bool {
     })
 }
 
-/// The screen without `--since`: the project and its tags, the tasks, who works on what and what
-/// waits (from todo's list), the decisions in force, the newest findings, what is unsettled, and
-/// what is next.
-fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>) -> Screen {
+/// The screen without `--since`: the project and its tags, the key values, the tasks, who works on
+/// what and what waits (from todo's list), the decisions in force, the newest findings, what is
+/// unsettled, the last exchange, and what is next. With a day (`--on`) the decisions, findings, key
+/// values and exchange are those of that day.
+fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<&Day>) -> Screen {
+    let mut warnings = Vec::new();
     let mut sections = vec![Section::plain(vec![project_line(ctx)])];
     if let Some(line) = tags_line(&ctx.cfg.tags) {
         sections.push(Section::plain(vec![line]));
+    }
+    if let Some(day) = day {
+        sections.push(Section::plain(vec![format!(
+            "as of {} for decisions, findings, values and exchange; the rest is now",
+            day.date
+        )]));
+    }
+    let shown = key_values_part(ctx, day, &mut warnings);
+    if !shown.is_empty() {
+        let lines = shown.iter().map(Shown::line).collect();
+        sections.push(Section::list(
+            "## Key values",
+            lines,
+            "none",
+            "dossier values",
+        ));
     }
     let available = todo_bridge::available();
     let tasks = task_part(ctx, milestone, available, &mut sections);
@@ -269,12 +305,22 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>) -> Screen {
         .iter()
         .filter(|item| in_scope(item, milestone))
         .collect();
-    let decisions = approved(&scope, Kind::Decision);
-    let findings: Vec<&Item> = approved(&scope, Kind::Finding)
+    let decisions = in_force(&scope, Kind::Decision, day);
+    let findings: Vec<&Item> = in_force(&scope, Kind::Finding, day)
         .into_iter()
         .take(FINDINGS)
         .collect();
-    let counts = count_unsettled(&scope, &ctx.state);
+    let mut counts = count_unsettled(&scope, &ctx.state);
+    let proposals: Vec<&Item> = scope
+        .iter()
+        .copied()
+        .filter(|item| item.entry.status() == Some(Status::Proposed))
+        .collect();
+    let rests_entries = rests_on_entries(&scope);
+    let rests_files = rests_on_files(ctx, milestone, &mut warnings);
+    counts.proposals = proposals.len();
+    counts.resting = rests_entries.len() + rests_files.len();
+    let (received, delivered) = last_exchange(ctx, day, &mut warnings);
 
     sections.push(Section::list(
         "## Decisions in force",
@@ -289,6 +335,12 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>) -> Screen {
         "dossier list",
     ));
     sections.push(Section::headed("## Unsettled", unsettled_lines(&counts)));
+    if received.is_some() || delivered.is_some() {
+        sections.push(Section::headed(
+            "## Exchange",
+            exchange_lines(received.as_ref(), delivered.as_ref()),
+        ));
+    }
     if !next.is_empty() {
         let lines = next
             .iter()
@@ -316,14 +368,24 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>) -> Screen {
         Value::Null
     };
 
+    let values_data: Vec<Value> = shown.iter().map(Shown::data).collect();
+    let rests_data = rests_on_json(&rests_entries, &rests_files);
     let data = json!({
         "code": ctx.cfg.code,
+        "on": day.map(|day| day.date.as_str()),
         "tasks": tasks,
         "working": working,
         "waiting": waiting,
         "next": next_ids,
+        "values": values_data,
         "decisions": ids(&decisions),
         "findings": ids(&findings),
+        "proposals": ids(&proposals),
+        "rests_on": rests_data,
+        "exchange": {
+            "received": received.as_ref().map(Exchanged::data),
+            "delivered": delivered.as_ref().map(Exchanged::data),
+        },
         "unsettled": {
             "drafts": counts.drafts,
             "open_assumptions": counts.open_assumptions,
@@ -333,7 +395,7 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>) -> Screen {
     Screen {
         sections,
         data,
-        warnings: Vec::new(),
+        warnings,
         marker: None,
     }
 }
@@ -515,14 +577,19 @@ fn number(value: Option<&Value>) -> String {
         .map_or_else(|| "?".to_string(), |number| number.to_string())
 }
 
-/// The approved entries of `kind` in `scope`, newest first: by when they were approved, then by
+/// The entries of `kind` in `scope` in force: the approved ones, or with a day the ones that `--on`
+/// keeps on it (the filter rule of R-LIFE-9). Newest first: by when they took effect, then by
 /// number.
-fn approved<'a>(scope: &[&'a Item], kind: Kind) -> Vec<&'a Item> {
+fn in_force<'a>(scope: &[&'a Item], kind: Kind, day: Option<&Day>) -> Vec<&'a Item> {
     let mut found: Vec<&Item> = scope
         .iter()
         .copied()
         .filter(|item| {
-            item.entry.kind() == Some(kind) && item.entry.status() == Some(Status::Approved)
+            item.entry.kind() == Some(kind)
+                && match day {
+                    Some(day) => day.filter.matches(item),
+                    None => item.entry.status() == Some(Status::Approved),
+                }
         })
         .collect();
     found.sort_by(|a, b| {
@@ -575,12 +642,14 @@ fn ids(items: &[&Item]) -> Vec<String> {
     items.iter().map(|item| item.entry.id()).collect()
 }
 
-/// What is waiting for a person to settle.
+/// What is waiting for a person to settle. `proposals` and `resting` are counted by the caller.
 #[derive(Default)]
 struct Unsettled {
     drafts: usize,
     open_assumptions: usize,
     changed_lessons: usize,
+    proposals: usize,
+    resting: usize,
 }
 
 /// Counts the drafts, the approved assumptions that are still open, and the approved lessons
@@ -633,6 +702,20 @@ fn unsettled_lines(counts: &Unsettled) -> Vec<String> {
             "approved lessons changed by hand",
         ));
     }
+    if counts.proposals > 0 {
+        lines.push(counted(
+            counts.proposals,
+            "proposal waiting",
+            "proposals waiting",
+        ));
+    }
+    if counts.resting > 0 {
+        lines.push(counted(
+            counts.resting,
+            "entry or file rests on a wrong assumption",
+            "entries and files rest on a wrong assumption",
+        ));
+    }
     if lines.is_empty() {
         lines.push("nothing waiting".to_string());
     }
@@ -646,6 +729,324 @@ fn counted(n: usize, one: &str, many: &str) -> String {
     } else {
         format!("{n} {many}")
     }
+}
+
+/// The day of `--on`: its date as YYYY-MM-DD, and the filter that keeps the entries in force on
+/// it (the filter rule of R-LIFE-9, built by the filter module).
+struct Day {
+    date: String,
+    filter: Filter,
+}
+
+/// The option `--on` alone, parsed by its own parser so that the filter module builds the filter.
+#[derive(clap::Parser)]
+struct OnOnly {
+    #[command(flatten)]
+    filter: Filter,
+}
+
+/// Reads `--on`: a date such as 2026-11-21. Code::BadValue for any other text.
+fn day_of(text: &str) -> Result<Day> {
+    let bad = || {
+        Error::new(
+            Code::BadValue,
+            format!("--on takes a date such as 2026-11-21, not {text:?}"),
+        )
+    };
+    let date = NaiveDate::parse_from_str(text.trim(), "%Y-%m-%d")
+        .map_err(|_| bad())?
+        .format("%Y-%m-%d")
+        .to_string();
+    let filter = OnOnly::try_parse_from(["status", "--on", date.as_str()])
+        .map_err(|_| bad())?
+        .filter;
+    Ok(Day { date, filter })
+}
+
+/// A value of the screen with the fields `values` shows (format.md §17).
+struct Shown {
+    name: String,
+    value: String,
+    unit: Option<String>,
+    source: Option<String>,
+    valid_from: Option<String>,
+    key: bool,
+    proposed: Option<String>,
+}
+
+impl Shown {
+    /// `<name>  <value>[ <unit>]  (<source>, <date>)`, then `  [proposed: <text>]` when a change
+    /// waits: the line the `values` command writes. A missing source or date is left out.
+    fn line(&self) -> String {
+        let number = match &self.unit {
+            Some(unit) => format!("{} {unit}", self.value),
+            None => self.value.clone(),
+        };
+        let from = self.valid_from.as_deref().map(time::date);
+        let facts: Vec<&str> = [self.source.as_deref(), from]
+            .into_iter()
+            .flatten()
+            .filter(|text| !text.is_empty())
+            .collect();
+        let mut line = format!("{}  {number}", self.name);
+        if !facts.is_empty() {
+            line.push_str(&format!("  ({})", facts.join(", ")));
+        }
+        if let Some(proposed) = &self.proposed {
+            line.push_str(&format!("  [proposed: {proposed}]"));
+        }
+        line
+    }
+
+    /// The value as data, with the full time it came into force.
+    fn data(&self) -> Value {
+        json!({
+            "name": self.name,
+            "value": self.value,
+            "unit": self.unit,
+            "source": self.source,
+            "valid_from": self.valid_from,
+            "key": self.key,
+            "proposed": self.proposed,
+        })
+    }
+}
+
+/// The key values of the screen: the values in force (on the day when there is one), the key ones
+/// first and then by name, at most KEY_VALUES. A values file that cannot be read is a warning, and
+/// no value is shown.
+fn key_values_part(ctx: &Ctx, day: Option<&Day>, warnings: &mut Vec<String>) -> Vec<Shown> {
+    let file = match values::load(&ctx.dossier, &ctx.cfg.code) {
+        Ok((file, _)) => file,
+        Err(error) => {
+            warnings.push(error.message);
+            return Vec::new();
+        }
+    };
+    let on = day.map(|day| day.date.as_str());
+    let mut shown: Vec<Shown> = values::all(&file)
+        .iter()
+        .filter_map(|value| match on {
+            Some(date) => shown_on(&file, value, date),
+            None => shown_now(value),
+        })
+        .collect();
+    shown.sort_by(|a, b| b.key.cmp(&a.key).then_with(|| a.name.cmp(&b.name)));
+    shown.truncate(KEY_VALUES);
+    shown
+}
+
+/// A value in force now. A block with only a proposal is not in force and is left out.
+fn shown_now(value: &values::Value) -> Option<Shown> {
+    (!value.value.is_empty()).then(|| Shown {
+        name: value.name.clone(),
+        value: value.value.clone(),
+        unit: value.unit.clone(),
+        source: value.source.clone(),
+        valid_from: value.valid_from.clone(),
+        key: value.key,
+        proposed: value.proposed.clone(),
+    })
+}
+
+/// A value in force at the end of `day` (YYYY-MM-DD), as `values --on` shows it: the value and unit
+/// `values::on` gives, the time of the `set` line in force, and the source only when no later `set`
+/// or `changed` line could have changed it (format.md §17). A past day has no record of a
+/// proposal, so none is shown.
+fn shown_on(file: &BlockFile, value: &values::Value, day: &str) -> Option<Shown> {
+    let text = values::on(file, &value.name, day)?;
+    let (number, unit) = values::split(&text, value.unit.is_none()).unwrap_or((text.clone(), None));
+    let history = history_of(file, &value.name);
+    let valid_from = history
+        .iter()
+        .rfind(|(stamp, event)| event == "set" && time::date(stamp) <= day)
+        .map(|(stamp, _)| stamp.clone());
+    let source_kept = history.iter().all(|(stamp, event)| {
+        !matches!(event.as_str(), "set" | "changed") || time::date(stamp) <= day
+    });
+    Some(Shown {
+        name: value.name.clone(),
+        value: number,
+        unit,
+        source: value.source.clone().filter(|_| source_kept),
+        valid_from,
+        key: value.key,
+        proposed: None,
+    })
+}
+
+/// The time and the event of each history line of a block (format.md §6): the line is
+/// `<time> <who>[ via <llm>]: <event>[ — <detail>]`. Lines without those parts are left out.
+fn history_of(file: &BlockFile, key: &str) -> Vec<(String, String)> {
+    file.history(key)
+        .iter()
+        .filter_map(|line| {
+            let (stamp, rest) = line.split_once(' ')?;
+            let (_who, rest) = rest.split_once(": ")?;
+            let event = rest.split(' ').next()?;
+            Some((stamp.to_string(), event.to_string()))
+        })
+        .collect()
+}
+
+/// A record of the exchange as the screen shows it: its key, its date, and who it was from or to.
+struct Exchanged {
+    id: String,
+    date: String,
+    who: String,
+}
+
+impl Exchanged {
+    /// The record as data.
+    fn data(&self) -> Value {
+        json!({"id": self.id, "date": self.date, "who": self.who})
+    }
+}
+
+/// The last received and the last delivered record (exchange.md), on or before the day when there
+/// is one. A file that cannot be read is a warning, and neither record is shown.
+fn last_exchange(
+    ctx: &Ctx,
+    day: Option<&Day>,
+    warnings: &mut Vec<String>,
+) -> (Option<Exchanged>, Option<Exchanged>) {
+    let file = match exchange::load(&ctx.dossier, &ctx.cfg.code) {
+        Ok((file, _)) => file,
+        Err(error) => {
+            warnings.push(error.message);
+            return (None, None);
+        }
+    };
+    let on = day.map(|day| day.date.as_str());
+    (
+        last_record(&file, "RCV", "from", on),
+        last_record(&file, "DLV", "to", on),
+    )
+}
+
+/// The newest record with the prefix RCV or DLV, by date and then by number. `who_field` is `from`
+/// or `to`. With a day, a record dated after it, or with no date, is left out.
+fn last_record(
+    file: &BlockFile,
+    prefix: &str,
+    who_field: &str,
+    on: Option<&str>,
+) -> Option<Exchanged> {
+    file.keys()
+        .into_iter()
+        .filter_map(|key| {
+            let number = number_after(&key, prefix)?;
+            let date = file.field(&key, "date").unwrap_or_default();
+            if on.is_some_and(|day| date.is_empty() || date.as_str() > day) {
+                return None;
+            }
+            let who = file.field(&key, who_field).unwrap_or_default();
+            Some((number, Exchanged { id: key, date, who }))
+        })
+        .max_by(|(a_number, a), (b_number, b)| a.date.cmp(&b.date).then(a_number.cmp(b_number)))
+        .map(|(_, record)| record)
+}
+
+/// The number of a key `<prefix>-<digits>`: 2 for RCV-002 and the prefix RCV. None for any other
+/// key.
+fn number_after(key: &str, prefix: &str) -> Option<u64> {
+    let digits = key.strip_prefix(prefix)?.strip_prefix('-')?;
+    (!digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit()))
+        .then(|| digits.parse().unwrap_or(u64::MAX))
+}
+
+/// The lines of the Exchange part: the last received and the last delivered record, or that there
+/// is none of that kind.
+fn exchange_lines(received: Option<&Exchanged>, delivered: Option<&Exchanged>) -> Vec<String> {
+    vec![
+        match received {
+            Some(record) => format!("received {} {} from {}", record.date, record.id, record.who),
+            None => "nothing received".to_string(),
+        },
+        match delivered {
+            Some(record) => format!("delivered {} {} to {}", record.date, record.id, record.who),
+            None => "nothing delivered".to_string(),
+        },
+    ]
+}
+
+/// The entries of `scope` that rest on a wrong assumption (format.md §14): the `rests-on` field
+/// names one, and the entry is a draft, a proposal or approved. Each with its assumptions.
+fn rests_on_entries(scope: &[&Item]) -> Vec<(String, Vec<String>)> {
+    scope
+        .iter()
+        .filter(|item| {
+            matches!(
+                item.entry.status(),
+                Some(Status::Draft | Status::Proposed | Status::Approved)
+            )
+        })
+        .map(|item| (item.entry.id(), item.entry.list("rests-on")))
+        .filter(|(_, assumptions)| !assumptions.is_empty())
+        .collect()
+}
+
+/// The blocks of the file lists that rest on a wrong assumption and are not detached (format.md
+/// §17): the task, the stored path and the assumptions. With a milestone only its task's list is
+/// read. A list that cannot be read is a warning.
+fn rests_on_files(
+    ctx: &Ctx,
+    milestone: Option<&str>,
+    warnings: &mut Vec<String>,
+) -> Vec<(String, String, Vec<String>)> {
+    let mut found = Vec::new();
+    for task in filelist::tasks(&ctx.dossier)
+        .into_iter()
+        .filter(|task| milestone.is_none_or(|wanted| task.eq_ignore_ascii_case(wanted)))
+    {
+        let (list, _) = match filelist::load(&ctx.dossier, &task) {
+            Ok(loaded) => loaded,
+            Err(error) => {
+                let path = filelist::path(&ctx.dossier, &task);
+                warnings.push(format!(
+                    "{}: {}",
+                    shown_path(&ctx.root, &path),
+                    error.message
+                ));
+                continue;
+            }
+        };
+        for key in list.keys() {
+            let detached = list
+                .field(&key, "detached")
+                .is_some_and(|at| !at.is_empty());
+            let assumptions = comma_list(&list.field(&key, "rests-on").unwrap_or_default());
+            if !detached && !assumptions.is_empty() {
+                found.push((task.clone(), key, assumptions));
+            }
+        }
+    }
+    found
+}
+
+/// A comma-separated list as its parts, trimmed, without the empty parts.
+fn comma_list(text: &str) -> Vec<String> {
+    text.split(',')
+        .map(str::trim)
+        .filter(|part| !part.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
+/// The entries and blocks that rest on a wrong assumption, as data: `kind` is `entry` with its
+/// `id`, or `file` with its `task` and `path`; each with the assumptions it rests on.
+fn rests_on_json(
+    entries: &[(String, Vec<String>)],
+    files: &[(String, String, Vec<String>)],
+) -> Value {
+    let mut all: Vec<Value> = entries
+        .iter()
+        .map(|(id, assumptions)| json!({"kind": "entry", "id": id, "rests_on": assumptions}))
+        .collect();
+    all.extend(files.iter().map(|(task, path, assumptions)| {
+        json!({"kind": "file", "task": task, "path": path, "rests_on": assumptions})
+    }));
+    Value::Array(all)
 }
 
 /// What `--since` asks for, as typed.
