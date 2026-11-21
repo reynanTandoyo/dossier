@@ -47,7 +47,8 @@ struct Plan {
 /// An LLM with `said_by` naming a person of the settings: author = that person, via = the LLM,
 /// approved unless `draft`. An LLM without `said_by`: author = its person, via = the LLM;
 /// approved for assumption, finding and usage unless `draft`; draft for a lesson.
-/// An LLM writing a decision without `said_by`: Code::NeedsPerson.
+/// An LLM writing a decision without `said_by`: Code::NeedsPerson, unless it is a draft: then it
+/// is a proposal by the LLM's person, via the LLM (R-WRITE-12: anyone may propose).
 /// A decision is a proposal (R-WRITE-12, R-WRITE-13, D21, D28) when it is written with `draft`
 /// or its author is not allowed to decide (names::may_decide): status `proposed`, no `approved`
 /// and `valid-from`, history lines created and proposed, and the journal detail `proposed`.
@@ -100,8 +101,8 @@ pub fn create(tx: &mut Tx, new: &New) -> Result<(String, String)> {
 }
 
 /// Who the entry is by, whether it is approved, and whether it is a proposal (the rules of the
-/// comment on `create`). `said_by` is ignored when a person writes. An LLM's decision needs a
-/// person.
+/// comment on `create`). `said_by` is ignored when a person writes. An LLM's approved decision
+/// needs a person; an LLM's draft decision is a proposal of its own person.
 fn plan_for(cfg: &Config, who: &Who, new: &New) -> Result<Plan> {
     let (author, via, approved) = if !who.is_llm {
         (who.person.clone(), None, !new.draft)
@@ -112,7 +113,7 @@ fn plan_for(cfg: &Config, who: &Who, new: &New) -> Result<Plan> {
                 Some(who.name.clone()),
                 !new.draft,
             ),
-            None if new.kind == Kind::Decision => {
+            None if new.kind == Kind::Decision && !new.draft => {
                 return Err(Error::new(
                     Code::NeedsPerson,
                     "a decision needs the person who made it: --said-by <person>",
@@ -350,25 +351,56 @@ mod tests {
     }
 
     #[test]
-    fn an_llm_decision_without_said_by_needs_a_person_even_as_a_draft() {
+    fn an_llm_decision_without_said_by_needs_a_person_unless_it_is_a_draft() {
         let _guard = quiet();
         let (_dir, ctx) = project("anna-claude", false);
-        for draft in [false, true] {
-            let new = New {
-                sections: decision_sections(),
-                draft,
-                ..new_of(Kind::Decision, "Use the transient runs")
-            };
-            let error = run(&ctx, &new).expect_err("the decision is refused");
-            assert_eq!(error.code, Code::NeedsPerson);
-            assert_eq!(
-                error.message,
-                "a decision needs the person who made it: --said-by <person>"
-            );
-        }
+        let new = New {
+            sections: decision_sections(),
+            draft: false,
+            ..new_of(Kind::Decision, "Use the transient runs")
+        };
+        let error = run(&ctx, &new).expect_err("the decision is refused");
+        assert_eq!(error.code, Code::NeedsPerson);
+        assert_eq!(
+            error.message,
+            "a decision needs the person who made it: --said-by <person>"
+        );
         // Nothing was given out or written.
         assert!(!ctx.state.join("ids.json").exists());
         assert!(dir_is_empty(&ctx.dossier.join("decisions")));
+    }
+
+    #[test]
+    fn an_llm_draft_decision_without_said_by_is_a_proposal_of_its_person() {
+        let _guard = quiet();
+        let (_dir, ctx) = project("anna-claude", false);
+        let new = New {
+            sections: decision_sections(),
+            draft: true,
+            ..new_of(Kind::Decision, "Use the transient runs")
+        };
+        let (id, text, time) = run(&ctx, &new).expect("the proposal is created");
+
+        assert_eq!(id, "DEC-001");
+        let entry = Entry::parse(&text).expect("the text is an entry");
+        assert_eq!(entry.status(), Some(Status::Proposed));
+        assert_eq!(entry.field("author").as_deref(), Some("anna"));
+        assert_eq!(entry.field("via").as_deref(), Some("anna-claude"));
+        assert_eq!(entry.field("approved"), None);
+        assert_eq!(entry.field("valid-from"), None);
+        assert_eq!(
+            entry.history(),
+            vec![
+                format!("{time} anna via anna-claude: created"),
+                format!("{time} anna via anna-claude: proposed"),
+            ]
+        );
+        assert_eq!(
+            journal_events(&ctx),
+            vec![("created".to_string(), "proposed".to_string())]
+        );
+        let path = store::path_for(&ctx.dossier, Kind::Decision, &id, "Use the transient runs");
+        assert_eq!(fs::read_to_string(path).expect("the file"), text);
     }
 
     #[test]
