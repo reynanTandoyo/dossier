@@ -182,6 +182,21 @@ fn render(sections: &[Section]) -> String {
     lines.join("\n")
 }
 
+/// The first line of the screen: the project code. On a server (`SSH_CONNECTION` is set and not
+/// empty, R-REMOTE-12) it also names the folder of the project there, as it is.
+fn project_line(ctx: &Ctx) -> String {
+    let on_server = std::env::var_os("SSH_CONNECTION").is_some_and(|value| !value.is_empty());
+    if on_server {
+        format!(
+            "Project {} on the server in {}",
+            ctx.cfg.code,
+            ctx.root.display()
+        )
+    } else {
+        format!("Project {}", ctx.cfg.code)
+    }
+}
+
 /// The milestone given with `--milestone`, in upper case; None when none is given.
 fn milestone_of(text: Option<&str>) -> Option<String> {
     text.map(|text| text.trim().to_uppercase())
@@ -202,7 +217,7 @@ fn in_scope(item: &Item, milestone: Option<&str>) -> bool {
 /// waits (from todo's list), the decisions in force, the newest findings, what is unsettled, and
 /// what is next.
 fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>) -> Screen {
-    let mut sections = vec![Section::plain(vec![format!("Project {}", ctx.cfg.code)])];
+    let mut sections = vec![Section::plain(vec![project_line(ctx)])];
     if let Some(line) = tags_line(&ctx.cfg.tags) {
         sections.push(Section::plain(vec![line]));
     }
@@ -420,8 +435,9 @@ struct Live {
     questions: Option<Vec<Listed>>,
 }
 
-/// Reads todo's task list and its open questions, when todo is available. A call that fails
-/// gives None for its part, and no error.
+/// Reads todo's task list and its open questions, when todo is available. With a milestone, both
+/// calls name it and todo keeps the tasks below it. A call that fails gives None for its part,
+/// and no error.
 fn live_part(ctx: &Ctx, milestone: Option<&str>, available: bool) -> Live {
     if !available {
         return Live {
@@ -429,29 +445,31 @@ fn live_part(ctx: &Ctx, milestone: Option<&str>, available: bool) -> Live {
             questions: None,
         };
     }
+    let list_args: Vec<&str> = match milestone {
+        Some(id) => vec!["list", "--milestone", id],
+        None => vec!["list"],
+    };
+    let question_args: Vec<&str> = match milestone {
+        Some(id) => vec!["list", "--kind", "question", "--milestone", id],
+        None => vec!["list", "--kind", "question"],
+    };
     Live {
-        list: todo_bridge::json(&ctx.root, &["list"])
+        list: todo_bridge::json(&ctx.root, &list_args)
             .ok()
-            .map(|data| listed(&data, milestone)),
-        questions: todo_bridge::json(&ctx.root, &["list", "--kind", "question"])
+            .map(|data| listed(&data)),
+        questions: todo_bridge::json(&ctx.root, &question_args)
             .ok()
-            .map(|data| listed(&data, milestone)),
+            .map(|data| listed(&data)),
     }
 }
 
-/// The tasks of a todo list's data that belong to the milestone asked for, by their `milestone`
-/// field (every task when no milestone is asked for). A task without that field belongs to no
-/// milestone.
-fn listed(data: &Value, milestone: Option<&str>) -> Vec<Listed> {
+/// The tasks of a todo list's data, in the order todo gives them.
+fn listed(data: &Value) -> Vec<Listed> {
     data.get("tasks")
         .and_then(Value::as_array)
         .map(|tasks| {
             tasks
                 .iter()
-                .filter(|task| {
-                    milestone
-                        .is_none_or(|wanted| text(task, "milestone").eq_ignore_ascii_case(wanted))
-                })
                 .map(|task| Listed {
                     id: text(task, "id").to_string(),
                     title: text(task, "title").to_string(),
@@ -728,7 +746,7 @@ fn since_screen(ctx: &Ctx, since: Since, all: &[Item], milestone: Option<&str>) 
         serde_json::to_value(&events).map_err(|error| Error::new(Code::Io, error.to_string()))?;
     Ok(Screen {
         sections: vec![
-            Section::plain(vec![format!("Project {}", ctx.cfg.code)]),
+            Section::plain(vec![project_line(ctx)]),
             Section::list(&heading, lines, "none", "dossier log"),
         ],
         data: json!({"since": bound.value(), "events": events_json}),

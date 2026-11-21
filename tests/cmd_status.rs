@@ -13,28 +13,40 @@ use serde_json::Value;
 /// The summary of todo with one milestone (invented). Its counts are the whole project's.
 const SUMMARY: &str = r#"{"schema":"todo.summary.v1","ok":true,"data":{"milestones":[{"id":"T-130","title":"Context work","priority":"P0","status":"open","progress":{"done":2,"total":5}}],"counts":{"open":3,"claimed":1,"blocked":1,"done":2,"dropped":0,"total":7,"questions":1,"ideas":0}},"warnings":[]}"#;
 
-/// The task list of todo (invented): one claimed, one blocked, six ready tasks, and one ready
-/// task of another milestone, which comes first in the list.
-const LIST: &str = r#"{"schema":"todo.list.v1","ok":true,"data":{"tasks":[{"id":"T-201","title":"Cut the speedline runs","status":"claimed","owner":"ben-codex","ready":false,"priority":"P0","milestone":"T-130"},{"id":"T-202","title":"Get the mesh from the customer","status":"blocked","owner":null,"ready":false,"priority":"P0","milestone":"T-130"},{"id":"T-209","title":"Tidy the old notes","status":"open","owner":null,"ready":true,"priority":"P2","milestone":"T-119"},{"id":"T-203","title":"Write the status tests","status":"open","owner":null,"ready":true,"priority":"P1","milestone":"T-130"},{"id":"T-204","title":"Write the milestone tests","status":"open","owner":null,"ready":true,"priority":"P1","milestone":"T-130"},{"id":"T-205","title":"Write the cut tests","status":"open","owner":null,"ready":true,"priority":"P1","milestone":"T-130"},{"id":"T-206","title":"Write the JSON tests","status":"open","owner":null,"ready":true,"priority":"P1","milestone":"T-130"},{"id":"T-207","title":"Review the status code","status":"open","owner":null,"ready":true,"priority":"P2","milestone":"T-130"},{"id":"T-208","title":"Update the status help","status":"open","owner":null,"ready":true,"priority":"P2","milestone":"T-130"}]},"warnings":[]}"#;
+/// The task list of todo without a milestone (invented, as todo's `list --json` gives it: its
+/// tasks have no milestone field): one claimed, one blocked, and seven ready tasks, the first of
+/// them of another milestone.
+const LIST: &str = r#"{"schema":"todo.list.v1","ok":true,"data":{"tasks":[{"id":"T-201","title":"Cut the speedline runs","status":"claimed","owner":"ben-codex","ready":false,"priority":"P0"},{"id":"T-202","title":"Get the mesh from the customer","status":"blocked","owner":null,"ready":false,"priority":"P0"},{"id":"T-209","title":"Tidy the old notes","status":"open","owner":null,"ready":true,"priority":"P2"},{"id":"T-203","title":"Write the status tests","status":"open","owner":null,"ready":true,"priority":"P1"},{"id":"T-204","title":"Write the milestone tests","status":"open","owner":null,"ready":true,"priority":"P1"},{"id":"T-205","title":"Write the cut tests","status":"open","owner":null,"ready":true,"priority":"P1"},{"id":"T-206","title":"Write the JSON tests","status":"open","owner":null,"ready":true,"priority":"P1"},{"id":"T-207","title":"Review the status code","status":"open","owner":null,"ready":true,"priority":"P2"},{"id":"T-208","title":"Update the status help","status":"open","owner":null,"ready":true,"priority":"P2"}]},"warnings":[]}"#;
 
-/// The open questions of todo (invented): one question, of milestone T-130.
-const QUESTIONS: &str = r#"{"schema":"todo.list.v1","ok":true,"data":{"tasks":[{"id":"Q-001","title":"Is the wall function valid here?","status":"open","owner":null,"ready":false,"priority":"P1","milestone":"T-130"}]},"warnings":[]}"#;
+/// The task list of todo for `list --milestone T-130` (invented): the same tasks as LIST below
+/// that milestone, without T-209, which belongs to another one.
+const LIST_T130: &str = r#"{"schema":"todo.list.v1","ok":true,"data":{"tasks":[{"id":"T-201","title":"Cut the speedline runs","status":"claimed","owner":"ben-codex","ready":false,"priority":"P0"},{"id":"T-202","title":"Get the mesh from the customer","status":"blocked","owner":null,"ready":false,"priority":"P0"},{"id":"T-203","title":"Write the status tests","status":"open","owner":null,"ready":true,"priority":"P1"},{"id":"T-204","title":"Write the milestone tests","status":"open","owner":null,"ready":true,"priority":"P1"},{"id":"T-205","title":"Write the cut tests","status":"open","owner":null,"ready":true,"priority":"P1"},{"id":"T-206","title":"Write the JSON tests","status":"open","owner":null,"ready":true,"priority":"P1"},{"id":"T-207","title":"Review the status code","status":"open","owner":null,"ready":true,"priority":"P2"},{"id":"T-208","title":"Update the status help","status":"open","owner":null,"ready":true,"priority":"P2"}]},"warnings":[]}"#;
+
+/// The open questions of todo (invented): one question.
+const QUESTIONS: &str = r#"{"schema":"todo.list.v1","ok":true,"data":{"tasks":[{"id":"Q-001","title":"Is the wall function valid here?","status":"open","owner":null,"ready":false,"priority":"P1"}]},"warnings":[]}"#;
 
 /// The answer of todo when the task list cannot be read (invented).
 const REFUSED: &str = r#"{"schema":"todo.list.v1","ok":false,"error":{"code":"REFUSED","message":"no TODO.md in this folder"},"warnings":[]}"#;
 
-/// The stand-in for todo: it answers `--version` with exit 0, `list --kind question` with
-/// QUESTIONS, `list` with `list` (and exits with `list_exit`), and any other call with SUMMARY.
+/// The stand-in for todo. It answers `--version` with exit 0, and appends the arguments of every
+/// other call to calls.txt in the project folder. `list --kind question` gives QUESTIONS,
+/// `list --milestone <id>` gives LIST_T130, `list` gives `list` (and exits with `list_exit`), and
+/// any other call gives SUMMARY.
 fn todo_stand_in(list: &str, list_exit: u8) -> (String, String) {
     let windows = [
         "@echo off".to_string(),
         "if \"%~1\"==\"--version\" exit /b 0".to_string(),
+        "echo %* >> calls.txt".to_string(),
         "if \"%~1\"==\"list\" if \"%~2\"==\"--kind\" goto question".to_string(),
+        "if \"%~1\"==\"list\" if \"%~2\"==\"--milestone\" goto milestone".to_string(),
         "if \"%~1\"==\"list\" goto list".to_string(),
         format!("echo {SUMMARY}"),
         "exit /b 0".to_string(),
         ":question".to_string(),
         format!("echo {QUESTIONS}"),
+        "exit /b 0".to_string(),
+        ":milestone".to_string(),
+        format!("echo {LIST_T130}"),
         "exit /b 0".to_string(),
         ":list".to_string(),
         format!("echo {list}"),
@@ -45,8 +57,12 @@ fn todo_stand_in(list: &str, list_exit: u8) -> (String, String) {
     let unix = [
         "#!/bin/sh".to_string(),
         "if [ \"$1\" = \"--version\" ]; then exit 0; fi".to_string(),
+        "echo \"$@\" >> calls.txt".to_string(),
         "if [ \"$1\" = \"list\" ] && [ \"$2\" = \"--kind\" ]; then".to_string(),
         format!("  printf '%s\\n' '{QUESTIONS}'; exit 0"),
+        "fi".to_string(),
+        "if [ \"$1\" = \"list\" ] && [ \"$2\" = \"--milestone\" ]; then".to_string(),
+        format!("  printf '%s\\n' '{LIST_T130}'; exit 0"),
         "fi".to_string(),
         "if [ \"$1\" = \"list\" ]; then".to_string(),
         format!("  printf '%s\\n' '{list}'; exit {list_exit}"),
@@ -62,6 +78,16 @@ fn todo_stand_in(list: &str, list_exit: u8) -> (String, String) {
 fn with_todo(project: &Project, list: &str, list_exit: u8) {
     let (windows, unix) = todo_stand_in(list, list_exit);
     project.write_stand_in("todo", &windows, &unix);
+}
+
+/// The arguments of each call the stand-in got, one line per call, from calls.txt. The batch
+/// file's `echo` leaves a space at the end of each line, so the ends are trimmed.
+fn todo_calls(project: &Project) -> Vec<String> {
+    project
+        .read("calls.txt")
+        .lines()
+        .map(|line| line.trim_end().to_string())
+        .collect()
 }
 
 /// Runs `status` (or any command) as `agent` at `now` and returns the standard output.
@@ -478,4 +504,72 @@ fn json_gives_working_waiting_and_next_as_task_ids() {
         value["data"]["next"],
         serde_json::json!(["T-209", "T-203", "T-204", "T-205", "T-206"])
     );
+}
+
+#[test]
+fn without_a_milestone_todo_is_asked_for_the_whole_list_and_the_questions() {
+    let project = Project::new();
+    with_todo(&project, LIST, 0);
+    project.stdout("anna", &["status"]);
+    let calls = todo_calls(&project);
+    assert!(calls.iter().any(|call| call == "list --json"), "{calls:?}");
+    assert!(
+        calls
+            .iter()
+            .any(|call| call == "list --kind question --json"),
+        "{calls:?}"
+    );
+}
+
+#[test]
+fn with_a_milestone_todo_is_asked_for_its_list_and_its_questions() {
+    let project = Project::new();
+    with_todo(&project, LIST, 0);
+    project.stdout("anna", &["status", "--milestone", "t-130"]);
+    let calls = todo_calls(&project);
+    assert!(
+        calls
+            .iter()
+            .any(|call| call == "list --milestone T-130 --json"),
+        "{calls:?}"
+    );
+    assert!(
+        calls
+            .iter()
+            .any(|call| call == "list --kind question --milestone T-130 --json"),
+        "{calls:?}"
+    );
+}
+
+/// Runs `status` as anna with SSH_CONNECTION set to `value`, as an ssh session sets it, and
+/// returns the standard output.
+fn status_over_ssh(project: &Project, value: &str, args: &[&str]) -> String {
+    let stdout = project
+        .command("anna", "2026-11-20T10:00:00+01:00")
+        .env("SSH_CONNECTION", value)
+        .args(args)
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    String::from_utf8(stdout).expect("the standard output is UTF-8")
+}
+
+#[test]
+fn over_ssh_the_first_line_names_the_project_folder_on_the_server() {
+    let project = Project::new();
+    let root = project.root().display().to_string();
+    let expected = format!("Project P-001 on the server in {root}");
+    let session = "192.0.2.10 50722 192.0.2.20 22";
+
+    let screen = status_over_ssh(&project, session, &["status"]);
+    assert_eq!(screen.lines().next(), Some(expected.as_str()), "{screen}");
+
+    let since = status_over_ssh(&project, session, &["status", "--since", "2026-11-01"]);
+    assert_eq!(since.lines().next(), Some(expected.as_str()), "{since}");
+
+    // An empty SSH_CONNECTION is not a server session.
+    let local = status_over_ssh(&project, "", &["status"]);
+    assert_eq!(local.lines().next(), Some("Project P-001"), "{local}");
 }
