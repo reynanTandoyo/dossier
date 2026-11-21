@@ -4,7 +4,7 @@
 while doing its projects. People and their LLMs write to it and read from it, so that neither has
 to rely on memory.
 
-**Status: v0.1 (phase 1)**
+**Status: v0.2 (phase 2)**
 
 - [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the five phases it is
   built in.
@@ -29,16 +29,360 @@ context.
 - Runs from a Windows PC through ssh, after one `dossier connect`.
 - Writes a backup archive with `pack`.
 
-### Not in version 0.1
+### What version 0.2 adds
+
+Version 0.2 records the project's numbers, files and runs. So a result can be traced to what it
+was made from. Each feature has one short example. The examples continue the
+[first project](#a-first-project-in-ten-commands), and their dates are 20 and 21 November 2026.
+
+First add ben, who works with the LLM `ben-claude`:
+
+```sh
+dossier people add ben --llm ben-claude
+```
+
+Then name who decides. Open `DOSSIER/dossier.toml` and add this line above `[tags]`:
+
+```toml
+deciders = ["anna"]
+```
+
+Now only anna decides. Without this line, everyone who is listed decides.
+
+#### Key values
+
+A key value is a number that results depend on, such as a massflow from a spec. It has a unit and
+a source. Values marked `--key` come first in `brief` and `status`. A value comes into force when
+a person sets it.
+
+```sh
+dossier value set design.massflow "12.1 kg/s" --source "Spec rev 2" --key
+dossier value set design.pressure-ratio "1.85" --dimensionless --note "Design point"
+dossier values
+```
+
+```
+design.massflow  12.1 kg/s  (Spec rev 2, 2026-11-20)
+design.pressure-ratio  1.85  (2026-11-20)
+2 values
+```
+
+A value that an LLM sets waits for a person to approve it, unless the LLM names the person with
+`--said-by`. A person at a terminal approves it:
+
+```sh
+dossier value set design.inlet-temperature "288 K" --agent ben-claude
+dossier value approve design.inlet-temperature
+```
+
+```
+design.inlet-temperature: proposed — 288 K (waiting for a person)
+design.inlet-temperature: approved — 288 K
+```
+
+#### Files of a task
+
+A task has files: a model, its results, a report. `attach` records each one with its role, such
+as `model`, `result` or `report`. A result made from a model is marked `outdated` when the model
+changes. A file over 1 GiB gets a short checksum: the first and last 16 MiB, and its size.
+
+```sh
+dossier attach T-042 sim/stage1.sim --role model --note "Stage 1 model, steady mixing plane"
+dossier attach T-042 results/point07 --role result --from sim/stage1.sim --note "Speedline point 7"
+dossier files --task T-042
+```
+
+```
+model
+  sim/stage1.sim  Stage 1 model, steady mixing plane  2026-11-20
+result
+  results/point07  Speedline point 7  2026-11-20
+```
+
+On 21 November the mesh of the model was refined. Now `dossier files --task T-042` shows:
+
+```
+model
+  sim/stage1.sim  Stage 1 model, steady mixing plane  2026-11-20  [changed since attached]
+result
+  results/point07  Speedline point 7  2026-11-20  [outdated]
+```
+
+`which` goes the other way. It shows the task and role of a file, and the results made from it:
+
+```sh
+dossier which sim/stage1.sim
+```
+
+```
+T-042  model
+made into: T-042 results/point07
+```
+
+`attach --moved` changes a path and keeps its role. `detach` takes a file off a task.
+
+#### Simulation runs
+
+`used` records one run of a simulation: the software and its version, the model file, the
+parameters and the outputs. A parameter can name a key value, as `{design.massflow}` does here.
+The outputs are attached to the task as results, made from the model.
+
+```sh
+dossier used ExampleSolver --version 2406 --task T-042 --model sim/stage1.sim --param backpressure=1.42 --param "massflow={design.massflow}" --output results/point07 --note "Speedline point 7"
+```
+
+```
+USE-001: run recorded
+```
+
+The next run uses the changed model and a new backpressure. It makes the result current again.
+`reattach` then records the model's new size, time and checksum:
+
+```sh
+dossier used ExampleSolver --version 2406 --task T-042 --model sim/stage1.sim --param backpressure=1.50 --param "massflow={design.massflow}" --output results/point07 --note "Speedline point 7, mesh 3.1 million cells"
+dossier reattach T-042 sim/stage1.sim
+dossier runs --task T-042
+```
+
+```
+USE-002: run recorded
+T-042: reattached sim\stage1.sim: checksum changed
+2026-11-21  anna  USE-002  ExampleSolver 2406  sim/stage1.sim
+  changed: backpressure 1.42 -> 1.50
+  outputs: results/point07
+2026-11-20  anna  USE-001  ExampleSolver 2406  sim/stage1.sim
+  outputs: results/point07
+```
+
+`dossier runs --compare USE-001 USE-002` lists each field and parameter that differs between two
+runs, including the model's checksum.
+
+#### Pictures
+
+A picture goes into an entry with a caption. It can be a PNG, JPEG or SVG file of up to 2 MB, and
+an entry can hold 10 pictures. The picture is copied into `DOSSIER/images/`.
+
+```sh
+dossier found "The speedline at point 7 is smooth" --evidence "results/point07"
+dossier image add FND-002 plot.svg --caption "Speedline at point 7, steady mixing plane"
+```
+
+```
+FND-002: added (approved)
+FND-002: picture added: plot.svg
+```
+
+`dossier show FND-002` prints the entry with a *Pictures* section.
+
+#### Proposals and deciders
+
+With `deciders` set, a decision by anyone else is a proposal. A decider accepts or declines it at
+a terminal. Only a decider's decision is approved at once. An LLM's decision names the person it
+is for with `--said-by`, and it is a proposal unless that person is a decider. An LLM with nobody
+to name uses `dossier propose`.
+
+```sh
+dossier decide "Run stage 1 at backpressure 1.50 as well" --reason "The stall margin is not known at this backpressure" --task T-042 --agent ben
+dossier list --status proposed
+dossier accept DEC-002
+```
+
+```
+DEC-002: proposed (ben is not in deciders; a decider accepts it with: dossier accept DEC-002)
+warning: related: DEC-001 Use the steady mixing-plane run for the speedline
+DEC-002  decision  [proposed] Run stage 1 at backpressure 1.50 as well
+1 entry
+DEC-002: accepted
+```
+
+`accept` shows the proposal and asks for a yes or no first. `decline` turns a proposal down and
+keeps the reason in the entry:
+
+```sh
+dossier decide "Keep the mesh at 3.1 million cells" --reason "The speedline is converged at that size" --said-by ben --agent ben-claude
+dossier decline DEC-003 --reason "Already covered by the 3.1 million cell run"
+```
+
+```
+DEC-003: proposed (ben is not in deciders; a decider accepts it with: dossier accept DEC-003)
+DEC-003: declined
+```
+
+#### Confirming and refuting assumptions
+
+An assumption is taken as true without proof. A person confirms it and says how it was checked. A
+person at a terminal refutes it. Then everything that rests on it is marked and listed, and a
+delivery based on it asks for a confirmation.
+
+```sh
+dossier assume "The rig reads the same mass flow as the model" --reason "The rig calibration is from last year" --affects FND-001
+dossier confirm ASM-002 --by "measured on the rig, report 3"
+dossier assume "The inlet pressure profile is flat" --reason "No inlet survey yet" --affects "T-042, design.massflow"
+dossier refute ASM-003 --by "ben, from the inlet survey"
+```
+
+```
+ASM-002: added (approved, open)
+ASM-002: confirmed
+ASM-003: added (approved, open)
+ASM-003: refuted
+USE-001: rests on ASM-003
+DEC-002: rests on ASM-003
+USE-002: rests on ASM-003
+T-042 file sim\stage1.sim: rests on ASM-003
+T-042 file results\point07: rests on ASM-003
+values named: design.massflow (used by USE-001, USE-002)
+```
+
+`brief` shows the mark on each entry:
+
+```
+## Decisions in force
+DEC-002 · Run stage 1 at backpressure 1.50 as well (ben, 2026-11-21) [rests on ASM-003]
+...
+```
+
+When a person has checked that an entry does not depend on the wrong assumption, `cleared` removes
+the mark. The note says why:
+
+```sh
+dossier cleared DEC-002 --assumption ASM-003 --note "The backpressure runs do not depend on the inlet profile"
+```
+
+```
+DEC-002: cleared ASM-003
+```
+
+#### What was in force on a date
+
+`--on <date>` works with `list`, `search`, `brief`, `status`, `values` and `files`. The date is
+`YYYY-MM-DD`. The output shows what was in force on that day, not what is in force now.
+
+```sh
+dossier brief --on 2026-11-20
+```
+
+```
+Project P-001
+## Key values
+design.massflow = 12.1 kg/s
+design.inlet-temperature = 288 K
+design.pressure-ratio = 1.85
+## Decisions in force
+DEC-001 · Use the steady mixing-plane run for the speedline (anna, 2026-11-20)
+  Use the steady mixing-plane run for the speedline
+  It converges at the design point
+## Open assumptions
+ASM-001 · The inlet total pressure is uniform
+## Findings
+FND-001 · The steady speedline stops at mass flow 12.1 kg/s
+## Lessons
+LES-001 · Steady mixing-plane runs overpredict the stall margin near the stability limit
+```
+
+#### The exchange with the customer
+
+`received` records files that come from the customer. `delivered` records files that go out, and
+it can name what they are based on: a task or a file. A record keeps the names and checksums of
+its files. The files themselves are not copied into the dossier.
+
+```sh
+dossier received inlet-survey.txt --from "ben (the customer)" --task T-042 --note "Inlet survey from the customer"
+dossier delivered results/point07/report.txt --to "ben (the customer)" --based-on T-042 --note "Speedline report, draft 1"
+```
+
+```
+RCV-001: received 1 files from ben (the customer)
+error: the delivery has warnings that a person at a terminal must confirm: T-042: sim/stage1.sim rests on a wrong assumption; T-042: results/point07 rests on a wrong assumption; T-042: USE-001 rests on a wrong assumption: ASM-003; T-042: USE-002 rests on a wrong assumption: ASM-003
+```
+
+This delivery rests on a refuted assumption, so a person at a terminal must confirm it. The
+command shows the warnings and asks whether to deliver anyway. After a yes, it records the
+delivery:
+
+```
+DLV-001: delivered 1 files to ben (the customer)
+```
+
+`dossier exchange` lists the records in time order:
+
+```sh
+dossier exchange
+```
+
+```
+2026-11-20  RCV-001  from ben (the customer)
+  inlet-survey.txt
+2026-11-21  DLV-001  to ben (the customer)
+  results/point07/report.txt
+  based on T-042
+2 records
+```
+
+#### The code map
+
+A code project keeps a map of its code: what each folder is for, and where to start reading. Start
+it with `init --code-project`. An entry can also point at code, with `code=<path>` or
+`code=<path>::<name>`.
+
+```sh
+dossier init --code P-002 --code-project
+dossier people add anna --llm anna-claude
+dossier map set src/solver "Time loop and the solver core" --start src/solver/main.rs
+dossier map set src/io "Reads the mesh and the boundary files"
+dossier map
+```
+
+```
+src/io  Reads the mesh and the boundary files
+src/solver  Time loop and the solver core (start: src/solver/main.rs)
+```
+
+```sh
+dossier found "The time loop writes the residuals every step" --evidence "src/solver/main.rs"
+dossier set FND-001 --field "code=src/solver/main.rs::main"
+dossier which src/solver/main.rs
+```
+
+```
+not attached to any task
+entries: FND-001 The time loop writes the residuals every step
+```
+
+`dossier map remove src/io` takes a folder out of the map. Its description stays in the file, with
+its history.
+
+#### Claude Code hooks and skill
+
+Two Claude Code settings help. One starts each session with the brief. The other stops Claude from
+editing the dossier by hand. Run these two commands in the project folder. Without `--yes`, each
+one only says what it would change:
+
+```sh
+dossier hooks install --yes
+dossier skill install --yes
+```
+
+```
+hooks installed in .claude/settings.json
++ PreToolUse (Edit|Write|MultiEdit): dossier guard
++ SessionStart: dossier brief
+.claude/skills/dossier/SKILL.md: skill written
+```
+
+The `SessionStart` hook runs `dossier brief` when a session starts. The `PreToolUse` hook runs
+`dossier guard` before an edit. An edit to a file inside a `DOSSIER` folder is blocked, and the
+message says to use the dossier commands. The skill file tells Claude how to use the commands.
+`dossier hooks uninstall --yes` removes the two hooks.
+
+### Not in version 0.2
 
 These come in later phases. See [`docs/requirements.md`](docs/requirements.md), section 11.
 
-- **Phase 2 (v0.2):** key values, the files of each task, simulation runs, pictures in entries,
-  proposals for the project lead, and the exchange with the customer.
 - **Phase 3 (v0.3):** the team dossier, promoting entries from one project to another, how-tos,
-  scripts, the software list, the glossary, and finished projects.
+  scripts, the software list, the glossary, what is new, and finished projects.
 - **Phase 4 (v0.4):** copying large simulation files to a PC and back.
-- **Phase 5 (v0.5):** milestone digests, Claude Code hooks, and export.
+- **Phase 5 (v0.5):** milestone digests, session review, and export.
 
 ## What it needs
 
@@ -334,9 +678,11 @@ This creates `/restore/P-001/DOSSIER`, and checks it.
 
 ## Confidentiality
 
-Version 0.1 has one dossier per project, and no team dossier. Nothing is shared between projects.
-So customer names and customer data stay in the project's own folder. The team dossier comes in
-phase 3 (v0.3). It keeps the lessons that can be reused in other projects, without customer data.
+Versions 0.1 and 0.2 have one dossier per project, and no team dossier. Nothing is shared between
+projects. So customer names and customer data stay in the project's own folder. The exchange
+records name the files and their checksums, but do not copy the files. The team dossier comes in
+phase 3 (v0.3). It keeps the lessons that can be reused in other projects,
+without customer data.
 
 ## Building from source
 
