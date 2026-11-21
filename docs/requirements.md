@@ -1,6 +1,6 @@
 # dossier — requirements
 
-Draft 5, 2026-11-21 (owner's decisions for phase 2: D28 to D33). Four points are still open (§12); everything else is decided (§3) until the
+Draft 6, 2026-11-21 (owner's decisions: D28 to D38). Four points are still open (§12); everything else is decided (§3) until the
 owner says otherwise.
 
 Each requirement has a priority, which says how important it is. When it is built is decided
@@ -119,6 +119,11 @@ an LLM starts with the right context.
 | D31 | Scripts, commands on the server, installed software and git repositories are one entry kind, a *tool* (`TOOL-001`), with a `type` (`script`, `command`, `software`, `repo`) and a `location`. It replaces the separate software list, script entries and `script_root` of D19 and R-USE-1, R-USE-8 to R-USE-13, which are rewritten when phase 3 starts. The team standardises its tools in the meantime. (Owner, 2026-11-21.) | The team has no single place or form for its tools yet; one flexible kind fits all of them. |
 | D32 | Anyone in the project may add a confidential term, also an LLM when its person says so in the session; removing a term needs a person at a terminal. There are no automatic terms; writing to the team dossier is refused until the project has at least one term or a person stated that there are none. (Owner, 2026-11-21.) | The tool cannot guess a customer's names; the refusal makes sure nobody forgets the list. |
 | D33 | The Claude Code hooks (`brief` at session start, a guard against direct edits of `DOSSIER/`) and the skill come in phase 2; the session-end review (R-DRAFT-9) stays in phase 5. Export (R-OUT-7) writes Markdown only. Review dates (R-LIFE-7) have no default: they are set per entry. (Owner, 2026-11-21.) | The hooks make the tool part of every session from the start. |
+| D34 | The team is a list of usernames (the operating-system login of each member), plus a separate list of plain names: people who are not users (an external colleague, a customer contact) and can be named as author, source or `--said-by`, but never write themselves. An LLM is named `<username> - <anything>`, for example `tony - claude opus 5.5 high`; LLM names are not registered. Without `--agent` or `DOSSIER_AGENT` the writer is the operating-system username. `hooks install` sets `DOSSIER_AGENT` to `<username> - claude` in the user's personal Claude Code settings (`.claude/settings.local.json`), so that Claude's writes are always marked as an LLM's. Names registered with `people add --llm` keep working. Replaces the registration of LLM names of D13. (Owner, 2026-11-21.) | Simple to set up: nobody keeps a list of LLM names, and a person's own commands need no name at all. |
+| D35 | Software names stay free text; R-USE-1's refusal of unknown names is dropped for now and may come back when the team has standardised its tools. (Owner, 2026-11-21.) | The team has no standard list yet. |
+| D36 | Project folders and the team dossier are git repositories. `dossier` commits its own changes in the team dossier (R-TEAM-6) and never pushes; in a project folder `DOSSIER/` is committed with the project's work, like `TODO.md`. (Owner, 2026-11-21.) | One history for the work, the tasks and the knowledge. |
+| D37 | A tool (D31) has a name, required, and a location, optional: a path, a command or a URL when one is known. Nothing is checked for a tool without a location. (Owner, 2026-11-21.) | Many tools have no single place yet. |
+| D38 | `dossier` keeps the knowledge, `todo` keeps the work, side by side. `dossier` never creates, changes, claims or closes a task and never writes `TODO.md`; it reads tasks only through `todo --json`, and `dossier todo` only passes a command through to `todo` on the server. `dossier`'s register on the PC (`connect`, `projects`) holds the server connection for remote mode and is separate from `todo`'s project register (`todo project`, `todo overview`). Every later feature keeps to this. (Owner, 2026-11-21.) | Two tools that each do one thing work well together; overlapping features would drift apart. |
 
 ---
 
@@ -908,8 +913,8 @@ depend on which of the two a command was typed on.
 - **R-CFG-1 MUST** Project settings in `DOSSIER/dossier.toml`: project code, the
   deciders (R-WRITE-12, D28), path of the team
   dossier, default tags, confidential terms, and overrides of the values below.
-- **R-CFG-2 MUST** Team settings in the team dossier's `dossier.toml`: the people, each with the
-  names of their LLMs; the allowed values for `machine` and `analysis` (optional); and the
+- **R-CFG-2 MUST** Team settings in the team dossier's `dossier.toml`: the people (usernames,
+  and a separate list of plain names, D34); the allowed values for `machine` and `analysis` (optional); and the
   defaults:
 
   | Setting | Default | Meaning |
@@ -926,7 +931,8 @@ depend on which of the two a command was typed on.
 - **R-CFG-3 MUST** An unknown setting or wrong value is an error naming the file, line and
   setting.
 - **R-CFG-4 MUST** A name that isn't in the team settings is refused for writing, with the list
-  of known names. `people add <person> [--llm <name>…]` adds one.
+  of known names. `people add <person> [--llm <name>…]` adds one. Since D34 an LLM is named
+  `<username> - <anything>` and needs no registration; its username must be a member.
 
 ### 5.19 Output — OUT
 

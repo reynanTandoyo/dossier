@@ -1,5 +1,5 @@
 <!-- todo-format: 3 -->
-<!-- todo-tool: 0.8.1 -->
+<!-- todo-tool: 1.0.0 -->
 # dossier
 
 <!-- todo:begin -->
@@ -1575,6 +1575,7 @@
 - priority: P1 · type: milestone
 - goal: One team dossier holds lessons, how-tos, scripts, the software list and a glossary; entries are promoted from projects only after the confidentiality check; finished projects of the past are brought in. Requirements: docs/requirements.md section 11, Phase 3 (v0.3). Each task here is split when the phase starts.
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): Owner 2026-11-21 (D38): dossier keeps the knowledge, todo the work. No phase 3 feature creates, changes, claims or closes tasks or writes TODO.md; tasks are read only through todo --json.
 
 ### T-043 · Team dossier: init --team-dossier, project codes, team settings, team members
 - status: open
@@ -1587,6 +1588,7 @@
 - reqs: R-PLACE-3 to R-PLACE-6, R-TEAM-1, R-TEAM-7, R-CFG-2, R-CFG-4, D3, D29
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21: one team dossier path, given with init --team. Only members write to it; team member add <person> [--llm <name>] and team member remove <person> (a person at a terminal), each saved with who and when (R-TEAM-7, D29).
+- note (2026-11-21, planner): Owner 2026-11-21 (D34): the team is a list of usernames (OS logins) plus a separate list of plain names (non-users: may be author, source or --said-by, never write). An LLM is '<username> - <anything>' with no registration; without --agent/DOSSIER_AGENT the writer is the OS username; hooks install also sets DOSSIER_AGENT='<username> - claude' in .claude/settings.local.json. names.rs, people and hooks change accordingly; people add --llm keeps working. (D36) the team dossier is a git repository and dossier commits its own changes there, never pushes.
 
 ### T-044 · Confidentiality: confidential terms and the check before any team write
 - status: open
@@ -1623,6 +1625,7 @@
 - reqs: R-USE-3 to R-USE-7, R-ENTRY-8, R-ENTRY-9, D31
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21 (D31): there is no separate software list; software is a tool of type software (T-047). The usage index and how-tos name tools by ID or name.
+- note (2026-11-21, planner): Owner 2026-11-21 (D35): software names stay free text for now; no refusal of unknown names.
 
 ### T-047 · Tools: one kind for scripts, commands, installed software and git repositories (TOOL-001)
 - status: open
@@ -1635,6 +1638,7 @@
 - reqs: R-USE-8 to R-USE-13, R-USE-1, R-ENTRY-12, D19, D31
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21 (D31): one entry kind tool (prefix TOOL) with type script | command | software | repo and a location (a path on the server, a command name on PATH, the install place, a git URL). Checks: a script file still matches its checksum, a command still exists on the server; software and repos are not checked. Sections Purpose, How to run, Inputs, Outputs, Traps, Tested with. Replaces the software list, script entries and script_root; R-USE-1 and R-USE-8 to R-USE-13 are rewritten when phase 3 starts. The team standardises its tools in the meantime.
+- note (2026-11-21, planner): Owner 2026-11-21 (D37): a tool has a required name and an optional location; nothing is checked without a location. (D35) software names stay free text.
 
 ### T-048 · Glossary: term add, term, glossary, and search through other spellings
 - status: open
