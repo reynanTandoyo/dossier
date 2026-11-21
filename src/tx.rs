@@ -51,6 +51,15 @@ enum Action {
         to: PathBuf,
         text: String,
     },
+    /// A file that is not an entry: its new bytes.
+    PutRaw {
+        path: PathBuf,
+        bytes: Vec<u8>,
+    },
+    /// A file that is not an entry.
+    DeleteRaw {
+        path: PathBuf,
+    },
 }
 
 /// The message of the refusal for a dossier on a network drive (R-LOCK-3).
@@ -107,17 +116,22 @@ impl<'a> Tx<'a> {
     /// Queue writing `bytes` to `path` (any file inside the dossier). `old` is the file as read
     /// (None for a new file). The old bytes are snapshotted under change.id when the path ends
     /// in `.md`.
-    pub fn put_raw(
-        &mut self,
-        _path: PathBuf,
-        _old: Option<Vec<u8>>,
-        _bytes: Vec<u8>,
-        _change: Change,
-    ) {
+    pub fn put_raw(&mut self, path: PathBuf, old: Option<Vec<u8>>, bytes: Vec<u8>, change: Change) {
+        self.queued.push(Queued {
+            action: Action::PutRaw { path, bytes },
+            old,
+            change,
+        });
     }
 
     /// Queue removing a file that is still `old`.
-    pub fn delete_raw(&mut self, _path: PathBuf, _old: Vec<u8>, _change: Change) {}
+    pub fn delete_raw(&mut self, path: PathBuf, old: Vec<u8>, change: Change) {
+        self.queued.push(Queued {
+            action: Action::DeleteRaw { path },
+            old: Some(old),
+            change,
+        });
+    }
 }
 
 /// Refuses a network drive, takes the lock, runs `f`, then for each queued change: saves a
@@ -174,7 +188,7 @@ fn apply(ctx: &Ctx, who: &Who, time: &str, queued: &[Queued]) -> Result<()> {
         check(op)?;
     }
     for op in queued {
-        if let Some(old) = &op.old {
+        if let Some(old) = snapshot_of(op) {
             snapshot::save(
                 &ctx.state,
                 &op.change.id,
@@ -190,11 +204,30 @@ fn apply(ctx: &Ctx, who: &Who, time: &str, queued: &[Queued]) -> Result<()> {
     Ok(())
 }
 
+/// The old bytes that a change keeps as a snapshot under its ID: every change of an entry, and
+/// a change of another file only when that file is a `.md` file (pictures and values files of
+/// other kinds keep no snapshot). None for a new file.
+fn snapshot_of(op: &Queued) -> Option<&[u8]> {
+    let keeps = match &op.action {
+        Action::Put { .. } | Action::Delete { .. } | Action::Rename { .. } => true,
+        Action::PutRaw { path, .. } | Action::DeleteRaw { path } => is_md(path),
+    };
+    if keeps { op.old.as_deref() } else { None }
+}
+
+/// Whether the path ends in `.md`.
+fn is_md(path: &Path) -> bool {
+    path.extension().is_some_and(|extension| extension == "md")
+}
+
 /// What must hold before anything is written: each changed file is still the file as it was
 /// read, and the new file of a rename does not exist yet.
 fn check(op: &Queued) -> Result<()> {
     match &op.action {
-        Action::Put { path, .. } | Action::Delete { path } => unchanged(path, op.old.as_deref()),
+        Action::Put { path, .. }
+        | Action::Delete { path }
+        | Action::PutRaw { path, .. }
+        | Action::DeleteRaw { path } => unchanged(path, op.old.as_deref()),
         Action::Rename { from, to, .. } => {
             unchanged(from, op.old.as_deref())?;
             if to == from {
@@ -209,21 +242,24 @@ fn check(op: &Queued) -> Result<()> {
 /// Makes one change on the files. `check` has passed for it already.
 fn write_one(op: &Queued) -> Result<()> {
     match &op.action {
-        Action::Put { path, text } => replace(path, text, op.old.as_deref()),
-        Action::Delete { path } => remove(path),
+        Action::Put { path, text } => replace(path, text.as_bytes(), op.old.as_deref()),
+        Action::PutRaw { path, bytes } => replace(path, bytes, op.old.as_deref()),
+        Action::Delete { path } | Action::DeleteRaw { path } => remove(path),
         // Renamed onto its own path: the same file, replaced in place.
-        Action::Rename { from, to, text } if from == to => replace(to, text, op.old.as_deref()),
+        Action::Rename { from, to, text } if from == to => {
+            replace(to, text.as_bytes(), op.old.as_deref())
+        }
         Action::Rename { from, to, text } => {
-            replace(to, text, None)?;
+            replace(to, text.as_bytes(), None)?;
             remove(from)
         }
     }
 }
 
-/// Replaces the file at `path` with `text`, expecting it to be `old` (None: a new file).
-fn replace(path: &Path, text: &str, old: Option<&[u8]>) -> Result<()> {
+/// Replaces the file at `path` with `bytes`, expecting it to be `old` (None: a new file).
+fn replace(path: &Path, bytes: &[u8], old: Option<&[u8]>) -> Result<()> {
     let expected = old.map(seen_of);
-    atomic::replace(path, text.as_bytes(), Some(&expected))
+    atomic::replace(path, bytes, Some(&expected))
 }
 
 /// Removes the file at `path`.
@@ -277,8 +313,12 @@ fn record(time: &str, who: &Who, command: &str, change: &Change) -> journal::Rec
 /// The warning that a dry run gives for one change.
 fn dry_run_warning(root: &Path, queued: &Queued) -> String {
     match &queued.action {
-        Action::Put { path, .. } => format!("dry run: would write {}", shown(root, path)),
-        Action::Delete { path } => format!("dry run: would delete {}", shown(root, path)),
+        Action::Put { path, .. } | Action::PutRaw { path, .. } => {
+            format!("dry run: would write {}", shown(root, path))
+        }
+        Action::Delete { path } | Action::DeleteRaw { path } => {
+            format!("dry run: would delete {}", shown(root, path))
+        }
         Action::Rename { from, to, .. } => format!(
             "dry run: would rename {} to {}",
             shown(root, from),
@@ -776,5 +816,279 @@ mod tests {
             .map(|record| (record.id.as_str(), record.event.as_str()))
             .collect();
         assert_eq!(order, [("DEC-013", "removed"), ("DEC-014", "created")]);
+    }
+
+    /// A block file as format.md §17 has it, with an invented block for `key`.
+    fn block_text(key: &str, note: &str) -> Vec<u8> {
+        format!(
+            "<!-- dossier-format: 1 -->\n# Files of T-001\n\n## {key}\n\n- role: other\n- note: {note}\n\n"
+        )
+        .into_bytes()
+    }
+
+    /// The bytes of a PNG picture: its signature and some invented data after it.
+    fn picture_bytes() -> Vec<u8> {
+        let mut bytes = b"\x89PNG\r\n\x1a\n".to_vec();
+        bytes.extend_from_slice(b"invented picture data");
+        bytes
+    }
+
+    #[test]
+    fn a_new_block_file_is_written_with_one_journal_line() {
+        let _clock = FixedClock::new();
+        let (_dir, ctx) = project();
+        let path = ctx.dossier.join("files").join("T-001.md");
+        let bytes = block_text("models/wing-v3.step", "first note");
+        let output = write(&ctx, |tx| {
+            tx.put_raw(
+                path.clone(),
+                None,
+                bytes.clone(),
+                change("FILES-T-001", "attached", "models/wing-v3.step"),
+            );
+            Ok(Output::text("T-001: attached"))
+        })
+        .expect("the change is written");
+
+        assert_eq!(output.text, "T-001: attached");
+        assert!(output.warnings.is_empty());
+        assert_eq!(fs::read(&path).expect("the file"), bytes);
+        let records = journal::read(&ctx.state).expect("the journal");
+        assert_eq!(records.len(), 1);
+        let record = &records[0];
+        assert_eq!(record.time, NOW);
+        assert_eq!(record.name, "anna-claude");
+        assert_eq!(record.person, "Anna");
+        assert!(record.llm);
+        assert_eq!(record.command, "found");
+        assert_eq!(record.id, "FILES-T-001");
+        assert_eq!(record.event, "attached");
+        assert_eq!(record.detail, "models/wing-v3.step");
+        assert!(
+            snapshot::list(&ctx.state, "FILES-T-001")
+                .expect("the snapshots")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn a_second_put_raw_over_a_block_file_saves_its_old_bytes_as_snapshot_1() {
+        let _clock = FixedClock::new();
+        let (_dir, ctx) = project();
+        let path = ctx.dossier.join("files").join("T-001.md");
+        let first = block_text("models/wing-v3.step", "first note");
+        write(&ctx, |tx| {
+            tx.put_raw(
+                path.clone(),
+                None,
+                first.clone(),
+                change("FILES-T-001", "attached", "models/wing-v3.step"),
+            );
+            Ok(Output::text("T-001: attached"))
+        })
+        .expect("the first change is written");
+
+        let second = block_text("models/wing-v3.step", "second note");
+        write(&ctx, |tx| {
+            tx.put_raw(
+                path.clone(),
+                Some(first.clone()),
+                second.clone(),
+                change("FILES-T-001", "changed", "note"),
+            );
+            Ok(Output::text("T-001: changed"))
+        })
+        .expect("the second change is written");
+
+        assert_eq!(fs::read(&path).expect("the file"), second);
+        let snaps = snapshot::list(&ctx.state, "FILES-T-001").expect("the snapshots");
+        assert_eq!(snaps.len(), 1);
+        assert_eq!(snaps[0].n, 1);
+        assert_eq!(
+            snapshot::load(&ctx.state, "FILES-T-001", 1).expect("snapshot 1"),
+            first
+        );
+        let records = journal::read(&ctx.state).expect("the journal");
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[1].event, "changed");
+    }
+
+    #[test]
+    fn a_picture_is_written_and_its_deletion_keeps_no_snapshot() {
+        let _clock = FixedClock::new();
+        let (_dir, ctx) = project();
+        let path = ctx
+            .dossier
+            .join("images")
+            .join("DEC-015")
+            .join("speedline.png");
+        let bytes = picture_bytes();
+        write(&ctx, |tx| {
+            tx.put_raw(
+                path.clone(),
+                None,
+                bytes.clone(),
+                change("DEC-015", "picture added", "speedline.png"),
+            );
+            Ok(Output::text("DEC-015: picture added"))
+        })
+        .expect("the picture is written");
+        assert_eq!(fs::read(&path).expect("the picture"), bytes);
+
+        write(&ctx, |tx| {
+            tx.delete_raw(
+                path.clone(),
+                bytes.clone(),
+                change("DEC-015", "picture removed", "speedline.png"),
+            );
+            Ok(Output::text("DEC-015: picture removed"))
+        })
+        .expect("the picture is removed");
+
+        assert!(!path.exists());
+        assert!(
+            snapshot::list(&ctx.state, "DEC-015")
+                .expect("the snapshots")
+                .is_empty()
+        );
+        let records = journal::read(&ctx.state).expect("the journal");
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[0].event, "picture added");
+        assert_eq!(records[1].event, "picture removed");
+    }
+
+    #[test]
+    fn a_deleted_md_file_keeps_its_old_bytes_as_snapshot_1() {
+        let _clock = FixedClock::new();
+        let (_dir, ctx) = project();
+        let path = ctx.dossier.join("files").join("T-002.md");
+        fs::create_dir_all(path.parent().expect("a folder")).expect("the folder");
+        let bytes = block_text("data/old-export.csv", "to be removed");
+        fs::write(&path, &bytes).expect("the block file");
+        write(&ctx, |tx| {
+            tx.delete_raw(
+                path.clone(),
+                bytes.clone(),
+                change("FILES-T-002", "detached", "data/old-export.csv"),
+            );
+            Ok(Output::text("T-002: detached"))
+        })
+        .expect("the file is removed");
+
+        assert!(!path.exists());
+        assert_eq!(
+            snapshot::load(&ctx.state, "FILES-T-002", 1).expect("snapshot 1"),
+            bytes
+        );
+    }
+
+    #[test]
+    fn a_raw_file_changed_by_someone_else_gives_changed_and_is_kept() {
+        let _clock = FixedClock::new();
+        let (_dir, ctx) = project();
+        let path = ctx.dossier.join("files").join("T-003.md");
+        fs::create_dir_all(path.parent().expect("a folder")).expect("the folder");
+        let read_as = block_text("notes/review.txt", "as read");
+        fs::write(&path, b"written by someone else").expect("the outside change");
+        let error = write(&ctx, |tx| {
+            tx.put_raw(
+                path.clone(),
+                Some(read_as.clone()),
+                block_text("notes/review.txt", "new"),
+                change("FILES-T-003", "changed", "note"),
+            );
+            Ok(Output::text("done"))
+        })
+        .err()
+        .expect("the change is refused");
+
+        assert_eq!(error.code, Code::Changed);
+        assert_eq!(error.exit(), 3);
+        assert_eq!(
+            fs::read(&path).expect("the file"),
+            b"written by someone else"
+        );
+        assert!(
+            snapshot::list(&ctx.state, "FILES-T-003")
+                .expect("the snapshots")
+                .is_empty()
+        );
+        assert!(journal::read(&ctx.state).expect("the journal").is_empty());
+    }
+
+    #[test]
+    fn a_raw_file_changed_before_its_delete_gives_changed_and_is_kept() {
+        let _clock = FixedClock::new();
+        let (_dir, ctx) = project();
+        let path = ctx
+            .dossier
+            .join("images")
+            .join("DEC-017")
+            .join("sketch.png");
+        fs::create_dir_all(path.parent().expect("a folder")).expect("the folder");
+        let read_as = picture_bytes();
+        fs::write(&path, b"a different picture").expect("the outside change");
+        let error = write(&ctx, |tx| {
+            tx.delete_raw(
+                path.clone(),
+                read_as.clone(),
+                change("DEC-017", "picture removed", "sketch.png"),
+            );
+            Ok(Output::text("done"))
+        })
+        .err()
+        .expect("the delete is refused");
+
+        assert_eq!(error.code, Code::Changed);
+        assert_eq!(fs::read(&path).expect("the file"), b"a different picture");
+        assert!(journal::read(&ctx.state).expect("the journal").is_empty());
+    }
+
+    #[test]
+    fn a_dry_run_of_raw_changes_writes_nothing_and_warns_once_per_change() {
+        let _clock = FixedClock::new();
+        let (_dir, mut ctx) = project();
+        ctx.dry_run = true;
+        let picture_path = ctx.dossier.join("images").join("DEC-016").join("old.png");
+        fs::create_dir_all(picture_path.parent().expect("a folder")).expect("the folder");
+        let picture = picture_bytes();
+        fs::write(&picture_path, &picture).expect("the picture");
+        let new_path = ctx.dossier.join("files").join("T-004.md");
+        let output = write(&ctx, |tx| {
+            tx.put_raw(
+                new_path.clone(),
+                None,
+                block_text("models/new.step", "dry"),
+                change("FILES-T-004", "attached", "models/new.step"),
+            );
+            tx.delete_raw(
+                picture_path.clone(),
+                picture.clone(),
+                change("DEC-016", "picture removed", "old.png"),
+            );
+            Ok(Output::text("two changes"))
+        })
+        .expect("the dry run");
+
+        assert_eq!(output.text, "two changes");
+        assert_eq!(
+            output.warnings,
+            [
+                "dry run: would write DOSSIER/files/T-004.md",
+                "dry run: would delete DOSSIER/images/DEC-016/old.png",
+            ]
+        );
+        assert!(!new_path.exists());
+        assert_eq!(fs::read(&picture_path).expect("the picture"), picture);
+        assert!(journal::read(&ctx.state).expect("the journal").is_empty());
+        assert!(
+            snapshot::list(&ctx.state, "DEC-016")
+                .expect("the snapshots")
+                .is_empty()
+        );
+        assert!(
+            !ctx.state.join("write.lock").exists(),
+            "a dry run takes no lock"
+        );
     }
 }
