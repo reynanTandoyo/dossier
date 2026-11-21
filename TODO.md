@@ -627,10 +627,8 @@
 - note (2026-11-21, haiku-t-169): done
 
 ### T-170 · attach: add files of a task, or move one
-- status: claimed
+- status: done
 - owner: haiku-t-170
-- claimed: 2026-11-21T11:24+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-033
 - why: A reader finds the files of a task without searching (R-FILE-8 to R-FILE-10, R-FILE-13).
@@ -646,8 +644,12 @@
   6. Run cargo test --test cmd_attach.
 - accept: attach records files with role, note, size, time, checksum and what they were made from; --moved keeps the history.
 - verify: cargo test --test cmd_attach
+- verified: 2026-11-21
+- commit: 7b02872
 - reqs: R-FILE-8, R-FILE-9, R-FILE-10, R-FILE-13, R-XOS-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-170): done
 
 ### T-171 · detach: a file no longer belongs to a task
 - status: open
