@@ -1740,10 +1740,8 @@
 - note (2026-11-21, haiku-t-103): done
 
 ### T-104 · set: change fields and sections of an entry
-- status: claimed
+- status: done
 - owner: haiku-t-104
-- claimed: 2026-11-21T01:06+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: Entries need correcting without an editor, and an LLM's change to approved knowledge must not stay approved.
@@ -1761,8 +1759,12 @@
   8. Run cargo test --test cmd_set.
 - accept: set changes only the named parts, adds a history line, and turns an approved lesson into a draft when an LLM changed it.
 - verify: cargo test --test cmd_set
+- verified: 2026-11-21
+- commit: 97d099c
 - reqs: R-WRITE-8, R-EDIT-1, R-HIST-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-104): done
 
 ### T-105 · retitle: change a title and rename the file
 - status: open
@@ -2054,8 +2056,10 @@
 - note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
 
 ### T-118 · log: who did what when
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-118
+- claimed: 2026-11-21T01:13+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: The owner wants to see what was decided by whom and when, across the whole dossier.
@@ -2187,8 +2191,10 @@
 - note (2026-11-21, haiku-t-123): done
 
 ### T-124 · reject: turn a draft down
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-124
+- claimed: 2026-11-21T01:13+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: A rejected proposal must be kept so the same one is recognised next time.
@@ -2302,8 +2308,10 @@
 - note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
 
 ### T-129 · check: report problems in a dossier
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-129
+- claimed: 2026-11-21T01:13+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: Hand edits and time break entries; check is how the team notices.
