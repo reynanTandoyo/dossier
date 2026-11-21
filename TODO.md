@@ -1689,10 +1689,8 @@
 - note (2026-11-21, haiku-t-101): done
 
 ### T-102 · learn: record a lesson with its conditions and evidence
-- status: claimed
+- status: done
 - owner: haiku-t-102
-- claimed: 2026-11-21T00:58+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: A lesson is what reaches later projects, so it must carry where it holds and how sure it is.
@@ -1709,8 +1707,12 @@
   7. Run cargo test --test cmd_learn.
 - accept: A person's lesson is approved, an LLM's is a draft; confidence is checked.
 - verify: cargo test --test cmd_learn
+- verified: 2026-11-21
+- commit: 4c04083
 - reqs: R-WRITE-4, R-ENTRY-6, D5
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-102): done
 
 ### T-103 · assume: record an assumption
 - status: claimed
