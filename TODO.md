@@ -1,5 +1,5 @@
 <!-- todo-format: 3 -->
-<!-- todo-tool: 0.8.0 -->
+<!-- todo-tool: 0.8.1 -->
 # dossier
 
 <!-- todo:begin -->
@@ -3799,13 +3799,15 @@
 - note (2026-11-21, haiku-t-154): done
 
 ### T-155 · v0.2 skeleton: the usage kind, proposed and declined, new settings, register time
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-155
+- claimed: 2026-11-21T10:24+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-031
 - why: New enum variants break every exhaustive match at once, so they come in one step before the phase 2 tasks.
 - final: Adding enum variants touches every exhaustive match at once.
-- files: src/entry/mod.rs, src/entry/new.rs, src/entry/rules.rs, src/cmd/list.rs, src/cmd/search.rs, src/config.rs, src/names.rs, src/remote/register.rs, src/cmd/connect.rs
+- files: src/entry/mod.rs, src/entry/new.rs, src/entry/rules.rs, src/cmd/list.rs, src/cmd/search.rs, src/config.rs, src/names.rs, src/remote/register.rs, src/cmd/connect.rs, src/cmd/show.rs, src/cmd/review_task.rs
 - read: docs/design.md, docs/format.md
 - steps:
   1. entry/mod.rs: add Kind::Usage (name usage, prefix USE, folder usage) as the last variant; Kind::all() returns [Kind; 5] in the order Decision, Assumption, Finding, Lesson, Usage. Add Status::Proposed (name proposed) and Status::Declined (name declined). Extend the tests.
@@ -3820,6 +3822,8 @@
 - verify: cargo test --all-features
 - reqs: D28, D29, R-ENTRY-9
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): forced set (owner was haiku-t-155)
+- note (2026-11-21, planner): src/cmd/show.rs and src/cmd/review_task.rs added: they match Option<Status> exhaustively and need arms for proposed and declined (found by the worker).
 
 ### T-156 · v0.2 skeleton: the new library modules as stubs
 - status: open
