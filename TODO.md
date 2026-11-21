@@ -5499,8 +5499,8 @@
 - note (2026-11-21, haiku-t-211): done
 
 ### T-212 · v0.3 skeleton: command stubs, help overview and forwarding lists
-- status: open
-- owner: —
+- status: done
+- owner: haiku-t-212
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-042
 - why: After this, a command task only fills in its own file.
@@ -5516,7 +5516,11 @@
   4. Run cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features.
 - accept: Every command of design.md section 12 is accepted by the parser and says it is not built yet.
 - verify: cargo test --all-features
+- verified: 2026-11-21
+- commit: 26f6552
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-212): done
 
 ### T-213 · The rules text for LLMs: phase 3
 - status: open
