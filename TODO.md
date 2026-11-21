@@ -573,8 +573,10 @@
 - note (2026-11-21, planner): split into T-168, T-169, T-170, T-171, T-172, T-173, T-174
 
 ### T-168 · filesum.rs: checksums, size and time of files outside the dossier
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-168
+- claimed: 2026-11-21T10:56+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-033
 - why: Every attached file is recorded with size, time and checksum (R-FILE-8, R-FILE-6).
@@ -836,8 +838,10 @@
 - note (2026-11-21, planner): split into T-186, T-187, T-188, T-189, T-190
 
 ### T-186 · create.rs: proposals for decisions, usage records approved at once
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-186
+- claimed: 2026-11-21T10:56+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-036
 - why: A suggestion must not become binding by accident (D21, D28, R-WRITE-13).
@@ -1037,8 +1041,10 @@
 - note (2026-11-21, planner): split into T-185
 
 ### T-185 · filter.rs: --on <date> and proposals
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-185
+- claimed: 2026-11-21T10:56+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-038
 - why: What did we know and decide on the day the report went out (R-LIFE-9).
@@ -3878,8 +3884,10 @@
 - note (2026-11-21, haiku-t-157): done
 
 ### T-158 · init: journal line, the usage folder and --code-project
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-158
+- claimed: 2026-11-21T10:56+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-031
 - why: Every change is saved with who and when, also the creation of a dossier (D29).
@@ -3934,8 +3942,10 @@
 - note (2026-11-21, planner): added
 
 ### T-161 · blockfile.rs: read and change block files line by line
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-161
+- claimed: 2026-11-21T10:56+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-031
 - why: values.md, the file lists, exchange.md and map.md all use this module.
@@ -3956,8 +3966,8 @@
 - note (2026-11-21, planner): added
 
 ### T-162 · tx.rs: put_raw and delete_raw for files that are not entries
-- status: open
-- owner: —
+- status: done
+- owner: haiku-t-162
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-031
 - why: Every write goes through tx, also for values, file lists, exchange records and pictures.
@@ -3971,8 +3981,12 @@
   4. Run cargo test --lib tx::.
 - accept: Files other than entries are written and removed through the transaction, with snapshot and journal line.
 - verify: cargo test --lib tx::
+- verified: 2026-11-21
+- commit: 2b2a525
 - reqs: R-LOCK-1, R-IO-1, R-HIST-1, D29
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-162): done
 
 ### T-163 · hooks.rs: Claude Code hooks in settings.json and the guard check
 - status: open
