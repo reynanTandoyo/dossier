@@ -1393,7 +1393,7 @@
 - goal: One team dossier holds lessons, how-tos, scripts, the software list and a glossary; entries are promoted from projects only after the confidentiality check; finished projects of the past are brought in. Requirements: docs/requirements.md section 11, Phase 3 (v0.3). Each task here is split when the phase starts.
 - note (2026-11-20, planner): added
 
-### T-043 · Team dossier: init --team-dossier, project codes, team settings
+### T-043 · Team dossier: init --team-dossier, project codes, team settings, team members
 - status: open
 - owner: —
 - priority: P1 · difficulty: 5 · type: feature
@@ -1401,8 +1401,9 @@
 - why: Knowledge locked in one project folder is lost to the next project.
 - depends: T-041
 - accept: R-PLACE-3 to R-PLACE-6, R-TEAM-1, R-CFG-2 and R-CFG-4 hold; people move from the project settings to the team settings.
-- reqs: R-PLACE-3 to R-PLACE-6, R-TEAM-1, R-CFG-2, R-CFG-4, D3
+- reqs: R-PLACE-3 to R-PLACE-6, R-TEAM-1, R-TEAM-7, R-CFG-2, R-CFG-4, D3, D29
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): Owner 2026-11-21: one team dossier path, given with init --team. Only members write to it; team member add <person> [--llm <name>] and team member remove <person> (a person at a terminal), each saved with who and when (R-TEAM-7, D29).
 
 ### T-044 · Confidentiality: confidential terms and the check before any team write
 - status: open
@@ -1412,8 +1413,9 @@
 - why: The team works for several customers under confidentiality agreements; this must exist before anything is promoted.
 - depends: T-043
 - accept: R-CONF-1 to R-CONF-6 and R-ENTRY-18 hold, with the tests of TEST-6.
-- reqs: R-CONF-1 to R-CONF-6, R-ENTRY-18, D8, TEST-6
+- reqs: R-CONF-1 to R-CONF-6, R-ENTRY-18, D8, D32, TEST-6
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): Owner 2026-11-21 (D32): anyone in the project adds a confidential term, also an LLM when its person tells it in the session (the rules text must say: add it at once with dossier confidential add); confidential remove needs a person at a terminal. No automatic terms; writing to the team dossier is refused until the project has at least one term or a person ran confidential none --yes.
 
 ### T-045 · Promotion and closing a project: promote, close
 - status: open
@@ -1423,10 +1425,11 @@
 - why: Promotion is the only way project knowledge becomes team knowledge.
 - depends: T-044
 - accept: promote and close work as in R-TEAM-2 to R-TEAM-4 and R-TEAM-6; search and brief include the team dossier.
-- reqs: R-TEAM-2 to R-TEAM-4, R-TEAM-6, R-WRITE-5, R-WRITE-6
+- reqs: R-TEAM-2 to R-TEAM-4, R-TEAM-6, R-WRITE-5, R-WRITE-6, D28, D30
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): Owner 2026-11-21 (D30): only knowledge (entry text) is promoted to the team dossier; simulation files, CAD parts, spreadsheets and scripts are never copied, only pointed to from their project (small pictures are the exception, confirmed one by one, R-ENTRY-18). The team copy says source: <code>:<ID>, the project entry promoted: team:<ID>. close is run by a person in deciders (D28).
 
-### T-046 · Software list, how-tos and the usage index: software, howto, howtos, where-used
+### T-046 · How-tos and the usage index: howto, where-used (software names come from tools, T-047)
 - status: open
 - owner: —
 - priority: P1 · difficulty: 5 · type: feature
@@ -1434,10 +1437,11 @@
 - why: How and where a software was used for a task is asked at the start of every similar task.
 - depends: T-044
 - accept: R-USE-1, R-USE-3 to R-USE-7 and R-ENTRY-8 hold.
-- reqs: R-USE-1, R-USE-3 to R-USE-7, R-ENTRY-8, R-ENTRY-9
+- reqs: R-USE-3 to R-USE-7, R-ENTRY-8, R-ENTRY-9, D31
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): Owner 2026-11-21 (D31): there is no separate software list; software is a tool of type software (T-047). The usage index and how-tos name tools by ID or name.
 
-### T-047 · Scripts: script add, script update, scripts
+### T-047 · Tools: one kind for scripts, commands, installed software and git repositories (TOOL-001)
 - status: open
 - owner: —
 - priority: P1 · difficulty: 5 · type: feature
@@ -1445,8 +1449,9 @@
 - why: A script nobody can find or trust is rewritten.
 - depends: T-044
 - accept: R-USE-8 to R-USE-13 and R-ENTRY-12 hold.
-- reqs: R-USE-8 to R-USE-13, R-ENTRY-12, D19
+- reqs: R-USE-8 to R-USE-13, R-USE-1, R-ENTRY-12, D19, D31
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): Owner 2026-11-21 (D31): one entry kind tool (prefix TOOL) with type script | command | software | repo and a location (a path on the server, a command name on PATH, the install place, a git URL). Checks: a script file still matches its checksum, a command still exists on the server; software and repos are not checked. Sections Purpose, How to run, Inputs, Outputs, Traps, Tested with. Replaces the software list, script entries and script_root; R-USE-1 and R-USE-8 to R-USE-13 are rewritten when phase 3 starts. The team standardises its tools in the meantime.
 
 ### T-048 · Glossary: term add, term, glossary, and search through other spellings
 - status: open
@@ -1480,6 +1485,7 @@
 - accept: R-LIFE-7 and R-LIFE-8 hold.
 - reqs: R-LIFE-7, R-LIFE-8
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): Owner 2026-11-21 (D33): no default review date; it is set per entry with --review <date>.
 
 ### T-051 · Bringing in finished projects: init --past, review-folder, review-document, import status
 - status: open
@@ -1562,6 +1568,7 @@
 - accept: R-READ-7, R-READ-9, R-CTX-6, R-CTX-8, R-CHECK-2, R-OUT-5 to R-OUT-7, R-ENTRY-11, R-TEAM-5 and REL-4 hold; version 0.5.0 is released.
 - reqs: R-READ-7, R-READ-9, R-CTX-6, R-CTX-8, R-CHECK-2, R-OUT-5 to R-OUT-7, R-ENTRY-11, R-TEAM-5, REL-4
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): Owner 2026-11-21 (D33): export writes Markdown only.
 
 ### T-063 · Run commands from the PC: connect, the per-user project register, forwarding through ssh, dossier todo
 - status: dropped
