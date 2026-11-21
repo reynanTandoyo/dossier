@@ -1400,10 +1400,8 @@
 - note (2026-11-21, haiku-t-200): done
 
 ### T-201 · status: key values, proposals, marks, last exchange and --on
-- status: claimed
+- status: done
 - owner: haiku-t-201
-- claimed: 2026-11-21T12:19+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-041
 - why: R-CTX-16, R-EXCH-5, R-LIFE-9.
@@ -1419,8 +1417,12 @@
   6. Run cargo test --test cmd_status.
 - accept: status shows key values, proposals, marks and the last exchange, also on a past date.
 - verify: cargo test --test cmd_status
+- verified: 2026-11-21
+- commit: 037c109
 - reqs: R-CTX-16, R-EXCH-5, R-LIFE-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-201): done
 
 ### T-202 · brief --task: files, dead ends, pictures and code pointers
 - status: claimed
