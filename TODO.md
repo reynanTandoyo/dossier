@@ -981,10 +981,8 @@
 - note (2026-11-21, haiku-t-189): done
 
 ### T-190 · decide: say when a decision became a proposal
-- status: claimed
+- status: done
 - owner: haiku-t-190
-- claimed: 2026-11-21T12:01+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-036
 - why: R-WRITE-13: the command says so.
@@ -997,8 +995,12 @@
   3. Run cargo test --test cmd_decide and cargo test --test cmd_decide_related.
 - accept: decide tells the writer when the decision is only a proposal.
 - verify: cargo test --test cmd_decide
+- verified: 2026-11-21
+- commit: 592dd30
 - reqs: R-WRITE-13
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-190): done
 
 ### T-037 · Assumptions confirmed and refuted, and what rests on them
 - status: open
