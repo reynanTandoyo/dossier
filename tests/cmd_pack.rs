@@ -95,7 +95,7 @@ fn unpack_restores_the_dossier_byte_for_byte() {
         .success()
         .stdout(contains("unpacked "))
         .stdout(contains("restored/DOSSIER"))
-        .stdout(contains("check it with: dossier check"));
+        .stdout(contains("DOSSIER: ok (0 problems)"));
 
     let restored = project.root().join("restored");
     for relative in identical_files(&project) {
@@ -133,6 +133,67 @@ fn the_restored_dossier_has_the_state_folder_and_passes_check() {
         .assert()
         .success()
         .stdout(contains("DOSSIER: ok (0 problems)"));
+}
+
+#[test]
+fn unpack_runs_check_and_drops_the_pack_runs_lock_note() {
+    let project = Project::new();
+    two_entries(&project);
+    project
+        .run("anna", &["pack", "--to", "backup.tar"])
+        .success();
+    // The archive is written under the lock, so it holds the holder note of the pack run.
+    let archive = fs::read(project.root().join("backup.tar")).expect("the archive");
+    assert!(
+        archive
+            .windows(b"holder.json".len())
+            .any(|bytes| bytes == b"holder.json"),
+        "the archive should hold the pack run's holder.json"
+    );
+    project
+        .run("", &["unpack", "backup.tar", "--into", "restored"])
+        .success()
+        .stdout(contains("unpacked "))
+        .stdout(contains("DOSSIER: ok (0 problems)"));
+    let holder = project
+        .root()
+        .join("restored")
+        .join("DOSSIER")
+        .join(".state")
+        .join("holder.json");
+    assert!(
+        !holder.exists(),
+        "the restored folder must not keep the pack run's holder.json"
+    );
+}
+
+#[test]
+fn unpack_restores_then_fails_when_check_finds_problems() {
+    let project = Project::new();
+    two_entries(&project);
+    // The file name says FND-099 but the heading says FND-098: check reports the mismatch.
+    project.write(
+        "DOSSIER/findings/FND-099-mismatch.md",
+        "<!-- dossier-format: 1 -->\n# FND-098 · A heading with another ID\n\n- kind: finding\n- status: approved\n- created: 2026-11-20T10:00:00+01:00\n- author: anna\n- approved: 2026-11-20T10:00:00+01:00 by anna\n\n## Observation\n\nSomething was seen.\n\n## Evidence\n\nNothing else.\n",
+    );
+    project
+        .run("anna", &["pack", "--to", "backup.tar"])
+        .success();
+    project
+        .run("", &["unpack", "backup.tar", "--into", "restored"])
+        .code(1)
+        .stderr(contains("unpacked "))
+        .stderr(contains("but check found problems"))
+        .stderr(contains("FND-099-mismatch.md"));
+    assert!(
+        project
+            .root()
+            .join("restored")
+            .join("DOSSIER")
+            .join("dossier.toml")
+            .is_file(),
+        "the files are restored even when check finds problems"
+    );
 }
 
 #[test]
