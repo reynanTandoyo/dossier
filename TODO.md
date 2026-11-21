@@ -1369,10 +1369,8 @@
 - note (2026-11-21, planner): added
 
 ### T-200 · brief: map, key values, proposals, rests-on marks and --on
-- status: claimed
+- status: done
 - owner: haiku-t-200
-- claimed: 2026-11-21T12:19+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-041
 - why: What phase 2 records only helps when it reaches the LLM's context (R-CTX-16, R-CODE-1, R-LIFE-9).
@@ -1390,8 +1388,12 @@
   8. Run cargo test --test cmd_brief.
 - accept: brief shows the map, the key values, proposals waiting and what rests on wrong assumptions, also on a past date.
 - verify: cargo test --test cmd_brief
+- verified: 2026-11-21
+- commit: 165484f
 - reqs: R-CTX-16, R-CODE-1, R-LIFE-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-200): done
 
 ### T-201 · status: key values, proposals, marks, last exchange and --on
 - status: claimed
@@ -4167,8 +4169,10 @@
 - note (2026-11-21, haiku-t-164): done
 
 ### T-165 · hooks install and uninstall
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-165
+- claimed: 2026-11-21T12:29+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-031
 - why: The hooks run brief at session start and guard against direct edits (D33).
