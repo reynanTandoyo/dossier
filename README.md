@@ -94,16 +94,21 @@ dossier files --task T-042
 
 ```
 model
-  sim/stage1.sim  Stage 1 model, steady mixing plane  2026-11-20
+  sim/stage1.sim  Stage 1 model, steady mixing plane  2026-11-19
 result
   results/point07  Speedline point 7  2026-11-20
 ```
 
-On 21 November the mesh of the model was refined. Now `dossier files --task T-042` shows:
+The date at the end of each line is the file's modification time (`modified` in format.md §17),
+not the day the file was attached. The model was saved on 19 November and attached on 20
+November, so its line shows 19 November.
+
+On 21 November the mesh of the model was refined. The list keeps the date recorded at attach, and
+marks the model as changed. Now `dossier files --task T-042` shows:
 
 ```
 model
-  sim/stage1.sim  Stage 1 model, steady mixing plane  2026-11-20  [changed since attached]
+  sim/stage1.sim  Stage 1 model, steady mixing plane  2026-11-19  [changed since attached]
 result
   results/point07  Speedline point 7  2026-11-20  [outdated]
 ```
@@ -135,18 +140,17 @@ dossier used ExampleSolver --version 2406 --task T-042 --model sim/stage1.sim --
 USE-001: run recorded
 ```
 
-The next run uses the changed model and a new backpressure. It makes the result current again.
-`reattach` then records the model's new size, time and checksum:
+The next run uses the changed model and a new backpressure. `used` records the model's new size,
+time and checksum in the task's file list, so the model and the result are current again. No
+`reattach` is needed after a run; `reattach` is for a file that changed outside a run:
 
 ```sh
 dossier used ExampleSolver --version 2406 --task T-042 --model sim/stage1.sim --param backpressure=1.50 --param "massflow={design.massflow}" --output results/point07 --note "Speedline point 7, mesh 3.1 million cells"
-dossier reattach T-042 sim/stage1.sim
 dossier runs --task T-042
 ```
 
 ```
 USE-002: run recorded
-T-042: reattached sim\stage1.sim: checksum changed
 2026-11-21  anna  USE-002  ExampleSolver 2406  sim/stage1.sim
   changed: backpressure 1.42 -> 1.50
   outputs: results/point07
@@ -387,8 +391,9 @@ These come in later phases. See [`docs/requirements.md`](docs/requirements.md), 
 ## What it needs
 
 - [`todo`](https://github.com/reynanTandoyo/todo) 0.8 or newer. `todo` keeps the tasks of a
-  project in `TODO.md`. `brief --task`, `review-task`, `status` and `dossier todo` need it. The
-  other commands work without it.
+  project in `TODO.md`. `brief --task`, `review-task` and `dossier todo` need it. `status` works
+  without it: the tasks are one line, `tasks: todo is not installed`, and the task parts are left
+  out. The other commands work without it.
 - `ssh`, to use a dossier on a server from a Windows PC. Windows 10 and 11 have an OpenSSH client
   (`ssh`). Check it with `ssh -V`. The server must accept sign-in with a key.
 
