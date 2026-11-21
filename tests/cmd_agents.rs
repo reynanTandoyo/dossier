@@ -1,9 +1,16 @@
 //! Runs the built program for `agents` and `help agents`: the rules block in AGENTS.md, and the
-//! rules text. No dossier is needed; each test runs in its own temporary folder.
+//! rules text. No dossier is needed; each test runs in its own temporary folder. In a project,
+//! writing the block is recorded in the journal with who and when (D29).
+
+mod common;
 
 use assert_cmd::Command;
+use common::Project;
 use predicates::str::{contains, starts_with};
 use std::path::Path;
+
+/// The fixed clock of the journal tests (25 characters, with a T).
+const WHEN: &str = "2026-11-21T09:30:00+01:00";
 
 /// The program run in `folder` with `args`, not yet checked.
 fn dossier(folder: &Path, args: &[&str]) -> assert_cmd::assert::Assert {
@@ -17,6 +24,11 @@ fn dossier(folder: &Path, args: &[&str]) -> assert_cmd::assert::Assert {
 /// The text of AGENTS.md in `folder`.
 fn agents_md(folder: &Path) -> String {
     std::fs::read_to_string(folder.join("AGENTS.md")).unwrap()
+}
+
+/// The journal records of the dossier of `project`, oldest first.
+fn journal_of(project: &Project) -> Vec<dossier::journal::Record> {
+    dossier::journal::read(&project.root().join("DOSSIER").join(".state")).unwrap()
 }
 
 #[test]
@@ -125,6 +137,53 @@ fn unknown_help_topic_is_a_usage_error() {
     dossier(folder.path(), &["help", "nothing"])
         .code(2)
         .stderr(contains("unknown help topic 'nothing'"));
+}
+
+#[test]
+fn writing_the_rules_block_in_a_project_adds_one_journal_line_with_who_and_when() {
+    let project = Project::new();
+    let before = journal_of(&project).len();
+    project
+        .run_at("anna", WHEN, &["agents", "install", "--yes"])
+        .success()
+        .stdout(contains("AGENTS.md: rules block written"));
+
+    let records = journal_of(&project);
+    assert_eq!(records.len(), before + 1);
+    let change = records.last().unwrap();
+    assert_eq!(change.id, "AGENTS");
+    assert_eq!(change.event, "changed");
+    assert_eq!(change.command, "agents");
+    assert_eq!(change.detail, "rules block written");
+    assert_eq!(change.name, "anna");
+    assert_eq!(change.person, "anna");
+    assert!(!change.llm);
+    assert_eq!(change.time, WHEN);
+}
+
+#[test]
+fn without_yes_or_with_dry_run_no_journal_line_is_added() {
+    let project = Project::new();
+    let before = journal_of(&project).len();
+    project
+        .run_at("anna", WHEN, &["agents", "install"])
+        .success();
+    project
+        .run_at("anna", WHEN, &["agents", "install", "--yes", "--dry-run"])
+        .success();
+    assert_eq!(journal_of(&project).len(), before);
+    assert!(!project.root().join("AGENTS.md").exists());
+}
+
+#[test]
+fn install_without_a_dossier_writes_the_block_and_creates_no_state_folder() {
+    let folder = tempfile::tempdir().unwrap();
+    dossier(folder.path(), &["agents", "install", "--yes"])
+        .success()
+        .stdout(contains("AGENTS.md: rules block written"));
+    assert!(agents_md(folder.path()).contains("<!-- dossier:begin -->"));
+    assert!(!folder.path().join("DOSSIER").exists());
+    assert!(!folder.path().join(".state").exists());
 }
 
 #[test]

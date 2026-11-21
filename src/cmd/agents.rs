@@ -1,11 +1,24 @@
 //! The `agents` command: writes the rules block into AGENTS.md, and says whether it is current.
+//! When a dossier is found from the current folder, each write is recorded in its journal with
+//! who and when (D29).
 
 use crate::agents;
 use crate::cli::Global;
 use crate::error::{Code, Error, Result};
+use crate::find;
+use crate::journal;
+use crate::names;
 use crate::output::Output;
+use crate::time;
 use serde_json::json;
 use std::path::{Path, PathBuf};
+
+/// The state folder inside the dossier folder (format.md §9).
+const STATE: &str = ".state";
+
+/// The journal ID of AGENTS.md. It is not an entry, so it has a fixed ID of its own, as the
+/// settings file has (format.md §11).
+const ITEM: &str = "AGENTS";
 
 /// The arguments of `agents`.
 #[derive(clap::Args, Debug)]
@@ -67,10 +80,35 @@ fn install(yes: bool, g: &Global) -> Result<Output> {
         ));
     }
     crate::atomic::replace(&path, text.as_bytes(), None)?;
+    record_write(g)?;
     Ok(Output::with(
         "AGENTS.md: rules block written",
         json!({"written": true}),
     ))
+}
+
+/// Appends the journal line of a written rules block: who and when (D29), in the dossier that
+/// `find` finds from the current folder or the --dossier folder. Without a dossier nothing is
+/// written, and that is not an error.
+fn record_write(g: &Global) -> Result<()> {
+    let cwd = std::env::current_dir()?;
+    let dossier = match find::find(&cwd, g.dossier.as_deref()) {
+        Ok(dossier) => dossier,
+        Err(error) if error.code == Code::NoDossier => return Ok(()),
+        Err(error) => return Err(error),
+    };
+    let who = names::unchecked(g.agent.as_deref());
+    let record = journal::Record {
+        time: time::now(),
+        name: who.name,
+        person: who.person,
+        llm: who.is_llm,
+        command: "agents".to_string(),
+        id: ITEM.to_string(),
+        event: "changed".to_string(),
+        detail: "rules block written".to_string(),
+    };
+    journal::append(&dossier.join(STATE), &record)
 }
 
 /// Succeeds when the rules block in AGENTS.md is current; otherwise Code::Refused.
