@@ -75,11 +75,31 @@ pub enum Command {
     Todo(cmd::todo::Args),
 }
 
+/// On Linux, files and folders this program creates are writable by the group (R-XOS-8): the
+/// umask is set to 002, so new files get mode 664 and new folders 775. The folders `init`
+/// creates carry the setgid bit, so new files and folders also keep the dossier's group.
+#[cfg(unix)]
+fn group_writable() {
+    unsafe extern "C" {
+        fn umask(mask: u32) -> u32;
+    }
+    // SAFETY: umask only sets the file mode mask of this process and cannot fail. mode_t is a
+    // 32-bit unsigned integer on Linux.
+    unsafe {
+        umask(0o002);
+    }
+}
+
+/// Windows has no file modes: nothing to do.
+#[cfg(not(unix))]
+fn group_writable() {}
+
 /// Runs the program with the process arguments and returns its exit code.
 ///
 /// A command run on a server is forwarded first (`remote::forward::maybe`). A parse error
 /// prints clap's message and returns 2; `--help` and `--version` return 0.
 pub fn main_exit() -> u8 {
+    group_writable();
     let args: Vec<String> = std::env::args().collect();
     if let Some(code) = crate::remote::forward::maybe(&args) {
         return code;
