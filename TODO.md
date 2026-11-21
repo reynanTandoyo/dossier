@@ -3799,10 +3799,8 @@
 - note (2026-11-21, haiku-t-154): done
 
 ### T-155 · v0.2 skeleton: the usage kind, proposed and declined, new settings, register time
-- status: claimed
+- status: done
 - owner: haiku-t-155
-- claimed: 2026-11-21T10:24+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-031
 - why: New enum variants break every exhaustive match at once, so they come in one step before the phase 2 tasks.
@@ -3820,10 +3818,14 @@
   8. Run cargo build, cargo clippy --all-targets --all-features -- -D warnings, cargo clippy --target x86_64-unknown-linux-gnu --all-targets --all-features -- -D warnings and cargo test --all-features; fix every error inside these files.
 - accept: The usage kind and the two new statuses exist everywhere; the new settings load; register entries carry their time; every check passes.
 - verify: cargo test --all-features
+- verified: 2026-11-21
+- commit: 05e8a10
 - reqs: D28, D29, R-ENTRY-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): forced set (owner was haiku-t-155)
 - note (2026-11-21, planner): src/cmd/show.rs and src/cmd/review_task.rs added: they match Option<Status> exhaustively and need arms for proposed and declined (found by the worker).
+- note (2026-11-21, haiku-t-155): done
 
 ### T-156 · v0.2 skeleton: the new library modules as stubs
 - status: open
