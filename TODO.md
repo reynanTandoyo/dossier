@@ -1121,10 +1121,8 @@
 - note (2026-11-21, haiku-t-180): done
 
 ### T-181 · ids.rs: next_prefix for record numbers
-- status: claimed
+- status: done
 - owner: haiku-t-181
-- claimed: 2026-11-21T11:19+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-039
 - why: Records must be citable by a number that never changes (R-ID-1, R-ID-3).
@@ -1137,8 +1135,12 @@
   3. Run cargo test --lib ids::.
 - accept: Exchange records get numbers that are never reused.
 - verify: cargo test --lib ids::
+- verified: 2026-11-21
+- commit: e523d52
 - reqs: R-ID-1, R-ID-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-181): done
 
 ### T-182 · received: record what came from the customer
 - status: open
