@@ -868,8 +868,10 @@
 - note (2026-11-21, haiku-t-186): done
 
 ### T-187 · propose: suggest a decision
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-187
+- claimed: 2026-11-21T11:14+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-036
 - why: R-WRITE-12.
@@ -3926,8 +3928,10 @@
 - note (2026-11-21, haiku-t-158): done
 
 ### T-159 · people add: journal line
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-159
+- claimed: 2026-11-21T11:14+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-031
 - why: Every change is saved with who and when, also settings changes (D29).
@@ -4012,10 +4016,8 @@
 - note (2026-11-21, haiku-t-162): done
 
 ### T-163 · hooks.rs: Claude Code hooks in settings.json and the guard check
-- status: claimed
+- status: done
 - owner: haiku-t-163
-- claimed: 2026-11-21T11:02+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-031
 - why: Claude Code hooks make brief and the edit guard part of every session (D33).
@@ -4031,8 +4033,12 @@
   6. Run cargo test --lib hooks::.
 - accept: settings.json gets the two dossier hooks once and loses only them; the guard spots edits inside DOSSIER.
 - verify: cargo test --lib hooks::
+- verified: 2026-11-21
+- commit: 19a4773
 - reqs: R-AGENT-3, R-CTX-7, D33
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-163): done
 
 ### T-164 · agents/mod.rs: the Claude Code skill text
 - status: open
