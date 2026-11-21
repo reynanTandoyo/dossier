@@ -681,10 +681,8 @@
 - note (2026-11-21, haiku-t-171): done
 
 ### T-172 · reattach: record a file's new size, time and checksum
-- status: claimed
+- status: done
 - owner: haiku-t-172
-- claimed: 2026-11-21T11:55+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-033
 - why: After an intended change the list must say the file is current again (R-FILE-13).
@@ -698,8 +696,12 @@
   4. Run cargo test --test cmd_reattach.
 - accept: reattach records an intended change of a file.
 - verify: cargo test --test cmd_reattach
+- verified: 2026-11-21
+- commit: 6f88cf5
 - reqs: R-FILE-13
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-172): done
 
 ### T-173 · files: the file lists, grouped by role, with marks
 - status: done
