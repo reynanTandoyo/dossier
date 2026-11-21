@@ -1577,12 +1577,14 @@
 - summary: Lessons, how-tos and tools from one project reach the next project through a shared team dossier, without any customer data.
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21 (D38): dossier keeps the knowledge, todo the work. No phase 3 feature creates, changes, claims or closes tasks or writes TODO.md; tasks are read only through todo --json.
+- note (2026-11-21, planner): Milestone-level depends of T-044 to T-051 removed: each small task has its own dependencies, and the old chain made a cycle (T-043 -> T-226 -> T-230 -> T-043).
 
 ### T-043 · Team dossier: init --team-dossier, project codes, team settings, team members
 - status: open
 - owner: —
-- priority: P1 · difficulty: 5 · type: feature
+- priority: P1 · type: milestone
 - milestone: T-042
+- goal: R-PLACE-3 to R-PLACE-6, R-TEAM-1, R-CFG-2 and R-CFG-4 hold; people move from the project settings to the team settings.
 - why: Knowledge locked in one project folder is lost to the next project.
 - summary: The shared team dossier: its folder, its members (usernames) and a list of plain names, and who may write to it.
 - depends: T-041
@@ -1591,109 +1593,1165 @@
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21: one team dossier path, given with init --team. Only members write to it; team member add <person> [--llm <name>] and team member remove <person> (a person at a terminal), each saved with who and when (R-TEAM-7, D29).
 - note (2026-11-21, planner): Owner 2026-11-21 (D34): the team is a list of usernames (OS logins) plus a separate list of plain names (non-users: may be author, source or --said-by, never write). An LLM is '<username> - <anything>' with no registration; without --agent/DOSSIER_AGENT the writer is the OS username; hooks install also sets DOSSIER_AGENT='<username> - claude' in .claude/settings.local.json. names.rs, people and hooks change accordingly; people add --llm keeps working. (D36) the team dossier is a git repository and dossier commits its own changes there, never pushes.
+- note (2026-11-21, planner): split into T-216, T-217, T-218, T-219, T-220, T-221, T-222, T-223, T-224, T-225, T-226, T-227, T-228, T-229
+
+### T-216 · names.rs: usernames, plain names and '<person> - <anything>' LLM names (D34)
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-043
+- why: D34: simple names, no registration of LLM names.
+- summary: Lets a person write without naming themselves, and any LLM write as '<person> - <name>'.
+- depends: T-212
+- files: src/names.rs, tests/common/mod.rs, src/ctx.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. names.rs: implement resolve, is_person and is_known as docs/design.md section 10 and format.md section 21 say. The name comes from flag, DOSSIER_AGENT, TODO_AGENT, USERNAME, USER (empty counts as unset). A person is a member (cfg.members) or a [[people]] name, case ignored; Who.name and Who.person are written as in the settings. '<person> - <rest>' (split at the first ' - ', both parts trimmed and not empty) with a known person is an LLM: Who.name is the whole name as given, Who.person the person as written. A registered LLM still works. Unknown: Code::UnknownName listing members, people and 'an LLM is named <person> - <anything>'.
+  2. Keep the order: a name equal to a person is the person, also when it contains ' - '.
+  3. tests/common/mod.rs: in command(), when agent is empty also env_remove USERNAME and USER, so a test without a name still has no name.
+  4. src/ctx.rs: in its test 'a_missing_name_...' also remove USERNAME and USER under ENV_LOCK (and restore nothing else).
+  5. names.rs tests: a member, a plain name is not a writer, 'tony - claude opus 5.5 high' for member tony, an unknown '<x> - y', the USERNAME fallback (hold crate::ENV_LOCK, remove the four other variables first).
+  6. Run cargo test --lib names:: and cargo test --all-features.
+- accept: Writers are members, LLMs are '<member> - <anything>', the OS user is the default, and plain names are known but never write.
+- verify: cargo test --lib names::
+- reqs: D34, R-CFG-4
+- note (2026-11-21, planner): added
+
+### T-217 · config.rs: set_list and set_value keep every other line
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-043
+- why: team, member and init change dossier.toml without rewriting it.
+- summary: Lets commands change single settings lines without touching the rest of dossier.toml.
+- depends: T-212
+- files: src/config.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement set_list and set_value as docs/design.md section 10 says. A top-level key line is 'key = ...' before the first line starting with '['. set_list writes 'key = ["a", "b"]' with the TOML string quoting already used by add_person; set_value writes 'key = <value>' as given. Replace an existing line (keeping its ending) or insert the line before the first table (with the file's line ending). Check the result still loads (load) before writing; write with std::fs::write as add_person does.
+  2. Tests: set_list members on default_text, twice; set_value team with a quoted path containing a space; the lines of [tags] and [limits] stay byte-identical; a CRLF file keeps CRLF.
+  3. Run cargo test --lib config::.
+- accept: Top-level settings are changed line by line.
+- verify: cargo test --lib config::
+- reqs: D29, R-EDIT-1
+- note (2026-11-21, planner): added
+
+### T-218 · ctx.rs: load the team dossier of a project, --team and team_ctx
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-043
+- why: Every team command starts from the project it is run in (R-PLACE-5, R-PLACE-8).
+- summary: Lets every command in a project reach its team dossier.
+- depends: T-216, T-217
+- files: src/ctx.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. When cfg.team is set (a project), resolve it: a relative path is taken from the project folder (root); when the folder exists and has dossier.toml, Ctx.team is that path; load its settings and add its members and names to cfg.members and cfg.names in memory (no duplicates, case ignored). A team path that does not exist leaves Ctx.team None (R-PLACE-8: the project still works).
+  2. With g.team: when the current dossier is a project, the context becomes the team's: dossier, root, state and cfg of the team (with the project's members and names added), project = Some(the project DOSSIER), team = None; when the team cannot be reached: Code::NoDossier '<path>: the team dossier cannot be reached'; when the current dossier is itself a team dossier (cfg.kind == "team"), --team changes nothing.
+  3. Resolve who after the settings are complete (so team members can write in a project).
+  4. Implement team_ctx(): Code::NoDossier when Ctx.team is None ('this project has no team dossier; link one with: dossier team use <path>'); else a Ctx for the team dossier with the same who, json, dry_run, command and from_document, and project = Some(self.dossier).
+  5. Tests with tempfile folders and config::default_text plus set_value/set_list (or written TOML): a project with a team path loads the team's members; --team switches dossier and sets project; a missing team path keeps working without team; team_ctx works and fails without team.
+  6. Run cargo test --lib ctx::.
+- accept: A project finds its team dossier; --team works on it; team members can write in the project.
+- verify: cargo test --lib ctx::
+- reqs: R-PLACE-5, R-PLACE-8, D34
+- note (2026-11-21, planner): added
+
+### T-219 · gitcommit.rs: commit the team dossier's changes
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-043
+- why: D36 and R-TEAM-6: the team dossier keeps its history in git.
+- summary: Commits the team dossier's changes to git when it is a git repository.
+- depends: T-212
+- files: src/gitcommit.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement commit as docs/design.md section 11 says with std::process::Command (program git, args -C <repo>). First 'git -C repo rev-parse --is-inside-work-tree' (not true, or git missing: Ok(false)). Then 'git -C repo add -- <path>', then 'git -C repo diff --cached --quiet -- <path>' (exit 0: nothing staged: Ok(false)), then 'git -C repo commit -q -m <message> -- <path>' (stdin null). A failing add or commit is Code::Io with git's stderr.
+  2. Tests with a tempfile folder: not a repository gives Ok(false); after 'git init' and a configured user.name/user.email in that repo (git -C dir config ...), writing a file and commit gives Ok(true) and git log shows the message; a second commit with nothing new gives Ok(false). Skip the repository tests with an early return when git is not installed.
+  3. Run cargo test --lib gitcommit::.
+- accept: Changes in a git work tree are committed with a message; outside one nothing happens.
+- verify: cargo test --lib gitcommit::
+- reqs: D36, R-TEAM-6
+- note (2026-11-21, planner): added
+
+### T-220 · tx.rs: commit the team dossier after a write
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-043
+- why: D36: every team change is in git without anyone running git by hand.
+- summary: Makes every change to the team dossier end up as a git commit.
+- depends: T-219
+- files: src/tx.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. After every queued change of a write is applied and journalled (not on a dry run): when ctx.cfg.kind == "team" and something was written, call crate::gitcommit::commit(<parent of ctx.dossier>, &ctx.dossier, "<command>: <the change IDs joined with ', '>"). An Err becomes a warning on the returned Output ('git: <message>'), never an error; Ok(true) or Ok(false) add nothing.
+  2. Test: a team context (cfg.kind team) in a tempfile folder that is not a git repository writes normally and gives no warning.
+  3. Run cargo test --lib tx::.
+- accept: Writes to a team dossier are committed to git when it is a repository.
+- verify: cargo test --lib tx::
+- reqs: D36, R-TEAM-6
+- note (2026-11-21, planner): added
+
+### T-221 · teamfiles.rs: projects.md and usage-index.md of the team dossier
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-043
+- why: init --team registers projects there; used adds usage lines there.
+- summary: Reads the team dossier's list of projects and its usage index.
+- depends: T-212
+- files: src/teamfiles.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement projects and usage as docs/design.md section 11 says, like values::load: the file (projects.md, usage-index.md) in the team DOSSIER folder, parsed with BlockFile::parse; a missing file is BlockFile::empty("Projects of <code>") or ("Usage of <code>") and None. Errors name the file.
+  2. Tests: missing files are empty with the right title; an example of each parses.
+  3. Run cargo test --lib teamfiles::.
+- accept: The team's project list and usage index are read.
+- verify: cargo test --lib teamfiles::
+- reqs: R-PLACE-4, R-USE-3
+- note (2026-11-21, planner): added
+
+### T-222 · init --team-dossier: create a team dossier
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-043
+- why: R-PLACE-3.
+- summary: Creates the shared team dossier.
+- depends: T-217
+- files: src/cmd/init.rs, tests/cmd_init.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add #[arg(long)] team_dossier: bool. With it: create DOSSIER with the folders lessons, howtos and tools only (plus .state), dossier.toml from config::default_text with the line 'kind = "team"' after the code line, and .state/.gitignore holding 'write.lock' and 'holder.json' (two lines, LF).
+  2. The journal line says detail 'team dossier, code <code>'. The output's first line is 'created the team dossier <code>'.
+  3. Tests: the folders, the kind line, the .gitignore and config::load(...).kind == "team"; --team-dossier with --code-project is refused (BadValue).
+  4. Run cargo test --test cmd_init.
+- accept: init --team-dossier creates a team dossier.
+- verify: cargo test --test cmd_init
+- reqs: R-PLACE-3, R-TEAM-1
+- note (2026-11-21, planner): added
+
+### T-223 · team: show the team settings and link a project (team use)
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-043
+- why: R-PLACE-2: a project knows its team dossier.
+- summary: Links a project to the team dossier and shows the team settings.
+- depends: T-218, T-222
+- files: src/cmd/team.rs, tests/cmd_team.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 12 and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list, src/cmd/value.rs for a block file) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: an optional subcommand; this task builds Use { path } and the plain 'team' (no subcommand). 'team': print 'team dossier: <path or none>', 'members: <list>', 'names: <list>' of the current dossier's settings (after Ctx::load, which adds the team's). JSON {team, members, names}.
+  3. team use <path>: the path must be a team dossier folder (dossier.toml with kind team; accept the DOSSIER folder or the folder holding it); store it with config::set_value(dossier, "team", <quoted absolute path with '/'>); append a journal line (time now, who = ctx.writer()? or names::unchecked when there is none, command team, id SETTINGS, event changed, detail 'team <path>').
+  4. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). To get a team dossier in a test: in a second tempfile folder run 'dossier init --team-dossier --code TEAM' (as anna, with project.command and current_dir set to that folder), add anna as a member there, then in the project run 'dossier team use <path of that DOSSIER>'. Test: team use links the project and 'team' shows it; a folder that is not a team dossier is refused.
+  5. Run cargo test --test cmd_team.
+- accept: A project is linked to its team dossier and the settings are shown.
+- verify: cargo test --test cmd_team
+- reqs: R-PLACE-2, R-PLACE-5
+- note (2026-11-21, planner): added
+
+### T-224 · team member add and remove
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-043
+- why: R-TEAM-7: only members write to the team dossier.
+- summary: Adds and removes team members.
+- depends: T-223, T-220
+- files: src/cmd/team.rs, tests/cmd_team.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add the subcommand Member { action } with Add { username } and Remove { username } (R-TEAM-7). They work on the team dossier when the project has one (Ctx::load with --team semantics: use ctx.team_ctx() when ctx.cfg.kind is project and a team exists), else on the current dossier.
+  2. Add: refuse an empty name or one with a space (BadValue) and an existing member (Exists); config::set_list(dossier, "members", old + new). Remove: a person at a terminal (NeedsPerson, NeedsTerminal), the member must exist (NotFound); set_list without it.
+  3. Each change appends a journal line in that dossier: command team, id SETTINGS, event changed, detail 'member <name> added' or 'removed'. Under a team dossier that is a git repository, commit with crate::gitcommit::commit(...) as tx.rs does (warning on failure).
+  4. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). To get a team dossier in a test: in a second tempfile folder run 'dossier init --team-dossier --code TEAM' (as anna, with project.command and current_dir set to that folder), add anna as a member there, then in the project run 'dossier team use <path of that DOSSIER>'. Test: member add tony, then tony can write in the project (dossier found ... --agent tony); member remove needs DOSSIER_ANSWERS and a person.
+  5. Run cargo test --test cmd_team.
+- accept: Team members are added and removed with who and when.
+- verify: cargo test --test cmd_team
+- reqs: R-TEAM-7, D29, D34
+- note (2026-11-21, planner): added
+
+### T-225 · team name add and remove: plain names
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-043
+- why: D34: plain names.
+- summary: Keeps a list of names of people who are not users, such as a customer contact.
+- depends: T-224
+- files: src/cmd/team.rs, tests/cmd_team.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add the subcommand Name { action } with Add { name } and Remove { name }, working like member add and remove on the key 'names' (format.md section 21); a plain name may contain spaces; remove needs a person at a terminal.
+  2. Journal detail 'name <name> added' or 'removed'.
+  3. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: name add "Dr. Weber" then decide ... --said-by "Dr. Weber" as anna-claude is accepted (names::is_known), and --agent "Dr. Weber" cannot write.
+  4. Run cargo test --test cmd_team.
+- accept: Plain names are kept for authors and sources who are not users.
+- verify: cargo test --test cmd_team
+- reqs: D34
+- note (2026-11-21, planner): added
+
+### T-226 · create.rs: --said-by and author accept plain names, and team writes are checked
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-043
+- why: D34 and R-CONF-2: the check before every team write.
+- summary: Lets a plain name be the source of a decision and blocks confidential terms on their way to the team dossier.
+- depends: T-218, T-230
+- files: src/create.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. said_by: accept names::is_known (a person or a plain name) instead of is_person; the author is that name as written in the settings.
+  2. When tx.ctx().project is Some (a team write from a project), before anything is queued: let terms = conf::gate(project, &project code)? where the project code is read with config::load(project)?.code, and conf::check(&terms, &rendered text)? (design.md section 10).
+  3. Tests in its test module: said_by a plain name; a team write with a term in the title is refused (build the confidential.md by hand with BlockFile text); a team write from a project without terms and without the none statement is refused.
+  4. Run cargo test --lib create::.
+- accept: Plain names can be the person a decision came from; nothing reaches the team dossier with a confidential term.
+- verify: cargo test --lib create::
+- reqs: D34, R-CONF-2, R-CONF-5, R-WRITE-6
+- note (2026-11-21, planner): added
+
+### T-227 · init --with-team: link a new project and register its code
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-043
+- why: R-PLACE-2 and R-PLACE-4: project codes are unique in the team.
+- summary: Links a new project to the team dossier and registers its code there.
+- depends: T-222, T-223, T-221
+- files: src/cmd/init.rs, tests/cmd_init.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add #[arg(long = "with-team")] with_team: Option<String>: the path of the team dossier (the global --team flag is a bool, so init uses --with-team for the path). After the project dossier is created: store team = <path> as the team use command of src/cmd/team.rs does.
+  2. Register the code in the team's projects.md (R-PLACE-4) through tx::write on the team context (Ctx::load with a Global whose dossier is the team DOSSIER path, and agent g.agent): a new block key <code> with folder = <the project folder, absolute, with '/'> and history 'registered'. A code already registered for another folder: refuse before anything is created (Code::Exists '<code> is already registered for <folder>'). The same folder: nothing to add.
+  3. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). To get a team dossier in a test: in a second tempfile folder run 'dossier init --team-dossier --code TEAM' (as anna, with project.command and current_dir set to that folder), add anna as a member there, then in the project run 'dossier team use <path of that DOSSIER>'. Test: init --code P-002 with the team writes team = and a projects.md block; a second project with the same code in another folder is refused.
+  4. Run cargo test --test cmd_init.
+- accept: A new project is linked to its team dossier and its code registered there.
+- verify: cargo test --test cmd_init
+- reqs: R-PLACE-2, R-PLACE-4
+- note (2026-11-21, planner): added
+
+### T-228 · hooks.rs: DOSSIER_AGENT in .claude/settings.local.json
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-043
+- why: D34: Claude's writes are always marked as an LLM's.
+- summary: Sets the name Claude writes under in your personal Claude Code settings.
+- depends: T-212
+- files: src/hooks.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement local_installed and local_uninstalled as docs/design.md section 10 says, like installed and uninstalled (serde_json, byte-order mark skipped, to_string_pretty and a final LF): set env.DOSSIER_AGENT to the given agent (replacing an older value), keep every other key; uninstall removes only env.DOSSIER_AGENT and an env object that became empty.
+  2. Tests: into {}, into a file with other env keys, twice, uninstall.
+  3. Run cargo test --lib hooks::.
+- accept: The personal Claude Code settings carry the LLM name.
+- verify: cargo test --lib hooks::
+- reqs: D34
+- note (2026-11-21, planner): added
+
+### T-229 · hooks install: also set the LLM name for Claude Code
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-043
+- why: D34.
+- summary: Makes Claude Code sessions write under '<you> - claude' automatically.
+- depends: T-228, T-216
+- files: src/cmd/hooks.rs, tests/cmd_hooks.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. hooks install --yes also writes .claude/settings.local.json with hooks::local_installed(existing, "<username> - claude"), where the username is the person of ctx.writer() when a name resolves, else names::unchecked(None).person; uninstall --yes also applies local_uninstalled. The output names both files. Without --yes it says both would change.
+  2. Tests: install writes both files and settings.local.json has env.DOSSIER_AGENT 'anna - claude' when run as anna; uninstall removes it.
+  3. Run cargo test --test cmd_hooks.
+- accept: hooks install marks Claude Code's writes as an LLM's.
+- verify: cargo test --test cmd_hooks
+- reqs: D34
+- note (2026-11-21, planner): added
 
 ### T-044 · Confidentiality: confidential terms and the check before any team write
 - status: open
 - owner: —
-- priority: P0 · difficulty: 5 · type: feature
+- priority: P0 · type: milestone
 - milestone: T-042
+- goal: R-CONF-1 to R-CONF-6 and R-ENTRY-18 hold, with the tests of TEST-6.
 - why: The team works for several customers under confidentiality agreements; this must exist before anything is promoted.
 - summary: Each project lists its confidential terms; nothing is written to the team dossier while one of them appears in the text.
-- depends: T-043
 - accept: R-CONF-1 to R-CONF-6 and R-ENTRY-18 hold, with the tests of TEST-6.
 - reqs: R-CONF-1 to R-CONF-6, R-ENTRY-18, D8, D32, TEST-6
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21 (D32): anyone in the project adds a confidential term, also an LLM when its person tells it in the session (the rules text must say: add it at once with dossier confidential add); confidential remove needs a person at a terminal. No automatic terms; writing to the team dossier is refused until the project has at least one term or a person ran confidential none --yes.
+- note (2026-11-21, planner): split into T-230, T-231, T-232, T-233
+
+### T-230 · conf.rs: confidential terms and the check
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-044
+- why: R-CONF-1, R-CONF-2, R-CONF-5.
+- summary: Finds a project's confidential terms in any text, however they are spelled.
+- depends: T-212
+- files: src/conf.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement every function of docs/design.md section 11 conf.rs with format.md section 24. normalize: lower case, then every run of space, '-' and '_' becomes one space, trimmed. find: for each term and each line (1-based) of text, the normalized line contains the normalized term; return (term as written, line) pairs in line order.
+  2. gate: load confidential.md of the project; terms() not empty: Ok(terms); stated_none: Ok(empty); else Code::Refused 'this project has no confidential terms yet; add them with: dossier confidential add "<term>", or let a person state there are none: dossier confidential none --yes'.
+  3. check: Code::Refused listing '<term> (line <n>)' for each hit, joined with '; '.
+  4. Tests: matching 'NT-450' against 'the nt 450 stage' and 'NT_450'; case; gate refuses an empty list and accepts the none statement; check names lines.
+  5. Run cargo test --lib conf::.
+- accept: Confidential terms are matched ignoring case, spaces, hyphens and underscores.
+- verify: cargo test --lib conf::
+- reqs: R-CONF-1, R-CONF-2, R-CONF-5
+- note (2026-11-21, planner): added
+
+### T-231 · confidential add and list
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-044
+- why: R-CONF-1, D32.
+- summary: Lets anyone, also an LLM, add a confidential term of the project.
+- depends: T-230, T-218
+- files: src/cmd/confidential.rs, tests/cmd_confidential.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 12 and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list, src/cmd/value.rs for a block file) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: a subcommand Add { term }, List (this task); later tasks add Remove, None and Scan. confidential.md is <DOSSIER>/confidential.md, loaded with conf::load.
+  3. Add (anyone, also an LLM, D32): a term must not be blank; an existing term (normalized equal) is refused (Exists); a removed term is added again (remove the removed field). add_block(term, []) then add_history 'added'; tx.put_raw with Change{id: "CONFIDENTIAL", event 'added', detail term}.
+  4. List: the terms, one per line, then 'no confidential terms stated by <who and when>' when stated, or '<n> terms'. JSON {terms, none_stated}.
+  5. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: anna-claude adds 'NT-450'; list shows it; adding 'nt 450' again is refused.
+  6. Run cargo test --test cmd_confidential.
+- accept: Anyone in the project adds confidential terms, with who and when.
+- verify: cargo test --test cmd_confidential
+- reqs: R-CONF-1, D32
+- note (2026-11-21, planner): added
+
+### T-232 · confidential remove and confidential none
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-044
+- why: D32, R-CONF-5.
+- summary: Lets a person remove a term or state that the project has none.
+- depends: T-231
+- files: src/cmd/confidential.rs, tests/cmd_confidential.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add Remove { term } and None { --yes }. Both need a person at a terminal (NeedsPerson, NeedsTerminal) (D32).
+  2. Remove: the term must exist and not be removed; set field removed '<time> by <person>', history 'removed'. None: needs --yes (Usage otherwise) and no terms in the list (Refused 'remove the terms first'); block conf::NONE with field stated '<time> by <person>' and history 'stated'.
+  3. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: remove with DOSSIER_ANSWERS as anna; anna-claude is refused; none --yes on an empty list; none with a term is refused.
+  4. Run cargo test --test cmd_confidential.
+- accept: Only a person removes a term or states there are none.
+- verify: cargo test --test cmd_confidential
+- reqs: D32, R-CONF-5
+- note (2026-11-21, planner): added
+
+### T-233 · confidential scan: look for the project's terms in the team dossier
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-044
+- why: R-CONF-6.
+- summary: Searches the team dossier for a project's confidential terms that were added late.
+- depends: T-232
+- files: src/cmd/confidential.rs, tests/cmd_confidential.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add Scan: for every entry and block file of the team dossier (ctx.team_ctx()?: store::all plus glossary.md and usage-index.md text), conf::find the project's terms; print '<team path>:<line>: <term>' per hit and '<n> matches'; exit 1 (Refused) when there are matches so scripts notice (R-CONF-6).
+  2. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). To get a team dossier in a test: in a second tempfile folder run 'dossier init --team-dossier --code TEAM' (as anna, with project.command and current_dir set to that folder), add anna as a member there, then in the project run 'dossier team use <path of that DOSSIER>'. Test: a team lesson containing a term is found; a clean team dossier gives '0 matches'.
+  3. Run cargo test --test cmd_confidential.
+- accept: Terms added late are found in the team dossier.
+- verify: cargo test --test cmd_confidential
+- reqs: R-CONF-6
+- note (2026-11-21, planner): added
 
 ### T-045 · Promotion and closing a project: promote, close
 - status: open
 - owner: —
-- priority: P1 · difficulty: 5 · type: feature
+- priority: P1 · type: milestone
 - milestone: T-042
+- goal: promote and close work as in R-TEAM-2 to R-TEAM-4 and R-TEAM-6; search and brief include the team dossier.
 - why: Promotion is the only way project knowledge becomes team knowledge.
 - summary: A project's lesson or how-to is copied into the team dossier as a draft; at the end of a project, its knowledge is sorted out.
-- depends: T-044
 - accept: promote and close work as in R-TEAM-2 to R-TEAM-4 and R-TEAM-6; search and brief include the team dossier.
 - reqs: R-TEAM-2 to R-TEAM-4, R-TEAM-6, R-WRITE-5, R-WRITE-6, D28, D30
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21 (D30): only knowledge (entry text) is promoted to the team dossier; simulation files, CAD parts, spreadsheets and scripts are never copied, only pointed to from their project (small pictures are the exception, confirmed one by one, R-ENTRY-18). The team copy says source: <code>:<ID>, the project entry promoted: team:<ID>. close is run by a person in deciders (D28).
+- note (2026-11-21, planner): split into T-234, T-235, T-236
+
+### T-234 · create.rs: imported drafts and approval checksums for every guarded kind
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-045
+- why: R-IMPORT-5, R-LIFE-6, R-WRITE-5.
+- summary: Makes entries from old documents drafts and gives how-tos and tools the same approval rules as lessons.
+- depends: T-226
+- files: src/create.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. When tx.ctx().from_document is Some: the entry is a draft whoever writes it, with the fields imported: yes and source-document: <stored path> (format.md section 23, R-IMPORT-3, R-IMPORT-5).
+  2. approval::record for every approved entry of a guarded kind (approval::guarded), not only lessons. An LLM writing a how-to or a tool without said_by: draft, as for a lesson.
+  3. Tests in its module: a decision with from_document is a draft with imported yes; an approved how-to by a person records its checksum; an LLM's tool is a draft.
+  4. Run cargo test --lib create::.
+- accept: Imported entries are drafts; how-tos and tools get the lesson rules.
+- verify: cargo test --lib create::
+- reqs: R-IMPORT-5, R-LIFE-6, R-WRITE-5
+- note (2026-11-21, planner): added
+
+### T-235 · promote: copy a project entry into the team dossier
+- status: open
+- owner: —
+- priority: P0 · difficulty: 2 · type: feature
+- milestone: T-045
+- why: R-TEAM-2, R-TEAM-3, R-ENTRY-18.
+- summary: Copies a lesson or how-to from a project to the team dossier after the confidentiality check.
+- final: Two dossiers, the confidentiality check and pictures interact; the order is given, details are settled in code.
+- depends: T-234, T-231
+- files: src/cmd/promote.rs, tests/cmd_promote.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 12 and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list, src/cmd/value.rs for a block file) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: id, --as <lesson|howto> (default: the entry's own kind; a finding becomes a lesson; decisions, assumptions and usage records are refused: Refused 'only findings, lessons and how-tos are promoted'). Also make pub fn promote_one(ctx: &Ctx, id: &str, as_kind: Option<Kind>) -> Result<String> (the new team ID) for the close command.
+  3. Check first: let terms = conf::gate(&ctx.dossier, &ctx.cfg.code)?; conf::check(&terms, <the entry text>)? (R-TEAM-3). Pictures (R-ENTRY-18): when the entry has a Pictures section, a person at a terminal must confirm each line with term::ask 'copy picture <file> (<caption>) to the team? (yes/no)'; an LLM or no terminal: Refused; a no leaves that picture out.
+  4. Write the team copy through tx::write on ctx.team_ctx()?: create::create with the same title, the sections (a finding's Observation becomes Statement, Evidence stays), the tag fields, source '<code>:<ID>', draft true. Copy the confirmed pictures with put_raw into the team's images/<new ID>/. Then, in a tx::write on the project, set promoted 'team:<new ID>' on the project entry with history 'promoted' detail 'team:<new ID>'.
+  5. Message '<ID>: promoted as team:<new ID> (draft, waiting for approval in the team dossier)'.
+  6. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). To get a team dossier in a test: in a second tempfile folder run 'dossier init --team-dossier --code TEAM' (as anna, with project.command and current_dir set to that folder), add anna as a member there, then in the project run 'dossier team use <path of that DOSSIER>'. Add a confidential term first ('Nordwind'). Test: a lesson is promoted, the team copy is a draft with source P-001:LES-001, the project entry has promoted; a lesson containing 'Nordwind' is refused naming the line; a project with no terms is refused.
+  7. Run cargo test --test cmd_promote.
+- accept: Project knowledge reaches the team dossier as a checked draft, linked both ways.
+- verify: cargo test --test cmd_promote
+- reqs: R-TEAM-2, R-TEAM-3, R-ENTRY-18
+- note (2026-11-21, planner): added
+
+### T-236 · close: sort out a finished project's knowledge
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-045
+- why: R-TEAM-4.
+- summary: Goes through a finished project's knowledge and asks what goes to the team.
+- depends: T-235
+- files: src/cmd/close.rs, tests/cmd_close.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 12 and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list, src/cmd/value.rs for a block file) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Rules: a person at a terminal who may decide (names::may_decide) (R-TEAM-4, D28).
+  3. List every approved finding, lesson and how-to without a promoted field and without promote: no. For each: show its text on standard error and ask '<ID>: promote, keep in the project, or later? (p/k/l) '. p: crate::cmd::promote::promote_one(&ctx, id, None); k: set promote: no with history 'changed' detail 'kept in the project' (tx.put); l or anything else: nothing.
+  4. End with '<n> promoted, <m> kept, <k> left for later'. A second run shows only what is left.
+  5. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). To get a team dossier in a test: in a second tempfile folder run 'dossier init --team-dossier --code TEAM' (as anna, with project.command and current_dir set to that folder), add anna as a member there, then in the project run 'dossier team use <path of that DOSSIER>'. Test: with DOSSIER_ANSWERS 'k|l', the first entry gets promote: no and the second stays; a second run asks only for the second.
+  6. Run cargo test --test cmd_close.
+- accept: At the end of a project every piece of knowledge is promoted, kept or left for later, and the answers are kept.
+- verify: cargo test --test cmd_close
+- reqs: R-TEAM-4, D28
+- note (2026-11-21, planner): added
 
 ### T-046 · How-tos and the usage index: howto, where-used (software names come from tools, T-047)
 - status: open
 - owner: —
-- priority: P1 · difficulty: 5 · type: feature
+- priority: P1 · type: milestone
 - milestone: T-042
+- goal: R-USE-1, R-USE-3 to R-USE-7 and R-ENTRY-8 hold.
 - why: How and where a software was used for a task is asked at the start of every similar task.
 - summary: How-tos say how a software is used for a task, and a team index shows where and with which version it was used.
-- depends: T-044
 - accept: R-USE-1, R-USE-3 to R-USE-7 and R-ENTRY-8 hold.
 - reqs: R-USE-3 to R-USE-7, R-ENTRY-8, R-ENTRY-9, D31
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21 (D31): there is no separate software list; software is a tool of type software (T-047). The usage index and how-tos name tools by ID or name.
 - note (2026-11-21, planner): Owner 2026-11-21 (D35): software names stay free text for now; no refusal of unknown names.
+- note (2026-11-21, planner): split into T-237, T-238, T-239, T-240
+
+### T-237 · howto: write a how-to
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-046
+- why: R-ENTRY-8, R-WRITE-5, R-WRITE-6.
+- summary: Records how a software is used for a task, in the project or for the whole team.
+- depends: T-234
+- files: src/cmd/howto.rs, tests/cmd_howto.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 12 and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list, src/cmd/value.rs for a block file) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Copy src/cmd/add.rs (on main) for the options: --software (required), --title (required), --section 'Name=text' (repeatable), --from <file>, --stdin, --review <YYYY-MM-DD>, --task and the tag options. Kind::Howto; field software; field review when given (valid date, else BadValue).
+  3. The global --team writes it into the team dossier (Ctx::load does that); create.rs checks the confidential terms. A person's how-to is approved, an LLM's a draft (R-WRITE-5).
+  4. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). To get a team dossier in a test: in a second tempfile folder run 'dossier init --team-dossier --code TEAM' (as anna, with project.command and current_dir set to that folder), add anna as a member there, then in the project run 'dossier team use <path of that DOSSIER>'. Test: anna writes a how-to with Purpose and Steps (approved); anna-claude's is a draft; --team puts it into the team's howtos/ folder; a how-to without software fails.
+  5. Run cargo test --test cmd_howto.
+- accept: How-tos are written in the project or, with --team, in the team dossier.
+- verify: cargo test --test cmd_howto
+- reqs: R-ENTRY-8, R-WRITE-5, R-WRITE-6
+- note (2026-11-21, planner): added
+
+### T-238 · used: add a line to the team's usage index
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-046
+- why: R-USE-3.
+- summary: Notes each software run in the team's index, without names of files or tasks.
+- depends: T-221, T-218
+- files: src/cmd/used.rs, tests/cmd_used.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. After the run is recorded (same command, a second tx::write on ctx.team_ctx() when the project has a team dossier; none: nothing): add a block '<code>:<USE-ID>' to usage-index.md (teamfiles::usage) with date (first 10 characters of the time), code, software, version, analysis and machine (from the usage entry or the project's tags), howto, person (the writer's person); history 'used'. No title, task or file names (R-USE-3).
+  2. A team that cannot be reached: a warning, the run stays recorded.
+  3. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). To get a team dossier in a test: in a second tempfile folder run 'dossier init --team-dossier --code TEAM' (as anna, with project.command and current_dir set to that folder), add anna as a member there, then in the project run 'dossier team use <path of that DOSSIER>'. Test: with a team, used writes one usage-index block; without a team nothing changes.
+  4. Run cargo test --test cmd_used.
+- accept: Every run also leaves one anonymous line in the team's usage index.
+- verify: cargo test --test cmd_used
+- reqs: R-USE-3, R-USE-12
+- note (2026-11-21, planner): added
+
+### T-239 · where-used: where and how a software was used
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-046
+- why: R-USE-4.
+- summary: Shows where and how a software was used in earlier projects.
+- depends: T-238
+- files: src/cmd/where_used.rs, tests/cmd_where_used.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 12 and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list, src/cmd/value.rs for a block file) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: software (positional), --analysis, --machine. Read the team's usage-index.md (ctx.team_ctx(), or the current dossier when it is a team dossier); keep blocks whose software equals (ignoring case), and analysis/machine contain the given text (ignoring case). Newest date first: '<date>  <code>  <software> <version>  <analysis>  <machine>  <person>[  howto <ID>]'. End '<n> uses'.
+  3. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). To get a team dossier in a test: in a second tempfile folder run 'dossier init --team-dossier --code TEAM' (as anna, with project.command and current_dir set to that folder), add anna as a member there, then in the project run 'dossier team use <path of that DOSSIER>'. Test: two runs in two projects (write usage-index blocks directly) are listed newest first; --analysis narrows.
+  4. Run cargo test --test cmd_where_used.
+- accept: where-used answers how and where a software was used before.
+- verify: cargo test --test cmd_where_used
+- reqs: R-USE-4
+- note (2026-11-21, planner): added
+
+### T-240 · list: purpose and tested versions of how-tos and tools
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-046
+- why: R-USE-5, R-USE-10.
+- summary: Shows what each how-to and tool is for in the list.
+- depends: T-212
+- files: src/cmd/list.rs, tests/cmd_list.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. For how-tos and tools add after the title '  — <first line of Purpose>' and, when the Tested with section is not empty, '  (tested with <its first line>)' (R-USE-5, R-USE-10). Nothing changes for other kinds.
+  2. Tests: a how-to and a tool show their purpose.
+  3. Run cargo test --test cmd_list.
+- accept: list --kind howto and list --kind tool show what each is for.
+- verify: cargo test --test cmd_list
+- reqs: R-USE-5, R-USE-10
+- note (2026-11-21, planner): added
 
 ### T-047 · Tools: one kind for scripts, commands, installed software and git repositories (TOOL-001)
 - status: open
 - owner: —
-- priority: P1 · difficulty: 5 · type: feature
+- priority: P1 · type: milestone
 - milestone: T-042
+- goal: R-USE-8 to R-USE-13 and R-ENTRY-12 hold.
 - why: A script nobody can find or trust is rewritten.
 - summary: Scripts, commands, installed software and repositories are recorded as tools, with a name and, when known, a location.
-- depends: T-044
 - accept: R-USE-8 to R-USE-13 and R-ENTRY-12 hold.
 - reqs: R-USE-8 to R-USE-13, R-USE-1, R-ENTRY-12, D19, D31
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21 (D31): one entry kind tool (prefix TOOL) with type script | command | software | repo and a location (a path on the server, a command name on PATH, the install place, a git URL). Checks: a script file still matches its checksum, a command still exists on the server; software and repos are not checked. Sections Purpose, How to run, Inputs, Outputs, Traps, Tested with. Replaces the software list, script entries and script_root; R-USE-1 and R-USE-8 to R-USE-13 are rewritten when phase 3 starts. The team standardises its tools in the meantime.
 - note (2026-11-21, planner): Owner 2026-11-21 (D37): a tool has a required name and an optional location; nothing is checked without a location. (D35) software names stay free text.
+- note (2026-11-21, planner): split into T-241, T-242, T-243, T-244, T-245, T-246
+
+### T-241 · tool add: record a tool
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-047
+- why: D31, D37.
+- summary: Records a script, command, software or repository the team uses.
+- depends: T-234
+- files: src/cmd/tool.rs, tests/cmd_tool.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 12 and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list, src/cmd/value.rs for a block file) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: a subcommand Add { --title, --type <script|command|software|repo>, --location, --software, --language, --section (repeatable), --from, --stdin, --review, tag options } (Update comes later).
+  3. Kind::Tool with fields type, location, software, language (format.md section 22). When the type is script and the location is a path inside the project or an absolute path that exists as a file: field checksum = filesum::checksum. A location is optional (D37).
+  4. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: a tool with only a name and Purpose; a script tool whose file exists gets a checksum; a bad type fails.
+  5. Run cargo test --test cmd_tool.
+- accept: Tools are recorded with a name and, when known, a location.
+- verify: cargo test --test cmd_tool
+- reqs: D31, D37, R-USE-8
+- note (2026-11-21, planner): added
+
+### T-242 · tool update: record a script's checksum again
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-047
+- why: R-USE-11.
+- summary: Records the new checksum of a script after an intended change.
+- depends: T-241
+- files: src/cmd/tool.rs, tests/cmd_tool.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add Update { id }: the entry must be a tool with a location that is a file; set checksum to filesum::checksum now; history 'changed' detail 'checksum'; the rule of approval::guarded applies (an LLM's change of an approved tool makes it a draft, as src/cmd/set.rs does).
+  2. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: change the script file, update, the checksum changes.
+  3. Run cargo test --test cmd_tool.
+- accept: A script's new version is recorded on purpose.
+- verify: cargo test --test cmd_tool
+- reqs: R-USE-11
+- note (2026-11-21, planner): added
+
+### T-243 · set and edit: the approval rule for how-tos and tools
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-047
+- why: R-WRITE-8, R-LIFE-6.
+- summary: Gives how-tos and tools the lesson rule in set and edit.
+- depends: T-212
+- files: src/cmd/set.rs, src/cmd/edit.rs, tests/cmd_set.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Replace each check 'kind is Lesson' that decides the approval rule (back to draft for an LLM, approval::record or forget) with approval::guarded(kind) in set.rs and edit.rs.
+  2. Test in tests/cmd_set.rs: an LLM's set on an approved how-to makes it a draft.
+  3. Run cargo test --test cmd_set and cargo test --test cmd_edit.
+- accept: set and edit treat how-tos and tools like lessons.
+- verify: cargo test --test cmd_set
+- reqs: R-WRITE-8
+- note (2026-11-21, planner): added
+
+### T-244 · retitle and image: the approval rule for how-tos and tools
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-047
+- why: R-WRITE-8, R-LIFE-6.
+- summary: Gives how-tos and tools the lesson rule in retitle and image.
+- depends: T-212
+- files: src/cmd/retitle.rs, src/cmd/image.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Replace each check 'kind is Lesson' that decides the approval rule with approval::guarded(kind) in retitle.rs and image.rs.
+  2. Run cargo test --test cmd_retitle and cargo test --test cmd_image.
+- accept: retitle and image treat how-tos and tools like lessons.
+- verify: cargo test --test cmd_retitle
+- reqs: R-WRITE-8
+- note (2026-11-21, planner): added
+
+### T-245 · approve and reopen: the approval rule for how-tos and tools
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-047
+- why: R-LIFE-6.
+- summary: Records the approval checksum of how-tos and tools too.
+- depends: T-212
+- files: src/cmd/approve.rs, src/cmd/reopen.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Replace each check 'kind is Lesson' that decides approval::record or forget with approval::guarded(kind) in approve.rs and reopen.rs.
+  2. Run cargo test --test cmd_approve and cargo test --test cmd_reopen.
+- accept: approve and reopen record checksums of how-tos and tools.
+- verify: cargo test --test cmd_approve
+- reqs: R-LIFE-6
+- note (2026-11-21, planner): added
+
+### T-246 · retire and restore: the approval rule for how-tos and tools
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-047
+- why: R-LIFE-6.
+- summary: Handles how-tos and tools like lessons when retired or restored.
+- depends: T-212
+- files: src/cmd/retire.rs, src/cmd/restore.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Replace each check 'kind is Lesson' that decides approval::record or forget with approval::guarded(kind) in retire.rs and restore.rs.
+  2. Run cargo test --test cmd_retire and cargo test --test cmd_restore.
+- accept: retire and restore handle how-tos and tools like lessons.
+- verify: cargo test --test cmd_retire
+- reqs: R-LIFE-6
+- note (2026-11-21, planner): added
 
 ### T-048 · Glossary: term add, term, glossary, and search through other spellings
 - status: open
 - owner: —
-- priority: P2 · difficulty: 5 · type: feature
+- priority: P2 · type: milestone
 - milestone: T-042
+- goal: R-TERM-1 to R-TERM-4 hold; check warns about entries that look German as in R-ENTRY-20.
 - why: Every LLM should read the team's abbreviations the same way, and a German word should find the English entries.
 - summary: A team glossary of terms, symbols and abbreviations; a German word finds the English entries.
-- depends: T-043
 - accept: R-TERM-1 to R-TERM-4 hold; check warns about entries that look German as in R-ENTRY-20.
 - reqs: R-TERM-1 to R-TERM-4, R-ENTRY-20
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): split into T-247, T-248, T-249, T-250, T-251, T-252, T-253
+
+### T-247 · glossary.rs: terms and their other spellings
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-048
+- why: R-TERM-1, R-TERM-4.
+- summary: Reads the glossary and finds every spelling of a word.
+- depends: T-212
+- files: src/glossary.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement load, terms and spellings as docs/design.md section 11 and format.md section 20 say (glossary.md, title 'Glossary of <code>'). also is a comma list, trimmed. spellings(terms, word): for each term whose term or any also equals word (ignoring case), all of its spellings (term and also), no duplicates.
+  2. Tests: a glossary with 'mass flow' also 'Massenstrom, mdot'; spellings('Massenstrom') gives all three.
+  3. Run cargo test --lib glossary::.
+- accept: Glossary terms are read and a German word finds its English term.
+- verify: cargo test --lib glossary::
+- reqs: R-TERM-1, R-TERM-4
+- note (2026-11-21, planner): added
+
+### T-248 · term: add a term or look one up
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-048
+- why: R-TERM-1.
+- summary: Adds glossary terms and looks them up.
+- depends: T-247, T-226
+- files: src/cmd/term.rs, tests/cmd_term.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 12 and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list, src/cmd/value.rs for a block file) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: an optional subcommand Add { term, meaning, --symbol, --unit, --also <comma list> } and otherwise a positional word (use #[command(args_conflicts_with_subcommands = true)]).
+  3. Add: the current dossier's glossary.md (the team's with --team; a team write from a project is checked with conf::gate and conf::check on the term, meaning and also first); a new block with meaning, symbol, unit, also and history 'added', or Exists. Lookup: terms of the project and the team whose term, also or meaning contains the word (ignoring case): '<term> (<symbol>, <unit>): <meaning>  [also: ...]', marked '[team]' for team terms.
+  4. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). To get a team dossier in a test: in a second tempfile folder run 'dossier init --team-dossier --code TEAM' (as anna, with project.command and current_dir set to that folder), add anna as a member there, then in the project run 'dossier team use <path of that DOSSIER>'. Test: add in the project and with --team; lookup by an other spelling finds it.
+  5. Run cargo test --test cmd_term.
+- accept: Terms are added and looked up in the project and the team glossary.
+- verify: cargo test --test cmd_term
+- reqs: R-TERM-1
+- note (2026-11-21, planner): added
+
+### T-249 · glossary: every term of the project and the team
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-048
+- why: R-TERM-1.
+- summary: Prints the whole glossary.
+- depends: T-247, T-218
+- files: src/cmd/glossary.rs, tests/cmd_glossary.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 12 and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list, src/cmd/value.rs for a block file) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Print every term of the project's glossary.md and the team's, sorted by term (ignoring case), team terms marked '[team]', in the line format of the term command; end '<n> terms'.
+  3. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: two project terms are sorted.
+  4. Run cargo test --test cmd_glossary.
+- accept: glossary prints all terms.
+- verify: cargo test --test cmd_glossary
+- reqs: R-TERM-1
+- note (2026-11-21, planner): added
+
+### T-250 · search: the project and the team dossier together
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-048
+- why: R-READ-3.
+- summary: Searches the project and the team dossier at once.
+- depends: T-218
+- files: src/cmd/search.rs, tests/cmd_search.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. When the project has a team dossier (ctx.team), search its entries too; mark each team result with 'team:' before its ID (R-READ-3); the ordering rules stay, team results sorted in with the others. JSON gains place ('project' or 'team').
+  2. Tests: a team lesson is found from the project with the team: mark.
+  3. Run cargo test --test cmd_search.
+- accept: search finds team knowledge from inside a project.
+- verify: cargo test --test cmd_search
+- reqs: R-READ-3
+- note (2026-11-21, planner): added
+
+### T-251 · search: find a term's other spellings
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-048
+- why: R-TERM-4, D25.
+- summary: Lets a German word find entries written in English.
+- depends: T-250, T-247
+- files: src/cmd/search.rs, tests/cmd_search.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Each search word also matches when the text contains one of its spellings from the project's and the team's glossary (glossary::spellings): a word counts as present when any of its spellings is (R-TERM-4).
+  2. Tests: with 'mass flow' also 'Massenstrom', searching 'Massenstrom' finds an entry that says 'mass flow'.
+  3. Run cargo test --test cmd_search.
+- accept: A German word finds the English entries.
+- verify: cargo test --test cmd_search
+- reqs: R-TERM-4
+- note (2026-11-21, planner): added
+
+### T-252 · brief --task: team lessons and how-tos
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-048
+- why: R-CTX-2.
+- summary: Shows the team's lessons and how-tos that fit the task.
+- depends: T-218
+- files: src/brief_task.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. In 'Related', also score the team dossier's approved lessons and how-tos (ctx.team: store::all of it) with the same query; mark them 'team:' before the ID; lessons with Statement and Valid for, how-tos by title (R-CTX-2).
+  2. Test in the module with a team folder built in the test.
+  3. Run cargo test --lib brief_task::.
+- accept: brief --task shows how the team did this kind of work before.
+- verify: cargo test --lib brief_task::
+- reqs: R-CTX-2
+- note (2026-11-21, planner): added
+
+### T-253 · brief --task: glossary terms and the last uses of the software
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-048
+- why: R-TERM-2, R-CTX-2.
+- summary: Adds the task's glossary terms and earlier uses of its software to the task context.
+- depends: T-252, T-221, T-247
+- files: src/brief_task.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add '## Terms': glossary terms (project and team) whose term or other spelling appears in the task's title, fields or notes, at most 10 lines (R-TERM-2).
+  2. Add '## Earlier uses': the last three usage-index blocks (teamfiles::usage) with the task's software and analysis, newest first (R-CTX-2).
+  3. Tests in the module.
+  4. Run cargo test --lib brief_task::.
+- accept: brief --task explains the terms of the task and shows the last uses of its software.
+- verify: cargo test --lib brief_task::
+- reqs: R-TERM-2, R-CTX-2
+- note (2026-11-21, planner): added
 
 ### T-049 · What is new: news, and the news line in brief
 - status: open
 - owner: —
-- priority: P2 · difficulty: 5 · type: feature
+- priority: P2 · type: milestone
 - milestone: T-042
+- goal: R-READ-10 and R-READ-11 hold.
 - why: Colleagues need to see what was added to the team dossier without reading everything.
 - summary: Each person sees what was added or approved since they last looked, in the project and the team dossier.
-- depends: T-043
 - accept: R-READ-10 and R-READ-11 hold.
 - reqs: R-READ-10, R-READ-11
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): split into T-254, T-255
+
+### T-254 · status --since last: the team dossier too, grouped by place
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-049
+- why: R-READ-10.
+- summary: Shows what changed in the project and the team since you last looked.
+- depends: T-218
+- files: src/cmd/status.rs, tests/cmd_status.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. With --since last or a date, add the team dossier's journal records (when the project has a team): print the project's lines under '## Project <code>' and the team's under '## Team', each line '<time>  <who>  <event>  <ID>  <title>' (R-READ-10), only events approved, superseded, retired, accepted and created-approved; at most 20 lines with a last line counting the rest.
+  2. Tests: a team lesson approved after the marker appears under Team.
+  3. Run cargo test --test cmd_status.
+- accept: status --since last shows what is new in the project and in the team.
+- verify: cargo test --test cmd_status
+- reqs: R-READ-10
+- note (2026-11-21, planner): added
+
+### T-255 · brief: the news line and the team's lessons and how-tos
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-049
+- why: R-CTX-1, R-READ-11.
+- summary: Shows the team's matching lessons and a line when there is news.
+- depends: T-218
+- files: src/cmd/brief.rs, tests/cmd_brief.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add '## Team lessons and how-tos': the team's approved lessons and how-tos whose machine, analysis or software tags match the project's tags (cfg.tags), as '<team:ID> · <title>', at most 10 (R-CTX-1).
+  2. Last line: when entries were approved in the project or the team after the person's marker (.state/seen-<person>.txt, as status uses), '<n> new entries since <date>: dossier status --since last' (R-READ-11); nothing when there are none.
+  3. Tests: a matching team lesson is listed; the news line appears after an approval and not before.
+  4. Run cargo test --test cmd_brief.
+- accept: brief shows the team's matching knowledge and says when there is news.
+- verify: cargo test --test cmd_brief
+- reqs: R-CTX-1, R-READ-11
+- note (2026-11-21, planner): added
 
 ### T-050 · Review dates and how-tos not tested with the newest version
 - status: open
 - owner: —
-- priority: P2 · difficulty: 5 · type: feature
+- priority: P2 · type: milestone
 - milestone: T-042
+- goal: R-LIFE-7 and R-LIFE-8 hold.
 - why: Lessons and how-tos go out of date quietly.
 - summary: Lessons and how-tos can carry a date to be checked again; how-tos not tested with the newest version are marked.
-- depends: T-043
 - accept: R-LIFE-7 and R-LIFE-8 hold.
 - reqs: R-LIFE-7, R-LIFE-8
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21 (D33): no default review date; it is set per entry with --review <date>.
+- note (2026-11-21, planner): split into T-256, T-257, T-258, T-259, T-260, T-261
+
+### T-256 · reviewed: a person confirms an entry still holds
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-050
+- why: R-LIFE-7, D33.
+- summary: Lets a person confirm that an entry still holds.
+- depends: T-212
+- files: src/cmd/reviewed.rs, tests/cmd_reviewed.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 12 and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list, src/cmd/value.rs for a block file) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: id, --next <YYYY-MM-DD>. Rules: a person at a terminal. Set reviewed '<time> by <person>'; set review to --next when given, else remove it; history 'reviewed' (with detail 'next <date>' when given).
+  3. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: an entry with a past review date is reviewed and the field is gone; --next sets a new date.
+  4. Run cargo test --test cmd_reviewed.
+- accept: A person confirms an entry and sets the next review date.
+- verify: cargo test --test cmd_reviewed
+- reqs: R-LIFE-7
+- note (2026-11-21, planner): added
+
+### T-257 · learn: --review <date>
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-050
+- why: R-LIFE-7, D33.
+- summary: Lets a lesson carry the date it should be checked again.
+- depends: T-212
+- files: src/cmd/learn.rs, tests/cmd_learn.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add --review <YYYY-MM-DD> (a valid date, else BadValue); it becomes the field review of the lesson. No default (D33).
+  2. Test: learn --review 2027-06-01 writes the field.
+  3. Run cargo test --test cmd_learn.
+- accept: A lesson can carry a review date.
+- verify: cargo test --test cmd_learn
+- reqs: R-LIFE-7
+- note (2026-11-21, planner): added
+
+### T-258 · show: due for review, imported, file changed since approval
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-050
+- why: R-LIFE-7, R-IMPORT-5, R-USE-11.
+- summary: Shows when an entry is due for review, was imported, or its tool file changed.
+- depends: T-212
+- files: src/cmd/show.rs, tests/cmd_show.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Marks: '[due for review]' when the review date is before today (time::date of time::now()); '[imported]' for imported: yes; '[file changed since approval]' for a tool whose location file's checksum differs from its checksum field; '[changed after approval]' now for every guarded kind (approval::guarded).
+  2. Tests for each mark.
+  3. Run cargo test --test cmd_show.
+- accept: show marks entries due for review, imported ones and changed tool files.
+- verify: cargo test --test cmd_show
+- reqs: R-LIFE-7, R-IMPORT-5, R-USE-11
+- note (2026-11-21, planner): added
+
+### T-259 · list and search: the same marks
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-050
+- why: R-LIFE-7, R-IMPORT-5.
+- summary: Shows the same marks in lists and search results.
+- depends: T-258, T-240, T-251
+- files: src/cmd/list.rs, src/cmd/search.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add the marks of the show command ('[due for review]', '[imported]', '[file changed since approval]', '[changed after approval]' for guarded kinds) to list and search lines, copying show.rs's logic.
+  2. Run cargo test --test cmd_list and cargo test --test cmd_search.
+- accept: list and search carry the new marks.
+- verify: cargo test --test cmd_list
+- reqs: R-LIFE-7, R-IMPORT-5
+- note (2026-11-21, planner): added
+
+### T-260 · check: due for review and changed tool files
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-050
+- why: R-LIFE-7, R-USE-11, R-CHECK-1.
+- summary: Reports entries due for review and changed tool files.
+- depends: T-212
+- files: src/cmd/check.rs, tests/cmd_check.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Report REVIEW for an entry whose review date has passed and TOOL for a tool whose location file changed since its checksum or is gone; CHANGED now for every guarded kind.
+  2. Tests for each.
+  3. Run cargo test --test cmd_check.
+- accept: check reports entries due for review and changed tool files.
+- verify: cargo test --test cmd_check
+- reqs: R-LIFE-7, R-USE-11
+- note (2026-11-21, planner): added
+
+### T-261 · brief and status: guarded kinds and due for review
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-050
+- why: R-LIFE-6, R-LIFE-7, R-CTX-4.
+- summary: Marks changed and overdue how-tos and tools in brief and status.
+- depends: T-255, T-254
+- files: src/cmd/brief.rs, src/cmd/status.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. In brief, the '[changed after approval]' mark and in status the 'changed by hand' count use approval::guarded instead of lessons only; both add ' [due for review]' to shown entries whose review date has passed.
+  2. Run cargo test --test cmd_brief and cargo test --test cmd_status.
+- accept: brief and status treat how-tos and tools like lessons and show review marks.
+- verify: cargo test --test cmd_brief
+- reqs: R-LIFE-6, R-LIFE-7
+- note (2026-11-21, planner): added
 
 ### T-051 · Bringing in finished projects: init --past, review-folder, review-document, import status
 - status: open
 - owner: —
-- priority: P1 · difficulty: 5 · type: feature
+- priority: P1 · type: milestone
 - milestone: T-042
+- goal: R-IMPORT-1 to R-IMPORT-9 hold; format.md and the tests cover every phase 3 addition; version 0.3.0 is released.
 - why: The dossier must not start empty; years of finished projects hold most of what the team knows.
 - summary: Knowledge from finished projects is brought in: the tool prints the material, the LLM drafts, a person approves.
-- depends: T-044
 - accept: R-IMPORT-1 to R-IMPORT-9 hold; format.md and the tests cover every phase 3 addition; version 0.3.0 is released.
 - reqs: R-IMPORT-1 to R-IMPORT-9, D27
 - note (2026-11-20, planner): added
+- note (2026-11-21, planner): split into T-262, T-263, T-264, T-265, T-266, T-267, T-268
+
+### T-262 · init --past and --in: a dossier for a finished project
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-051
+- why: R-IMPORT-1.
+- summary: Creates a dossier for a project that is already finished.
+- depends: T-227
+- files: src/cmd/init.rs, tests/cmd_init.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add --past (flag) and --in <folder>. --past writes 'past = true' after the code line. --in <folder> creates the DOSSIER in that folder instead of the current one and writes describes = "<the current folder, absolute, with '/'>" (R-IMPORT-1). --in without --past: BadValue.
+  2. Tests: --past sets past; --in puts DOSSIER elsewhere with describes.
+  3. Run cargo test --test cmd_init.
+- accept: Finished projects get a dossier, also when their folder cannot be written to.
+- verify: cargo test --test cmd_init
+- reqs: R-IMPORT-1
+- note (2026-11-21, planner): added
+
+### T-263 · imports.rs: which documents were reviewed
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-051
+- why: R-IMPORT-3.
+- summary: Reads which old documents were already reviewed.
+- depends: T-212
+- files: src/imports.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement load and state as docs/design.md section 11 and format.md section 25 say (imports.md, title 'Documents of <code>').
+  2. Tests: a missing file is empty; state of a reviewed document.
+  3. Run cargo test --lib imports::.
+- accept: The review state of old documents is read.
+- verify: cargo test --lib imports::
+- reqs: R-IMPORT-3
+- note (2026-11-21, planner): added
+
+### T-264 · folderscan.rs: the tree and the documents of an old folder
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-051
+- why: R-IMPORT-2.
+- summary: Lists an old project folder and its documents without opening them.
+- depends: T-212
+- files: src/folderscan.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Implement tree and documents as docs/design.md section 11 says. Never read file contents; never follow symbolic links; skip folders named DOSSIER, .git and target. tree: names sorted, folders first, two spaces of indent per level, sizes in bytes. documents: kind from the extension list (report, presentation, spreadsheet, script), stored paths relative to root with '/', newest modified first, then path.
+  2. Tests with a tempfile tree.
+  3. Run cargo test --lib folderscan::.
+- accept: An old project folder is listed without opening a file.
+- verify: cargo test --lib folderscan::
+- reqs: R-IMPORT-2
+- note (2026-11-21, planner): added
+
+### T-265 · review-folder: the material for drafting from an old folder
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-051
+- why: R-IMPORT-2, R-IMPORT-4, R-IMPORT-9.
+- summary: Prints the material an LLM needs to draft entries from an old project folder.
+- depends: T-264, T-263
+- files: src/cmd/review_folder.rs, tests/cmd_review_folder.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 12 and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list, src/cmd/value.rs for a block file) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: path (default: describes of the settings, else the project folder), --depth (default 3). Print '# Folder <path>', '## Tree' (folderscan::tree), '## Documents' (each '<stored>  <kind>  <size>  <modified date>  [<state from imports.md>]'), '## Already reviewed' (count), '## Import rules' (R-IMPORT-4 as a numbered list, one rule per line), and the example commands 'dossier review-document <file>' and 'dossier learn ... --from-document <file>'. Changes nothing.
+  3. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: a folder with a report and a script lists both.
+  4. Run cargo test --test cmd_review_folder.
+- accept: review-folder prints what an LLM needs to draft from an old project.
+- verify: cargo test --test cmd_review_folder
+- reqs: R-IMPORT-2, R-IMPORT-4
+- note (2026-11-21, planner): added
+
+### T-266 · review-document and reviewed-document
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-051
+- why: R-IMPORT-3.
+- summary: Marks an old document as under review and then as done.
+- depends: T-263
+- files: src/cmd/review_document.rs, src/cmd/reviewed_document.rs, tests/cmd_review_document.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 12 and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list, src/cmd/value.rs for a block file) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. review-document <file>: store the path; in imports.md add the block (or set state) state reviewing, history 'reviewing'; print the import rules (as review-folder) and 'draft with: --from-document <file>'.
+  3. reviewed-document <file> [--nothing]: the block must exist; state done, or nothing with --nothing; history 'reviewed' or 'nothing'.
+  4. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: review then reviewed sets done; --nothing sets nothing.
+  5. Run cargo test --test cmd_review_document.
+- accept: Documents are marked as being reviewed and as done.
+- verify: cargo test --test cmd_review_document
+- reqs: R-IMPORT-3
+- note (2026-11-21, planner): added
+
+### T-267 · import status: progress of bringing in a finished project
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-051
+- why: R-IMPORT-7.
+- summary: Shows how far a finished project has been brought in.
+- depends: T-264, T-263, T-234
+- files: src/cmd/import.rs, tests/cmd_import.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Read docs/design.md section 12 and the existing command files of the same kind (for example src/cmd/set.rs for a change, src/cmd/list.rs for a list, src/cmd/value.rs for a block file) and copy their patterns: Ctx::load, ctx.writer(), tx::write, Output::with with JSON data.
+  2. Args: a subcommand Status. Print for the current dossier: documents found (folderscan::documents of describes or the project folder), reviewing, done, nothing (imports.md), imported drafts waiting, imported entries approved, imported entries promoted (promoted field). JSON with the same numbers.
+  3. Tests in the test file with 'mod common;' and common::Project::new() (people anna with LLM anna-claude, ben with ben-codex; fixed time 2026-11-20T10:00:00+01:00); a terminal rule is tested with project.command(agent, now).env("DOSSIER_ANSWERS", ...). Test: one document done and one imported draft are counted.
+  4. Run cargo test --test cmd_import.
+- accept: import status shows how far an old project has been brought in.
+- verify: cargo test --test cmd_import
+- reqs: R-IMPORT-7
+- note (2026-11-21, planner): added
+
+### T-268 · drafts --imported: imported drafts by document
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-051
+- why: R-IMPORT-6.
+- summary: Lists drafts from old documents apart, grouped by document.
+- depends: T-234
+- files: src/cmd/drafts.rs, tests/cmd_drafts.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add --imported: only drafts with imported: yes, grouped under '## <source-document>' headings, oldest first inside each; without --imported, imported drafts are marked '[imported]' (R-IMPORT-6).
+  2. Tests: two imported drafts from two documents are grouped.
+  3. Run cargo test --test cmd_drafts.
+- accept: Imported drafts are listed apart, by document.
+- verify: cargo test --test cmd_drafts
+- reqs: R-IMPORT-6
+- note (2026-11-21, planner): added
 
 ### T-052 · Working from the PC: the dossier is used from Windows as if it were local
 - status: open
@@ -4384,6 +5442,126 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, haiku-t-209): done
+
+### T-210 · v0.3 skeleton: how-to and tool kinds, team settings, Ctx and Global fields, guarded kinds
+- status: open
+- owner: —
+- priority: P0 · difficulty: 2 · type: feature
+- milestone: T-042
+- why: New enum variants and struct fields break every literal and exhaustive match at once.
+- summary: Adds the how-to and tool kinds and the new settings everywhere at once, so later tasks each change one file.
+- final: New enum variants and struct fields touch every literal at once.
+- files: src/entry/mod.rs, src/entry/new.rs, src/entry/rules.rs, src/config.rs, src/cli.rs, src/ctx.rs, src/tx.rs, src/create.rs, src/brief_task.rs, src/approval.rs, src/cmd/show.rs, src/cmd/review_task.rs, src/cmd/list.rs, src/cmd/search.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. entry/mod.rs: add Kind::Howto (name howto, prefix HOW, folder howtos) and Kind::Tool (name tool, prefix TOOL, folder tools) after Usage; Kind::all() returns [Kind; 7]. Extend its tests.
+  2. entry/rules.rs and entry/new.rs: the sections, required parts and field order of format.md sections 22 and 23. Tests.
+  3. approval.rs: add pub fn guarded(kind: Kind) -> bool, true for Lesson, Howto and Tool. Test.
+  4. config.rs: parse the optional top-level keys of format.md sections 21 and 26 (kind, default "project"; team; members; names; past; describes) into the new Config fields of design.md section 10; add set_list and set_value as stubs returning Err(Code::NotImplemented). Add the new fields to every Config literal in this crate's tests (grep for 'Config {').
+  5. cli.rs: Global gains --team (bool) and --from-document <file> (Option<String>), both global.
+  6. ctx.rs: Ctx gains team: Option<PathBuf>, from_document: Option<String>, project: Option<PathBuf> (design.md section 10); Ctx::load fills from_document from g (as given) and sets team and project to None for now (a later task loads the team). team_ctx is a stub returning Err(Code::NotImplemented). Add the new fields to every Ctx literal in tests (tx.rs, create.rs, brief_task.rs, ctx.rs).
+  7. Every exhaustive match on Kind or Status in the listed files gets the new variants (cargo build lists them).
+  8. Run cargo build, cargo clippy --all-targets --all-features -- -D warnings, the same with --target x86_64-unknown-linux-gnu, and cargo test --all-features; fix every error inside these files.
+- accept: The two new kinds, the new settings and the new Ctx and Global fields exist everywhere; every check passes.
+- verify: cargo test --all-features
+- reqs: D31, D34, D37, R-ENTRY-8, R-ENTRY-12
+- note (2026-11-21, planner): added
+
+### T-211 · v0.3 skeleton: the new library modules as stubs
+- status: open
+- owner: —
+- priority: P0 · difficulty: 2 · type: feature
+- milestone: T-042
+- why: With every type in place, each later task fills in one file.
+- summary: Creates empty versions of the new library parts so each can be written on its own.
+- final: Mechanical, but touches every new library file at once.
+- depends: T-210
+- files: src/lib.rs, src/conf.rs, src/gitcommit.rs, src/teamfiles.rs, src/glossary.rs, src/imports.rs, src/folderscan.rs, src/hooks.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. Add one pub mod line to src/lib.rs per module of docs/design.md section 11.
+  2. Create each module of section 11 with every type, constant and signature exactly as written there, with their doc comments.
+  3. Add the two hooks.rs functions of section 10 (local_installed, local_uninstalled) as stubs; change nothing else in hooks.rs.
+  4. Bodies: Err(Error::new(Code::NotImplemented, "<module>::<function>")) for a Result, else a plain default; unused parameters get a leading underscore. No unwrap, expect, panic or allow attributes.
+  5. Run both clippy commands (Windows and --target x86_64-unknown-linux-gnu) and cargo test --all-features.
+- accept: Every module of design.md section 11 exists with its exact signatures; every check passes.
+- verify: cargo clippy --all-targets --all-features -- -D warnings
+- note (2026-11-21, planner): added
+
+### T-212 · v0.3 skeleton: command stubs, help overview and forwarding lists
+- status: open
+- owner: —
+- priority: P0 · difficulty: 2 · type: feature
+- milestone: T-042
+- why: After this, a command task only fills in its own file.
+- summary: Creates empty versions of the new commands so each can be written on its own.
+- final: Mechanical, but touches every new command file at once.
+- depends: T-211
+- files: src/cli.rs, src/cmd/mod.rs, src/cmd/help.rs, src/remote/forward.rs, tests/cmd_agents.rs, src/cmd/team.rs, src/cmd/confidential.rs, src/cmd/promote.rs, src/cmd/close.rs, src/cmd/howto.rs, src/cmd/tool.rs, src/cmd/where_used.rs, src/cmd/term.rs, src/cmd/glossary.rs, src/cmd/reviewed.rs, src/cmd/review_folder.rs, src/cmd/review_document.rs, src/cmd/reviewed_document.rs, src/cmd/import.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. For every new command of docs/design.md section 12 create src/cmd/<name>.rs as the earlier stubs (Args {} and run returning Err(Code::NotImplemented, "<command> is not built yet")); where-used is where_used.rs, review-folder review_folder.rs, review-document review_document.rs, reviewed-document reviewed_document.rs.
+  2. Add the mod lines to src/cmd/mod.rs, the Command variants and dispatch lines to src/cli.rs (names as in section 12), and each command to the help overview of src/cmd/help.rs; add the 14 names to the expected list of the help test in tests/cmd_agents.rs.
+  3. src/remote/forward.rs: close and reviewed ask ssh for a terminal like approve; extend its test.
+  4. Run cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features.
+- accept: Every command of design.md section 12 is accepted by the parser and says it is not built yet.
+- verify: cargo test --all-features
+- note (2026-11-21, planner): added
+
+### T-213 · The rules text for LLMs: phase 3
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-042
+- why: R-AGENT-1.
+- summary: Teaches LLMs the phase 3 rules.
+- depends: T-212
+- files: src/agents/rules.md
+- read: docs/requirements.md, docs/design.md
+- steps:
+  1. Add, keeping the file at most 40 lines: 'Write under your own name: <your person> - <your model>, for example `tony - claude opus 5.5 high` (DOSSIER_AGENT).'; 'When your person says a name or term is confidential, record it at once: `dossier confidential add "<term>"`.'; 'Never write a confidential term into the team dossier; propose team knowledge with `dossier promote <ID>`.'; 'Before writing a script, look for a tool: `dossier list --kind tool`.'; 'When drafting from an old document, add `--from-document <file>`.'
+  2. Run cargo test --test cmd_agents.
+- accept: The rules tell an LLM about names, confidential terms, promotion, tools and imports.
+- verify: cargo test --test cmd_agents
+- reqs: R-AGENT-1
+- note (2026-11-21, planner): added
+
+### T-214 · README for v0.3
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: docs
+- milestone: T-042
+- why: REL-2.
+- summary: Documents the phase 3 features with tested examples.
+- depends: T-236, T-248, T-267
+- files: README.md
+- read: docs/requirements.md, docs/design.md, docs/format.md
+- steps:
+  1. Status line 'Status: v0.3 (phase 3)'. Move the phase 3 items from 'Not in version 0.2' to 'What version 0.3 adds', with one example each, each run yourself first in temporary folders: the team dossier (init --team-dossier, team use, team member add, team name add), names (your username; an LLM as '<you> - <model>'; hooks install sets it for Claude Code), confidential terms, promote and close, how-tos, tools, where-used, the glossary, news (status --since last), review dates, and bringing in finished projects (init --past, review-folder, review-document, --from-document, import status). Invented names only.
+- accept: The README explains phase 3 with tested examples.
+- verify: git ls-files --error-unmatch README.md
+- reqs: REL-2
+- note (2026-11-21, planner): added
+
+### T-215 · Release 0.3.0
+- status: open
+- owner: —
+- priority: P1 · difficulty: 2 · type: chore
+- milestone: T-042
+- why: Phase 3 ends with a release used on real work.
+- summary: Prepares the 0.3.0 release.
+- final: Checking every command by hand cannot be listed in advance.
+- depends: T-213, T-214, T-043, T-044, T-045, T-046, T-047, T-048, T-049, T-050, T-051, T-210, T-211, T-212
+- files: Cargo.toml, Cargo.lock
+- read: docs/requirements.md
+- steps:
+  1. Set the version to 0.3.0 and run cargo build so Cargo.lock follows.
+  2. Run every check on Windows and cargo clippy --target x86_64-unknown-linux-gnu --all-targets --all-features -- -D warnings; run each phase 3 command once by hand in temporary folders; list every problem in the report without fixing it.
+  3. Do not push or tag.
+- accept: Version 0.3.0 builds and every check passes.
+- verify: cargo build
+- reqs: REL-1
+- note (2026-11-21, planner): added
 
 ## Questions
 
