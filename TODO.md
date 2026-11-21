@@ -4221,10 +4221,8 @@
 - note (2026-11-21, haiku-t-165): done
 
 ### T-166 · guard: the PreToolUse hook that blocks direct edits of DOSSIER
-- status: claimed
+- status: done
 - owner: haiku-t-166
-- claimed: 2026-11-21T12:50+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-031
 - why: LLMs must use the commands, never edit entry files directly (R-AGENT-3).
@@ -4237,8 +4235,12 @@
   3. Run cargo test --test cmd_guard.
 - accept: guard blocks Claude Code edits inside DOSSIER with exit code 2 and allows everything else.
 - verify: cargo test --test cmd_guard
+- verified: 2026-11-21
+- commit: 999a931
 - reqs: R-AGENT-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-166): done
 
 ### T-167 · skill install
 - status: done
