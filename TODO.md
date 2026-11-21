@@ -1357,10 +1357,8 @@
 - note (2026-11-21, planner): split into T-199, T-200, T-201, T-202, T-203, T-204, T-205, T-206
 
 ### T-199 · show: marks for proposals, declined entries and rests-on
-- status: claimed
+- status: done
 - owner: haiku-t-199
-- claimed: 2026-11-21T12:33+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-041
 - why: R-WRITE-15: marked in show.
@@ -1373,8 +1371,12 @@
   3. Run cargo test --test cmd_show.
 - accept: show marks proposals, declined entries and entries resting on a wrong assumption.
 - verify: cargo test --test cmd_show
+- verified: 2026-11-21
+- commit: 44d48eb
 - reqs: R-WRITE-15, R-READ-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-199): done
 
 ### T-200 · brief: map, key values, proposals, rests-on marks and --on
 - status: done
