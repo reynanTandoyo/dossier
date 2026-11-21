@@ -700,10 +700,8 @@
 - note (2026-11-21, planner): added
 
 ### T-173 · files: the file lists, grouped by role, with marks
-- status: claimed
+- status: done
 - owner: haiku-t-173
-- claimed: 2026-11-21T11:39+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-033
 - why: Readers see which files belong to a task and which results are outdated (R-FILE-11).
@@ -720,8 +718,12 @@
   7. Run cargo test --test cmd_files.
 - accept: files shows the files of a task or of the project with their marks, also as they were on a date.
 - verify: cargo test --test cmd_files
+- verified: 2026-11-21
+- commit: 5ab519e
 - reqs: R-FILE-11, R-LIFE-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-173): done
 
 ### T-174 · which: what a file belongs to
 - status: open
