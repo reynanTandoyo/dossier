@@ -519,10 +519,8 @@
 - note (2026-11-21, haiku-t-175): done
 
 ### T-176 · value set, show, approve and reject
-- status: claimed
+- status: done
 - owner: haiku-t-176
-- claimed: 2026-11-21T11:24+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-032
 - why: One number, one place, one history (R-VALUE-1 to R-VALUE-3).
@@ -541,8 +539,12 @@
   9. Run cargo test --test cmd_value.
 - accept: Key values are set, shown, proposed and approved with who and when, and their history is kept.
 - verify: cargo test --test cmd_value
+- verified: 2026-11-21
+- commit: c13fce9
 - reqs: R-VALUE-1, R-VALUE-2, R-VALUE-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-176): done
 
 ### T-177 · values: the values in force
 - status: open
