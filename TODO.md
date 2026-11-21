@@ -2964,6 +2964,25 @@
 - note (2026-11-21, planner): added
 - note (2026-11-21, haiku-t153): done
 
+### T-154 · projects --check: whether each server answers
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-150
+- why: R-REMOTE-10 asks projects to show whether the server answers; T-145 left it out.
+- files: src/cmd/projects.rs, tests/cmd_projects.rs
+- read: docs/requirements.md, src/remote/ssh.rs, src/cmd/connect.rs
+- steps:
+  1. Add a flag --check to the projects Args (list mode only).
+  2. With --check, for each project run the ssh program (DOSSIER_SSH or ssh) with the arguments -o BatchMode=yes -o ConnectTimeout=<ssh_timeout> <server> true, stdin null, stdout and stderr captured, one project after another; the timeout is 10 seconds.
+  3. Add to each line '  answers' when the exit code is 0, else '  no answer'; without --check print nothing extra. JSON: add "answers": true/false per project only with --check.
+  4. Tests in tests/cmd_projects.rs: write a stand-in ssh (a .cmd on Windows, a shell script with mode 755 elsewhere) that exits 0 for one server name and 255 for another, point DOSSIER_SSH at it, connect two projects with --code and --no-folder, and check that projects --check marks one 'answers' and the other 'no answer'; projects without --check never runs ssh (point DOSSIER_SSH at a path that does not exist and expect success).
+  5. Run cargo test --test cmd_projects.
+- accept: projects --check shows for each project whether its server answers; plain projects runs no ssh.
+- verify: cargo test --test cmd_projects
+- reqs: R-REMOTE-10
+- note (2026-11-21, coordinator): added
+
 ## Questions
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.
