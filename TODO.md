@@ -2877,12 +2877,14 @@
 - note (2026-11-21, haiku-t-149): done
 
 ### T-150 · Ship v0.1: proven fast enough, documented, released
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P1 · type: milestone
 - milestone: T-001
 - goal: The speed limits are proven, the README lets the team start without the author, and a v0.1.0 tag builds the Linux and Windows programs.
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, coordinator): done
 
 ### T-151 · Test: speed with 300 entries
 - status: done
