@@ -1596,8 +1596,10 @@
 - note (2026-11-21, planner): split into T-216, T-217, T-218, T-219, T-220, T-221, T-222, T-223, T-224, T-225, T-226, T-227, T-228, T-229
 
 ### T-216 · names.rs: usernames, plain names and '<person> - <anything>' LLM names (D34)
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-216
+- claimed: 2026-11-21T23:43+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: D34: simple names, no registration of LLM names.
@@ -1618,8 +1620,10 @@
 - note (2026-11-21, planner): added
 
 ### T-217 · config.rs: set_list and set_value keep every other line
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-217
+- claimed: 2026-11-21T23:43+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: team, member and init change dossier.toml without rewriting it.
@@ -1659,8 +1663,10 @@
 - note (2026-11-21, planner): added
 
 ### T-219 · gitcommit.rs: commit the team dossier's changes
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-219
+- claimed: 2026-11-21T23:43+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: D36 and R-TEAM-6: the team dossier keeps its history in git.
@@ -1697,8 +1703,10 @@
 - note (2026-11-21, planner): added
 
 ### T-221 · teamfiles.rs: projects.md and usage-index.md of the team dossier
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-221
+- claimed: 2026-11-21T23:43+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: init --team registers projects there; used adds usage lines there.
@@ -1890,8 +1898,10 @@
 - note (2026-11-21, planner): split into T-230, T-231, T-232, T-233
 
 ### T-230 · conf.rs: confidential terms and the check
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-230
+- claimed: 2026-11-21T23:43+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-044
 - why: R-CONF-1, R-CONF-2, R-CONF-5.
@@ -2288,8 +2298,8 @@
 - note (2026-11-21, planner): split into T-247, T-248, T-249, T-250, T-251, T-252, T-253
 
 ### T-247 · glossary.rs: terms and their other spellings
-- status: open
-- owner: —
+- status: done
+- owner: haiku-t-247
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-048
 - why: R-TERM-1, R-TERM-4.
@@ -2303,8 +2313,12 @@
   3. Run cargo test --lib glossary::.
 - accept: Glossary terms are read and a German word finds its English term.
 - verify: cargo test --lib glossary::
+- verified: 2026-11-21
+- commit: 47daf61
 - reqs: R-TERM-1, R-TERM-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-247): done
 
 ### T-248 · term: add a term or look one up
 - status: open
