@@ -5444,14 +5444,16 @@
 - note (2026-11-21, haiku-t-209): done
 
 ### T-210 · v0.3 skeleton: how-to and tool kinds, team settings, Ctx and Global fields, guarded kinds
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-210
+- claimed: 2026-11-21T23:18+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-042
 - why: New enum variants and struct fields break every literal and exhaustive match at once.
 - summary: Adds the how-to and tool kinds and the new settings everywhere at once, so later tasks each change one file.
 - final: New enum variants and struct fields touch every literal at once.
-- files: src/entry/mod.rs, src/entry/new.rs, src/entry/rules.rs, src/config.rs, src/cli.rs, src/ctx.rs, src/tx.rs, src/create.rs, src/brief_task.rs, src/approval.rs, src/cmd/show.rs, src/cmd/review_task.rs, src/cmd/list.rs, src/cmd/search.rs
+- files: src/entry/mod.rs, src/entry/new.rs, src/entry/rules.rs, src/config.rs, src/cli.rs, src/ctx.rs, src/tx.rs, src/create.rs, src/brief_task.rs, src/approval.rs, src/cmd/show.rs, src/cmd/review_task.rs, src/cmd/list.rs, src/cmd/search.rs, src/names.rs, src/filelist.rs
 - read: docs/design.md, docs/format.md
 - steps:
   1. entry/mod.rs: add Kind::Howto (name howto, prefix HOW, folder howtos) and Kind::Tool (name tool, prefix TOOL, folder tools) after Usage; Kind::all() returns [Kind; 7]. Extend its tests.
@@ -5466,6 +5468,8 @@
 - verify: cargo test --all-features
 - reqs: D31, D34, D37, R-ENTRY-8, R-ENTRY-12
 - note (2026-11-21, planner): added
+- note (2026-11-21, planner): forced set (owner was haiku-t-210)
+- note (2026-11-21, planner): src/names.rs and src/filelist.rs added: their test modules build Config literals that need the new fields (found by the worker).
 
 ### T-211 · v0.3 skeleton: the new library modules as stubs
 - status: open
