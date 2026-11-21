@@ -1817,10 +1817,8 @@
 - note (2026-11-21, haiku-t-106): done
 
 ### T-107 · edit: open an entry in an editor under the lock
-- status: claimed
+- status: done
 - owner: haiku-t-107
-- claimed: 2026-11-21T01:38+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: Longer entries are easier to write in an editor than in options.
@@ -1838,10 +1836,14 @@
   8. Run cargo test --test cmd_edit.
 - accept: edit applies an editor's change under the lock and refuses changes to tool-owned lines.
 - verify: cargo test --test cmd_edit
+- verified: 2026-11-21
+- commit: 5236d87
 - reqs: R-EDIT-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
 - note (2026-11-21, planner): Temporary file named with the process ID: parallel tests editing the same ID would share one file.
+- note (2026-11-21, haiku-t-107): done
 
 ### T-108 · Reading: find and read what was recorded, and who did what when
 - status: open
