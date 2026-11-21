@@ -264,6 +264,20 @@ fn help_without_a_topic_lists_every_command_in_order() {
             "hooks",
             "guard",
             "skill",
+            "team",
+            "confidential",
+            "promote",
+            "close",
+            "howto",
+            "tool",
+            "where-used",
+            "term",
+            "glossary",
+            "reviewed",
+            "review-folder",
+            "review-document",
+            "reviewed-document",
+            "import",
         ]
     );
     let first = format!("  {:<12}  Creates the dossier folder here\n", "init");

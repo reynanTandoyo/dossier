@@ -13,9 +13,9 @@ pub struct Args {
     pub topic: Option<String>,
 }
 
-/// Every command of docs/design.md sections 5 and 9, in that order, each with a description of at
+/// Every command of docs/design.md sections 5, 9 and 12, in that order, each with a description of at
 /// most five words.
-const COMMANDS: [(&str, &str); 60] = [
+const COMMANDS: [(&str, &str); 74] = [
     ("init", "Creates the dossier folder here"),
     ("where", "Shows folders and project code"),
     ("people", "Adds or extends a person"),
@@ -76,6 +76,20 @@ const COMMANDS: [(&str, &str); 60] = [
     ("hooks", "Installs or removes Claude hooks"),
     ("guard", "Blocks edits inside dossier folders"),
     ("skill", "Installs the Claude Code skill"),
+    ("team", "Shows or changes team settings"),
+    ("confidential", "Manages confidential terms"),
+    ("promote", "Copies an entry to the team"),
+    ("close", "Sorts findings for promotion"),
+    ("howto", "Records a how-to"),
+    ("tool", "Adds or updates a tool"),
+    ("where-used", "Shows software usage index"),
+    ("term", "Adds or looks up terms"),
+    ("glossary", "Lists all glossary terms"),
+    ("reviewed", "Confirms an entry still holds"),
+    ("review-folder", "Shows material from old folder"),
+    ("review-document", "Starts reviewing a document"),
+    ("reviewed-document", "Marks a document done"),
+    ("import", "Shows import progress"),
 ];
 
 /// Runs `help`.

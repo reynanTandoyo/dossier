@@ -37,7 +37,7 @@ pub struct Cli {
     pub command: Command,
 }
 
-/// The commands of v0.1 and v0.2: one variant per file of `src/cmd/`, named after the command.
+/// The commands of v0.1, v0.2 and v0.3: one variant per file of `src/cmd/`, named after the command.
 #[derive(clap::Subcommand, Debug)]
 // The command line is parsed once per run, so the size of the largest variant does not matter.
 #[allow(clippy::large_enum_variant)]
@@ -102,6 +102,20 @@ pub enum Command {
     Hooks(cmd::hooks::Args),
     Guard(cmd::guard::Args),
     Skill(cmd::skill::Args),
+    Team(cmd::team::Args),
+    Confidential(cmd::confidential::Args),
+    Promote(cmd::promote::Args),
+    Close(cmd::close::Args),
+    Howto(cmd::howto::Args),
+    Tool(cmd::tool::Args),
+    WhereUsed(cmd::where_used::Args),
+    Term(cmd::term::Args),
+    Glossary(cmd::glossary::Args),
+    Reviewed(cmd::reviewed::Args),
+    ReviewFolder(cmd::review_folder::Args),
+    ReviewDocument(cmd::review_document::Args),
+    ReviewedDocument(cmd::reviewed_document::Args),
+    Import(cmd::import::Args),
 }
 
 /// On Linux, files and folders this program creates are writable by the group (R-XOS-8): the
@@ -205,6 +219,20 @@ pub fn main_exit() -> u8 {
         Command::Hooks(a) => ("hooks", cmd::hooks::run(a, g)),
         Command::Guard(a) => ("guard", cmd::guard::run(a, g)),
         Command::Skill(a) => ("skill", cmd::skill::run(a, g)),
+        Command::Team(a) => ("team", cmd::team::run(a, g)),
+        Command::Confidential(a) => ("confidential", cmd::confidential::run(a, g)),
+        Command::Promote(a) => ("promote", cmd::promote::run(a, g)),
+        Command::Close(a) => ("close", cmd::close::run(a, g)),
+        Command::Howto(a) => ("howto", cmd::howto::run(a, g)),
+        Command::Tool(a) => ("tool", cmd::tool::run(a, g)),
+        Command::WhereUsed(a) => ("where-used", cmd::where_used::run(a, g)),
+        Command::Term(a) => ("term", cmd::term::run(a, g)),
+        Command::Glossary(a) => ("glossary", cmd::glossary::run(a, g)),
+        Command::Reviewed(a) => ("reviewed", cmd::reviewed::run(a, g)),
+        Command::ReviewFolder(a) => ("review-folder", cmd::review_folder::run(a, g)),
+        Command::ReviewDocument(a) => ("review-document", cmd::review_document::run(a, g)),
+        Command::ReviewedDocument(a) => ("reviewed-document", cmd::reviewed_document::run(a, g)),
+        Command::Import(a) => ("import", cmd::import::run(a, g)),
     };
     crate::output::emit(name, g.json, &result)
 }

@@ -19,9 +19,9 @@ const LOCAL_COMMANDS: [&str; 6] = ["connect", "projects", "help", "hooks", "guar
 
 /// The commands that ask ssh for a terminal when the PC has one (R-REMOTE-3): the approvals and
 /// changes of a person, and the decisions of a decider.
-const TERMINAL_COMMANDS: [&str; 10] = [
+const TERMINAL_COMMANDS: [&str; 12] = [
     "approve", "remove", "restore", "edit", "accept", "decline", "confirm", "refute", "cleared",
-    "value",
+    "value", "close", "reviewed",
 ];
 
 /// The time limit of the connection in seconds (R-REMOTE-11).
@@ -387,6 +387,11 @@ mod tests {
         let (code, written) = maybe_with(&args_file, &["dossier", "accept", "DEC-001"]);
         assert_eq!(code, Some(7));
         assert!(tokens(&written).contains(&"-t"), "{written}");
+        for command in ["close", "reviewed"] {
+            let (code, written) = maybe_with(&args_file, &["dossier", command, "DEC-001"]);
+            assert_eq!(code, Some(7));
+            assert!(tokens(&written).contains(&"-t"), "{written}");
+        }
         let (_, written) = maybe_with(&args_file, &["dossier", "list"]);
         assert!(!tokens(&written).contains(&"-t"), "{written}");
         // SAFETY: ENV_LOCK is still held.
