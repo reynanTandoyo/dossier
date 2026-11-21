@@ -617,21 +617,35 @@ fn count_unsettled(scope: &[&Item], state: &Path) -> Unsettled {
 fn unsettled_lines(counts: &Unsettled) -> Vec<String> {
     let mut lines = Vec::new();
     if counts.drafts > 0 {
-        lines.push(format!("{} drafts waiting", counts.drafts));
+        lines.push(counted(counts.drafts, "draft waiting", "drafts waiting"));
     }
     if counts.open_assumptions > 0 {
-        lines.push(format!("{} open assumptions", counts.open_assumptions));
+        lines.push(counted(
+            counts.open_assumptions,
+            "open assumption",
+            "open assumptions",
+        ));
     }
     if counts.changed_lessons > 0 {
-        lines.push(format!(
-            "{} approved lessons changed by hand",
-            counts.changed_lessons
+        lines.push(counted(
+            counts.changed_lessons,
+            "approved lesson changed by hand",
+            "approved lessons changed by hand",
         ));
     }
     if lines.is_empty() {
         lines.push("nothing waiting".to_string());
     }
     lines
+}
+
+/// `<n> <one>` for 1, `<n> <many>` otherwise.
+fn counted(n: usize, one: &str, many: &str) -> String {
+    if n == 1 {
+        format!("1 {one}")
+    } else {
+        format!("{n} {many}")
+    }
 }
 
 /// What `--since` asks for, as typed.

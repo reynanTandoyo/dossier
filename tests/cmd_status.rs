@@ -144,7 +144,7 @@ fn without_todo_the_screen_has_the_todo_line_a_decision_and_the_drafts_count() {
          ## Newest findings\n\
          none\n\
          ## Unsettled\n\
-         1 drafts waiting\n"
+         1 draft waiting\n"
     );
 }
 
@@ -169,7 +169,7 @@ fn with_a_stand_in_todo_the_screen_shows_the_tasks_who_works_on_what_what_waits_
          ## Newest findings\n\
          none\n\
          ## Unsettled\n\
-         1 drafts waiting\n\
+         1 draft waiting\n\
          ## Next\n\
          T-209 · Tidy the old notes\n\
          T-203 · Write the status tests\n\
