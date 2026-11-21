@@ -4185,10 +4185,8 @@
 - note (2026-11-21, haiku-t-164): done
 
 ### T-165 · hooks install and uninstall
-- status: claimed
+- status: done
 - owner: haiku-t-165
-- claimed: 2026-11-21T12:29+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-031
 - why: The hooks run brief at session start and guard against direct edits (D33).
@@ -4203,8 +4201,12 @@
   5. Run cargo test --test cmd_hooks.
 - accept: hooks install writes the SessionStart and PreToolUse hooks into .claude/settings.json and uninstall removes them.
 - verify: cargo test --test cmd_hooks
+- verified: 2026-11-21
+- commit: 7a2329a
 - reqs: R-AGENT-3, R-CTX-7, D33
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-165): done
 
 ### T-166 · guard: the PreToolUse hook that blocks direct edits of DOSSIER
 - status: open
