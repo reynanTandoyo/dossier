@@ -4295,8 +4295,10 @@
 - note (2026-11-21, haiku-t-207): done
 
 ### T-208 · status: map, open assumptions and what rests on a wrong assumption as lists
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-208
+- claimed: 2026-11-21T13:37+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-041
 - why: R-CTX-16 and design.md section 9: status must print these, not only count them (found by the release check).
@@ -4314,8 +4316,8 @@
 - note (2026-11-21, planner): added
 
 ### T-209 · README: three corrections found by the release check
-- status: open
-- owner: —
+- status: done
+- owner: haiku-t-209
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-041
 - why: The README must match what the program does (REL-2).
@@ -4329,8 +4331,12 @@
   5. Change nothing else.
 - accept: The runs, files and requirements parts of the README match the program.
 - verify: git ls-files --error-unmatch README.md
+- verified: 2026-11-21
+- commit: 0c877e9
 - reqs: REL-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-209): done
 
 ## Questions
 
