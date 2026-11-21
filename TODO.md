@@ -18,11 +18,13 @@
 ## Tasks
 
 ### T-001 · Core: one project remembers what was decided, assumed, found and learned
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P0 · type: milestone
 - goal: One project folder has a dossier that records decisions, assumptions, findings, dead ends and lessons, lets a person approve an LLM's drafts, and gives every LLM brief and status at session start. Requirements: docs/requirements.md section 11, Phase 1 (v0.1).
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
+- note (2026-11-21, coordinator): done
 
 ### T-002 · Write docs/format.md: the entry file format, version 1
 - status: done
@@ -446,14 +448,14 @@
 - note (2026-11-21, planner): dropped — Replaced by the detailed v0.1 tasks under T-001 (one file per task, see docs/design.md).
 
 ### T-030 · Release 0.1.0: Linux and Windows programs
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P1 · difficulty: 2 · type: chore
 - milestone: T-001
 - why: Phase 1 is only finished when the team can install it on the server and try it on a real project.
 - final: Cleaning up warnings across the whole crate cannot be listed in advance.
 - depends: T-065,T-070,T-083,T-095,T-108,T-119,T-130,T-139,T-150
-- files: src/lib.rs, Cargo.toml, README.md
+- files: src/lib.rs, Cargo.toml, README.md, src/lock.rs, src/tx.rs
 - read: docs/requirements.md, docs/design.md
 - steps:
   1. Remove the line #![allow(dead_code, unused_variables)] from src/lib.rs.
@@ -464,8 +466,13 @@
   6. Tell the owner that the tag v0.1.0 can be pushed; do not push it yourself.
 - accept: A v0.1.0 tag builds one program for Linux x64 and one dossier.exe for Windows x64 with the C runtime linked in, with checksums; all checks pass on both systems; the program refuses a dossier written by a newer format with a message to update.
 - verify: cargo clippy --all-targets --all-features -- -D warnings
+- verified: 2026-11-21
+- commit: 760bbc4
 - reqs: NFR-1, NFR-2, NFR-7, NFR-8, REL-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
+- note (2026-11-21, coordinator): Removing the allow line left three never-read fields, in src/lock.rs (the guard's file) and in test helpers of src/lock.rs and src/tx.rs; they were renamed with a leading underscore, so both files are listed now.
+- note (2026-11-21, coordinator): done
 
 ### T-031 · Project facts: a result can be traced to what it was made from
 - status: open
