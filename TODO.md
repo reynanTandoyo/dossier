@@ -1999,8 +1999,10 @@
 - note (2026-11-21, haiku-t-114): done
 
 ### T-115 · history: what happened to an entry or a task
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-115
+- claimed: 2026-11-21T01:22+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-108
 - why: Why an entry looks the way it does must be answerable from its history.
@@ -2126,8 +2128,10 @@
 - note (2026-11-21, haiku-t-120): done
 
 ### T-121 · review-task: the material for drafting lessons
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-121
+- claimed: 2026-11-21T01:22+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: The LLM in the session drafts lessons from this text; the tool itself never calls a model.
@@ -2255,8 +2259,10 @@
 - note (2026-11-21, haiku-t-125): done
 
 ### T-126 · retire: end an entry without a replacement
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-126
+- claimed: 2026-11-21T01:22+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: An entry that no longer holds must stop being shown as knowledge.
@@ -2324,10 +2330,8 @@
 - note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
 
 ### T-129 · check: report problems in a dossier
-- status: claimed
+- status: done
 - owner: haiku-t-129
-- claimed: 2026-11-21T01:13+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: Hand edits and time break entries; check is how the team notices.
@@ -2344,8 +2348,12 @@
   7. Run cargo test --test cmd_check.
 - accept: check lists each kind of problem on its own line and says ok when there is none.
 - verify: cargo test --test cmd_check
+- verified: 2026-11-21
+- commit: 98de25c
 - reqs: R-CHECK-1, R-HIST-4, R-XOS-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-129): done
 
 ### T-130 · Context: every LLM starts with the project's decisions and state
 - status: open
@@ -2693,8 +2701,10 @@
 - note (2026-11-21, haiku-t-144): done
 
 ### T-145 · projects: list and remove register entries
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-145
+- claimed: 2026-11-21T01:22+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-139
 - why: People and LLMs need to see which projects this PC knows and where they are.
