@@ -11,6 +11,9 @@ use super::{
 };
 use crate::names::{self, Who};
 
+/// The section of an entry's pictures (format.md §16); it always comes last.
+const PICTURES: &str = "Pictures";
+
 impl Entry {
     /// Replaces the field's line, or adds it before the first history line (else at the end of
     /// the block). New lines take their line ending as format.md §2 says.
@@ -89,8 +92,16 @@ impl Entry {
         self.lines[index] = format!("{mark}{text}{ending}");
     }
 
+    /// The index of the `## Pictures` heading line, if the entry has one.
+    fn pictures_start(&self) -> Option<usize> {
+        section_ranges(&self.lines)
+            .into_iter()
+            .find(|(section, _)| section == PICTURES)
+            .map(|(_, range)| range.start)
+    }
+
     /// Replaces the body of the section `name` (matched exactly), or adds the section at the end
-    /// of the file.
+    /// of the file (before a `Pictures` section, which always stays last).
     ///
     /// `body` has LF (or CRLF) between its lines; blank lines at its start and end are dropped.
     /// The body is set off by one blank line before it. A section followed by another gets one
@@ -123,6 +134,15 @@ impl Entry {
                 self.insert(range.start + 1, &texts, ending);
             }
             None if body.is_empty() => {}
+            // A picture section stays the last one (format.md §16): a new section goes in
+            // right before it, set off by a blank line.
+            None if name != PICTURES && self.pictures_start().is_some() => {
+                let at = self.pictures_start().unwrap_or(self.lines.len());
+                let mut texts = vec![format!("## {name}"), String::new()];
+                texts.extend(body);
+                texts.push(String::new());
+                self.insert(at, &texts, ending);
+            }
             None => {
                 let mut texts = Vec::new();
                 if self.lines.last().is_some_and(|line| !is_blank(line)) {
@@ -353,6 +373,21 @@ Steady runs with a finer mesh: same result, three times the cost.
     /// The example without its history lines.
     fn without_history() -> String {
         DECISION.replace(&format!("{HISTORY_CREATED}{HISTORY_APPROVED}"), "")
+    }
+
+    #[test]
+    fn a_new_section_goes_before_the_pictures_section() {
+        let pictures = "\n## Pictures\n\n![Speedline](../images/DEC-012/speedline.png)\n";
+        let source = format!("{DECISION}{pictures}");
+        let expected = format!(
+            "{}## Notes\n\nChecked twice.\n\n## Pictures\n\n![Speedline](../images/DEC-012/speedline.png)\n",
+            DECISION.replace("three times the cost.\n", "three times the cost.\n\n")
+        );
+        check(
+            &source,
+            |entry| entry.set_section("Notes", "Checked twice."),
+            &expected,
+        );
     }
 
     #[test]
