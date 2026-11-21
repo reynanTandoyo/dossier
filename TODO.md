@@ -2488,10 +2488,8 @@
 - note (2026-11-21, haiku-t-134): done
 
 ### T-135 · learn: show similar entries, and --update
-- status: claimed
+- status: done
 - owner: haiku-t-135
-- claimed: 2026-11-21T01:26+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-130
 - why: Without it the same lesson is written five times in slightly different words.
@@ -2506,8 +2504,12 @@
   5. Run cargo test --test cmd_learn_similar and cargo test --test cmd_learn.
 - accept: learn names similar existing lessons and can update one instead of adding a new one.
 - verify: cargo test --test cmd_learn_similar
+- verified: 2026-11-21
+- commit: c78ee7f
 - reqs: R-WRITE-11
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-135): done
 
 ### T-136 · The rules text for LLMs
 - status: done
