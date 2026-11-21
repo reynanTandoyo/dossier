@@ -2425,10 +2425,8 @@
 - note (2026-11-21, haiku-t-132): done
 
 ### T-133 · status: the state of the whole project
-- status: claimed
+- status: done
 - owner: haiku-t-133
-- claimed: 2026-11-21T01:06+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-130
 - why: Three LLMs working for three people must see the same picture of progress, decisions and what is unsettled.
@@ -2449,10 +2447,14 @@
   11. Run cargo test --test cmd_status.
 - accept: status combines the task state from todo with decisions, findings and what is unsettled, works without todo, and --since last shows only what is new for that person.
 - verify: cargo test --test cmd_status
+- verified: 2026-11-21
+- commit: 2679a78
 - reqs: R-CTX-9 to R-CTX-11, R-READ-8, R-READ-10
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
 - note (2026-11-21, planner): Tasks part reads data.milestones and data.counts: todo summary --json has no text field.
+- note (2026-11-21, haiku-t-133): done
 
 ### T-134 · decide: show related decisions, and --replaces or --besides for an LLM
 - status: claimed
