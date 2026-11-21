@@ -3949,10 +3949,8 @@
 - note (2026-11-21, planner): added
 
 ### T-161 · blockfile.rs: read and change block files line by line
-- status: claimed
+- status: done
 - owner: haiku-t-161
-- claimed: 2026-11-21T10:56+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-031
 - why: values.md, the file lists, exchange.md and map.md all use this module.
@@ -3969,8 +3967,12 @@
   6. Run cargo test --lib blockfile::.
 - accept: Block files are read and changed line by line, keeping every other byte.
 - verify: cargo test --lib blockfile::
+- verified: 2026-11-21
+- commit: c7bccb8
 - reqs: R-EDIT-1, D29
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-161): done
 
 ### T-162 · tx.rs: put_raw and delete_raw for files that are not entries
 - status: done
