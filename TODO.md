@@ -1478,8 +1478,10 @@
 - note (2026-11-21, planner): added
 
 ### T-204 · The rules text for LLMs: phase 2 commands
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-204
+- claimed: 2026-11-21T12:50+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-041
 - why: R-AGENT-1.
@@ -4071,10 +4073,8 @@
 - note (2026-11-21, haiku-t-159): done
 
 ### T-160 · agents install: journal line
-- status: claimed
+- status: done
 - owner: haiku-t-160
-- claimed: 2026-11-21T12:42+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-031
 - why: Every change is saved with who and when (D29).
@@ -4087,8 +4087,12 @@
   3. Run cargo test --test cmd_agents.
 - accept: Writing the rules block is saved with who and when when a dossier is there.
 - verify: cargo test --test cmd_agents
+- verified: 2026-11-21
+- commit: 1841a46
 - reqs: D29
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, haiku-t-160): done
 
 ### T-161 · blockfile.rs: read and change block files line by line
 - status: done
@@ -4211,8 +4215,10 @@
 - note (2026-11-21, haiku-t-165): done
 
 ### T-166 · guard: the PreToolUse hook that blocks direct edits of DOSSIER
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-166
+- claimed: 2026-11-21T12:50+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-031
 - why: LLMs must use the commands, never edit entry files directly (R-AGENT-3).
@@ -4229,8 +4235,10 @@
 - note (2026-11-21, planner): added
 
 ### T-167 · skill install
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-167
+- claimed: 2026-11-21T12:50+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-031
 - why: The skill gives Claude Code the rules with examples (R-AGENT-4).
