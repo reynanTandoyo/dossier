@@ -103,6 +103,21 @@ impl<'a> Tx<'a> {
             change,
         });
     }
+
+    /// Queue writing `bytes` to `path` (any file inside the dossier). `old` is the file as read
+    /// (None for a new file). The old bytes are snapshotted under change.id when the path ends
+    /// in `.md`.
+    pub fn put_raw(
+        &mut self,
+        _path: PathBuf,
+        _old: Option<Vec<u8>>,
+        _bytes: Vec<u8>,
+        _change: Change,
+    ) {
+    }
+
+    /// Queue removing a file that is still `old`.
+    pub fn delete_raw(&mut self, _path: PathBuf, _old: Vec<u8>, _change: Change) {}
 }
 
 /// Refuses a network drive, takes the lock, runs `f`, then for each queued change: saves a

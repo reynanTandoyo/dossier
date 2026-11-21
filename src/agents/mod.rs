@@ -78,6 +78,11 @@ pub fn current(existing: &str) -> bool {
     existing.replace("\r\n", "\n").contains(&block_body())
 }
 
+/// The Claude Code skill: a front matter (name: dossier, description: one line) and RULES.
+pub fn skill() -> String {
+    String::new()
+}
+
 /// The byte range of the managed block in `text`: from its BEGIN to the end of its END. An END is
 /// paired with the nearest BEGIN before it, so a stray marker is not taken for the block's start.
 fn managed_span(text: &str) -> Option<(usize, usize)> {

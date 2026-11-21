@@ -38,6 +38,12 @@ pub fn next(dossier: &Path, state: &Path, kind: Kind) -> Result<String> {
     Ok(format!("{prefix}-{number:03}"))
 }
 
+/// The next number for a prefix that is not an entry kind (RCV, DLV): 1 + max(ids.json, on_disk).
+/// Writes ids.json; call under the lock. Returns e.g. "RCV-001".
+pub fn next_prefix(_state: &Path, _prefix: &str, _on_disk: u64) -> Result<String> {
+    Err(Error::new(Code::NotImplemented, "ids::next_prefix"))
+}
+
 /// The numbers in ids.json. A missing file is an empty object. A file that cannot be read, or
 /// that is not a JSON object of whole numbers, is Code::Parse, and nothing is written over it. A
 /// byte-order mark at the start is skipped.
