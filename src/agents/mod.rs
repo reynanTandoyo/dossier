@@ -80,7 +80,10 @@ pub fn current(existing: &str) -> bool {
 
 /// The Claude Code skill: a front matter (name: dossier, description: one line) and RULES.
 pub fn skill() -> String {
-    String::new()
+    format!(
+        "---\nname: dossier\ndescription: Record and read the project's decisions, assumptions, findings and lessons with the dossier command.\n---\n\n{}\n",
+        rules_lf()
+    )
 }
 
 /// The byte range of the managed block in `text`: from its BEGIN to the end of its END. An END is
@@ -133,7 +136,7 @@ fn ends_with_blank_line(text: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{BEGIN, END, block, current, installed};
+    use super::{BEGIN, END, RULES, block, current, installed, skill};
 
     /// The text with every LF turned into CRLF.
     fn crlf(text: &str) -> String {
@@ -243,5 +246,27 @@ mod tests {
         let twice = installed(&once);
         assert_eq!(twice, once);
         assert!(twice.contains("keep me"));
+    }
+
+    #[test]
+    fn skill_starts_with_the_front_matter() {
+        assert!(skill().starts_with("---\nname: dossier\n"));
+    }
+
+    #[test]
+    fn skill_contains_the_first_line_of_the_rules() {
+        let text = skill();
+        assert!(RULES.lines().next().is_some_and(|line| text.contains(line)));
+    }
+
+    #[test]
+    fn skill_has_the_one_line_description_and_lf_endings_with_one_final_line_break() {
+        let text = skill();
+        assert!(text.starts_with(
+            "---\nname: dossier\ndescription: Record and read the project's decisions, \
+             assumptions, findings and lessons with the dossier command.\n---\n\n"
+        ));
+        assert!(!text.contains('\r'));
+        assert!(text.ends_with('\n') && !text.ends_with("\n\n"));
     }
 }
