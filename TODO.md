@@ -1767,8 +1767,10 @@
 - note (2026-11-21, haiku-t-104): done
 
 ### T-105 · retitle: change a title and rename the file
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-105
+- claimed: 2026-11-21T01:15+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: Titles are what people search and read; fixing one must keep the ID.
@@ -1788,8 +1790,10 @@
 - note (2026-11-21, planner): added
 
 ### T-106 · link: relate two entries
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-106
+- claimed: 2026-11-21T01:15+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: Related entries should lead to each other.
@@ -2214,10 +2218,8 @@
 - note (2026-11-21, planner): added
 
 ### T-125 · supersede: replace an entry with a newer one
-- status: claimed
+- status: done
 - owner: haiku-t-125
-- claimed: 2026-11-21T01:10+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-119
 - why: Knowledge is never overwritten; the old entry is closed with a date and points to its replacement.
@@ -2234,9 +2236,13 @@
   7. Run cargo test --test cmd_supersede.
 - accept: The old entry is closed with a date and both entries point to each other.
 - verify: cargo test --test cmd_supersede
+- verified: 2026-11-21
+- commit: 2d2440f
 - reqs: R-LIFE-4, R-ENTRY-14, D20
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
+- note (2026-11-21, haiku-t-125): done
 
 ### T-126 · retire: end an entry without a replacement
 - status: open
