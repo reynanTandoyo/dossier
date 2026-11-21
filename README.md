@@ -329,8 +329,8 @@ This creates `/restore/P-001/DOSSIER`, and checks it.
   chgrp -R team /projects/P-001
   ```
 
-  `init` sets the folders to group-writable, and new files keep the group of their folder. Each
-  person also needs `umask 002` in the shell, so that the files they create are group-writable.
+  `init` sets the folders to group-writable, and new files keep the group of their folder.
+  `dossier` makes every file it creates group-writable, so nobody needs to change their `umask`.
 
 ## Confidentiality
 
