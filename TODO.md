@@ -3900,10 +3900,8 @@
 - note (2026-11-21, haiku-t-157): done
 
 ### T-158 · init: journal line, the usage folder and --code-project
-- status: claimed
+- status: done
 - owner: haiku-t-158
-- claimed: 2026-11-21T10:56+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-031
 - why: Every change is saved with who and when, also the creation of a dossier (D29).
@@ -3918,10 +3916,14 @@
   5. Run cargo test --test cmd_init.
 - accept: init records who created the dossier and when, creates the usage folder, and --code-project marks a code project.
 - verify: cargo test --test cmd_init
+- verified: 2026-11-21
+- commit: 77bd528
 - reqs: D29, R-CODE-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): forced set (owner was haiku-t-158)
 - note (2026-11-21, planner): Test files added: the init journal line changes log output and the xos digest; tests/common runs init and people add as anna so the journal is the same on every machine; log shows the detail of records that are not entries.
+- note (2026-11-21, haiku-t-158): done
 
 ### T-159 · people add: journal line
 - status: open
