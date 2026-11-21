@@ -792,12 +792,14 @@
 - note (2026-11-21, planner): dropped — Replaced by the detailed v0.1 tasks under T-001 (one file per task, see docs/design.md).
 
 ### T-065 · Skeleton: the program builds and every file exists
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P0 · type: milestone
 - milestone: T-001
 - goal: cargo build, fmt, clippy and test pass; every library module and every command of docs/design.md exists as a file that compiles, so that every later task fills in exactly one file.
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, coordinator): done
 
 ### T-066 · Cargo project with the approved dependencies
 - status: done
@@ -1225,12 +1227,14 @@
 - note (2026-11-21, haiku-t-082): done
 
 ### T-083 · Entries: files are read and changed without damage, with who and when
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P0 · type: milestone
 - milestone: T-001
 - goal: An entry file of docs/format.md can be parsed, changed line by line, created, validated, stored under a new ID, snapshotted and journalled; every change carries the person, the LLM and the time.
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, coordinator): done
 
 ### T-084 · entry/mod.rs: parse an entry and read its parts
 - status: done
@@ -1524,12 +1528,14 @@
 - note (2026-11-21, haiku-t-094): done
 
 ### T-095 · Recording: one short command writes an entry
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P0 · type: milestone
 - milestone: T-001
 - goal: init, people, add, decide, found, learn, assume, set, retitle, link and edit work as docs/design.md section 5 describes, each in its own file with its own test.
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, coordinator): done
 
 ### T-096 · init: create a project dossier
 - status: done
@@ -1846,12 +1852,14 @@
 - note (2026-11-21, haiku-t-107): done
 
 ### T-108 · Reading: find and read what was recorded, and who did what when
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P0 · type: milestone
 - milestone: T-001
 - goal: where, show, list, search, history, diff, restore and log work as docs/design.md section 5 describes.
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, coordinator): done
 
 ### T-109 · where: the paths in use
 - status: done
@@ -2108,12 +2116,14 @@
 - note (2026-11-21, haiku-t-118): done
 
 ### T-119 · Approval and life: a person decides what counts as knowledge
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P0 · type: milestone
 - milestone: T-001
 - goal: review-task, drafts, approve, reject, supersede, retire, remove, reopen and check work as docs/design.md section 5 describes; an LLM can never approve.
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, coordinator): done
 
 ### T-120 · todo_bridge.rs: read tasks from todo
 - status: done
@@ -2382,12 +2392,14 @@
 - note (2026-11-21, haiku-t-129): done
 
 ### T-130 · Context: every LLM starts with the project's decisions and state
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P0 · type: milestone
 - milestone: T-001
 - goal: brief, brief --task, status, the conflict check of decide, the similar-entry hint of learn and the agent rules work as docs/design.md describes.
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, coordinator): done
 
 ### T-131 · brief: what an LLM should know at session start
 - status: done
@@ -2599,12 +2611,14 @@
 - note (2026-11-21, haiku-t-138): done
 
 ### T-139 · From the PC: commands run on the server, and Windows and Linux agree
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P0 · type: milestone
 - milestone: T-001
 - goal: A folder on a PC is connected to a project on the server, the project is noted in a per-user register, and every dossier and todo command typed on the PC runs on the server; the same commands give the same files on Windows and Linux.
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-21, coordinator): done
 
 ### T-140 · remote/pointer.rs: the .dossier-connect file
 - status: done
