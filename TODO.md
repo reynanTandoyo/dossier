@@ -1707,8 +1707,10 @@
 - note (2026-11-21, planner): added
 
 ### T-103 · assume: record an assumption
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-103
+- claimed: 2026-11-21T00:59+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-095
 - why: What had to be assumed must be visible until someone confirms it.
@@ -2646,10 +2648,8 @@
 - note (2026-11-21, planner): Depends also on the commands its test uses to set up entries.
 
 ### T-146 · todo: run todo in the project folder
-- status: claimed
+- status: done
 - owner: haiku-t-146
-- claimed: 2026-11-21T00:55+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-139
 - why: The task list is reached through the same command from a PC and on the server.
@@ -2665,9 +2665,13 @@
   6. Run cargo test --test cmd_todo.
 - accept: dossier todo passes arguments, output and exit code through to todo, run in the project folder.
 - verify: cargo test --test cmd_todo
+- verified: 2026-11-21
+- commit: 743b853
 - reqs: R-REMOTE-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-21, planner): Test uses Project::command or write_stand_in from tests/common (T-098).
+- note (2026-11-21, haiku-t-146): done
 
 ### T-147 · tar.rs: a small archive writer and reader
 - status: done
