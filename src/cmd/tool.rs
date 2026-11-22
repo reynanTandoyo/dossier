@@ -45,6 +45,9 @@ pub struct Args {
 #[allow(clippy::large_enum_variant)]
 pub enum Action {
     /// Records a tool: a script, a command, installed software or a git repository
+    ///
+    /// A Purpose section is required: give it with --section 'Purpose=<what the tool is for>',
+    /// or with --from or --stdin, where a `## Purpose` line starts that section.
     Add(AddArgs),
     /// Records the checksum of a script's file again, after an intended change to the script
     Update(UpdateArgs),
