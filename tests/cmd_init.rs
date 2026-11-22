@@ -1,14 +1,20 @@
 //! Runs the built program for `init`: the folders and the settings of a new project dossier, the
-//! journal line that records who created it, and the refusals. Each test runs in its own
-//! temporary folder.
+//! journal line that records who created it, the refusals, and `--with-team`, which links the
+//! project to its team dossier and registers its code there. Each test runs in its own temporary
+//! folder.
+
+mod common;
 
 use assert_cmd::Command;
 use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// The fixed clock of every test in this file.
 const NOW: &str = "2026-11-21T09:00:00+01:00";
+
+/// The fixed clock of the `--with-team` tests: the clock of `common::Project`.
+const TEAM_NOW: &str = "2026-11-20T10:00:00+01:00";
 
 /// `init` with `args` run in `folder` with `vars` set, not yet checked. The agent names are
 /// removed from the environment, and the clock is fixed.
@@ -406,4 +412,263 @@ fn on_linux_the_team_dossier_ignore_file_is_group_writable() {
         .join(".gitignore");
     let mode = std::fs::metadata(&ignore).unwrap().permissions().mode() & 0o7777;
     assert_eq!(mode, 0o664);
+}
+
+/// A folder for a project that has no dossier yet: `common::Project::new` would run `init` in it.
+fn empty_project() -> common::Project {
+    common::Project {
+        dir: tempfile::tempdir().unwrap(),
+    }
+}
+
+/// A team dossier made by anna (`init --team-dossier --code TEAM`) in a folder of its own, whose
+/// name has a space and an umlaut, with anna as its member. Returns the folder, which keeps the
+/// dossier alive, and the team's DOSSIER folder.
+fn team_dossier() -> (tempfile::TempDir, PathBuf) {
+    let folder = tempfile::Builder::new()
+        .prefix("Team Äpfel ")
+        .tempdir()
+        .unwrap();
+    empty_project()
+        .command("anna", TEAM_NOW)
+        .current_dir(folder.path())
+        .args(["init", "--team-dossier", "--code", "TEAM"])
+        .assert()
+        .success();
+    let dossier = folder.path().join("DOSSIER");
+    dossier::config::set_list(&dossier, "members", &["anna".to_string()]).unwrap();
+    (folder, dossier)
+}
+
+/// A path as dossier.toml and the team's register store it: with / separators.
+fn slashed(path: &Path) -> String {
+    path.to_str().unwrap().replace('\\', "/")
+}
+
+/// The team's projects.md as text, or nothing while the team has no such file yet.
+fn projects_of(team: &Path) -> String {
+    std::fs::read_to_string(team.join("projects.md")).unwrap_or_default()
+}
+
+/// `init --code <code> --with-team <team>` run in `project` as `agent`, not yet checked.
+fn init_with_team(
+    project: &common::Project,
+    agent: &str,
+    code: &str,
+    team: &Path,
+) -> assert_cmd::assert::Assert {
+    project.run_at(
+        agent,
+        TEAM_NOW,
+        &[
+            "init",
+            "--code",
+            code,
+            "--with-team",
+            team.to_str().unwrap(),
+        ],
+    )
+}
+
+#[test]
+fn init_with_team_links_the_project_and_registers_its_code() {
+    let (_team_folder, team) = team_dossier();
+    let project = empty_project();
+    init_with_team(&project, "anna", "P-002", &team)
+        .success()
+        .stdout(contains("created DOSSIER for P-002"))
+        .stdout(contains("linked to the team dossier"))
+        .stdout(contains("registered P-002 in the team dossier"));
+
+    // The project's settings name the team dossier, as `team use` stores it.
+    let stored_team = slashed(&team);
+    assert!(
+        settings(project.root()).contains(&format!("team = \"{stored_team}\"\n")),
+        "{}",
+        settings(project.root())
+    );
+    let cfg = dossier::config::load(&project.root().join("DOSSIER")).unwrap();
+    assert_eq!(cfg.team.as_deref(), Some(stored_team.as_str()));
+
+    // The team's projects.md has the code, its project folder and the history line.
+    let stored_project = slashed(project.root());
+    assert!(
+        projects_of(&team).contains(&format!(
+            "## P-002\n\n- folder: {stored_project}\n- history: 2026-11-20T10:00:00+01:00 anna: registered\n"
+        )),
+        "{}",
+        projects_of(&team)
+    );
+
+    // The project's journal records the link, and the team's journal the registration.
+    let records = journal_of(project.root());
+    let link = records.last().unwrap();
+    assert_eq!(link.id, "SETTINGS");
+    assert_eq!(link.event, "changed");
+    assert_eq!(link.detail, format!("team {stored_team}"));
+    let records = dossier::journal::read(&team.join(".state")).unwrap();
+    let record = records.last().unwrap();
+    assert_eq!(record.time, TEAM_NOW);
+    assert_eq!(record.name, "anna");
+    assert_eq!(record.command, "init");
+    assert_eq!(record.id, "PROJECTS");
+    assert_eq!(record.event, "registered");
+    assert_eq!(record.detail, "P-002");
+}
+
+#[test]
+fn init_with_team_as_json_names_the_team_and_the_registration() {
+    let (_team_folder, team) = team_dossier();
+    let project = empty_project();
+    project
+        .run_at(
+            "anna",
+            TEAM_NOW,
+            &[
+                "init",
+                "--code",
+                "P-002",
+                "--with-team",
+                team.to_str().unwrap(),
+                "--json",
+            ],
+        )
+        .success()
+        .stdout(contains("\"ok\":true"))
+        .stdout(contains(format!("\"team\":\"{}\"", slashed(&team))))
+        .stdout(contains("\"registered\":true"));
+}
+
+#[test]
+fn a_code_registered_for_another_folder_is_refused_and_nothing_is_created() {
+    let (_team_folder, team) = team_dossier();
+    let first = empty_project();
+    init_with_team(&first, "anna", "P-002", &team).success();
+    let before = projects_of(&team);
+
+    let second = empty_project();
+    init_with_team(&second, "anna", "P-002", &team)
+        .code(1)
+        .stderr(contains(format!(
+            "error: P-002 is already registered for {}",
+            slashed(first.root())
+        )));
+    assert!(!second.root().join("DOSSIER").exists());
+    assert_eq!(projects_of(&team), before);
+}
+
+#[test]
+fn the_same_folder_again_adds_nothing_to_the_team() {
+    let (_team_folder, team) = team_dossier();
+    let project = empty_project();
+    init_with_team(&project, "anna", "P-002", &team).success();
+    let before = projects_of(&team);
+
+    // The project's dossier is gone, so init runs again in the same folder.
+    std::fs::remove_dir_all(project.root().join("DOSSIER")).unwrap();
+    init_with_team(&project, "anna", "P-002", &team)
+        .success()
+        .stdout(contains("P-002 is registered in the team dossier already"));
+    assert!(
+        project
+            .root()
+            .join("DOSSIER")
+            .join("dossier.toml")
+            .is_file()
+    );
+    assert_eq!(projects_of(&team), before);
+}
+
+#[test]
+fn a_name_that_is_not_a_team_member_is_refused_and_nothing_is_created() {
+    let (_team_folder, team) = team_dossier();
+    let project = empty_project();
+    project
+        .run_at(
+            "ben",
+            TEAM_NOW,
+            &[
+                "init",
+                "--code",
+                "P-002",
+                "--with-team",
+                team.to_str().unwrap(),
+                "--json",
+            ],
+        )
+        .code(1)
+        .stdout(contains("\"code\":\"UNKNOWN_NAME\""));
+    assert!(!project.root().join("DOSSIER").exists());
+    assert!(!projects_of(&team).contains("P-002"));
+}
+
+#[test]
+fn a_path_that_is_not_a_team_dossier_is_refused_and_nothing_is_created() {
+    let project = empty_project();
+    let missing = project.root().join("nowhere");
+    init_with_team(&project, "anna", "P-002", &missing)
+        .code(4)
+        .stderr(contains("no team dossier here"));
+    assert!(!project.root().join("DOSSIER").exists());
+
+    // A project's dossier is not a team dossier.
+    let other = empty_project();
+    init(other.root(), &["--code", "P-009"]).success();
+    init_with_team(&project, "anna", "P-002", &other.root().join("DOSSIER"))
+        .code(1)
+        .stderr(contains("is not a team dossier"));
+    assert!(!project.root().join("DOSSIER").exists());
+}
+
+#[test]
+fn a_team_that_cannot_be_read_is_refused_before_anything_is_created() {
+    let (_team_folder, team) = team_dossier();
+    std::fs::write(
+        team.join("projects.md"),
+        "<!-- dossier-format: 2 -->\n# Projects of TEAM\n",
+    )
+    .unwrap();
+    let project = empty_project();
+    init_with_team(&project, "anna", "P-002", &team)
+        .code(4)
+        .stderr(contains("this file needs a newer dossier program"));
+    assert!(!project.root().join("DOSSIER").exists());
+}
+
+#[test]
+fn a_team_dossier_cannot_also_be_linked_to_a_team() {
+    let folder = tempfile::tempdir().unwrap();
+    init(
+        folder.path(),
+        &["--code", "P-001", "--team-dossier", "--with-team", "/x"],
+    )
+    .code(1)
+    .stderr(contains(
+        "error: a team dossier is not linked to a team: drop --with-team or --team-dossier",
+    ));
+    assert!(!folder.path().join("DOSSIER").exists());
+}
+
+#[test]
+fn a_dry_run_with_team_creates_and_writes_nothing() {
+    let (_team_folder, team) = team_dossier();
+    let project = empty_project();
+    let before = projects_of(&team);
+    project
+        .command("anna", TEAM_NOW)
+        .args([
+            "init",
+            "--code",
+            "P-002",
+            "--with-team",
+            team.to_str().unwrap(),
+            "--dry-run",
+        ])
+        .assert()
+        .success()
+        .stdout(contains("dry run: DOSSIER for P-002 would be linked"))
+        .stderr(contains("warning: dry run: would create"))
+        .stderr(contains("warning: dry run: would write"));
+    assert!(!project.root().join("DOSSIER").exists());
+    assert_eq!(projects_of(&team), before);
 }
