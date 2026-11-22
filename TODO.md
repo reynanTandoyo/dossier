@@ -5767,10 +5767,8 @@
 - note (2026-11-22, haiku-t-213): done
 
 ### T-214 · README for v0.3
-- status: claimed
+- status: done
 - owner: haiku-t-214
-- claimed: 2026-11-22T13:04+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-042
 - why: REL-2.
@@ -5782,8 +5780,12 @@
   1. Status line 'Status: v0.3 (phase 3)'. Move the phase 3 items from 'Not in version 0.2' to 'What version 0.3 adds', with one example each, each run yourself first in temporary folders: the team dossier (init --team-dossier, team use, team member add, team name add), names (your username; an LLM as '<you> - <model>'; hooks install sets it for Claude Code), confidential terms, promote and close, how-tos, tools, where-used, the glossary, news (status --since last), review dates, and bringing in finished projects (init --past, review-folder, review-document, --from-document, import status). Invented names only.
 - accept: The README explains phase 3 with tested examples.
 - verify: git ls-files --error-unmatch README.md
+- verified: 2026-11-22
+- commit: a99175439c0cb3ee63ccfb45dcb6a45d56fb22d1
 - reqs: REL-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-214): done
 
 ### T-215 · Release 0.3.0
 - status: open
