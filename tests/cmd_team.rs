@@ -534,6 +534,30 @@ fn member_remove_by_a_person_at_a_terminal_removes_the_member_and_journals_it() 
 }
 
 #[test]
+fn the_last_member_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    let team = linked_team(&project);
+    // anna is the only member of the team; a person at a terminal (DOSSIER_ANSWERS stands in).
+    let before = team_journal(&team).len();
+    let settings_before = settings_of(&team.dossier);
+
+    project
+        .command("anna", NOW)
+        .env("DOSSIER_ANSWERS", "yes")
+        .args(["team", "member", "remove", "anna"])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(contains(
+            "anna is the last member; add another member first: dossier team member add <username>",
+        ));
+
+    assert_eq!(members_of(&team.dossier), owned(&["anna"]));
+    assert_eq!(settings_of(&team.dossier), settings_before);
+    assert_eq!(team_journal(&team).len(), before);
+}
+
+#[test]
 fn a_project_person_who_is_not_a_team_member_cannot_change_the_members() {
     let project = Project::new();
     let team = linked_team(&project);

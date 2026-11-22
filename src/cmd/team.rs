@@ -315,7 +315,8 @@ fn add_member(ctx: &Ctx, who: &Who, username: &str) -> Result<Output> {
 
 /// Removes `username` from the members. Only a person may do it, at a terminal (R-TEAM-7): an
 /// LLM is Code::NeedsPerson, a run without a terminal Code::NeedsTerminal. The member must exist
-/// (Code::NotFound, names compared ignoring case). With --dry-run nothing is written.
+/// (Code::NotFound, names compared ignoring case). The last member stays: nobody could add a
+/// member after it, so it is Code::Refused. With --dry-run nothing is written.
 fn remove_member(ctx: &Ctx, who: &Who, username: &str) -> Result<Output> {
     if who.is_llm {
         return Err(Error::new(
@@ -341,6 +342,14 @@ fn remove_member(ctx: &Ctx, who: &Who, username: &str) -> Result<Output> {
         ));
     };
     let stored = ctx.cfg.members[index].clone();
+    if ctx.cfg.members.len() == 1 {
+        return Err(Error::new(
+            Code::Refused,
+            format!(
+                "{stored} is the last member; add another member first: dossier team member add <username>"
+            ),
+        ));
+    }
     let mut members = ctx.cfg.members.clone();
     members.remove(index);
     let output = Output::with(
