@@ -1790,10 +1790,8 @@
 - note (2026-11-22, coordinator): commit: d678d91 (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-224 · team member add and remove
-- status: claimed
+- status: done
 - owner: haiku-t-224
-- claimed: 2026-11-22T11:51+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: R-TEAM-7: only members write to the team dossier.
@@ -1809,8 +1807,12 @@
   5. Run cargo test --test cmd_team.
 - accept: Team members are added and removed with who and when.
 - verify: cargo test --test cmd_team
+- verified: 2026-11-22
+- commit: c3fa06b2e0ceeed0ecb33af670009e62da066a42
 - reqs: R-TEAM-7, D29, D34
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-224): done
 
 ### T-225 · team name add and remove: plain names
 - status: open
@@ -2015,8 +2017,10 @@
 - note (2026-11-22, haiku-t-232): done
 
 ### T-233 · confidential scan: look for the project's terms in the team dossier
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-233
+- claimed: 2026-11-22T12:16+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-044
 - why: R-CONF-6.
@@ -2072,8 +2076,10 @@
 - note (2026-11-22, haiku-t-234): done
 
 ### T-235 · promote: copy a project entry into the team dossier
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-235
+- claimed: 2026-11-22T12:17+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-045
 - why: R-TEAM-2, R-TEAM-3, R-ENTRY-18.
@@ -2133,8 +2139,10 @@
 - note (2026-11-21, planner): split into T-237, T-238, T-239, T-240
 
 ### T-237 · howto: write a how-to
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-237
+- claimed: 2026-11-22T12:16+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-046
 - why: R-ENTRY-8, R-WRITE-5, R-WRITE-6.
@@ -2242,8 +2250,10 @@
 - note (2026-11-21, planner): split into T-241, T-242, T-243, T-244, T-245, T-246
 
 ### T-241 · tool add: record a tool
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-241
+- claimed: 2026-11-22T12:16+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-047
 - why: D31, D37.
@@ -2694,14 +2704,16 @@
 - note (2026-11-22, haiku-t-258): done
 
 ### T-259 · list and search: the same marks
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-259
+- claimed: 2026-11-22T12:16+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-050
 - why: R-LIFE-7, R-IMPORT-5.
 - summary: Shows the same marks in lists and search results.
 - depends: T-258, T-240, T-251
-- files: src/cmd/list.rs, src/cmd/search.rs
+- files: src/cmd/list.rs, src/cmd/search.rs, tests/cmd_list.rs, tests/cmd_search.rs
 - read: docs/design.md, docs/format.md
 - steps:
   1. Add the marks of the show command ('[due for review]', '[imported]', '[file changed since approval]', '[changed after approval]' for guarded kinds) to list and search lines, copying show.rs's logic.
@@ -2881,8 +2893,10 @@
 - note (2026-11-22, coordinator): commit: 7827eb6 (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-267 · import status: progress of bringing in a finished project
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-267
+- claimed: 2026-11-22T12:16+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-051
 - why: R-IMPORT-7.
@@ -2901,8 +2915,10 @@
 - note (2026-11-21, planner): added
 
 ### T-268 · drafts --imported: imported drafts by document
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-268
+- claimed: 2026-11-22T12:16+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-051
 - why: R-IMPORT-6.
@@ -5748,8 +5764,10 @@
 - note (2026-11-21, planner): added
 
 ### T-269 · show team:<ID>: read an entry of the team dossier
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-269
+- claimed: 2026-11-22T12:16+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: R-ID-2: commands accept an ID with its place; search marks team results team:<ID>, so show must find them (found by the T-250 worker).
@@ -5766,6 +5784,24 @@
 - verify: cargo test --test cmd_show
 - reqs: R-ID-2
 - note (2026-11-22, planner): added
+
+### T-270 · brief --task: a promoted entry is listed once
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-048
+- why: R-CTX-2, R-TEAM-4: a lesson promoted to the team must not appear twice in Related.
+- summary: In the Related part of brief --task, a team entry copied from one of this project's entries is left out.
+- depends: T-253,T-252
+- files: src/brief_task.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. In Related (team lessons and how-tos, T-252), leave out a team entry whose source field is '<this project code>:<ID>' (case-insensitive code) of a project entry already listed.
+  2. Unit test in the module: a project lesson LES-001 and a team lesson with source 'P-001:LES-001' give one line, the project's.
+  3. Run cargo test --lib brief_task::.
+- accept: A promoted lesson appears once in brief --task.
+- verify: cargo test --lib brief_task::
+- note (2026-11-22, coordinator): added
 
 ## Questions
 
