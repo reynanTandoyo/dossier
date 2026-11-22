@@ -1,8 +1,8 @@
 //! The `retire` command: a person ends an approved entry without a replacement (R-LIFE-5). The
 //! entry is kept with status `retired`; `valid-until` is the time it was retired, and
 //! `retired-reason` and the history line carry the reason. Only an approved entry can be retired,
-//! and only a person can retire it. A retired lesson is no longer approved, so its recorded
-//! checksum is forgotten.
+//! and only a person can retire it. A retired lesson, how-to or tool is no longer approved, so its
+//! recorded checksum is forgotten (approval::guarded).
 
 use crate::approval;
 use crate::cli::Global;
@@ -27,8 +27,8 @@ pub struct Args {
 
 /// Runs `retire`: checks that a person acts and that the reason is not blank, then, in one
 /// transaction, closes the entry with the time and the reason. The output is `<ID>: retired`.
-/// The checksum of a retired lesson is forgotten after the file is written, unless this is a
-/// dry run.
+/// The checksum of a retired lesson, how-to or tool is forgotten after the file is written,
+/// unless this is a dry run.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "retire")?;
     let who = ctx.writer()?.clone();
@@ -43,9 +43,9 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         return Err(Error::new(Code::BadValue, "the reason must not be empty"));
     }
 
-    // The ID of a retired lesson. Its checksum is forgotten after the file is written, so that
-    // a refused change leaves the checksum alone.
-    let mut lesson: Option<String> = None;
+    // The ID of a retired lesson, how-to or tool. Its checksum is forgotten after the file is
+    // written, so that a refused change leaves the checksum alone.
+    let mut guarded: Option<String> = None;
     let output = tx::write(&ctx, |tx| {
         let item = store::get(&tx.ctx().dossier, &args.id)?;
         let id = item.entry.id();
@@ -73,8 +73,12 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         entry.set_field("valid-until", &time);
         entry.set_field("retired-reason", reason);
         entry.add_history(&time, &who, "retired", reason);
-        if entry.kind().or_else(|| Kind::of_id(&id)) == Some(Kind::Lesson) {
-            lesson = Some(id.clone());
+        if entry
+            .kind()
+            .or_else(|| Kind::of_id(&id))
+            .is_some_and(approval::guarded)
+        {
+            guarded = Some(id.clone());
         }
         tx.put(
             item.path.clone(),
@@ -92,7 +96,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         ))
     })?;
 
-    if let Some(id) = lesson.filter(|_| !ctx.dry_run) {
+    if let Some(id) = guarded.filter(|_| !ctx.dry_run) {
         approval::forget(&ctx.state, &id)?;
     }
     Ok(output)

@@ -57,9 +57,9 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         ));
     }
 
-    // The status and the text of a restored lesson. Its checksum is written after the file, so
-    // that a refused restore leaves the checksum alone (as retitle does).
-    let mut lesson: Option<(bool, String)> = None;
+    // The status and the text of a restored lesson, how-to or tool. Its checksum is written after
+    // the file, so that a refused restore leaves the checksum alone (as retitle does).
+    let mut guarded: Option<(bool, String)> = None;
     let output = tx::write(&ctx, |tx| {
         let item = store::get(&tx.ctx().dossier, &id)?;
         let bytes = snapshot::load(&tx.ctx().state, &id, args.n)?;
@@ -87,8 +87,8 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             event: "restored".to_string(),
             detail,
         };
-        if kind == Kind::Lesson {
-            lesson = Some((entry.status() == Some(Status::Approved), text.clone()));
+        if approval::guarded(kind) {
+            guarded = Some((entry.status() == Some(Status::Approved), text.clone()));
         }
         if new_path == item.path {
             tx.put(item.path.clone(), Some(&item), text, change);
@@ -103,9 +103,9 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         ))
     })?;
 
-    // A restored lesson is approved again when its restored text was approved, and otherwise has
-    // no approved checksum. A dry run writes nothing, so it records nothing.
-    if let Some((approved, text)) = lesson.filter(|_| !ctx.dry_run) {
+    // A restored lesson, how-to or tool is approved again when its restored text was approved, and
+    // otherwise has no approved checksum. A dry run writes nothing, so it records nothing.
+    if let Some((approved, text)) = guarded.filter(|_| !ctx.dry_run) {
         if approved {
             approval::record(&ctx.state, &id, text.as_bytes())?;
         } else {
