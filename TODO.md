@@ -2661,10 +2661,8 @@
 - note (2026-11-22, coordinator): commit: 4bb9b3c (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-258 · show: due for review, imported, file changed since approval
-- status: claimed
+- status: done
 - owner: haiku-t-258
-- claimed: 2026-11-22T11:40+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-050
 - why: R-LIFE-7, R-IMPORT-5, R-USE-11.
@@ -2678,8 +2676,12 @@
   3. Run cargo test --test cmd_show.
 - accept: show marks entries due for review, imported ones and changed tool files.
 - verify: cargo test --test cmd_show
+- verified: 2026-11-22
+- commit: afbedb06774f0d76307eb9b6b07bfe171eb58e49
 - reqs: R-LIFE-7, R-IMPORT-5, R-USE-11
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-258): done
 
 ### T-259 · list and search: the same marks
 - status: open
