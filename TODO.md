@@ -1815,10 +1815,8 @@
 - note (2026-11-22, haiku-t-224): done
 
 ### T-225 · team name add and remove: plain names
-- status: claimed
+- status: done
 - owner: haiku-t-225
-- claimed: 2026-11-22T12:23+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: D34: plain names.
@@ -1833,8 +1831,12 @@
   4. Run cargo test --test cmd_team.
 - accept: Plain names are kept for authors and sources who are not users.
 - verify: cargo test --test cmd_team
+- verified: 2026-11-22
+- commit: bc927baba4f75aa5c3f39d90061fdf0fcdd6a97a
 - reqs: D34
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-225): done
 
 ### T-226 · create.rs: --said-by and author accept plain names, and team writes are checked
 - status: done
