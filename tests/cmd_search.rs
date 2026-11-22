@@ -1,13 +1,18 @@
 //! Runs the built program for `search`: a word in a title is found, every word must be present,
 //! drafts are found only with `--drafts` and are marked, `--kind` narrows, title matches come
-//! first, `--full` prints whole entries, and no match prints `0 matches`. Each test runs in its
-//! own temporary project with the clock fixed at 2026-11-20T10:00:00+01:00.
+//! first, `--full` prints whole entries, and no match prints `0 matches`. A project with a team
+//! dossier also finds the team's entries, marked `team:` before their ID, sorted in with the
+//! project's own. Each test runs in its own temporary project with the clock fixed at
+//! 2026-11-20T10:00:00+01:00.
 
 mod common;
 
 use common::Project;
 use predicates::str::contains;
 use std::fs;
+
+/// The fixed clock of the runs, as `common::Project` uses it.
+const NOW: &str = "2026-11-20T10:00:00+01:00";
 
 /// A later time than the fixed clock, for entries that must sort after the others.
 const LATER: &str = "2026-11-21T09:00:00+01:00";
@@ -281,12 +286,14 @@ fn json_gives_the_id_title_status_and_line_of_each_result() {
             "title": "Speedline plot kept for review",
             "status": "draft",
             "line": "# FND-001 · Speedline plot kept for review",
+            "place": "project",
         },
         {
             "id": "DEC-001",
             "title": "Use transient runs for the last three speedline points",
             "status": "approved",
             "line": "# DEC-001 · Use transient runs for the last three speedline points",
+            "place": "project",
         },
     ]);
     assert_eq!(value["data"], expected);
@@ -327,4 +334,188 @@ fn an_approved_lesson_changed_by_hand_is_marked() {
         # LES-001 · Steady runs overpredict the stall margin\n\
         1 match\n";
     assert_eq!(project.stdout("", &["search", "stall"]), marked);
+}
+
+/// A team dossier in a folder of its own, with a space and a non-ASCII letter in its name. It is
+/// made with `init --team-dossier`, anna is its only member, and the project names it as its team.
+/// Returns the folder that holds the team's DOSSIER: the test keeps it alive.
+fn linked_team(project: &Project) -> tempfile::TempDir {
+    let team = tempfile::Builder::new()
+        .prefix("Team Ärger ")
+        .tempdir()
+        .expect("a temporary team folder");
+    project
+        .command("anna", NOW)
+        .current_dir(team.path())
+        .args(["init", "--code", "TEAM", "--team-dossier"])
+        .assert()
+        .success();
+    let team_dossier = team.path().join("DOSSIER");
+    dossier::config::set_list(&team_dossier, "members", &["anna".to_string()])
+        .expect("anna is a member of the team");
+    dossier::config::set_value(
+        &project.root().join("DOSSIER"),
+        "team",
+        &format!("\"{}\"", stored_path(&team_dossier)),
+    )
+    .expect("the project names its team");
+    team
+}
+
+/// A path as the settings store it: with / for every separator. The caller adds the quotes.
+fn stored_path(path: &std::path::Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
+/// A lesson that anna learns in the team dossier at `now`, with the statement given. The team's
+/// folder is the working folder, so the command finds the team's DOSSIER.
+fn learn_in_team(team: &tempfile::TempDir, project: &Project, now: &str, statement: &str) {
+    project
+        .command("anna", now)
+        .current_dir(team.path())
+        .args([
+            "learn",
+            statement,
+            "--valid-for",
+            "Transonic front stages",
+            "--evidence",
+            "Report section 4.2",
+            "--confidence",
+            "measured",
+        ])
+        .assert()
+        .success();
+}
+
+#[test]
+fn a_team_lesson_is_found_from_the_project_with_the_team_mark() {
+    let project = Project::new();
+    let team = linked_team(&project);
+    learn_in_team(
+        &team,
+        &project,
+        NOW,
+        "Steady runs overpredict the stall margin",
+    );
+
+    let heading = "team:LES-001  Steady runs overpredict the stall margin  — \
+        # LES-001 · Steady runs overpredict the stall margin";
+    assert_eq!(
+        project.stdout("", &["search", "stall"]),
+        format!("{heading}\n1 match\n")
+    );
+}
+
+#[test]
+fn json_gives_the_place_of_each_result() {
+    let project = Project::new();
+    let team = linked_team(&project);
+    learn_in_team(
+        &team,
+        &project,
+        NOW,
+        "Steady runs overpredict the stall margin",
+    );
+    project
+        .run("anna", &["found", "Stall seen at the lowest mass flow"])
+        .success();
+
+    let stdout = project.stdout("", &["--json", "search", "stall"]);
+    let value: serde_json::Value = serde_json::from_str(&stdout).expect("one JSON line");
+    let expected = serde_json::json!([
+        {
+            "id": "FND-001",
+            "title": "Stall seen at the lowest mass flow",
+            "status": "approved",
+            "line": "# FND-001 · Stall seen at the lowest mass flow",
+            "place": "project",
+        },
+        {
+            "id": "LES-001",
+            "title": "Steady runs overpredict the stall margin",
+            "status": "approved",
+            "line": "# LES-001 · Steady runs overpredict the stall margin",
+            "place": "team",
+        },
+    ]);
+    assert_eq!(value["data"], expected);
+}
+
+#[test]
+fn team_results_are_sorted_in_with_the_project_ones() {
+    let project = Project::new();
+    let team = linked_team(&project);
+    // The project's LES-001 and the team's LES-001 are made at the same time: the project's
+    // comes first. The team's LES-002 is the newest, so it comes first of all.
+    project
+        .run(
+            "anna",
+            &[
+                "learn",
+                "Steady runs overpredict the stall margin",
+                "--valid-for",
+                "Transonic front stages",
+                "--evidence",
+                "Report section 4.2",
+                "--confidence",
+                "measured",
+            ],
+        )
+        .success();
+    learn_in_team(
+        &team,
+        &project,
+        NOW,
+        "Stall margin of steady runs was measured on the rig",
+    );
+    learn_in_team(&team, &project, LATER, "Stall onset moves with the tip gap");
+
+    let stdout = project.stdout("", &["search", "stall"]);
+    assert_eq!(
+        result_ids(&stdout),
+        ["team:LES-002", "LES-001", "team:LES-001"],
+        "{stdout}"
+    );
+    assert!(stdout.ends_with("3 matches\n"), "{stdout}");
+}
+
+#[test]
+fn search_with_team_runs_in_the_team_and_marks_its_entries() {
+    let project = Project::new();
+    let team = linked_team(&project);
+    learn_in_team(
+        &team,
+        &project,
+        NOW,
+        "Steady runs overpredict the stall margin",
+    );
+    project
+        .run("anna", &["found", "Stall seen at the lowest mass flow"])
+        .success();
+
+    // --team searches the team dossier alone, so the project's finding is not listed.
+    let stdout = project.stdout("", &["--team", "search", "stall"]);
+    assert_eq!(result_ids(&stdout), ["team:LES-001"], "{stdout}");
+    assert!(stdout.ends_with("1 match\n"), "{stdout}");
+}
+
+#[test]
+fn an_unreachable_team_leaves_the_project_search_working() {
+    let project = Project::new();
+    project
+        .run("anna", &["found", "Stall seen at the lowest mass flow"])
+        .success();
+    // A team folder that does not exist: the project names it, but nothing is there.
+    let missing = project.root().join("Nowhere").join("DOSSIER");
+    dossier::config::set_value(
+        &project.root().join("DOSSIER"),
+        "team",
+        &format!("\"{}\"", stored_path(&missing)),
+    )
+    .expect("the project names a team that is not there");
+
+    let expected = "FND-001  Stall seen at the lowest mass flow  — \
+        # FND-001 · Stall seen at the lowest mass flow\n\
+        1 match\n";
+    assert_eq!(project.stdout("", &["search", "stall"]), expected);
 }

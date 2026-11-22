@@ -1,8 +1,11 @@
 //! The `search` command: finds the entries whose text holds every word given, ignoring case
 //! (R-READ-3, R-READ-4). A word also matches inside a longer word, so `speed` finds `speedline`.
-//! The results come in three groups: every word in the title, a word in a tag field, then the
-//! rest; inside a group the newest created first, then by ID. Drafts and other statuses follow the
-//! filter rules, so a draft is found only with `--drafts` (R-DRAFT-6) and is marked.
+//! The project's own entries are searched and, when the project has a team dossier, the team's
+//! too (R-READ-3); a team entry is shown with `team:` before its ID. The results come in three
+//! groups: every word in the title, a word in a tag field, then the rest; inside a group the newest
+//! created first, then by ID (the team's entries sorted in with the project's). Drafts and other
+//! statuses follow the filter rules, so a draft is found only with `--drafts` (R-DRAFT-6) and is
+//! marked.
 
 use crate::approval::{self, Mark};
 use crate::cli::Global;
@@ -14,9 +17,14 @@ use crate::output::Output;
 use crate::store::{self, Item};
 use chrono::{DateTime, FixedOffset};
 use serde_json::{Value, json};
+use std::cmp::Reverse;
 
 /// The tag fields that put an entry in the second group.
 const TAG_FIELDS: [&str; 4] = ["machine", "analysis", "software", "tags"];
+
+/// The place of the project's own entries, and of the entries of a team dossier (R-READ-3).
+const PROJECT: &str = "project";
+const TEAM: &str = "team";
 
 /// The line that separates the whole entries printed with `--full`.
 const SEPARATOR: &str = "---";
@@ -35,8 +43,10 @@ pub struct Args {
 }
 
 /// One entry that matched, with what is printed about it.
-struct Hit<'a> {
-    item: &'a Item,
+struct Hit {
+    item: Item,
+    /// `project` for the project's own entries, `team` for those of its team dossier.
+    place: &'static str,
     /// 0: every word is in the title; 1: a word is in a tag field; 2: the rest.
     group: u8,
     created: Option<DateTime<FixedOffset>>,
@@ -46,22 +56,37 @@ struct Hit<'a> {
 }
 
 /// Runs `search`: finds the entries that pass the filter and hold every word, in order, and
-/// prints them as one line each, or whole with `--full`, then the count.
+/// prints them as one line each, or whole with `--full`, then the count. The entries of the
+/// project come first, then those of its team dossier when the project has one (R-READ-3).
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let words = search_words(&args.words)?;
     let ctx = Ctx::load(g, "search")?;
-    let (items, warnings) = store::all(&ctx.dossier);
-    let mut hits: Vec<Hit> = items
-        .iter()
-        .filter(|item| args.filter.matches(item))
-        .filter_map(|item| hit(&ctx, item, &words))
-        .collect();
-    // `store::all` gives the entries by ID and the sort is stable, so entries with the same
-    // group and creation time keep their ID order.
-    hits.sort_by(|a, b| {
-        a.group
-            .cmp(&b.group)
-            .then_with(|| b.created.cmp(&a.created))
+    let team = if ctx.team.is_some() {
+        Some(ctx.team_ctx()?)
+    } else {
+        None
+    };
+    let mut hits: Vec<Hit> = Vec::new();
+    let mut warnings = Vec::new();
+    for scanned in std::iter::once(&ctx).chain(team.as_ref()) {
+        let (items, found) = store::all(&scanned.dossier);
+        warnings.extend(found);
+        hits.extend(
+            items
+                .into_iter()
+                .filter(|item| args.filter.matches(item))
+                .filter_map(|item| hit(scanned, item, &words)),
+        );
+    }
+    // Newest first within a group, then by ID in the order `store::all` uses. An entry of each
+    // place with the same ID keeps the project's first, so the order is the same on every run.
+    hits.sort_by_cached_key(|hit| {
+        (
+            hit.group,
+            Reverse(hit.created),
+            id_order(&hit.item.entry.id()),
+            hit.place == TEAM,
+        )
     });
 
     let mut text = if args.full {
@@ -94,9 +119,9 @@ fn search_words(given: &[String]) -> Result<Vec<String>> {
     Ok(words)
 }
 
-/// The match of one entry: its group, creation time, mark and matched line. None when a word is
-/// missing from the entry's text.
-fn hit<'a>(ctx: &Ctx, item: &'a Item, words: &[String]) -> Option<Hit<'a>> {
+/// The match of one entry of the dossier `ctx`: its place, group, creation time, mark and matched
+/// line. None when a word is missing from the entry's text.
+fn hit(ctx: &Ctx, item: Item, words: &[String]) -> Option<Hit> {
     let entry = &item.entry;
     let text = entry.text().to_lowercase();
     if !words.iter().all(|word| text.contains(word)) {
@@ -111,12 +136,44 @@ fn hit<'a>(ctx: &Ctx, item: &'a Item, words: &[String]) -> Option<Hit<'a>> {
         2
     };
     Some(Hit {
-        item,
+        place: place_of(ctx),
         group,
         created: created(entry),
-        mark: mark(ctx, item),
+        mark: mark(ctx, &item),
         line: matched_line(entry, &words[0]),
+        item,
     })
+}
+
+/// The place of the entries of the dossier `ctx`: `team` for a team dossier, else `project`.
+fn place_of(ctx: &Ctx) -> &'static str {
+    if ctx.cfg.kind == "team" {
+        TEAM
+    } else {
+        PROJECT
+    }
+}
+
+/// The ID of a result as it is shown: a team entry has `team:` before its ID (R-READ-3).
+fn shown_id(hit: &Hit) -> String {
+    let id = hit.item.entry.id();
+    if hit.place == TEAM {
+        format!("{TEAM}:{id}")
+    } else {
+        id
+    }
+}
+
+/// The order `store::all` gives entries by ID, as a sort key: the number after the prefix (an ID
+/// with no number last), then the prefix. Kept in step with `store::all` by hand, since search
+/// sorts the entries of two dossiers together.
+fn id_order(id: &str) -> (bool, u64, String) {
+    let (prefix, rest) = id.split_once('-').unwrap_or((id, ""));
+    let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
+    match digits.parse::<u64>() {
+        Ok(number) => (false, number, prefix.to_string()),
+        Err(_) => (true, 0, prefix.to_string()),
+    }
 }
 
 /// Whether an element of a tag field of the entry contains `word` (lower case).
@@ -190,15 +247,17 @@ fn matched_line(entry: &Entry, word: &str) -> String {
         .to_string()
 }
 
-/// One line per result, each ending with a line break: `<ID>  [mark] <title>  — <line>`, the
-/// mark only when there is one and the line only when it is not empty.
+/// One line per result, each ending with a line break: `<ID>  [mark] <title>  — <line>`, the ID
+/// with `team:` before it for a team entry, the mark only when there is one and the line only when
+/// it is not empty.
 fn result_lines(hits: &[Hit]) -> String {
     let mut text = String::new();
     for hit in hits {
-        let entry = &hit.item.entry;
+        let id = shown_id(hit);
+        let title = hit.item.entry.title();
         let head = match &hit.mark {
-            Some(mark) => format!("{}  {mark} {}", entry.id(), entry.title()),
-            None => format!("{}  {}", entry.id(), entry.title()),
+            Some(mark) => format!("{id}  {mark} {title}"),
+            None => format!("{id}  {title}"),
         };
         if hit.line.is_empty() {
             text.push_str(&head);
@@ -237,7 +296,8 @@ fn count_line(count: usize) -> String {
     }
 }
 
-/// The data of one result: its ID, title, status and matched line.
+/// The data of one result: its ID, title, status, matched line and place (`project` or `team`).
+/// The ID is the entry's own, without `team:`; the place says where it is.
 fn result_data(hit: &Hit) -> Value {
     let entry = &hit.item.entry;
     json!({
@@ -245,6 +305,7 @@ fn result_data(hit: &Hit) -> Value {
         "title": entry.title(),
         "status": entry.status().map_or("", Status::name),
         "line": hit.line,
+        "place": hit.place,
     })
 }
 
