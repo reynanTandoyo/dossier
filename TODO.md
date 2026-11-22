@@ -5896,10 +5896,8 @@
 - note (2026-11-22, haiku-t-272): done
 
 ### T-273 · list: a how-to not tested with the newest version
-- status: claimed
+- status: done
 - owner: haiku-t-273
-- claimed: 2026-11-22T13:22+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-050
 - why: R-LIFE-8.
@@ -5913,7 +5911,11 @@
   3. Run cargo test --test cmd_list.
 - accept: list shows the same mark as show.
 - verify: cargo test --test cmd_list
+- verified: 2026-11-22
+- commit: 520741977d8c672135b298b30cbe3822e53b355a
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, coordinator): added
+- note (2026-11-22, haiku-t-273): done
 
 ### T-274 · entry: how-tos may have an Open remarks section
 - status: done
