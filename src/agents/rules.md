@@ -1,6 +1,7 @@
 # Working with the dossier
 
 - Use one unique name per agent: pass `--agent <name>` or set `DOSSIER_AGENT`.
+- Write under your own name: `<your person> - <your model>`, for example `tony - claude opus 5.5 high` (DOSSIER_AGENT).
 - Start a session with `dossier brief`.
 - Before a task, run `dossier brief --task <id>`.
 - Before work that no task asks for, run `dossier status`.
@@ -16,9 +17,13 @@
 - Record what you had to assume with `dossier assume "<assumption>" --reason "<why>"`.
 - After `todo done <id>`, run `dossier review-task <id>`, then propose lessons with `dossier learn` (it needs `--valid-for`, `--evidence` and `--confidence`), or propose none if nothing was learned.
 - Search before you propose something new: `dossier search <words>`.
+- Before writing a script, look for a tool: `dossier list --kind tool`.
 - Write every entry in English, also when the session is in another language.
+- When drafting from an old document, add `--from-document <file>`.
 - Never edit files under `DOSSIER/` directly; use the commands.
 - Never approve, reject, retire or remove an entry: a person does that.
 - Never confirm or refute an assumption, never accept or decline a proposal: a person does that.
+- When your person says a name or term is confidential, record it at once: `dossier confidential add "<term>"`.
+- Never write a confidential term into the team dossier; propose team knowledge with `dossier promote <ID>`.
 - Exit code `1`: a rule refused the change; read the message and do not repeat the command unchanged.
 - Exit code `3`: busy; run the same command again.
