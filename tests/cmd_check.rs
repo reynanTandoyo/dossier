@@ -1,13 +1,14 @@
 //! Runs the built program for `check`: a clean dossier is ok; each kind of problem is printed on
-//! its own line and the command exits with 1, with and without `--json`. Each test runs in its
-//! own project folder, with the clock fixed by `common::Project`.
+//! its own line and the command exits with 1, with and without `--json`. An abbreviation that no
+//! glossary explains is a warning (R-TERM-3): the command still succeeds and prints it on standard
+//! error. Each test runs in its own project folder, with the clock fixed by `common::Project`.
 
 mod common;
 
 use common::Project;
 use serde_json::Value;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Invented text for a decision, a lesson and a finding.
 const DECISION: &str = "Use the transient runs for the last three points.";
@@ -16,6 +17,16 @@ const STATEMENT: &str = "Steady runs with a mixing-plane interface overpredict t
 const VALID_FOR: &str = "An invented test rig with a tip Mach number above 1.1.";
 const EVIDENCE: &str = "An invented comparison of two speedlines, section 1.";
 const OBSERVATION: &str = "The mass flow still oscillated with half the time step.";
+
+/// Invented observations of findings, for `findings_naming`.
+const OBSERVATIONS: [&str; 3] = [
+    "The mass flow still oscillated with half the time step.",
+    "The outlet temperature drifted after the first hour.",
+    "The rotor speed settled only after the third revolution.",
+];
+
+/// The fixed clock of the team dossier's runs (the same as common::Project's).
+const NOW: &str = "2026-11-20T10:00:00+01:00";
 
 /// The output of `check` when there is no problem.
 const OK: &str = "DOSSIER: ok (0 problems)\n";
@@ -632,4 +643,263 @@ fn a_tool_whose_location_is_a_command_name_is_not_checked() {
     write_tool(&project, "- type: command\n- location: ansys-cfx\n");
 
     assert_eq!(project.stdout("anna", &["check"]), OK);
+}
+
+/// Records a finding by ben with the observation `observation` and the evidence `evidence`.
+fn finding(project: &Project, observation: &str, evidence: &str) {
+    project.stdout("ben", &["found", observation, "--evidence", evidence]);
+}
+
+/// Records the first `count` findings (FND-001 on) by ben, each with the evidence "Run <n> used
+/// the invented <word> setup.", so that `word` appears in `count` entries.
+fn findings_naming(project: &Project, word: &str, count: usize) {
+    for (number, observation) in OBSERVATIONS.iter().take(count).enumerate() {
+        let evidence = format!("Run {} used the invented {word} setup.", 12 + number);
+        finding(project, observation, &evidence);
+    }
+}
+
+/// Runs `check` as anna, where it must succeed: asserts exit code 0 and returns the standard error
+/// text, which holds the warnings.
+fn warnings(project: &Project) -> String {
+    let stderr = project
+        .run("anna", &["check"])
+        .code(0)
+        .get_output()
+        .stderr
+        .clone();
+    String::from_utf8(stderr).expect("the standard error is UTF-8")
+}
+
+/// The line number (1-based) of the first line of `text` that contains `word`.
+fn line_containing(text: &str, word: &str) -> usize {
+    text.lines()
+        .position(|line| line.contains(word))
+        .expect("the word is in the text")
+        + 1
+}
+
+/// The message of the TERM warning of CFD, which the first entry FND-001 holds on `line`.
+fn cfd_warning(file: &str, line: usize) -> String {
+    format!(
+        "{file}:{line}: FND-001 TERM CFD appears in 3 entries and is in no glossary; add it with: dossier term add CFD \"<meaning>\""
+    )
+}
+
+#[test]
+fn an_abbreviation_in_three_entries_and_no_glossary_is_a_warning() {
+    let project = Project::new();
+    findings_naming(&project, "CFD", 3);
+    let file = project.entry_file("FND-001");
+    let line = line_containing(&text_of(&project, "FND-001"), "CFD");
+
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+    assert_eq!(
+        warnings(&project),
+        format!("warning: {}\n", cfd_warning(&shown(&file), line))
+    );
+}
+
+#[test]
+fn an_abbreviation_in_two_entries_is_not_reported() {
+    let project = Project::new();
+    findings_naming(&project, "CFD", 2);
+
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+    assert_eq!(warnings(&project), "");
+}
+
+#[test]
+fn an_abbreviation_that_the_project_glossary_explains_is_not_reported() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &["term", "add", "CFD", "computational fluid dynamics"],
+    );
+    findings_naming(&project, "CFD", 3);
+
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+    assert_eq!(warnings(&project), "");
+}
+
+#[test]
+fn a_symbol_or_another_spelling_of_a_term_is_not_reported_whatever_its_case() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &[
+            "term",
+            "add",
+            "computational fluid dynamics",
+            "fluid flow solved on a mesh",
+            "--symbol",
+            "CFD",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "term",
+            "add",
+            "finite element analysis",
+            "stress and strain solved on a mesh",
+            "--also",
+            "fea",
+        ],
+    );
+    findings_naming(&project, "CFD", 3);
+    findings_naming(&project, "FEA", 3);
+
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+    assert_eq!(warnings(&project), "");
+}
+
+#[test]
+fn a_term_of_the_team_glossary_is_not_reported() {
+    let project = Project::new();
+    let (_folder, team) = team_dossier(&project);
+    link(&project, &team);
+    state_none(&project);
+    findings_naming(&project, "CFD", 3);
+    assert!(
+        warnings(&project).contains(" TERM CFD appears in 3 entries"),
+        "the team has no CFD term yet"
+    );
+
+    project.stdout(
+        "anna",
+        &[
+            "term",
+            "add",
+            "--team",
+            "CFD",
+            "computational fluid dynamics",
+        ],
+    );
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+    assert_eq!(warnings(&project), "");
+}
+
+#[test]
+fn references_to_entries_and_exchange_records_are_not_abbreviations() {
+    let project = Project::new();
+    for observation in OBSERVATIONS {
+        finding(
+            &project,
+            observation,
+            "See LES-001 and RCV-001 for the invented data.",
+        );
+    }
+
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+    assert_eq!(warnings(&project), "");
+}
+
+#[test]
+fn an_abbreviation_is_counted_in_entries_not_in_occurrences() {
+    let project = Project::new();
+    for observation in &OBSERVATIONS[..2] {
+        finding(
+            &project,
+            observation,
+            "The invented CFD run, and the CFD run again.",
+        );
+    }
+
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+    assert_eq!(warnings(&project), "");
+}
+
+#[test]
+fn an_abbreviation_in_a_field_is_not_counted() {
+    let project = Project::new();
+    for observation in OBSERVATIONS {
+        finding(
+            &project,
+            observation,
+            "Run 12 used the invented solver setup.",
+        );
+    }
+    for id in ["FND-001", "FND-002", "FND-003"] {
+        let text = text_of(&project, id);
+        let changed = text.replacen("- history:", "- software: CFD\n- history:", 1);
+        assert_ne!(changed, text);
+        write_entry(&project, id, &changed);
+    }
+
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+    assert_eq!(warnings(&project), "");
+}
+
+#[test]
+fn a_problem_is_reported_with_the_warnings_of_the_glossary() {
+    let project = Project::new();
+    findings_naming(&project, "CFD", 3);
+    let file = project.entry_file("FND-001");
+    let line = line_containing(&text_of(&project, "FND-001"), "CFD");
+    let text = text_of(&project, "FND-002");
+    write_entry(
+        &project,
+        "FND-002",
+        &text.replacen("- author: ben\n", "", 1),
+    );
+
+    assert_eq!(
+        problems(&project),
+        format!(
+            "error: {}:1: FND-002 WHO missing field author\nwarning: {}\nDOSSIER: 1 problems\n",
+            shown(&project.entry_file("FND-002")),
+            cfd_warning(&shown(&file), line)
+        )
+    );
+}
+
+#[test]
+fn a_glossary_that_does_not_parse_gives_parse_and_no_term_warning() {
+    let project = Project::new();
+    findings_naming(&project, "CFD", 3);
+    project.write(
+        "DOSSIER/glossary.md",
+        "<!-- dossier-format: 1 -->\nthis file has no heading\n",
+    );
+
+    assert_eq!(
+        problems(&project),
+        "error: DOSSIER/glossary.md:2: - PARSE no heading\nDOSSIER: 1 problems\n"
+    );
+}
+
+/// A team dossier made by `init --team-dossier --code TEAM` in its own temporary folder, whose
+/// name has a space and an umlaut, run as anna. Anna is a member of the team. Returns the folder
+/// (it keeps the folder alive) and the DOSSIER folder in it.
+fn team_dossier(project: &Project) -> (tempfile::TempDir, PathBuf) {
+    let folder = tempfile::Builder::new()
+        .prefix("Team Äpfel ")
+        .tempdir()
+        .expect("a temporary team folder");
+    project
+        .command("anna", NOW)
+        .current_dir(folder.path())
+        .args(["init", "--code", "TEAM", "--team-dossier"])
+        .assert()
+        .success();
+    let dossier = folder.path().join("DOSSIER");
+    dossier::config::set_list(&dossier, "members", &["anna".to_string()])
+        .expect("anna is a member of the team");
+    (folder, dossier)
+}
+
+/// Links the project to the team dossier at `team`, as `team use` does.
+fn link(project: &Project, team: &Path) {
+    let path = team.display().to_string();
+    project.stdout("anna", &["team", "use", path.as_str()]);
+}
+
+/// Writes the project's confidential terms file with the statement that there are none, so that a
+/// team write from the project passes the check of R-CONF-5.
+fn state_none(project: &Project) {
+    project.write(
+        "DOSSIER/confidential.md",
+        "<!-- dossier-format: 1 -->\n# Confidential terms of P-001\n\n## (no confidential terms)\n\n- stated: 2026-11-02T09:00:00+01:00 by anna\n",
+    );
 }

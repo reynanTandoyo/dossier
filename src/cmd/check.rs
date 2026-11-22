@@ -3,7 +3,8 @@
 //! `<file>:<line>: <ID> <KIND> <message>` (R-CHECK-1, design.md section 5). A block file has no
 //! entry ID, so its ID is `-`. Nothing is changed. A dossier without problems says
 //! `DOSSIER: ok (0 problems)`; otherwise the command fails with exit code 1, with or without
-//! `--json`.
+//! `--json`. A SHOULD report, such as a TERM report of an abbreviation that no glossary explains
+//! (R-TERM-3), is a warning: it does not fail the command.
 
 use crate::approval::{self, Mark};
 use crate::blockfile::BlockFile;
@@ -15,6 +16,7 @@ use crate::error::{Code, Error, Result};
 use crate::exchange;
 use crate::filelist;
 use crate::filesum;
+use crate::glossary::{self, Term};
 use crate::mapfile;
 use crate::output::Output;
 use crate::paths;
@@ -35,8 +37,19 @@ const OK: &str = "DOSSIER: ok (0 problems)";
 /// The byte-order mark a file may start with (format.md §2).
 const BYTE_ORDER_MARK: char = '\u{feff}';
 
-/// Runs `check`. No problem: the ok line. Otherwise Code::Refused, whose message holds every
-/// problem line, sorted by file and line, and then the count line.
+/// The glossary file of a dossier (format.md §20).
+const GLOSSARY: &str = "glossary.md";
+
+/// The prefixes of the IDs of exchange records (RCV, DLV; ids::next_prefix). The entries name
+/// those IDs, and an ID is not an abbreviation.
+const RECORD_PREFIXES: [&str; 2] = ["RCV", "DLV"];
+
+/// The number of entries an abbreviation must appear in for a TERM report (R-TERM-3).
+const MIN_ENTRIES: usize = 3;
+
+/// Runs `check`. No problem: the ok line, with each SHOULD report as a warning. Otherwise
+/// Code::Refused, whose message holds every problem line, sorted by file and line, then the
+/// SHOULD reports as `warning:` lines, then the count line of the problems.
 pub fn run(_args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "check")?;
     let (items, warnings) = store::all(&ctx.dossier);
@@ -52,13 +65,23 @@ pub fn run(_args: &Args, g: &Global) -> Result<Output> {
         found.extend(entry_problems(&ctx, item, &known, &today));
     }
     found.extend(block_problems(&ctx, &known));
-    if found.is_empty() {
-        return Ok(Output::text(OK));
-    }
+    let (glossary_problems, mut should) = glossary_check(&ctx, &items);
+    found.extend(glossary_problems);
 
     found.sort();
+    should.sort();
+    if found.is_empty() {
+        return Ok(should.iter().fold(Output::text(OK), |output, report| {
+            output.warn(report.text())
+        }));
+    }
     let mut lines: Vec<String> = found.iter().map(Found::text).collect();
-    lines.push(format!("DOSSIER: {} problems", lines.len()));
+    lines.extend(
+        should
+            .iter()
+            .map(|report| format!("warning: {}", report.text())),
+    );
+    lines.push(format!("DOSSIER: {} problems", found.len()));
     Err(Error::new(Code::Refused, lines.join("\n")))
 }
 
@@ -537,5 +560,146 @@ fn single_id(entry: &Entry, key: &str) -> Vec<String> {
         .field(key)
         .filter(|value| !value.is_empty())
         .into_iter()
+        .collect()
+}
+
+/// Where an abbreviation first appears, and in how many entries it appears.
+struct Seen {
+    entries: usize,
+    file: String,
+    line: usize,
+    id: String,
+}
+
+/// The TERM reports of the glossaries (R-TERM-3) and the PARSE problems of the glossaries that
+/// cannot be read. The terms of the project's glossary and the team's both count. When a glossary
+/// cannot be read, no TERM report is made, since the terms are not all known.
+fn glossary_check(ctx: &Ctx, items: &[Item]) -> (Vec<Found>, Vec<Found>) {
+    let mut dossiers: Vec<&Path> = vec![ctx.dossier.as_path()];
+    dossiers.extend(ctx.team.as_deref());
+    let mut terms = Vec::new();
+    let mut problems = Vec::new();
+    for dossier in dossiers {
+        // The code only names a missing glossary, which is empty and is not an error.
+        match glossary::load(dossier, &ctx.cfg.code) {
+            Ok((file, _)) => terms.extend(glossary::terms(&file)),
+            Err(error) => problems.push(glossary_problem(
+                &ctx.root,
+                &dossier.join(GLOSSARY),
+                &error.message,
+            )),
+        }
+    }
+    if problems.is_empty() {
+        (problems, term_reports(ctx, items, &terms))
+    } else {
+        (problems, Vec::new())
+    }
+}
+
+/// The PARSE problem of a glossary that cannot be read. glossary::load starts its message with the
+/// file name, which is left out, since the file is shown by its path.
+fn glossary_problem(root: &Path, path: &Path, message: &str) -> Found {
+    let message = message
+        .strip_prefix(GLOSSARY)
+        .and_then(|rest| rest.strip_prefix(": "))
+        .unwrap_or(message);
+    parse_found(root, path, message)
+}
+
+/// The TERM reports (R-TERM-3): each abbreviation that appears in at least MIN_ENTRIES entries and
+/// is in no glossary term, once, at the first entry in ID order where it appears and the first line
+/// of that entry where it appears. Entries are counted, not occurrences.
+fn term_reports(ctx: &Ctx, items: &[Item], terms: &[Term]) -> Vec<Found> {
+    let excluded = not_abbreviations(&ctx.cfg.code);
+    let names = glossary_names(terms);
+    let mut seen: BTreeMap<String, Seen> = BTreeMap::new();
+    for item in items {
+        for (word, line) in abbreviations(&item.entry, &excluded) {
+            if names.contains(&word.to_lowercase()) {
+                continue;
+            }
+            seen.entry(word)
+                .or_insert_with(|| Seen {
+                    entries: 0,
+                    file: relative(&ctx.root, &item.path),
+                    line,
+                    id: item.entry.id(),
+                })
+                .entries += 1;
+        }
+    }
+    seen.into_iter()
+        .filter(|(_, seen)| seen.entries >= MIN_ENTRIES)
+        .map(|(word, seen)| {
+            let message = format!(
+                "{word} appears in {} entries and is in no glossary; add it with: dossier term add {word} \"<meaning>\"",
+                seen.entries
+            );
+            Found::new(&seen.file, seen.line, &seen.id, "TERM", message)
+        })
+        .collect()
+}
+
+/// The abbreviations of an entry, each with the line where it first appears (R-TERM-3). A word is
+/// what lies between characters that are not letters or digits; the words of the title and of the
+/// section text count, and a word in `excluded` does not.
+fn abbreviations(entry: &Entry, excluded: &HashSet<String>) -> BTreeMap<String, usize> {
+    let mut found = BTreeMap::new();
+    for (number, text) in text_lines(entry) {
+        for word in text.split(|c: char| !c.is_alphanumeric()) {
+            if is_abbreviation(word) && !excluded.contains(word) {
+                found.entry(word.to_string()).or_insert(number);
+            }
+        }
+    }
+    found
+}
+
+/// Whether a word has the form of an abbreviation: 2 to 6 ASCII capital letters.
+fn is_abbreviation(word: &str) -> bool {
+    (2..=6).contains(&word.len()) && word.bytes().all(|byte| byte.is_ascii_uppercase())
+}
+
+/// The lines of an entry that hold its title and the text of its sections, each with its number.
+/// The field lines before the first section (format.md §3) and the section headings are left out.
+fn text_lines(entry: &Entry) -> Vec<(usize, &str)> {
+    let mut in_sections = false;
+    let mut lines = Vec::new();
+    for (number, text) in numbered_lines(&entry.lines) {
+        if text.starts_with("## ") {
+            in_sections = true;
+        } else if in_sections || text.starts_with("# ") {
+            lines.push((number, text));
+        }
+    }
+    lines
+}
+
+/// The words that are not abbreviations, even though they have the form of one: the ID prefix of
+/// every kind of entry, the prefixes of exchange records, and the words of the project code.
+fn not_abbreviations(code: &str) -> HashSet<String> {
+    Kind::all()
+        .into_iter()
+        .map(Kind::prefix)
+        .chain(RECORD_PREFIXES)
+        .map(str::to_string)
+        .chain(
+            code.split(|c: char| !c.is_alphanumeric())
+                .map(str::to_string),
+        )
+        .collect()
+}
+
+/// The names of the glossary terms, each term's, symbol and other spellings, in lower case.
+fn glossary_names(terms: &[Term]) -> HashSet<String> {
+    terms
+        .iter()
+        .flat_map(|term| {
+            std::iter::once(term.term.as_str())
+                .chain(term.symbol.as_deref())
+                .chain(term.also.iter().map(String::as_str))
+        })
+        .map(|name| name.trim().to_lowercase())
         .collect()
 }
