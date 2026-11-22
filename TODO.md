@@ -2429,10 +2429,8 @@
 - note (2026-11-21, planner): added
 
 ### T-250 · search: the project and the team dossier together
-- status: claimed
+- status: done
 - owner: haiku-t-250
-- claimed: 2026-11-22T11:24+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-048
 - why: R-READ-3.
@@ -2446,8 +2444,12 @@
   3. Run cargo test --test cmd_search.
 - accept: search finds team knowledge from inside a project.
 - verify: cargo test --test cmd_search
+- verified: 2026-11-22
+- commit: b5faadb
 - reqs: R-READ-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-250): done
 
 ### T-251 · search: find a term's other spellings
 - status: open
