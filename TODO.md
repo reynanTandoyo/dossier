@@ -1570,14 +1570,16 @@
 - note (2026-11-21, haiku-t-206): done
 
 ### T-042 · Team: knowledge reaches the next project without customer data
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P1 · type: milestone
 - goal: One team dossier holds lessons, how-tos, scripts, the software list and a glossary; entries are promoted from projects only after the confidentiality check; finished projects of the past are brought in. Requirements: docs/requirements.md section 11, Phase 3 (v0.3). Each task here is split when the phase starts.
 - summary: Lessons, how-tos and tools from one project reach the next project through a shared team dossier, without any customer data.
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21 (D38): dossier keeps the knowledge, todo the work. No phase 3 feature creates, changes, claims or closes tasks or writes TODO.md; tasks are read only through todo --json.
 - note (2026-11-21, planner): Milestone-level depends of T-044 to T-051 removed: each small task has its own dependencies, and the old chain made a cycle (T-043 -> T-226 -> T-230 -> T-043).
+- note (2026-11-22, coordinator): done
 
 ### T-043 · Team dossier: init --team-dossier, project codes, team settings, team members
 - status: done
