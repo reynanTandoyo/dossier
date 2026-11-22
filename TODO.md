@@ -2142,10 +2142,8 @@
 - note (2026-11-21, planner): added
 
 ### T-238 · used: add a line to the team's usage index
-- status: claimed
+- status: done
 - owner: haiku-t-238
-- claimed: 2026-11-22T11:24+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-046
 - why: R-USE-3.
@@ -2160,9 +2158,13 @@
   4. Run cargo test --test cmd_used.
 - accept: Every run also leaves one anonymous line in the team's usage index.
 - verify: cargo test --test cmd_used
+- verified: 2026-11-22
+- commit: 79baef7
 - reqs: R-USE-3, R-USE-12
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-22, planner): forced set (owner was haiku-t-238)
+- note (2026-11-22, haiku-t-238): done
 
 ### T-239 · where-used: where and how a software was used
 - status: open
