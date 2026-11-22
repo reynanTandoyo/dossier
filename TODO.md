@@ -5910,10 +5910,8 @@
 - note (2026-11-22, coordinator): added
 
 ### T-274 · entry: how-tos may have an Open remarks section
-- status: claimed
+- status: done
 - owner: haiku-t-274
-- claimed: 2026-11-22T13:07+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-046
 - why: R-USE-6, format.md section 22: how-tos get Open remarks after Tested with.
@@ -5925,7 +5923,11 @@
   2. Run cargo test --lib entry::.
 - accept: A how-to with an Open remarks section is valid and the section sorts last.
 - verify: cargo test --lib entry::
+- verified: 2026-11-22
+- commit: f6fbcc84fe2054110c2c02d7611c794d4bfd572b
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, coordinator): added
+- note (2026-11-22, haiku-t-274): done
 
 ### T-275 · used: a deviation adds an open remark to the team how-to
 - status: open
