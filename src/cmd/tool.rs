@@ -1,9 +1,11 @@
 //! The `tool` command (docs/design.md section 12, D31, D37, format.md §22): `tool add` records a tool
 //! the team uses, a script, a command, installed software or a git repository, with its name, its
 //! type and, when known, its location. A script whose location is a file gets the checksum of that
-//! file, which `check` and `show` compare later (R-USE-11). A tool a person writes is approved at
+//! file, which `check` and `show` compare later (R-USE-11). `tool update <ID>` records that
+//! checksum again after an intended change to the script. A tool a person writes is approved at
 //! once; one an LLM writes is a draft until a person approves it (approval::guarded).
 
+use crate::approval;
 use crate::cli::Global;
 use crate::create::{self, New};
 use crate::ctx::Ctx;
@@ -12,7 +14,8 @@ use crate::error::{Code, Error, Result};
 use crate::filesum;
 use crate::output::Output;
 use crate::paths;
-use crate::tx;
+use crate::store;
+use crate::tx::{self, Change};
 use chrono::NaiveDate;
 use serde_json::json;
 use std::io::Read;
@@ -24,7 +27,11 @@ const TYPES: [&str; 4] = ["script", "command", "software", "repo"];
 /// The type whose location gets a checksum when the location is a file (format.md §22).
 const SCRIPT: &str = "script";
 
-/// The arguments of `tool`: the subcommand `add`. `update` comes later.
+/// The detail added to the history line when an LLM's change takes an approved tool back to draft
+/// (the same words as `set` uses).
+const BACK_TO_DRAFT: &str = "back to draft";
+
+/// The arguments of `tool`: the subcommands `add` and `update`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
     #[command(subcommand)]
@@ -33,9 +40,21 @@ pub struct Args {
 
 /// What `tool` does.
 #[derive(clap::Subcommand, Debug)]
+// The command line is parsed once per run, so the size of the largest variant does not matter
+// (as in cli.rs).
+#[allow(clippy::large_enum_variant)]
 pub enum Action {
     /// Records a tool: a script, a command, installed software or a git repository
     Add(AddArgs),
+    /// Records the checksum of a script's file again, after an intended change to the script
+    Update(UpdateArgs),
+}
+
+/// The options of `tool update`.
+#[derive(clap::Args, Debug)]
+pub struct UpdateArgs {
+    /// The ID of the tool, such as TOOL-001
+    pub id: String,
 }
 
 /// The options of `tool add`.
@@ -85,6 +104,7 @@ pub struct AddArgs {
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     match &args.action {
         Action::Add(add) => add_tool(add, g),
+        Action::Update(update) => update_tool(update, g),
     }
 }
 
@@ -163,6 +183,124 @@ fn add_tool(args: &AddArgs, g: &Global) -> Result<Output> {
     Ok(warnings
         .into_iter()
         .fold(output, |output, warning| output.warn(warning)))
+}
+
+/// Runs `tool update <ID>` (R-USE-11, format.md §22): records the checksum of the script's file
+/// again after an intended change, so that `check`, `show` and `list` stop marking it. The entry
+/// must be a script whose location is a file that exists: a relative location is taken from the
+/// project folder, an absolute one as it is. The change is guarded as `set` guards it
+/// (approval::guarded): an LLM's update of an approved tool takes it back to draft, and a person's
+/// update records the approval again. The first output line is `<ID>: changed`, with `(back to
+/// draft, waiting for approval)` after it when an LLM took the tool back to draft, or
+/// `<ID>: no change` when the file already has the recorded checksum.
+fn update_tool(args: &UpdateArgs, g: &Global) -> Result<Output> {
+    let ctx = Ctx::load(g, "tool")?;
+    let who = ctx.writer()?.clone();
+
+    tx::write(&ctx, |tx| {
+        let item = store::get(&tx.ctx().dossier, &args.id)?;
+        let mut entry = item.entry.clone();
+        let id = entry.id();
+        if entry.kind() != Some(Kind::Tool) {
+            return Err(Error::new(
+                Code::Refused,
+                format!("{id} is not a tool; only a tool has a checksum to record again"),
+            ));
+        }
+        if entry.field("type").as_deref() != Some(SCRIPT) {
+            return Err(Error::new(
+                Code::Refused,
+                format!("{id} is not a script; only a script has the checksum of its file"),
+            ));
+        }
+        let Some(location) = entry.field("location").filter(|value| !value.is_empty()) else {
+            return Err(Error::new(
+                Code::MissingField,
+                format!("{id} has no location, so its script file is not known"),
+            ));
+        };
+        let path = script_path(&tx.ctx().root, &location);
+        if !path.is_file() {
+            return Err(Error::new(
+                Code::NotFound,
+                format!("the script file is not there: {location}"),
+            ));
+        }
+        let checksum = filesum::checksum(&path)?;
+        if entry.field("checksum").as_deref() == Some(checksum.as_str()) {
+            return Ok(Output::with(
+                format!("{id}: no change"),
+                json!({
+                    "id": id,
+                    "status": status_name(&entry),
+                    "location": location,
+                    "checksum": checksum,
+                }),
+            ));
+        }
+
+        entry.set_field("checksum", &checksum);
+        let approved_guarded =
+            entry.status() == Some(Status::Approved) && entry.kind().is_some_and(approval::guarded);
+        let mut detail = "checksum".to_string();
+        let mut back_to_draft = false;
+        if approved_guarded && who.is_llm {
+            entry.set_field("status", Status::Draft.name());
+            entry.remove_field("approved");
+            entry.remove_field("valid-from");
+            detail.push_str(", ");
+            detail.push_str(BACK_TO_DRAFT);
+            back_to_draft = true;
+        }
+        entry.add_history(tx.time(), &who, "changed", &detail);
+
+        let text = entry.text();
+        if approved_guarded && !tx.ctx().dry_run {
+            let state = &tx.ctx().state;
+            if who.is_llm {
+                approval::forget(state, &id)?;
+            } else {
+                approval::record(state, &id, text.as_bytes())?;
+            }
+        }
+
+        let message = if back_to_draft {
+            format!("{id}: changed (back to draft, waiting for approval)")
+        } else {
+            format!("{id}: changed")
+        };
+        let status = status_name(&entry);
+        tx.put(
+            item.path.clone(),
+            Some(&item),
+            text,
+            Change {
+                id: id.clone(),
+                event: "changed".to_string(),
+                detail,
+            },
+        );
+        Ok(Output::with(
+            message,
+            json!({
+                "id": id,
+                "status": status,
+                "location": location,
+                "checksum": checksum,
+            }),
+        ))
+    })
+}
+
+/// The file of a script's location: an absolute path as it is, a relative one taken from the
+/// project folder (format.md §22), as `check` reads it.
+fn script_path(root: &Path, location: &str) -> PathBuf {
+    let path = Path::new(location);
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        root.join(path)
+    }
 }
 
 /// The location as stored and the checksum of a script's location (D37, format.md §22). A location
@@ -321,4 +459,9 @@ fn status_words(status: Status) -> &'static str {
         Status::Draft => "draft, waiting for approval",
         _ => status.name(),
     }
+}
+
+/// The name of the entry's status, or the empty text when it has none.
+fn status_name(entry: &Entry) -> &'static str {
+    entry.status().map_or("", Status::name)
 }

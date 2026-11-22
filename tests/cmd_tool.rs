@@ -5,13 +5,16 @@
 //! a location that is a command name or a URL is kept as typed with no checksum; a bad type, a
 //! blank name, a bad review date and a person's tool without a Purpose are refused and write
 //! nothing; sections come from a file, from standard input and from `--section`; a team tool is
-//! written with `--team` after the confidential check; and `--json` gives the data. Each test runs
-//! in its own temporary project folder (common::Project), with the clock fixed at
+//! written with `--team` after the confidential check; and `--json` gives the data. `tool update`
+//! records the checksum of a script again after a change to its file, takes an approved script
+//! back to draft when an LLM makes that change, and refuses a tool that is not a script with a file.
+//! Each test runs in its own temporary project folder (common::Project), with the clock fixed at
 //! 2026-11-20T10:00:00+01:00.
 
 mod common;
 
 use common::Project;
+use dossier::approval::{self, Mark};
 use dossier::entry::{Entry, Kind, Status};
 use dossier::filesum;
 use predicates::str::contains;
@@ -491,4 +494,235 @@ fn json_gives_the_id_status_type_and_location_of_the_tool() {
     assert_eq!(value["data"]["location"], "ansys-cfx");
     assert_eq!(value["data"]["checksum"], Value::Null);
     assert_eq!(value["warnings"], serde_json::json!([]));
+}
+
+/// The script the update tests use: a file inside the project folder, with a space and an umlaut in
+/// its name, as the `add` tests use.
+const SCRIPT: &str = "scripts/check mesh ü.py";
+
+/// `tool add` of `SCRIPT` by anna, after the file is written with `text`: the tool TOOL-001,
+/// approved.
+fn anna_adds_script(project: &Project, text: &str) {
+    project.write(SCRIPT, text);
+    project
+        .run(
+            "anna",
+            &tool_add("script", &["--location", SCRIPT, "--language", "Python"]),
+        )
+        .success()
+        .stdout("TOOL-001: added (approved)\n");
+}
+
+/// The checksum of `SCRIPT` as its file is now.
+fn script_checksum(project: &Project) -> String {
+    filesum::checksum(&project.root().join(SCRIPT)).expect("the checksum of the script")
+}
+
+/// The state folder of the project, where the approval checksums are.
+fn state_of(project: &Project) -> PathBuf {
+    project.root().join("DOSSIER").join(".state")
+}
+
+#[test]
+fn updating_a_script_after_its_change_records_the_new_checksum_on_purpose() {
+    let project = Project::new();
+    anna_adds_script(&project, "print('invented')\n");
+    let recorded = entry_of(&project, "TOOL-001")
+        .field("checksum")
+        .expect("add records the checksum");
+
+    project.write(SCRIPT, "print('changed')\n");
+    let new = script_checksum(&project);
+    assert_ne!(new, recorded);
+    project
+        .run_at(
+            "anna",
+            "2026-11-21T09:00:00+01:00",
+            &["tool", "update", "TOOL-001"],
+        )
+        .success()
+        .stdout("TOOL-001: changed\n");
+
+    let entry = entry_of(&project, "TOOL-001");
+    assert_eq!(entry.field("checksum"), Some(new));
+    assert_eq!(entry.field("location").as_deref(), Some(SCRIPT));
+    assert_eq!(entry.status(), Some(Status::Approved));
+    assert_eq!(
+        entry.history().last().map(String::as_str),
+        Some("2026-11-21T09:00:00+01:00 anna: changed — checksum")
+    );
+    let last = project
+        .entry_journal()
+        .pop()
+        .expect("the update is in the journal");
+    assert_eq!(
+        (last.id.as_str(), last.event.as_str(), last.detail.as_str()),
+        ("TOOL-001", "changed", "checksum")
+    );
+}
+
+#[test]
+fn an_llm_updating_an_approved_script_takes_it_back_to_draft() {
+    let project = Project::new();
+    anna_adds_script(&project, "print('invented')\n");
+    project.write(SCRIPT, "print('changed')\n");
+    let new = script_checksum(&project);
+
+    project
+        .run("anna-claude", &["tool", "update", "TOOL-001"])
+        .success()
+        .stdout("TOOL-001: changed (back to draft, waiting for approval)\n");
+
+    let entry = entry_of(&project, "TOOL-001");
+    assert_eq!(entry.status(), Some(Status::Draft));
+    assert_eq!(entry.field("approved"), None);
+    assert_eq!(entry.field("valid-from"), None);
+    assert_eq!(entry.field("checksum"), Some(new));
+    // The tool was written by anna, so there is no via field; the history line names the LLM.
+    assert_eq!(entry.field("author").as_deref(), Some("anna"));
+    assert_eq!(entry.field("via"), None);
+    assert_eq!(
+        entry.history().last().map(String::as_str),
+        Some("2026-11-20T10:00:00+01:00 anna via anna-claude: changed — checksum, back to draft")
+    );
+    // The approval of the old text is forgotten, so the draft has no recorded checksum.
+    let text = project.read(FILE);
+    assert!(matches!(
+        approval::mark(&state_of(&project), "TOOL-001", text.as_bytes()),
+        Mark::NotRecorded
+    ));
+}
+
+#[test]
+fn a_persons_update_of_an_approved_script_keeps_it_approved_and_records_its_approval_again() {
+    let project = Project::new();
+    anna_adds_script(&project, "print('invented')\n");
+    project.write(SCRIPT, "print('changed')\n");
+
+    project
+        .run("anna", &["tool", "update", "TOOL-001"])
+        .success()
+        .stdout("TOOL-001: changed\n");
+
+    assert_eq!(
+        entry_of(&project, "TOOL-001").status(),
+        Some(Status::Approved)
+    );
+    let text = project.read(FILE);
+    assert!(matches!(
+        approval::mark(&state_of(&project), "TOOL-001", text.as_bytes()),
+        Mark::Unchanged
+    ));
+}
+
+#[test]
+fn updating_a_script_whose_checksum_is_recorded_already_changes_nothing() {
+    let project = Project::new();
+    anna_adds_script(&project, "print('invented')\n");
+    let before = project.read(FILE);
+
+    project
+        .run("anna-claude", &["tool", "update", "TOOL-001"])
+        .success()
+        .stdout("TOOL-001: no change\n");
+
+    assert_eq!(project.read(FILE), before);
+    assert_eq!(
+        entry_of(&project, "TOOL-001").status(),
+        Some(Status::Approved)
+    );
+}
+
+#[test]
+fn an_absolute_script_location_is_read_where_it_is() {
+    let project = Project::new();
+    let outside = tempfile::TempDir::new().expect("a temporary folder");
+    let file = outside.path().join("outside script.ps1");
+    fs::write(&file, "Write-Output 'invented'\n").expect("the script is written");
+    let location = file.display().to_string();
+    project
+        .run(
+            "anna",
+            &tool_add("script", &["--location", location.as_str()]),
+        )
+        .success();
+
+    fs::write(&file, "Write-Output 'changed'\n").expect("the script is changed");
+    project
+        .run("anna", &["tool", "update", "TOOL-001"])
+        .success()
+        .stdout("TOOL-001: changed\n");
+
+    let entry = entry_of(&project, "TOOL-001");
+    assert_eq!(entry.field("location").as_deref(), Some(location.as_str()));
+    let expected = filesum::checksum(&file).expect("the checksum of the script");
+    assert_eq!(entry.field("checksum"), Some(expected));
+}
+
+#[test]
+fn a_tool_that_is_not_a_script_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    project
+        .run("anna", &tool_add("command", &["--location", "ansys-cfx"]))
+        .success();
+    let before = project.read(FILE);
+
+    project
+        .run("anna", &["tool", "update", "TOOL-001"])
+        .failure()
+        .code(1)
+        .stderr(contains(
+            "error: TOOL-001 is not a script; only a script has the checksum of its file",
+        ));
+    assert_eq!(project.read(FILE), before);
+}
+
+#[test]
+fn a_script_whose_file_is_gone_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    anna_adds_script(&project, "print('invented')\n");
+    let before = project.read(FILE);
+    fs::remove_file(project.root().join(SCRIPT)).expect("the script is removed");
+
+    project
+        .run("anna", &["tool", "update", "TOOL-001"])
+        .failure()
+        .code(1)
+        .stderr(contains(
+            "error: the script file is not there: scripts/check mesh ü.py",
+        ));
+    assert_eq!(project.read(FILE), before);
+}
+
+#[test]
+fn an_entry_that_is_not_a_tool_and_an_unknown_id_are_refused() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "learn",
+                "Invented statement for the update test.",
+                "--valid-for",
+                "invented case",
+                "--evidence",
+                "invented evidence",
+                "--confidence",
+                "simulated",
+            ],
+        )
+        .success();
+
+    project
+        .run("anna", &["tool", "update", "LES-001"])
+        .failure()
+        .code(1)
+        .stderr(contains(
+            "error: LES-001 is not a tool; only a tool has a checksum to record again",
+        ));
+    project
+        .run("anna", &["tool", "update", "TOOL-009"])
+        .failure()
+        .code(1)
+        .stderr(contains("error: no entry TOOL-009"));
 }
