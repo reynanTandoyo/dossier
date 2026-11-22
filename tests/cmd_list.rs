@@ -1,5 +1,6 @@
 //! Runs the built program for `list`: approved entries by default, the filters, `--wide` with who
-//! and when, the JSON data, the marks of entries that are not plainly approved, and a broken
+//! and when, the JSON data, the marks of entries that are not plainly approved (and `not tested
+//! with` on a how-to, as `show` marks it), and a broken
 //! entry file that gives a warning while the list still works. Each test runs in its own
 //! temporary project folder (common::Project), with the clock fixed at 2026-11-20T10:00:00+01:00
 //! unless a test gives another time.
@@ -505,6 +506,97 @@ fn a_tool_whose_script_changed_since_approval_shows_the_file_changed_mark() {
         project.stdout("anna", &["list", "--kind", "tool"]),
         format!(
             "TOOL-001  tool  [changed after approval] [file changed since approval] {TOOL_TITLE}  — An invented script, changed by hand.\n1 entry\n"
+        )
+    );
+}
+
+/// Invented text of the how-to of the `not tested with` tests: a how-to for the invented software
+/// FlowSim. Its body is written to FLOW_FILE of the project folder, which `howto --from` reads.
+const FLOW_TITLE: &str = "Invented flow setup";
+const FLOW_PURPOSE: &str = "An invented how-to for the test software FlowSim.";
+const FLOW_BODY: &str = "## Purpose\nAn invented how-to for the test software FlowSim.\n## Steps\n1. Invented step one.\n";
+const FLOW_FILE: &str = "flow.md";
+
+/// A how-to for FlowSim written as `agent`, with a `Tested with` section made of `tested` when it
+/// is not empty. Returns its ID, such as HOW-001.
+fn flowsim_howto(project: &Project, agent: &str, tested: &str) -> String {
+    let mut body = FLOW_BODY.to_string();
+    if !tested.is_empty() {
+        body.push_str(&format!("## Tested with\n{tested}\n"));
+    }
+    project.write(FLOW_FILE, &body);
+    let added = project.stdout(
+        agent,
+        &[
+            "howto",
+            "--software",
+            "FlowSim",
+            "--title",
+            FLOW_TITLE,
+            "--from",
+            FLOW_FILE,
+        ],
+    );
+    added
+        .split(':')
+        .next()
+        .expect("the first line starts with the ID")
+        .to_string()
+}
+
+/// Records a run of `software` in `version` as anna at the fixed clock: a usage record for the
+/// task T-001, with no files.
+fn run_of(project: &Project, software: &str, version: &str) {
+    project
+        .run(
+            "anna",
+            &["used", software, "--version", version, "--task", "T-001"],
+        )
+        .success();
+}
+
+#[test]
+fn a_how_to_tested_with_an_older_version_than_its_software_was_used_in_is_marked_in_list() {
+    let project = Project::new();
+    let id = flowsim_howto(&project, "anna", "FlowSim 2410");
+    run_of(&project, "FlowSim", "2502");
+
+    // The usage record is listed too, and it gets no mark: only a how-to can.
+    assert_eq!(
+        project.stdout("anna", &["list"]),
+        format!(
+            "{id}  howto  [not tested with 2502] {FLOW_TITLE}  — {FLOW_PURPOSE}  (tested with FlowSim 2410)\nUSE-001  usage  FlowSim 2502 run for T-001\n2 entries\n"
+        )
+    );
+}
+
+#[test]
+fn a_how_to_tested_with_the_version_it_was_used_in_is_not_marked_in_list() {
+    let project = Project::new();
+    let id = flowsim_howto(&project, "anna", "FlowSim 2502");
+    run_of(&project, "FlowSim", "2502");
+
+    assert_eq!(
+        project.stdout("anna", &["list"]),
+        format!(
+            "{id}  howto  {FLOW_TITLE}  — {FLOW_PURPOSE}  (tested with FlowSim 2502)\nUSE-001  usage  FlowSim 2502 run for T-001\n2 entries\n"
+        )
+    );
+}
+
+#[test]
+fn a_draft_how_to_gets_the_not_tested_mark_after_the_draft_mark_as_in_show() {
+    let project = Project::new();
+    let id = flowsim_howto(&project, "anna-claude", "FlowSim 2410");
+    assert_eq!(id, "HOW-001");
+    run_of(&project, "FlowSim", "2502");
+
+    let shown = project.stdout("anna", &["show", &id]);
+    assert_eq!(shown.lines().next(), Some("[draft] [not tested with 2502]"));
+    assert_eq!(
+        project.stdout("anna", &["list", "--drafts"]),
+        format!(
+            "{id}  howto  [draft] [not tested with 2502] {FLOW_TITLE}  — {FLOW_PURPOSE}  (tested with FlowSim 2410)\nUSE-001  usage  FlowSim 2502 run for T-001\n2 entries\n"
         )
     );
 }

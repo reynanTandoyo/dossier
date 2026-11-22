@@ -3,6 +3,7 @@
 
 use crate::approval::{self, Mark};
 use crate::cli::Global;
+use crate::cmd::show::not_tested_with;
 use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::Result;
@@ -110,8 +111,9 @@ fn created_and_approved(entry: &Entry) -> String {
 /// The marks of an entry, joined with a space, in the order `show` gives them (cmd/show.rs): its
 /// status mark (design.md §5), `[due for review]` (R-LIFE-7), `[imported]` (R-IMPORT-5),
 /// `[changed after approval]` (R-LIFE-6), `[file changed since approval]` (R-USE-11), then
-/// `[rests on <IDs>]` (format.md §14). `today` is the day of the run, YYYY-MM-DD. An entry with no
-/// mark has none.
+/// `[rests on <IDs>]` (format.md §14) and `[not tested with <version>]` (R-LIFE-8, from
+/// `show::not_tested_with`). `today` is the day of the run, YYYY-MM-DD. An entry with no mark has
+/// none.
 fn mark(ctx: &Ctx, item: &Item, today: &str) -> Option<String> {
     let entry = &item.entry;
     let mut marks: Vec<String> = status_mark(entry).into_iter().collect();
@@ -128,6 +130,7 @@ fn mark(ctx: &Ctx, item: &Item, today: &str) -> Option<String> {
         marks.push("[file changed since approval]".to_string());
     }
     marks.extend(rests_on_mark(entry));
+    marks.extend(not_tested_with(ctx, entry));
     (!marks.is_empty()).then(|| marks.join(" "))
 }
 
