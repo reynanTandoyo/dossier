@@ -400,8 +400,9 @@ dossier init --code TEAM --team-dossier
 created the team dossier TEAM
 ```
 
-Its members are the usernames of the people who may write to it. No command adds the first member,
-so add it by hand: open `DOSSIER/dossier.toml` in the team dossier and put this line above `[tags]`:
+Its members are the usernames of the people who may write to it. `init` makes the person who runs it
+the first member. Here anna runs it, and `init` writes this line into `DOSSIER/dossier.toml`, above
+`[tags]`:
 
 ```toml
 members = ["anna"]
@@ -661,7 +662,8 @@ pressure ratio (PR, -): Outlet total pressure divided by inlet total pressure  [
 
 `status --since last` shows what was recorded since the person's last run, in the project and in the
 team dossier. The first run lists everything recorded so far. Each run moves the person's marker to
-now. `brief` ends with a line when there is news, as here, after a finding by ben on 23 November:
+now. `--keep` leaves the marker where it is, and an LLM's run never moves its person's marker.
+`brief` ends with a line when there is news, as here, after a finding by ben on 23 November:
 
 ```
 1 new entry since 2026-11-22: dossier status --since last
