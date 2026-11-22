@@ -1,5 +1,7 @@
 //! The `search` command: finds the entries whose text holds every word given, ignoring case
 //! (R-READ-3, R-READ-4). A word also matches inside a longer word, so `speed` finds `speedline`.
+//! A word is present when the text holds it or one of its spellings in the glossaries of the
+//! project and of the team, so a German word finds the English entries (R-TERM-4).
 //! The project's own entries are searched and, when the project has a team dossier, the team's
 //! too (R-READ-3); a team entry is shown with `team:` before its ID. The results come in three
 //! groups: every word in the title, a word in a tag field, then the rest; inside a group the newest
@@ -13,6 +15,7 @@ use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
 use crate::filter::Filter;
+use crate::glossary::{self, Term};
 use crate::output::Output;
 use crate::store::{self, Item};
 use chrono::{DateTime, FixedOffset};
@@ -55,20 +58,27 @@ struct Hit {
     line: String,
 }
 
-/// Runs `search`: finds the entries that pass the filter and hold every word, in order, and
-/// prints them as one line each, or whole with `--full`, then the count. The entries of the
-/// project come first, then those of its team dossier when the project has one (R-READ-3).
+/// Runs `search`: finds the entries that pass the filter and hold every word, or one of its
+/// spellings, in order, and prints them as one line each, or whole with `--full`, then the count.
+/// The entries of the project come first, then those of its team dossier when the project has one
+/// (R-READ-3).
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
-    let words = search_words(&args.words)?;
+    let typed = search_words(&args.words)?;
     let ctx = Ctx::load(g, "search")?;
     let team = if ctx.team.is_some() {
         Some(ctx.team_ctx()?)
     } else {
         None
     };
-    let mut hits: Vec<Hit> = Vec::new();
+    let places: Vec<&Ctx> = std::iter::once(&ctx).chain(team.as_ref()).collect();
     let mut warnings = Vec::new();
-    for scanned in std::iter::once(&ctx).chain(team.as_ref()) {
+    let terms = glossary_terms(&places, &mut warnings);
+    let words: Vec<Vec<String>> = typed
+        .iter()
+        .map(|word| matching_spellings(&terms, word))
+        .collect();
+    let mut hits: Vec<Hit> = Vec::new();
+    for scanned in places {
         let (items, found) = store::all(&scanned.dossier);
         warnings.extend(found);
         hits.extend(
@@ -119,18 +129,53 @@ fn search_words(given: &[String]) -> Result<Vec<String>> {
     Ok(words)
 }
 
+/// The glossary terms of the dossiers searched, the project's and the team's, in the order of the
+/// places (R-TERM-4). A glossary that cannot be read gives a warning, and the search goes on
+/// without its terms.
+fn glossary_terms(places: &[&Ctx], warnings: &mut Vec<String>) -> Vec<Term> {
+    let mut terms = Vec::new();
+    for place in places {
+        match glossary::load(&place.dossier, &place.cfg.code) {
+            Ok((file, _)) => terms.extend(glossary::terms(&file)),
+            Err(error) => warnings.push(error.message),
+        }
+    }
+    terms
+}
+
+/// The spellings that a search word matches (R-TERM-4): the word itself, then every spelling of
+/// the glossary terms it is a spelling of, all in lower case. The word is present in a text when
+/// one of them is.
+fn matching_spellings(terms: &[Term], word: &str) -> Vec<String> {
+    std::iter::once(word.to_string())
+        .chain(
+            glossary::spellings(terms, word)
+                .into_iter()
+                .map(|spelling| spelling.to_lowercase()),
+        )
+        .collect()
+}
+
+/// Whether `text` (in lower case) holds one of the spellings of a search word.
+fn holds(text: &str, spellings: &[String]) -> bool {
+    spellings
+        .iter()
+        .any(|spelling| text.contains(spelling.as_str()))
+}
+
 /// The match of one entry of the dossier `ctx`: its place, group, creation time, mark and matched
-/// line. None when a word is missing from the entry's text.
-fn hit(ctx: &Ctx, item: Item, words: &[String]) -> Option<Hit> {
+/// line. `words` holds the spellings of each search word. None when a word is missing from the
+/// entry's text.
+fn hit(ctx: &Ctx, item: Item, words: &[Vec<String>]) -> Option<Hit> {
     let entry = &item.entry;
     let text = entry.text().to_lowercase();
-    if !words.iter().all(|word| text.contains(word)) {
+    if !words.iter().all(|spellings| holds(&text, spellings)) {
         return None;
     }
     let title = entry.title().to_lowercase();
-    let group = if words.iter().all(|word| title.contains(word)) {
+    let group = if words.iter().all(|spellings| holds(&title, spellings)) {
         0
-    } else if words.iter().any(|word| in_tags(entry, word)) {
+    } else if words.iter().any(|spellings| in_tags(entry, spellings)) {
         1
     } else {
         2
@@ -176,13 +221,13 @@ fn id_order(id: &str) -> (bool, u64, String) {
     }
 }
 
-/// Whether an element of a tag field of the entry contains `word` (lower case).
-fn in_tags(entry: &Entry, word: &str) -> bool {
+/// Whether an element of a tag field of the entry holds one of the spellings (lower case).
+fn in_tags(entry: &Entry, spellings: &[String]) -> bool {
     TAG_FIELDS.iter().any(|key| {
         entry
             .list(key)
             .iter()
-            .any(|value| value.to_lowercase().contains(word))
+            .any(|value| holds(&value.to_lowercase(), spellings))
     })
 }
 
@@ -235,14 +280,14 @@ fn rests_on_mark(entry: &Entry) -> Option<String> {
     (!ids.is_empty()).then(|| format!("[rests on {}]", ids.join(", ")))
 }
 
-/// The first line of the entry that contains `word` (lower case), without its line ending and
-/// trimmed; empty when no line contains it.
-fn matched_line(entry: &Entry, word: &str) -> String {
+/// The first line of the entry that holds one of the spellings (lower case), without its line
+/// ending and trimmed; empty when no line holds one.
+fn matched_line(entry: &Entry, spellings: &[String]) -> String {
     entry
         .text()
         .lines()
         .map(str::trim)
-        .find(|line| line.to_lowercase().contains(word))
+        .find(|line| holds(&line.to_lowercase(), spellings))
         .unwrap_or_default()
         .to_string()
 }

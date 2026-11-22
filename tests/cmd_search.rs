@@ -2,7 +2,8 @@
 //! drafts are found only with `--drafts` and are marked, `--kind` narrows, title matches come
 //! first, `--full` prints whole entries, and no match prints `0 matches`. A project with a team
 //! dossier also finds the team's entries, marked `team:` before their ID, sorted in with the
-//! project's own. Each test runs in its own temporary project with the clock fixed at
+//! project's own. A German word finds the English entries through the glossaries of the project
+//! and the team (R-TERM-4). Each test runs in its own temporary project with the clock fixed at
 //! 2026-11-20T10:00:00+01:00.
 
 mod common;
@@ -518,4 +519,148 @@ fn an_unreachable_team_leaves_the_project_search_working() {
         # FND-001 · Stall seen at the lowest mass flow\n\
         1 match\n";
     assert_eq!(project.stdout("", &["search", "stall"]), expected);
+}
+
+/// A glossary file in the format of format.md section 20, with one invented term, its meaning
+/// and its other spelling `also`, written into the dossier folder `dossier`.
+fn write_glossary(dossier: &std::path::Path, code: &str, term: &str, also: &str) {
+    let text = format!(
+        "<!-- dossier-format: 1 -->\n# Glossary of {code}\n\n## {term}\n\n\
+         - meaning: an invented test term\n- also: {also}\n"
+    );
+    fs::write(dossier.join("glossary.md"), text).expect("the glossary file is written");
+}
+
+#[test]
+fn a_german_word_finds_the_english_entries_through_the_project_glossary() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &["found", "The mass flow still oscillated by 0.4 %"],
+        )
+        .success();
+    let expected = "FND-001  The mass flow still oscillated by 0.4 %  — \
+        # FND-001 · The mass flow still oscillated by 0.4 %\n\
+        1 match\n";
+
+    project
+        .run("", &["search", "Massenstrom"])
+        .success()
+        .stdout("0 matches\n");
+
+    write_glossary(
+        &project.root().join("DOSSIER"),
+        "P-001",
+        "mass flow",
+        "Massenstrom",
+    );
+    assert_eq!(project.stdout("", &["search", "Massenstrom"]), expected);
+    assert_eq!(project.stdout("", &["search", "MASSENSTROM"]), expected);
+    assert_eq!(project.stdout("", &["search", "mass flow"]), expected);
+}
+
+#[test]
+fn a_spelling_found_in_the_text_is_the_line_shown() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "assume",
+                "Seal leakage is negligible",
+                "--reason",
+                "Measured mass flow through the seal stayed under 1 %.",
+            ],
+        )
+        .success();
+    write_glossary(
+        &project.root().join("DOSSIER"),
+        "P-001",
+        "mass flow",
+        "Massenstrom",
+    );
+
+    let stdout = project.stdout("", &["search", "Massenstrom"]);
+    assert_eq!(result_ids(&stdout), ["ASM-001"], "{stdout}");
+    assert!(
+        stdout.contains("— Measured mass flow through the seal stayed under 1 %.\n"),
+        "{stdout}"
+    );
+    assert!(stdout.ends_with("1 match\n"), "{stdout}");
+}
+
+#[test]
+fn the_team_glossary_is_used_by_the_project_search() {
+    let project = Project::new();
+    let team = linked_team(&project);
+    write_glossary(
+        &team.path().join("DOSSIER"),
+        "TEAM",
+        "pressure ratio",
+        "Druckverhältnis",
+    );
+    learn_in_team(
+        &team,
+        &project,
+        NOW,
+        "Steady runs overpredict the pressure ratio",
+    );
+    project
+        .run("anna", &["found", "Stall margin of the first stage"])
+        .success();
+
+    let stdout = project.stdout("", &["search", "Druckverhältnis"]);
+    assert_eq!(result_ids(&stdout), ["team:LES-001"], "{stdout}");
+    assert!(stdout.ends_with("1 match\n"), "{stdout}");
+}
+
+#[test]
+fn team_search_uses_only_the_team_glossary() {
+    let project = Project::new();
+    let team = linked_team(&project);
+    write_glossary(
+        &project.root().join("DOSSIER"),
+        "P-001",
+        "pressure ratio",
+        "Druckverhältnis",
+    );
+    learn_in_team(
+        &team,
+        &project,
+        NOW,
+        "Steady runs overpredict the pressure ratio",
+    );
+
+    // The project's term is not in the team's glossary, so `--team` finds nothing.
+    project
+        .run("", &["--team", "search", "Druckverhältnis"])
+        .success()
+        .stdout("0 matches\n");
+    // The project's own search does use the project's term.
+    let stdout = project.stdout("", &["search", "Druckverhältnis"]);
+    assert_eq!(result_ids(&stdout), ["team:LES-001"], "{stdout}");
+}
+
+#[test]
+fn an_unreadable_glossary_is_a_warning_and_the_search_goes_on() {
+    let project = Project::new();
+    project
+        .run("anna", &["found", "Stall seen at the lowest mass flow"])
+        .success();
+    fs::write(
+        project.root().join("DOSSIER").join("glossary.md"),
+        [0xff, 0xfe, b'#'],
+    )
+    .expect("the glossary file is written");
+
+    let assert = project
+        .run("", &["search", "stall"])
+        .success()
+        .stderr(contains("warning: glossary.md: not UTF-8"));
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).expect("UTF-8 output");
+    let expected = "FND-001  Stall seen at the lowest mass flow  — \
+        # FND-001 · Stall seen at the lowest mass flow\n\
+        1 match\n";
+    assert_eq!(stdout, expected);
 }
