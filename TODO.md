@@ -2927,10 +2927,8 @@
 - note (2026-11-21, planner): added
 
 ### T-268 · drafts --imported: imported drafts by document
-- status: claimed
+- status: done
 - owner: haiku-t-268
-- claimed: 2026-11-22T12:16+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-051
 - why: R-IMPORT-6.
@@ -2944,8 +2942,12 @@
   3. Run cargo test --test cmd_drafts.
 - accept: Imported drafts are listed apart, by document.
 - verify: cargo test --test cmd_drafts
+- verified: 2026-11-22
+- commit: 1cda0f7c0e70bfadebc25eb5a9642cdc99e100fc
 - reqs: R-IMPORT-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-268): done
 
 ### T-052 · Working from the PC: the dossier is used from Windows as if it were local
 - status: open
