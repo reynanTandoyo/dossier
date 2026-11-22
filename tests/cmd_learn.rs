@@ -336,3 +336,103 @@ fn without_a_name_the_command_is_refused() {
         .stderr(contains("this command needs a name"));
     assert!(folder_is_empty(&project.root().join("DOSSIER/lessons")));
 }
+
+#[test]
+fn a_review_date_is_written_as_the_review_field() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &learn(&["--confidence", "simulated", "--review", "2027-06-01"]),
+        )
+        .success()
+        .stdout("LES-001: added (approved)\n");
+
+    assert_eq!(
+        entry_of(&project, "LES-001").field("review").as_deref(),
+        Some("2027-06-01")
+    );
+}
+
+#[test]
+fn a_lesson_has_no_review_date_unless_one_is_given() {
+    let project = Project::new();
+    project
+        .run("anna", &learn(&["--confidence", "measured"]))
+        .success();
+
+    assert_eq!(entry_of(&project, "LES-001").field("review"), None);
+}
+
+#[test]
+fn a_review_date_that_is_not_a_date_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    // 2027 has no 30th of February.
+    project
+        .run(
+            "anna",
+            &learn(&["--confidence", "measured", "--review", "2027-02-30"]),
+        )
+        .code(1)
+        .stderr(contains(
+            "error: --review needs a date such as 2027-06-01, not \"2027-02-30\"",
+        ));
+    project
+        .run(
+            "anna",
+            &learn(&[
+                "--confidence",
+                "measured",
+                "--review",
+                "next june",
+                "--json",
+            ]),
+        )
+        .code(1)
+        .stdout(contains("\"code\":\"BAD_VALUE\""));
+
+    assert!(folder_is_empty(&project.root().join("DOSSIER/lessons")));
+    assert!(!project.root().join("DOSSIER/.state/ids.json").exists());
+}
+
+#[test]
+fn an_update_sets_the_review_date_and_one_without_it_keeps_the_date() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &learn(&["--confidence", "measured", "--review", "2027-06-01"]),
+        )
+        .success();
+
+    project
+        .run(
+            "anna",
+            &learn(&["--confidence", "measured", "--update", "LES-001"]),
+        )
+        .success()
+        .stdout("LES-001: updated\n");
+    assert_eq!(
+        entry_of(&project, "LES-001").field("review").as_deref(),
+        Some("2027-06-01")
+    );
+
+    project
+        .run(
+            "anna",
+            &learn(&[
+                "--confidence",
+                "measured",
+                "--update",
+                "LES-001",
+                "--review",
+                "2027-07-01",
+            ]),
+        )
+        .success()
+        .stdout("LES-001: updated\n");
+    assert_eq!(
+        entry_of(&project, "LES-001").field("review").as_deref(),
+        Some("2027-07-01")
+    );
+}

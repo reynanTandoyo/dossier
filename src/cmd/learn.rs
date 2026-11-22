@@ -16,6 +16,7 @@ use crate::output::Output;
 use crate::select::{self, Query};
 use crate::store::{self, Item};
 use crate::tx::{self, Change};
+use chrono::NaiveDate;
 use serde_json::json;
 
 /// The values of `confidence` of a lesson (format.md §5, R-ENTRY-6).
@@ -62,9 +63,13 @@ pub struct Args {
     #[arg(long)]
     pub said_by: Option<String>,
     /// Changes the lesson with this ID instead of adding one: its statement, valid-for, evidence
-    /// and confidence are replaced, and the tags given are set
+    /// and confidence are replaced, and the tags and the review date given are set
     #[arg(long)]
     pub update: Option<String>,
+    /// The date the lesson should be checked again, as YYYY-MM-DD, such as 2027-06-01; none by
+    /// default (R-LIFE-7)
+    #[arg(long)]
+    pub review: Option<String>,
     /// Tag: a comma-separated list of machines, such as axial compressor
     #[arg(long)]
     pub machine: Option<String>,
@@ -100,18 +105,20 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             "the statement is empty: say what was learned",
         ));
     }
+    // Checked before the dossier is looked for, like the confidence.
+    let review = review_of(args.review.as_deref())?;
 
     let ctx = Ctx::load(g, "learn")?;
     match args.update.as_deref() {
-        Some(id) => update(&ctx, args, id, &confidence),
-        None => add(&ctx, args, &confidence),
+        Some(id) => update(&ctx, args, id, &confidence, review.as_deref()),
+        None => add(&ctx, args, &confidence, review.as_deref()),
     }
 }
 
 /// Writes a new lesson in one transaction. Before it is written, the lessons most like it are
 /// named as warnings. Files that do not parse are left out here; `check` reports them.
-fn add(ctx: &Ctx, args: &Args, confidence: &str) -> Result<Output> {
-    let new = lesson(args, confidence);
+fn add(ctx: &Ctx, args: &Args, confidence: &str, review: Option<&str>) -> Result<Output> {
+    let new = lesson(args, confidence, review);
     let query = similarity_query(args, &new.title);
     tx::write(ctx, |tx| {
         let (items, _) = store::all(&tx.ctx().dossier);
@@ -138,10 +145,17 @@ fn add(ctx: &Ctx, args: &Args, confidence: &str) -> Result<Output> {
 
 /// Changes the lesson `id` in one transaction (R-WRITE-11). Its statement, valid-for and evidence
 /// sections and its confidence are replaced, and the tags given are set; its title, task and
-/// author stay as they are. The rules of `set` apply to an approved lesson: an LLM's change makes
-/// it a draft, and a person's change is recorded as its new approved text. A person's change that
-/// leaves the lesson unable to be approved (a section left empty) is refused.
-fn update(ctx: &Ctx, args: &Args, id: &str, confidence: &str) -> Result<Output> {
+/// author stay as they are; a review date given is set. The rules of `set` apply to an approved
+/// lesson: an LLM's change makes it a draft, and a person's change is recorded as its new approved
+/// text. A person's change that leaves the lesson unable to be approved (a section left empty) is
+/// refused.
+fn update(
+    ctx: &Ctx,
+    args: &Args,
+    id: &str,
+    confidence: &str,
+    review: Option<&str>,
+) -> Result<Output> {
     let who = ctx.writer()?.clone();
     tx::write(ctx, |tx| {
         let item = store::get(&tx.ctx().dossier, id)?;
@@ -160,6 +174,9 @@ fn update(ctx: &Ctx, args: &Args, id: &str, confidence: &str) -> Result<Output> 
         entry.set_field("confidence", confidence);
         for (key, value) in tag_fields(args) {
             entry.set_field(key, &value);
+        }
+        if let Some(review) = review {
+            entry.set_field("review", review);
         }
 
         let approved = entry.status() == Some(Status::Approved);
@@ -218,12 +235,15 @@ fn update(ctx: &Ctx, args: &Args, id: &str, confidence: &str) -> Result<Output> 
     })
 }
 
-/// The new lesson: its sections, its fields (confidence, task and the tags that were given) and
-/// who said it. Empty options are left out.
-fn lesson(args: &Args, confidence: &str) -> New {
+/// The new lesson: its sections, its fields (confidence, task, the review date and the tags that
+/// were given) and who said it. Empty options are left out.
+fn lesson(args: &Args, confidence: &str, review: Option<&str>) -> New {
     let mut fields = vec![("confidence".to_string(), confidence.to_string())];
     if let Some(task) = given(args.task.as_deref()) {
         fields.push(("task".to_string(), task.to_uppercase()));
+    }
+    if let Some(review) = review {
+        fields.push(("review".to_string(), review.to_string()));
     }
     fields.extend(
         tag_fields(args)
@@ -255,6 +275,22 @@ fn tag_fields(args: &Args) -> Vec<(&'static str, String)> {
     .into_iter()
     .filter_map(|(key, value)| given(value).map(|value| (key, value)))
     .collect()
+}
+
+/// The `--review` option as YYYY-MM-DD, or None when it is not given. Code::BadValue when it is
+/// not a date of that form.
+fn review_of(text: Option<&str>) -> Result<Option<String>> {
+    text.map(|text| {
+        NaiveDate::parse_from_str(text.trim(), "%Y-%m-%d")
+            .map(|day| day.format("%Y-%m-%d").to_string())
+            .map_err(|_| {
+                Error::new(
+                    Code::BadValue,
+                    format!("--review needs a date such as 2027-06-01, not \"{text}\""),
+                )
+            })
+    })
+    .transpose()
 }
 
 /// The title given with `--title`, or else the default made from the statement.
