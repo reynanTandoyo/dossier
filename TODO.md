@@ -6045,10 +6045,8 @@
 - note (2026-11-22, haiku-t-278): done
 
 ### T-279 · README: the first team member and status --keep
-- status: claimed
+- status: done
 - owner: haiku-t-279
-- claimed: 2026-11-22T13:42+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-042
 - why: T-278 made the creator of a team dossier its first member and T-277 added --keep; the README still says to edit dossier.toml by hand.
@@ -6061,7 +6059,11 @@
   4. Run git ls-files --error-unmatch README.md.
 - accept: The README examples match the program.
 - verify: git ls-files --error-unmatch README.md
+- verified: 2026-11-22
+- commit: f1780cb53aab551344e34702d57ac0e022807b79
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, coordinator): added
+- note (2026-11-22, haiku-t-279): done
 
 ## Questions
 
