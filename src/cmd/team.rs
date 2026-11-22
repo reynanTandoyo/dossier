@@ -1,10 +1,11 @@
 //! The `team` command (docs/design.md section 12): shows the team settings of the current dossier,
-//! `team use <path>` links a project to its team dossier (R-PLACE-2, format.md §26), and `team
-//! member add|remove` keeps the list of people who may write there (R-TEAM-7). The team settings
-//! are the members and plain names of dossier.toml (format.md §21); a project with a reachable team
-//! dossier also knows the team's members and names, which `Ctx::load` adds. Linking and every
-//! member change rewrite dossier.toml, so each is recorded in the journal with who and when (D29),
-//! as `people` is.
+//! `team use <path>` links a project to its team dossier (R-PLACE-2, format.md §26), `team
+//! member add|remove` keeps the list of people who may write there (R-TEAM-7), and `team name
+//! add|remove` keeps the plain names of people who are not users, such as a customer contact (D34).
+//! The team settings are the members and plain names of dossier.toml (format.md §21); a project with
+//! a reachable team dossier also knows the team's members and names, which `Ctx::load` adds. Linking
+//! and every member or name change rewrite dossier.toml, so each is recorded in the journal with who
+//! and when (D29), as `people` is.
 
 use crate::cli::Global;
 use crate::config;
@@ -30,6 +31,10 @@ const FOLDER: &str = "DOSSIER";
 /// The `kind` of a team dossier (format.md §26).
 const TEAM: &str = "team";
 
+/// The settings keys of the team's two lists (format.md §21).
+const MEMBERS: &str = "members";
+const NAMES: &str = "names";
+
 /// The journal ID of a settings change. Settings are not entries, so the ID is not an entry ID
 /// (format.md §11).
 const SETTINGS_ID: &str = "SETTINGS";
@@ -54,6 +59,11 @@ pub enum Action {
         #[command(subcommand)]
         action: MemberAction,
     },
+    /// Adds a plain name to the team, or removes one: a person who is not a user (D34)
+    Name {
+        #[command(subcommand)]
+        action: NameAction,
+    },
 }
 
 /// What `team member` does.
@@ -71,14 +81,32 @@ pub enum MemberAction {
     },
 }
 
+/// What `team name` does. A plain name is a person who is not a user, such as a customer contact:
+/// it may be an author or a source, and it never writes (format.md §21).
+#[derive(clap::Subcommand, Debug)]
+pub enum NameAction {
+    /// Adds a plain name; it may contain spaces, such as `Dr. Weber`
+    Add {
+        /// The name as entries write it: not empty, and without a tab or a line break
+        name: String,
+    },
+    /// Removes a plain name; a person at a terminal does it
+    Remove {
+        /// The name, in any case
+        name: String,
+    },
+}
+
 /// Runs `team`: shows the team dossier, the members and the plain names, links the project to a
-/// team dossier with `team use`, or changes the members with `team member`.
+/// team dossier with `team use`, or changes the members with `team member` or the plain names with
+/// `team name`.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "team")?;
     match &args.action {
         None => Ok(show(&ctx)),
         Some(Action::Use { path }) => link(&ctx, g, path),
-        Some(Action::Member { action }) => member(members_ctx(ctx)?, g, action),
+        Some(Action::Member { action }) => member(settings_ctx(ctx)?, g, action),
+        Some(Action::Name { action }) => plain_name(settings_ctx(ctx)?, g, action),
     }
 }
 
@@ -226,10 +254,10 @@ fn quoted(text: &str) -> String {
     format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
-/// The context the members are changed in (R-TEAM-7): the team dossier of a project that names
-/// one, else the current dossier. A team dossier that cannot be reached is Code::NoDossier naming
-/// its path (R-PLACE-8): the members to change are the team's.
-fn members_ctx(ctx: Ctx) -> Result<Ctx> {
+/// The context the team settings (members and plain names) are changed in (R-TEAM-7): the team
+/// dossier of a project that names one, else the current dossier. A team dossier that cannot be
+/// reached is Code::NoDossier naming its path (R-PLACE-8): the settings to change are the team's.
+fn settings_ctx(ctx: Ctx) -> Result<Ctx> {
     if ctx.cfg.kind == TEAM {
         return Ok(ctx);
     }
@@ -275,9 +303,10 @@ fn add_member(ctx: &Ctx, who: &Who, username: &str) -> Result<Output> {
         format!("added member {username}"),
         json!({"member": username, "members": members}),
     );
-    write_members(
+    write_list(
         ctx,
         who,
+        MEMBERS,
         &members,
         &format!("member {username} added"),
         output,
@@ -318,23 +347,124 @@ fn remove_member(ctx: &Ctx, who: &Who, username: &str) -> Result<Output> {
         format!("removed member {stored}"),
         json!({"member": stored, "members": members}),
     );
-    write_members(
+    write_list(
         ctx,
         who,
+        MEMBERS,
         &members,
         &format!("member {stored} removed"),
         output,
     )
 }
 
-/// Writes `members` as the members of the dossier's settings, journals the change with `detail`
-/// as who and when (D29), and in a team dossier that is a git repository commits it (D36,
-/// R-TEAM-6). The write lock is held until the commit is made, as tx holds it. With --dry-run
-/// nothing is written and the output gets the warning `dry run: would write <file>`.
-fn write_members(
+/// Runs `team name add` or `team name remove` in `ctx`. As for the members, the name that acts
+/// must be a person of the settings or an LLM of one (R-TEAM-7): Code::Usage without any name,
+/// Code::UnknownName for anyone else.
+fn plain_name(ctx: Ctx, g: &Global, action: &NameAction) -> Result<Output> {
+    let who = names::resolve(&ctx.cfg, g.agent.as_deref())?;
+    match action {
+        NameAction::Add { name } => add_name(&ctx, &who, name),
+        NameAction::Remove { name } => remove_name(&ctx, &who, name),
+    }
+}
+
+/// Adds the plain name `name` to the team's names. The name is checked by `check_name`, and it
+/// must not be listed already (Code::Exists, names compared ignoring case). With --dry-run nothing
+/// is written.
+fn add_name(ctx: &Ctx, who: &Who, name: &str) -> Result<Output> {
+    let name = check_name(name)?;
+    let mut plain = own_names(ctx)?;
+    if plain.iter().any(|known| same(known, &name)) {
+        return Err(Error::new(
+            Code::Exists,
+            format!("{name} is already a plain name"),
+        ));
+    }
+    plain.push(name.clone());
+    let output = Output::with(
+        format!("added name {name}"),
+        json!({"name": name, "names": plain}),
+    );
+    write_list(
+        ctx,
+        who,
+        NAMES,
+        &plain,
+        &format!("name {name} added"),
+        output,
+    )
+}
+
+/// Removes the plain name `name` from the team's names. Only a person may do it, at a terminal
+/// (R-TEAM-7), as for the members: an LLM is Code::NeedsPerson, a run without a terminal
+/// Code::NeedsTerminal. The name must be listed (Code::NotFound, names compared ignoring case).
+/// With --dry-run nothing is written.
+fn remove_name(ctx: &Ctx, who: &Who, name: &str) -> Result<Output> {
+    if who.is_llm {
+        return Err(Error::new(
+            Code::NeedsPerson,
+            format!("team name remove is for a person; {} is an LLM", who.name),
+        ));
+    }
+    if !term::is_terminal() {
+        return Err(Error::new(
+            Code::NeedsTerminal,
+            "team name remove must be run by a person at a terminal",
+        ));
+    }
+    let wanted = name.trim();
+    let mut plain = own_names(ctx)?;
+    let Some(index) = plain.iter().position(|known| same(known, wanted)) else {
+        return Err(Error::new(
+            Code::NotFound,
+            format!("{wanted} is not a plain name"),
+        ));
+    };
+    let stored = plain.remove(index);
+    let output = Output::with(
+        format!("removed name {stored}"),
+        json!({"name": stored, "names": plain}),
+    );
+    write_list(
+        ctx,
+        who,
+        NAMES,
+        &plain,
+        &format!("name {stored} removed"),
+        output,
+    )
+}
+
+/// The plain names as the dossier's own settings list them (format.md §21). The names of a
+/// context are not used: a project with a team gets the project's plain names added to them
+/// (`Ctx::team_ctx`), and those are not to be copied into the team dossier.
+fn own_names(ctx: &Ctx) -> Result<Vec<String>> {
+    Ok(config::load(&ctx.dossier)?.names)
+}
+
+/// A plain name as it is written: trimmed, not empty, and without a control character such as a
+/// tab or a line break, so that it stays one line of the settings and the journal (format.md §21).
+/// Code::BadValue otherwise.
+fn check_name(name: &str) -> Result<String> {
+    let name = name.trim();
+    if name.is_empty() || name.chars().any(char::is_control) {
+        return Err(Error::new(
+            Code::BadValue,
+            "a name must not be empty and must not contain a tab or a line break",
+        ));
+    }
+    Ok(name.to_string())
+}
+
+/// Writes `values` as the list `key` (`members` or `names`) of the dossier's settings, journals the
+/// change with `detail` as who and when (D29), and in a team dossier that is a git repository
+/// commits it (D36, R-TEAM-6). The write lock is held until the commit is made, as tx holds it.
+/// With --dry-run nothing is written and the output gets the warning `dry run: would write <file>`.
+fn write_list(
     ctx: &Ctx,
     who: &Who,
-    members: &[String],
+    key: &str,
+    values: &[String],
     detail: &str,
     output: Output,
 ) -> Result<Output> {
@@ -343,7 +473,7 @@ fn write_members(
         return Ok(output.warn(format!("dry run: would write {}", file.display())));
     }
     let _guard = lock::acquire(&ctx.state, ctx.cfg.lock_wait_seconds, &who.name, "team")?;
-    config::set_list(&ctx.dossier, "members", members)?;
+    config::set_list(&ctx.dossier, key, values)?;
     record_change(ctx, who, detail)?;
     Ok(commit_change(ctx, output, &format!("team: {detail}")))
 }
