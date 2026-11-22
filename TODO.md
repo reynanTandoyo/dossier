@@ -2236,10 +2236,8 @@
 - note (2026-11-21, planner): added
 
 ### T-243 · set and edit: the approval rule for how-tos and tools
-- status: claimed
+- status: done
 - owner: haiku-t-243
-- claimed: 2026-11-22T10:53+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-047
 - why: R-WRITE-8, R-LIFE-6.
@@ -2253,8 +2251,12 @@
   3. Run cargo test --test cmd_set and cargo test --test cmd_edit.
 - accept: set and edit treat how-tos and tools like lessons.
 - verify: cargo test --test cmd_set
+- verified: 2026-11-22
+- commit: a4d52df
 - reqs: R-WRITE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-243): done
 
 ### T-244 · retitle and image: the approval rule for how-tos and tools
 - status: open
