@@ -122,7 +122,8 @@ struct TeamPlan {
 /// Runs `init`: creates DOSSIER in the current folder with its folders, its settings and the
 /// journal line that records who created it. With `--with-team` the team is checked first, before
 /// anything is created; the project is then linked to the team dossier and its code registered
-/// there. If that fails, the new dossier is removed again.
+/// there. If that fails, the new dossier is removed again. With `--dry-run` the checks run, and
+/// the folders and files that would be created are named as warnings; nothing is created.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     if args.team_dossier && args.code_project {
         return Err(Error::new(
@@ -179,10 +180,8 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         Some(path) => Some(plan_team(&root, &args.code, path, g)?),
         None => None,
     };
-    if let Some(plan) = &team_plan
-        && g.dry_run
-    {
-        return Ok(dry_run(&dossier, args, plan));
+    if g.dry_run {
+        return Ok(dry_run(&dossier, args, team_plan.as_ref()));
     }
     let who = names::unchecked(g.agent.as_deref());
     let detail = if args.team_dossier {
@@ -454,20 +453,49 @@ fn team_text(code: &str, plan: &TeamPlan) -> String {
     )
 }
 
-/// What `init --with-team --dry-run` would do, as warnings: nothing is created or written.
-fn dry_run(dossier: &Path, args: &Args, plan: &TeamPlan) -> Output {
-    let text = format!(
-        "dry run: DOSSIER for {} would be linked to the team dossier {}",
-        args.code,
-        paths::shown(&plan.stored_team)
-    );
-    let mut output =
-        Output::text(text).warn(format!("dry run: would create {}", dossier.display()));
-    if plan.add {
-        let file = plan.folder.join(PROJECTS_FILE);
-        output = output.warn(format!("dry run: would write {}", file.display()));
+/// What `init --dry-run` would do, with or without `--with-team`: nothing is created or written.
+/// The text says what would be made, and each folder and file the real run would create is one
+/// warning, in the order the real run makes them.
+fn dry_run(dossier: &Path, args: &Args, plan: Option<&TeamPlan>) -> Output {
+    let text = match plan {
+        Some(plan) => format!(
+            "dry run: DOSSIER for {} would be linked to the team dossier {}",
+            args.code,
+            paths::shown(&plan.stored_team)
+        ),
+        None if args.team_dossier => {
+            format!("dry run: team dossier {} would be created", args.code)
+        }
+        None => format!("dry run: DOSSIER for {} would be created", args.code),
+    };
+    let state = dossier.join(STATE);
+    let mut warnings = vec![format!("dry run: would create {}", dossier.display())];
+    for folder in folders(args.team_dossier) {
+        let path = dossier.join(folder);
+        warnings.push(format!("dry run: would create {}", path.display()));
     }
-    output
+    warnings.push(format!("dry run: would create {}", state.display()));
+    if args.team_dossier {
+        let ignore = state.join(IGNORE);
+        warnings.push(format!("dry run: would write {}", ignore.display()));
+    }
+    warnings.push(format!(
+        "dry run: would write {}",
+        dossier.join(SETTINGS).display()
+    ));
+    warnings.push(format!(
+        "dry run: would write {}",
+        state.join(JOURNAL).display()
+    ));
+    if let Some(plan) = plan
+        && plan.add
+    {
+        let file = plan.folder.join(PROJECTS_FILE);
+        warnings.push(format!("dry run: would write {}", file.display()));
+    }
+    warnings
+        .into_iter()
+        .fold(Output::text(text), |output, warning| output.warn(warning))
 }
 
 /// Whether `code` is a project code: not empty, and only ASCII letters, digits and `-`.

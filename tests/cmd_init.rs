@@ -673,6 +673,35 @@ fn a_dry_run_with_team_creates_and_writes_nothing() {
     assert_eq!(projects_of(&team), before);
 }
 
+#[test]
+fn a_dry_run_leaves_an_empty_folder_empty_and_names_what_it_would_create() {
+    let folder = tempfile::tempdir().unwrap();
+    init(folder.path(), &["--code", "P-004", "--dry-run"])
+        .success()
+        .stdout(contains("dry run: DOSSIER for P-004 would be created"))
+        .stderr(contains("warning: dry run: would create"))
+        .stderr(contains("warning: dry run: would write"))
+        .stderr(contains("decisions"))
+        .stderr(contains("dossier.toml"))
+        .stderr(contains("journal.jsonl"));
+    assert_eq!(std::fs::read_dir(folder.path()).unwrap().count(), 0);
+}
+
+#[test]
+fn a_team_dossier_dry_run_creates_nothing() {
+    let folder = tempfile::tempdir().unwrap();
+    init(
+        folder.path(),
+        &["--code", "TEAM", "--team-dossier", "--dry-run"],
+    )
+    .success()
+    .stdout(contains("dry run: team dossier TEAM would be created"))
+    .stderr(contains("warning: dry run: would create"))
+    .stderr(contains("lessons"))
+    .stderr(contains(".gitignore"));
+    assert_eq!(std::fs::read_dir(folder.path()).unwrap().count(), 0);
+}
+
 /// A folder for the archive of a finished project, whose name has a space and an umlaut.
 fn archive_folder() -> tempfile::TempDir {
     tempfile::Builder::new()
