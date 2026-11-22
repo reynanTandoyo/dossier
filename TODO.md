@@ -6088,10 +6088,8 @@
 - note (2026-11-22, haiku-t-280): done
 
 ### T-281 · tool add: the help says Purpose is required
-- status: claimed
+- status: done
 - owner: haiku-t-281
-- claimed: 2026-11-22T14:05+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-042
 - why: Found at the 0.3.0 release run: tool add without a Purpose section fails, and --help does not say it is needed (format.md section 22).
@@ -6102,7 +6100,11 @@
   2. Run cargo test --test cmd_tool.
 - accept: dossier tool add --help names the required Purpose section.
 - verify: cargo test --test cmd_tool
+- verified: 2026-11-22
+- commit: 5b8809c306647771bf97eb2a4d90f6f163f4c890
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, coordinator): added
+- note (2026-11-22, haiku-t-281): done
 
 ## Questions
 
