@@ -1,12 +1,12 @@
 //! The `set` command: changes the fields and sections named on the command line and nothing else
 //! (R-WRITE-8, R-EDIT-1, R-HIST-5). A part that is not named keeps its bytes. An LLM's change to
-//! an approved lesson takes it back to draft until a person approves it again; a person's change
-//! to an approved lesson is recorded as its new approved text.
+//! an approved lesson, how-to or tool takes it back to draft until a person approves it again; a
+//! person's change to one of them is recorded as its new approved text (approval::guarded).
 
 use crate::approval;
 use crate::cli::Global;
 use crate::ctx::Ctx;
-use crate::entry::{Entry, Kind, Status};
+use crate::entry::{Entry, Status};
 use crate::error::{Code, Error, Result};
 use crate::output::Output;
 use crate::store;
@@ -25,8 +25,8 @@ const TOOL_OWNED: [&str; 8] = [
     "history",
 ];
 
-/// The detail added to the history line when an LLM's change takes an approved lesson back to
-/// draft.
+/// The detail added to the history line when an LLM's change takes an approved lesson, how-to or
+/// tool back to draft.
 const BACK_TO_DRAFT: &str = "back to draft";
 
 /// The arguments of `set`.
@@ -44,8 +44,8 @@ pub struct Args {
 
 /// Runs `set`: checks the options, then changes the named parts of the entry in one transaction.
 /// The first output line is `<ID>: changed`, with `(back to draft, waiting for approval)` after
-/// it when an LLM took an approved lesson back to draft, or `<ID>: no change` when the named
-/// parts already had these values.
+/// it when an LLM took an approved lesson, how-to or tool back to draft, or `<ID>: no change`
+/// when the named parts already had these values.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "set")?;
     if args.fields.is_empty() && args.sections.is_empty() {
@@ -88,11 +88,11 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             ));
         }
 
-        let approved_lesson =
-            entry.kind() == Some(Kind::Lesson) && entry.status() == Some(Status::Approved);
+        let approved_guarded =
+            entry.status() == Some(Status::Approved) && entry.kind().is_some_and(approval::guarded);
         let mut detail = changed.join(", ");
         let mut back_to_draft = false;
-        if approved_lesson && who.is_llm {
+        if approved_guarded && who.is_llm {
             entry.set_field("status", "draft");
             entry.remove_field("approved");
             entry.remove_field("valid-from");
@@ -104,7 +104,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
 
         let text = entry.text();
         let dry_run = tx.ctx().dry_run;
-        if approved_lesson && !dry_run {
+        if approved_guarded && !dry_run {
             let state = &tx.ctx().state;
             if who.is_llm {
                 approval::forget(state, &id)?;

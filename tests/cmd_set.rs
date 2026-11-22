@@ -1,7 +1,7 @@
 //! Runs the built program for `set`: only the named fields and sections change, with one history
-//! line added; an LLM's change to an approved lesson takes it back to draft, and a person's change
-//! to one is recorded as its new approved text. Each test runs in its own temporary project folder
-//! with the clock fixed by `common::Project` (2026-11-20T10:00:00+01:00).
+//! line added; an LLM's change to an approved lesson, how-to or tool takes it back to draft, and a
+//! person's change to one is recorded as its new approved text. Each test runs in its own temporary
+//! project folder with the clock fixed by `common::Project` (2026-11-20T10:00:00+01:00).
 
 mod common;
 
@@ -19,6 +19,9 @@ const EVIDENCE: &str = "Runs 12 and 13, monitor plots in results.";
 const STATEMENT: &str = "Steady mixing-plane runs overpredict the stall margin.";
 const VALID_FOR: &str = "An invented test rig with a tip Mach number above 1.1.";
 const LESSON_EVIDENCE: &str = "An invented comparison of two speedlines, section 1.";
+const HOWTO_PURPOSE: &str = "Export the mesh of an invented test rig for the solver.";
+const HOWTO_STEPS: &str = "Open the invented rig file, then export the mesh.";
+const HOWTO_NEW_STEPS: &str = "Open the invented rig file, then export the mesh with 3 layers.";
 
 /// The text of the entry file with `id`.
 fn text_of(project: &Project, id: &str) -> String {
@@ -58,6 +61,27 @@ fn anna_learns(project: &Project) {
             LESSON_EVIDENCE,
             "--confidence",
             "simulated",
+        ],
+    );
+}
+
+/// A how-to for an invented program, written by anna, a person: approved at once.
+fn anna_writes_howto(project: &Project) {
+    let purpose = format!("Purpose={HOWTO_PURPOSE}");
+    let steps = format!("Steps={HOWTO_STEPS}");
+    project.stdout(
+        "anna",
+        &[
+            "add",
+            "howto",
+            "--title",
+            "Export the rig mesh",
+            "--field",
+            "software=MeshTool 2.4",
+            "--section",
+            &purpose,
+            "--section",
+            &steps,
         ],
     );
 }
@@ -273,6 +297,66 @@ fn a_persons_change_to_an_approved_lesson_stays_approved_and_is_recorded() {
     let state = project.root().join("DOSSIER").join(".state");
     assert!(matches!(
         approval::mark(&state, "LES-001", text.as_bytes()),
+        Mark::Unchanged
+    ));
+}
+
+#[test]
+fn an_llm_changing_an_approved_howto_makes_it_a_draft() {
+    let project = Project::new();
+    anna_writes_howto(&project);
+    let before = text_of(&project, "HOW-001");
+    assert_eq!(
+        entry_of(&project, "HOW-001").status(),
+        Some(Status::Approved)
+    );
+
+    let steps = format!("Steps={HOWTO_NEW_STEPS}");
+    project
+        .run("anna-claude", &["set", "HOW-001", "--section", &steps])
+        .success()
+        .stdout("HOW-001: changed (back to draft, waiting for approval)\n");
+
+    let entry = entry_of(&project, "HOW-001");
+    assert_eq!(entry.status(), Some(Status::Draft));
+    assert_eq!(entry.field("approved"), None);
+    assert_eq!(entry.field("valid-from"), None);
+    // The how-to was written by anna, so there is no via field; the history line names the LLM.
+    assert_eq!(entry.field("author").as_deref(), Some("anna"));
+    assert_eq!(entry.field("via"), None);
+    assert_eq!(entry.section("Purpose").as_deref(), Some(HOWTO_PURPOSE));
+    assert_eq!(entry.section("Steps").as_deref(), Some(HOWTO_NEW_STEPS));
+    let text = text_of(&project, "HOW-001");
+    assert!(text.contains(&format!(
+        "- history: {WHEN} anna via anna-claude: changed — section Steps, back to draft\n"
+    )));
+    // The approved text stays in the snapshot.
+    assert!(snapshot_exists(&project, "HOW-001", "000001"));
+    assert_eq!(
+        project.read("DOSSIER/.state/history/HOW-001/000001.md"),
+        before
+    );
+}
+
+#[test]
+fn a_persons_change_to_an_approved_howto_stays_approved_and_is_recorded() {
+    let project = Project::new();
+    anna_writes_howto(&project);
+
+    let steps = format!("Steps={HOWTO_NEW_STEPS}");
+    project
+        .run("anna", &["set", "HOW-001", "--section", &steps])
+        .success()
+        .stdout("HOW-001: changed\n");
+
+    assert_eq!(
+        entry_of(&project, "HOW-001").status(),
+        Some(Status::Approved)
+    );
+    let text = text_of(&project, "HOW-001");
+    let state = project.root().join("DOSSIER").join(".state");
+    assert!(matches!(
+        approval::mark(&state, "HOW-001", text.as_bytes()),
         Mark::Unchanged
     ));
 }

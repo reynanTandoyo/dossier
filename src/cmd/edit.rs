@@ -1,12 +1,13 @@
 //! The `edit` command: opens an entry in an editor under the write lock (R-EDIT-2). The editor is
 //! VISUAL, else EDITOR, else notepad on Windows and vi elsewhere. What the editor saves is checked
 //! before anything is written: the lines the tool writes itself (format.md §5) must not change, and
-//! an approved lesson changed by an LLM goes back to draft, as `set` does (R-WRITE-8).
+//! an approved lesson, how-to or tool changed by an LLM goes back to draft, as `set` does
+//! (R-WRITE-8, approval::guarded).
 
 use crate::approval;
 use crate::cli::Global;
 use crate::ctx::Ctx;
-use crate::entry::{Entry, Kind, Status};
+use crate::entry::{Entry, Status};
 use crate::error::{Code, Error, Result};
 use crate::output::Output;
 use crate::store;
@@ -32,7 +33,8 @@ const TOOL_OWNED: [&str; 8] = [
 /// The detail of the history line that an edit adds.
 const EDITED: &str = "edited";
 
-/// The detail added to the history line when an LLM's edit takes an approved lesson back to draft.
+/// The detail added to the history line when an LLM's edit takes an approved lesson, how-to or
+/// tool back to draft.
 const BACK_TO_DRAFT: &str = "back to draft";
 
 /// The arguments of `edit`.
@@ -44,8 +46,8 @@ pub struct Args {
 
 /// Runs `edit`: the entry is opened in the editor inside one transaction, so the lock is held
 /// while the editor runs. The first output line is `<ID>: changed`, with `(back to draft,
-/// waiting for approval)` after it when an LLM's edit took an approved lesson back to draft, or
-/// `<ID>: no change` when the editor saved the text as it was.
+/// waiting for approval)` after it when an LLM's edit took an approved lesson, how-to or tool back
+/// to draft, or `<ID>: no change` when the editor saved the text as it was.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "edit")?;
     let who = ctx.writer()?.clone();
@@ -66,11 +68,11 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         let mut entry = Entry::parse(&after)?;
         refuse_tool_lines(&item.entry, &entry)?;
 
-        let approved_lesson =
-            entry.kind() == Some(Kind::Lesson) && entry.status() == Some(Status::Approved);
+        let approved_guarded =
+            entry.status() == Some(Status::Approved) && entry.kind().is_some_and(approval::guarded);
         let mut detail = EDITED.to_string();
         let mut back_to_draft = false;
-        if approved_lesson && who.is_llm {
+        if approved_guarded && who.is_llm {
             entry.set_field("status", "draft");
             entry.remove_field("approved");
             entry.remove_field("valid-from");
@@ -81,7 +83,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         entry.add_history(tx.time(), &who, "changed", &detail);
 
         let text = entry.text();
-        if approved_lesson && !tx.ctx().dry_run {
+        if approved_guarded && !tx.ctx().dry_run {
             let state = &tx.ctx().state;
             if who.is_llm {
                 approval::forget(state, &id)?;
