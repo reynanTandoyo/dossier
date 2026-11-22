@@ -5806,8 +5806,10 @@
 - note (2026-11-22, haiku-t-214): done
 
 ### T-215 · Release 0.3.0
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-215
+- claimed: 2026-11-22T13:49+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 2 · type: chore
 - milestone: T-042
 - why: Phase 3 ends with a release used on real work.
@@ -6064,6 +6066,41 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-22, coordinator): added
 - note (2026-11-22, haiku-t-279): done
+
+### T-280 · team member remove: the last member stays
+- status: claimed
+- owner: haiku-t-280
+- claimed: 2026-11-22T14:05+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
+- priority: P1 · difficulty: 1 · type: bug
+- milestone: T-042
+- why: R-TEAM-7: found at the 0.3.0 release run; removing the last member leaves a team dossier nobody can write to, and team member add then fails.
+- summary: team member remove refuses to remove the last member.
+- files: src/cmd/team.rs, tests/cmd_team.rs
+- steps:
+  1. In team member remove, when the name is the only member left, refuse with Code::Refused: '<name> is the last member; add another member first: dossier team member add <username>'. Nothing is written.
+  2. Test: in a team dossier whose only member is anna, 'team member remove anna' (a person at a terminal) is refused and members stays ["anna"].
+  3. Run cargo test --test cmd_team.
+- accept: A team dossier always keeps at least one member.
+- verify: cargo test --test cmd_team
+- note (2026-11-22, coordinator): added
+
+### T-281 · tool add: the help says Purpose is required
+- status: claimed
+- owner: haiku-t-281
+- claimed: 2026-11-22T14:05+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
+- priority: P1 · difficulty: 1 · type: docs
+- milestone: T-042
+- why: Found at the 0.3.0 release run: tool add without a Purpose section fails, and --help does not say it is needed (format.md section 22).
+- summary: tool add --help names Purpose as required.
+- files: src/cmd/tool.rs
+- steps:
+  1. In the doc comments of tool add (the clap help), say that a Purpose section is required: --section 'Purpose=<what the tool is for>', --from or --stdin. Change nothing else.
+  2. Run cargo test --test cmd_tool.
+- accept: dossier tool add --help names the required Purpose section.
+- verify: cargo test --test cmd_tool
+- note (2026-11-22, coordinator): added
 
 ## Questions
 
