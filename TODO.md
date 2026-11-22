@@ -6110,6 +6110,25 @@
 - note (2026-11-22, coordinator): added
 - note (2026-11-22, haiku-t-281): done
 
+### T-282 · CI: actions that run on Node.js 24
+- status: done
+- owner: coordinator
+- priority: P2 · difficulty: 1 · type: chore
+- why: GitHub warns that actions/checkout@v4 and the artifact actions v4 run on Node.js 20, which is being retired.
+- summary: The CI and release workflows use action versions that run on Node.js 24.
+- files: .github/workflows/ci.yml, .github/workflows/release.yml
+- steps:
+  1. actions/checkout@v4 -> @v7 (node24) in both workflows.
+  2. actions/upload-artifact@v4 -> @v7 and actions/download-artifact@v4 -> @v8 (node24) in release.yml; upload by name (zipped) and download by pattern with merge-multiple are unchanged by their breaking changes.
+  3. Push and see the CI run pass without the Node.js 20 warning.
+- accept: CI runs without the Node.js 20 deprecation warning.
+- verify: git ls-files --error-unmatch .github/workflows/ci.yml
+- verified: 2026-11-22
+- commit: 448eeba
+- by: Reynan Henry Tandoyo
+- note (2026-11-22, coordinator): added
+- note (2026-11-22, coordinator): done
+
 ## Questions
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.
