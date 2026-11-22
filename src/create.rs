@@ -24,7 +24,7 @@ pub struct New {
 }
 
 /// The fields the tool writes itself. A command's field with one of these keys is left out.
-const TOOL_OWNED: [&str; 8] = [
+const TOOL_OWNED: [&str; 10] = [
     "status",
     "created",
     "author",
@@ -33,35 +33,42 @@ const TOOL_OWNED: [&str; 8] = [
     "valid-from",
     "valid-until",
     "history",
+    "imported",
+    "source-document",
 ];
 
-/// Who an entry is by, whether it is approved, and whether it is a proposal (a decision that is
-/// not approved, status `proposed`).
+/// Who an entry is by, whether it is approved, whether it is a proposal (a decision that is
+/// not approved, status `proposed`), and the document it is imported from, if any.
 struct Plan {
     author: String,
     via: Option<String>,
     approved: bool,
     proposed: bool,
+    source: Option<String>,
 }
 
 /// Creates one entry inside a transaction and returns its ID and file text.
 /// Author and status: a person writing: author = person, approved unless `draft`.
 /// An LLM with `said_by` naming a person or a plain name of the settings: author = that name, via
 /// = the LLM, approved unless `draft`. An LLM without `said_by`: author = its person, via = the
-/// LLM; approved for assumption, finding and usage unless `draft`; draft for a lesson.
+/// LLM; approved for assumption, finding and usage unless `draft`; draft for a lesson, a how-to
+/// and a tool (approval::guarded).
 /// An LLM writing a decision without `said_by`: Code::NeedsPerson, unless it is a draft: then it
 /// is a proposal by the LLM's person, via the LLM (R-WRITE-12: anyone may propose).
 /// A decision is a proposal (R-WRITE-12, R-WRITE-13, D21, D28) when it is written with `draft`
 /// or its author is not allowed to decide (names::may_decide): status `proposed`, no `approved`
 /// and `valid-from`, history lines created and proposed, and the journal detail `proposed`.
-/// Approved entries get `approved`, `valid-from`, two history lines (created, approved) and,
-/// for a lesson, approval::record. Refusing unknown tag values is not part of v0.1.
+/// An entry written from a document (`ctx.from_document`, R-IMPORT-3, R-IMPORT-5) is a draft
+/// whoever writes it, with `imported: yes` and `source-document` set to that document.
+/// Approved entries get `approved`, `valid-from`, two history lines (created, approved) and, for
+/// a guarded kind (approval::guarded), approval::record. Refusing unknown tag values is not part
+/// of v0.1.
 /// A team write from a project (`ctx.project`) is refused when the entry holds a confidential term
 /// of that project, or when the project has no terms and has not stated there are none
 /// (conf::gate and conf::check, R-WRITE-6, R-CONF-2). Both are checked before anything is queued.
 pub fn create(tx: &mut Tx, new: &New) -> Result<(String, String)> {
     let who = tx.ctx().writer()?.clone();
-    let plan = plan_for(&tx.ctx().cfg, &who, new)?;
+    let plan = plan_for(&tx.ctx().cfg, &who, new, tx.ctx().from_document.as_deref())?;
     let time = tx.time().to_string();
 
     // An entry that would be approved must be complete. This is checked before an ID is given
@@ -110,7 +117,7 @@ pub fn create(tx: &mut Tx, new: &New) -> Result<(String, String)> {
             detail: detail.to_string(),
         },
     );
-    if plan.approved && new.kind == Kind::Lesson && !dry_run {
+    if plan.approved && approval::guarded(new.kind) && !dry_run {
         approval::record(&state, &id, text.as_bytes())?;
     }
     Ok((id, text))
@@ -118,18 +125,16 @@ pub fn create(tx: &mut Tx, new: &New) -> Result<(String, String)> {
 
 /// Who the entry is by, whether it is approved, and whether it is a proposal (the rules of the
 /// comment on `create`). `said_by` is ignored when a person writes. An LLM's approved decision
-/// needs a person; an LLM's draft decision is a proposal of its own person.
-fn plan_for(cfg: &Config, who: &Who, new: &New) -> Result<Plan> {
+/// needs a person; an LLM's draft decision is a proposal of its own person. An entry written from
+/// a document (`source`) is a draft whoever writes it: it is never approved and never a proposal.
+fn plan_for(cfg: &Config, who: &Who, new: &New, source: Option<&str>) -> Result<Plan> {
+    let draft = new.draft || source.is_some();
     let (author, via, approved) = if !who.is_llm {
-        (who.person.clone(), None, !new.draft)
+        (who.person.clone(), None, !draft)
     } else {
         match said_by(new) {
-            Some(name) => (
-                name_as_written(cfg, name)?,
-                Some(who.name.clone()),
-                !new.draft,
-            ),
-            None if new.kind == Kind::Decision && !new.draft => {
+            Some(name) => (name_as_written(cfg, name)?, Some(who.name.clone()), !draft),
+            None if new.kind == Kind::Decision && !draft => {
                 return Err(Error::new(
                     Code::NeedsPerson,
                     "a decision needs the person who made it: --said-by <person>",
@@ -138,18 +143,21 @@ fn plan_for(cfg: &Config, who: &Who, new: &New) -> Result<Plan> {
             None => (
                 who.person.clone(),
                 Some(who.name.clone()),
-                !new.draft && new.kind != Kind::Lesson,
+                !draft && !approval::guarded(new.kind),
             ),
         }
     };
     // A decision that is a draft, or whose author may not decide, is a proposal: it is not
-    // approved (R-WRITE-12, R-WRITE-13).
-    let proposed = new.kind == Kind::Decision && (new.draft || !names::may_decide(cfg, &author));
+    // approved (R-WRITE-12, R-WRITE-13). An imported decision is a draft instead.
+    let proposed = source.is_none()
+        && new.kind == Kind::Decision
+        && (new.draft || !names::may_decide(cfg, &author));
     Ok(Plan {
         author,
         via,
         approved: approved && !proposed,
         proposed,
+        source: source.map(str::to_string),
     })
 }
 
@@ -216,6 +224,10 @@ fn entry_text(new: &New, id: &str, time: &str, who: &Who, plan: &Plan) -> String
     if plan.approved {
         fields.push(pair("approved", &format!("{time} by {}", plan.author)));
         fields.push(pair("valid-from", time));
+    }
+    if let Some(source) = &plan.source {
+        fields.push(pair("imported", "yes"));
+        fields.push(pair("source-document", source));
     }
     fields.extend(
         new.fields
@@ -634,6 +646,8 @@ mod tests {
                 pair("status", "rejected"),
                 pair("author", "ben"),
                 pair("history", "2001-01-01T00:00:00+00:00 ben: created"),
+                pair("imported", "yes"),
+                pair("source-document", "docs/Bericht.pdf"),
                 pair("task", "T-042"),
             ],
             sections: decision_sections(),
@@ -645,6 +659,8 @@ mod tests {
         assert_eq!(entry.status(), Some(Status::Approved));
         assert_eq!(entry.field("author").as_deref(), Some("anna"));
         assert_eq!(entry.field("task").as_deref(), Some("T-042"));
+        assert_eq!(entry.field("imported"), None);
+        assert_eq!(entry.field("source-document"), None);
         assert_eq!(entry.history().len(), 2);
         assert_eq!(entry.history()[0], format!("{time} anna: created"));
     }
@@ -826,6 +842,143 @@ mod tests {
             journal_events(&ctx),
             vec![("created".to_string(), "approved".to_string())]
         );
+    }
+
+    /// A how-to and a tool, each complete enough to approve (invented text): the ID it gets first
+    /// and the new entry.
+    fn guarded_entries() -> Vec<(&'static str, New)> {
+        vec![
+            (
+                "HOW-001",
+                New {
+                    fields: vec![pair("software", "ExampleSolver")],
+                    sections: vec![
+                        pair("Purpose", "An invented purpose for a test."),
+                        pair("Steps", "An invented step for a test."),
+                    ],
+                    ..new_of(Kind::Howto, "Run the invented solver")
+                },
+            ),
+            (
+                "TOOL-001",
+                New {
+                    fields: vec![pair("type", "script")],
+                    sections: vec![pair("Purpose", "An invented purpose for a test.")],
+                    ..new_of(Kind::Tool, "Invented solver script")
+                },
+            ),
+        ]
+    }
+
+    #[test]
+    fn an_entry_from_a_document_is_a_draft_whoever_writes_it() {
+        let _guard = quiet();
+        // The decider rule would approve this decision for anna, and an LLM writes it without
+        // said_by: both are drafts, with the document they were drafted from (R-IMPORT-5).
+        for (writer, via, label) in [
+            ("anna", None, "anna"),
+            ("anna-claude", Some("anna-claude"), "anna via anna-claude"),
+        ] {
+            let (_dir, mut ctx) = project(writer, false);
+            ctx.cfg.deciders = vec!["anna".to_string()];
+            ctx.from_document = Some("docs/Bericht Ä.pdf".to_string());
+            let new = New {
+                sections: decision_sections(),
+                ..new_of(Kind::Decision, "Use the transient runs")
+            };
+            let (id, text, time) = run(&ctx, &new).expect("the imported decision is created");
+
+            assert_eq!(id, "DEC-001");
+            let entry = Entry::parse(&text).expect("the text is an entry");
+            assert_eq!(entry.status(), Some(Status::Draft));
+            assert_eq!(entry.field("author").as_deref(), Some("anna"));
+            assert_eq!(entry.field("via").as_deref(), via);
+            assert_eq!(entry.field("imported").as_deref(), Some("yes"));
+            assert_eq!(
+                entry.field("source-document").as_deref(),
+                Some("docs/Bericht Ä.pdf")
+            );
+            assert_eq!(entry.field("approved"), None);
+            assert_eq!(entry.field("valid-from"), None);
+            assert_eq!(entry.history(), vec![format!("{time} {label}: created")]);
+            assert_eq!(
+                journal_events(&ctx),
+                vec![("created".to_string(), "draft".to_string())]
+            );
+            assert!(!ctx.state.join("approved.json").exists());
+            let path = store::path_for(&ctx.dossier, Kind::Decision, &id, "Use the transient runs");
+            assert_eq!(fs::read_to_string(path).expect("the file"), text);
+        }
+    }
+
+    #[test]
+    fn an_imported_finding_is_a_draft_though_a_finding_is_approved_at_once() {
+        let _guard = quiet();
+        let (_dir, mut ctx) = project("anna", false);
+        ctx.from_document = Some("docs/Bericht Ä.pdf".to_string());
+        let new = New {
+            sections: vec![pair("Observation", "An invented observation for a test.")],
+            ..new_of(Kind::Finding, "Invented observation")
+        };
+        let (id, text, _time) = run(&ctx, &new).expect("the imported finding is created");
+
+        assert_eq!(id, "FND-001");
+        let entry = Entry::parse(&text).expect("the text is an entry");
+        assert_eq!(entry.status(), Some(Status::Draft));
+        assert_eq!(entry.field("approved"), None);
+        assert_eq!(entry.field("imported").as_deref(), Some("yes"));
+        assert_eq!(
+            entry.field("source-document").as_deref(),
+            Some("docs/Bericht Ä.pdf")
+        );
+    }
+
+    #[test]
+    fn an_approved_how_to_or_tool_by_a_person_records_its_checksum() {
+        let _guard = quiet();
+        for (id_wanted, new) in guarded_entries() {
+            let (_dir, ctx) = project("anna", false);
+            let (id, text, _time) = run(&ctx, &new).expect("the entry is created");
+
+            assert_eq!(id, id_wanted);
+            let entry = Entry::parse(&text).expect("the text is an entry");
+            assert_eq!(entry.status(), Some(Status::Approved));
+            assert!(entry.field("approved").is_some());
+            assert!(ctx.state.join("approved.json").exists());
+            assert!(matches!(
+                approval::mark(&ctx.state, &id, text.as_bytes()),
+                approval::Mark::Unchanged
+            ));
+            // A change to the text after approval is a change.
+            let changed = text.replace("An invented purpose for a test.", "An invented purpose.");
+            assert_ne!(changed, text);
+            assert!(matches!(
+                approval::mark(&ctx.state, &id, changed.as_bytes()),
+                approval::Mark::Changed
+            ));
+        }
+    }
+
+    #[test]
+    fn an_llm_how_to_or_tool_without_said_by_is_a_draft_and_is_not_recorded() {
+        let _guard = quiet();
+        for (id_wanted, new) in guarded_entries() {
+            let (_dir, ctx) = project("anna-claude", false);
+            let (id, text, time) = run(&ctx, &new).expect("the draft is created");
+
+            assert_eq!(id, id_wanted);
+            let entry = Entry::parse(&text).expect("the text is an entry");
+            assert_eq!(entry.status(), Some(Status::Draft));
+            assert_eq!(entry.field("author").as_deref(), Some("anna"));
+            assert_eq!(entry.field("via").as_deref(), Some("anna-claude"));
+            assert_eq!(entry.field("approved"), None);
+            assert_eq!(entry.field("valid-from"), None);
+            assert_eq!(
+                entry.history(),
+                vec![format!("{time} anna via anna-claude: created")]
+            );
+            assert!(!ctx.state.join("approved.json").exists());
+        }
     }
 
     /// A team dossier as `project` makes it, and a project of the code P-001 written from it. The
