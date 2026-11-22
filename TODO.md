@@ -1955,10 +1955,8 @@
 - note (2026-11-22, haiku-t-230): done
 
 ### T-231 · confidential add and list
-- status: claimed
+- status: done
 - owner: haiku-t-231
-- claimed: 2026-11-22T11:22+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-044
 - why: R-CONF-1, D32.
@@ -1975,8 +1973,12 @@
   6. Run cargo test --test cmd_confidential.
 - accept: Anyone in the project adds confidential terms, with who and when.
 - verify: cargo test --test cmd_confidential
+- verified: 2026-11-22
+- commit: 42f786a
 - reqs: R-CONF-1, D32
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-231): done
 
 ### T-232 · confidential remove and confidential none
 - status: open
@@ -2177,8 +2179,10 @@
 - note (2026-11-21, planner): added
 
 ### T-240 · list: purpose and tested versions of how-tos and tools
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-240
+- claimed: 2026-11-22T11:40+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-046
 - why: R-USE-5, R-USE-10.
@@ -2513,8 +2517,10 @@
 - note (2026-11-21, planner): split into T-254, T-255
 
 ### T-254 · status --since last: the team dossier too, grouped by place
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-254
+- claimed: 2026-11-22T11:40+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-049
 - why: R-READ-10.
@@ -2532,8 +2538,10 @@
 - note (2026-11-21, planner): added
 
 ### T-255 · brief: the news line and the team's lessons and how-tos
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-255
+- claimed: 2026-11-22T11:40+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-049
 - why: R-CTX-1, R-READ-11.
@@ -2609,8 +2617,10 @@
 - note (2026-11-21, planner): added
 
 ### T-258 · show: due for review, imported, file changed since approval
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-258
+- claimed: 2026-11-22T11:40+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-050
 - why: R-LIFE-7, R-IMPORT-5, R-USE-11.
@@ -2646,8 +2656,10 @@
 - note (2026-11-21, planner): added
 
 ### T-260 · check: due for review and changed tool files
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-260
+- claimed: 2026-11-22T11:40+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-050
 - why: R-LIFE-7, R-USE-11, R-CHECK-1.
