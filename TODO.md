@@ -2394,8 +2394,10 @@
 - note (2026-11-21, planner): added
 
 ### T-249 · glossary: every term of the project and the team
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-249
+- claimed: 2026-11-22T11:33+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-048
 - why: R-TERM-1.
@@ -2561,8 +2563,10 @@
 - note (2026-11-21, planner): split into T-256, T-257, T-258, T-259, T-260, T-261
 
 ### T-256 · reviewed: a person confirms an entry still holds
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-256
+- claimed: 2026-11-22T11:33+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-050
 - why: R-LIFE-7, D33.
@@ -2581,8 +2585,10 @@
 - note (2026-11-21, planner): added
 
 ### T-257 · learn: --review <date>
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-257
+- claimed: 2026-11-22T11:33+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-050
 - why: R-LIFE-7, D33.
@@ -5658,6 +5664,26 @@
 - verify: cargo build
 - reqs: REL-1
 - note (2026-11-21, planner): added
+
+### T-269 · show team:<ID>: read an entry of the team dossier
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-043
+- why: R-ID-2: commands accept an ID with its place; search marks team results team:<ID>, so show must find them (found by the T-250 worker).
+- summary: Lets you open a team dossier entry from inside a project.
+- depends: T-218, T-258
+- files: src/cmd/show.rs, tests/cmd_show.rs
+- read: docs/requirements.md, docs/design.md
+- steps:
+  1. When the ID starts with 'team:' (any case) and the project has a team dossier (ctx.team), read the entry from the team dossier with store::get(team, id) and show it the same way, marking the first line with 'team:' before the ID in the JSON id field; without a team dossier: Code::NoDossier naming 'dossier team use <path>'.
+  2. Other place prefixes ('<code>:') keep working as now (store::get strips them).
+  3. Tests in tests/cmd_show.rs: with a team (init --team-dossier in a second folder, add anna to its members with dossier::config::set_list, link with dossier::config::set_value(project, "team", ...)), a team lesson written with 'dossier learn ... --team' is shown with 'show team:LES-001'; without a team, team:LES-001 gives exit 4.
+  4. Run cargo test --test cmd_show.
+- accept: show team:<ID> shows the team dossier's entry from a project.
+- verify: cargo test --test cmd_show
+- reqs: R-ID-2
+- note (2026-11-22, planner): added
 
 ## Questions
 
