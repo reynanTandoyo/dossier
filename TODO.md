@@ -1645,10 +1645,8 @@
 - note (2026-11-21, haiku-t-217): done
 
 ### T-218 · ctx.rs: load the team dossier of a project, --team and team_ctx
-- status: claimed
+- status: done
 - owner: haiku-t-218
-- claimed: 2026-11-22T10:53+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: Every team command starts from the project it is run in (R-PLACE-5, R-PLACE-8).
@@ -1665,8 +1663,12 @@
   6. Run cargo test --lib ctx::.
 - accept: A project finds its team dossier; --team works on it; team members can write in the project.
 - verify: cargo test --lib ctx::
+- verified: 2026-11-22
+- commit: bc9e081
 - reqs: R-PLACE-5, R-PLACE-8, D34
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-218): done
 
 ### T-219 · gitcommit.rs: commit the team dossier's changes
 - status: done
@@ -2261,8 +2263,10 @@
 - note (2026-11-22, haiku-t-243): done
 
 ### T-244 · retitle and image: the approval rule for how-tos and tools
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-244
+- claimed: 2026-11-22T11:14+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-047
 - why: R-WRITE-8, R-LIFE-6.
@@ -2279,8 +2283,10 @@
 - note (2026-11-21, planner): added
 
 ### T-245 · approve and reopen: the approval rule for how-tos and tools
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-245
+- claimed: 2026-11-22T11:14+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-047
 - why: R-LIFE-6.
@@ -2297,8 +2303,10 @@
 - note (2026-11-21, planner): added
 
 ### T-246 · retire and restore: the approval rule for how-tos and tools
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-246
+- claimed: 2026-11-22T11:14+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-047
 - why: R-LIFE-6.
@@ -2726,8 +2734,10 @@
 - note (2026-11-22, haiku-t-264): done
 
 ### T-265 · review-folder: the material for drafting from an old folder
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-265
+- claimed: 2026-11-22T11:14+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-051
 - why: R-IMPORT-2, R-IMPORT-4, R-IMPORT-9.
@@ -2746,8 +2756,10 @@
 - note (2026-11-21, planner): added
 
 ### T-266 · review-document and reviewed-document
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-266
+- claimed: 2026-11-22T11:14+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-051
 - why: R-IMPORT-3.
