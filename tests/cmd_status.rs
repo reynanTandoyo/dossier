@@ -399,6 +399,196 @@ fn since_last_without_a_name_is_a_usage_error_and_a_bad_date_is_refused() {
         .stderr(contains("2026-11-20"));
 }
 
+/// The marker of `person` as its file holds it, with its line break; None when there is no file.
+fn marker_of(project: &Project, person: &str) -> Option<String> {
+    let path = project
+        .root()
+        .join("DOSSIER")
+        .join(".state")
+        .join(format!("seen-{person}.txt"));
+    std::fs::read_to_string(path).ok()
+}
+
+#[test]
+fn since_leaves_out_the_settings_and_the_other_records_that_are_not_entries() {
+    let project = Project::new();
+    // The first run of `--since last` has no earlier run: the settings records of init and of
+    // `people add` are not news either.
+    assert_eq!(
+        out_at(
+            &project,
+            "anna",
+            "2026-11-21T09:00:00+01:00",
+            &["status", "--since", "last"]
+        ),
+        "Project P-001\n## Since the start (no earlier run)\nnone\n"
+    );
+
+    project
+        .run(
+            "anna",
+            &["decide", "Use transient runs", "--reason", "Converged."],
+        )
+        .success();
+    project
+        .run("ben", &["found", "The mass flow still oscillates"])
+        .success();
+    // A value and the map are journal records too, with IDs that are not entries (format.md §11).
+    project
+        .run("anna", &["value", "set", "design.massflow", "12.4 kg/s"])
+        .success();
+    project.write("src/solver/mod.rs", "solver\n");
+    project
+        .run("anna", &["map", "set", "src/solver", "time integration"])
+        .success();
+
+    let stdout = project.stdout("anna", &["status", "--since", "2026-11-01"]);
+    assert_eq!(
+        stdout,
+        "Project P-001\n\
+         ## Since 2026-11-01\n\
+         2026-11-20T10:00:00+01:00  ben  created  FND-001  The mass flow still oscillates\n\
+         2026-11-20T10:00:00+01:00  anna  created  DEC-001  Use transient runs\n"
+    );
+    assert!(!stdout.contains("(removed)"), "{stdout}");
+    let data = status_data(&project, &["--since", "2026-11-01"]);
+    assert_eq!(
+        data["events"].as_array().map(|events| events
+            .iter()
+            .map(|event| event["id"].clone())
+            .collect::<Vec<_>>()),
+        Some(vec![json!("FND-001"), json!("DEC-001")])
+    );
+}
+
+#[test]
+fn keep_with_since_last_leaves_the_marker_where_it_is() {
+    let project = Project::new();
+    out_at(
+        &project,
+        "anna",
+        "2026-11-21T09:00:00+01:00",
+        &["status", "--since", "last"],
+    );
+    assert_eq!(
+        marker_of(&project, "anna").as_deref(),
+        Some("2026-11-21T09:00:00+01:00\n")
+    );
+    project
+        .run_at(
+            "ben",
+            "2026-11-21T09:30:00+01:00",
+            &["found", "The mass flow still oscillates"],
+        )
+        .success();
+
+    // With --keep the news since 09:00 is shown and the marker stays at 09:00.
+    let kept = out_at(
+        &project,
+        "anna",
+        "2026-11-21T10:00:00+01:00",
+        &["status", "--since", "last", "--keep"],
+    );
+    assert_eq!(
+        kept,
+        "Project P-001\n## Since 2026-11-21T09:00:00+01:00\n\
+         2026-11-21T09:30:00+01:00  ben  created  FND-001  The mass flow still oscillates\n"
+    );
+    assert_eq!(
+        marker_of(&project, "anna").as_deref(),
+        Some("2026-11-21T09:00:00+01:00\n")
+    );
+
+    // The next run without --keep shows the same news, and moves the marker to 11:00.
+    let again = out_at(
+        &project,
+        "anna",
+        "2026-11-21T11:00:00+01:00",
+        &["status", "--since", "last"],
+    );
+    assert_eq!(again, kept);
+    assert_eq!(
+        marker_of(&project, "anna").as_deref(),
+        Some("2026-11-21T11:00:00+01:00\n")
+    );
+}
+
+#[test]
+fn keep_needs_since() {
+    let project = Project::new();
+    project
+        .run("anna", &["status", "--keep"])
+        .code(2)
+        .stderr(contains("--since"));
+    assert_eq!(marker_of(&project, "anna"), None);
+}
+
+#[test]
+fn since_a_date_never_moves_the_marker() {
+    let project = Project::new();
+    project.stdout("anna", &["status", "--since", "2026-11-01"]);
+    assert_eq!(marker_of(&project, "anna"), None);
+
+    out_at(
+        &project,
+        "anna",
+        "2026-11-21T09:00:00+01:00",
+        &["status", "--since", "last"],
+    );
+    out_at(
+        &project,
+        "anna",
+        "2026-11-21T10:00:00+01:00",
+        &["status", "--since", "2026-11-01"],
+    );
+    assert_eq!(
+        marker_of(&project, "anna").as_deref(),
+        Some("2026-11-21T09:00:00+01:00\n")
+    );
+}
+
+#[test]
+fn an_llm_named_with_a_dash_reads_its_persons_marker_and_never_moves_it() {
+    let project = Project::new();
+    out_at(
+        &project,
+        "anna",
+        "2026-11-21T09:00:00+01:00",
+        &["status", "--since", "last"],
+    );
+    project
+        .run_at(
+            "ben-codex",
+            "2026-11-21T10:30:00+01:00",
+            &["found", "Halving the time step changed nothing"],
+        )
+        .success();
+
+    // The LLM reads anna's marker (09:00), not "the start", and leaves it where it is.
+    let first = out_at(
+        &project,
+        "anna - claude",
+        "2026-11-21T11:00:00+01:00",
+        &["status", "--since", "last"],
+    );
+    assert_eq!(
+        first,
+        "Project P-001\n## Since 2026-11-21T09:00:00+01:00\n\
+         2026-11-21T10:30:00+01:00  ben via ben-codex  created  FND-001  Halving the time step changed nothing\n"
+    );
+    assert_eq!(
+        marker_of(&project, "anna").as_deref(),
+        Some("2026-11-21T09:00:00+01:00\n")
+    );
+    let again = out_at(
+        &project,
+        "anna - claude",
+        "2026-11-21T11:30:00+01:00",
+        &["status", "--since", "last"],
+    );
+    assert_eq!(again, first);
+}
+
 #[test]
 fn milestone_keeps_only_the_entries_of_that_task() {
     let project = Project::new();

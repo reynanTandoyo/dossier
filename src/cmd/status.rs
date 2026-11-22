@@ -6,8 +6,11 @@
 //! files; a file that cannot be read is a warning and its part is left out. `--since <date>` prints
 //! what was recorded on or after the date, and `--since last` what is new since the person last ran
 //! it (R-READ-10). Only a person's run moves that marker: the LLMs of a person share the person's
-//! marker and never move it. With a team dossier, the project's lines are under `## Project <code>`
-//! and the team's news under `## Team` (R-READ-10).
+//! marker and never move it, and `--keep` leaves it where it is; `--since <date>` never moves
+//! it. The project's lines list entries only: the journal records that are not about an entry
+//! (the settings, the values, the map, the exchange, the files; format.md §11) are left out. With
+//! a team dossier, the project's lines are under `## Project <code>` and the team's news under
+//! `## Team` (R-READ-10).
 //!
 //! `--on <date>` gives the decisions, findings, key values and last exchange as they were on that
 //! day (R-LIFE-9), and leaves the map out. The tasks and the unsettled part (drafts, proposals,
@@ -69,6 +72,10 @@ pub struct Args {
     /// person's last run
     #[arg(long, conflicts_with = "on")]
     pub since: Option<String>,
+    /// With `--since last`, leave the person's marker where it is, so that the same news shows
+    /// again next time (R-READ-10); needs --since
+    #[arg(long, requires = "since")]
+    pub keep: bool,
     /// Only the todo milestone of this task, such as T-130, and the entries of its tasks
     #[arg(long)]
     pub milestone: Option<String>,
@@ -85,7 +92,13 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let day = args.on.as_deref().map(day_of).transpose()?;
     let (all, mut warnings) = store::all(&ctx.dossier);
     let mut screen = match args.since.as_deref() {
-        Some(text) => since_screen(&ctx, parse_since(text)?, &all, milestone.as_deref())?,
+        Some(text) => since_screen(
+            &ctx,
+            parse_since(text)?,
+            &all,
+            milestone.as_deref(),
+            args.keep,
+        )?,
         None => project_screen(&ctx, &all, milestone.as_deref(), day.as_ref()),
     };
     if let Some(marker) = screen.marker.take() {
@@ -1309,10 +1322,17 @@ fn parse_since(text: &str) -> Result<Since> {
         })
 }
 
-/// The screen with `--since`: the journal records that `bound` keeps, newest first, with the
-/// title of each entry. With `last`, the person's marker is read, and written when a person runs
-/// the command. With a team dossier the team's news follows the project's lines (`team_news`).
-fn since_screen(ctx: &Ctx, since: Since, all: &[Item], milestone: Option<&str>) -> Result<Screen> {
+/// The screen with `--since`: the journal records of entries (`is_entry_record`) that `bound`
+/// keeps, newest first, with the title of each entry. With `last`, the person's marker is read,
+/// and written when a person runs the command without `keep`; an LLM's run never writes it. With a
+/// team dossier the team's news follows the project's lines (`team_news`).
+fn since_screen(
+    ctx: &Ctx,
+    since: Since,
+    all: &[Item],
+    milestone: Option<&str>,
+    keep: bool,
+) -> Result<Screen> {
     let mut warnings = Vec::new();
     let mut marker = None;
     let (heading, bound) = match since {
@@ -1323,7 +1343,7 @@ fn since_screen(ctx: &Ctx, since: Since, all: &[Item], milestone: Option<&str>) 
                 .state
                 .join(format!("seen-{}.txt", who.person.to_lowercase()));
             let last = read_marker(&ctx.root, &path, &mut warnings);
-            if !who.is_llm {
+            if !who.is_llm && !keep {
                 marker = Some(Marker {
                     path,
                     stamp: time::now(),
@@ -1342,6 +1362,7 @@ fn since_screen(ctx: &Ctx, since: Since, all: &[Item], milestone: Option<&str>) 
     let index: HashMap<String, &Item> = all.iter().map(|item| (item.entry.id(), item)).collect();
     let mut events: Vec<Record> = journal::read(&ctx.state)?
         .into_iter()
+        .filter(is_entry_record)
         .filter(|record| bound.keeps(&record.time))
         .filter(|record| {
             index
@@ -1383,6 +1404,17 @@ fn since_screen(ctx: &Ctx, since: Since, all: &[Item], milestone: Option<&str>) 
         warnings,
         marker,
     })
+}
+
+/// Whether a journal record is about an entry (format.md §11): its ID is a kind's prefix, a dash
+/// and a number. The settings IDs (DOSSIER, SETTINGS, AGENTS, HOOKS, SKILL) and the IDs of the
+/// values, the map, the exchange and the files are not entries, so the project's lines of
+/// `--since` leave their records out.
+fn is_entry_record(record: &Record) -> bool {
+    let id = record.id.to_uppercase();
+    Kind::all()
+        .iter()
+        .any(|kind| number_after(&id, kind.prefix()).is_some())
 }
 
 /// The Team part of `--since` (R-READ-10): its section, and the records it lists, for the data.
@@ -1592,6 +1624,43 @@ mod tests {
         assert_eq!(number_of("DEC-012"), 12);
         assert_eq!(number_of("FND-1000"), 1000);
         assert_eq!(number_of("DEC"), 0);
+    }
+
+    #[test]
+    fn only_records_of_entry_ids_are_entry_records() {
+        let record = |id: &str| Record {
+            time: "2026-11-21T10:00:00+01:00".to_string(),
+            name: "anna".to_string(),
+            person: "anna".to_string(),
+            llm: false,
+            command: "status".to_string(),
+            id: id.to_string(),
+            event: "created".to_string(),
+            detail: String::new(),
+        };
+        for id in [
+            "DEC-012", "asm-001", "FND-1000", "LES-003", "USE-001", "HOW-002", "TOOL-004",
+        ] {
+            assert!(is_entry_record(&record(id)), "{id}");
+        }
+        for id in [
+            "DOSSIER",
+            "SETTINGS",
+            "AGENTS",
+            "HOOKS",
+            "SKILL",
+            "VALUES",
+            "MAP",
+            "EXCHANGE",
+            "FILES-T-042",
+            "RCV-001",
+            "NT-999",
+            "DEC",
+            "DEC-",
+            "DECX-1",
+        ] {
+            assert!(!is_entry_record(&record(id)), "{id}");
+        }
     }
 
     #[test]
