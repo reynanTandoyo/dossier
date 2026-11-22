@@ -1,14 +1,17 @@
 //! The `show` command: prints one entry as it is stored, with its marks on a first line
-//! (design.md section 5, R-READ-1, R-LIFE-6). With `--json` it gives every field, every section
-//! and every history line. Nothing is changed.
+//! (design.md section 5, R-READ-1, R-LIFE-6, R-LIFE-7, R-IMPORT-5, R-USE-11). With `--json` it
+//! gives every field, every section and every history line. Nothing is changed.
 
 use crate::approval::{self, Mark};
 use crate::cli::Global;
 use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::Result;
+use crate::filesum;
 use crate::output::Output;
 use crate::store::{self, Item};
+use crate::time;
+use chrono::NaiveDate;
 use serde_json::{Map, Value, json};
 use std::path::Path;
 
@@ -40,9 +43,12 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     Ok(output)
 }
 
-/// The marks of an entry, in the order of design.md section 5: its status, then
-/// `[changed after approval]` for an approved lesson whose text differs from its recorded
-/// checksum, then `[rests on <IDs>]` when its `rests-on` field names a wrong assumption.
+/// The marks of an entry, in this order: its status (design.md section 5); `[due for review]`
+/// when its `review` date is before today (R-LIFE-7); `[imported]` when a document was imported
+/// into it (R-IMPORT-5); `[changed after approval]` for an approved guarded entry (lesson,
+/// how-to or tool) whose text differs from its recorded checksum (R-LIFE-6); `[file changed since
+/// approval]` for a tool whose script changed (R-USE-11); then `[rests on <IDs>]` when its
+/// `rests-on` field names a wrong assumption.
 fn marks(ctx: &Ctx, item: &Item) -> Vec<String> {
     let entry = &item.entry;
     let mut marks = Vec::new();
@@ -60,7 +66,13 @@ fn marks(ctx: &Ctx, item: &Item) -> Vec<String> {
         Some(Status::Declined) => marks.push("[declined]".to_string()),
         Some(Status::Approved) | None => {}
     }
-    if entry.kind() == Some(Kind::Lesson)
+    if due_for_review(entry, time::date(&time::now())) {
+        marks.push("[due for review]".to_string());
+    }
+    if imported(entry) {
+        marks.push("[imported]".to_string());
+    }
+    if entry.kind().is_some_and(approval::guarded)
         && entry.status() == Some(Status::Approved)
         && matches!(
             approval::mark(&ctx.state, &entry.id(), &item.raw),
@@ -69,10 +81,50 @@ fn marks(ctx: &Ctx, item: &Item) -> Vec<String> {
     {
         marks.push("[changed after approval]".to_string());
     }
+    if file_changed(&ctx.root, entry) {
+        marks.push("[file changed since approval]".to_string());
+    }
     if let Some(mark) = rests_on_mark(entry) {
         marks.push(mark);
     }
     marks
+}
+
+/// Whether the `review` date of the entry (format.md §23) is before `today`, both as
+/// YYYY-MM-DD (R-LIFE-7). A review value that is not a date gives no mark.
+fn due_for_review(entry: &Entry, today: &str) -> bool {
+    let review = entry.field("review").and_then(|text| parse_day(&text));
+    matches!((review, parse_day(today)), (Some(review), Some(today)) if review < today)
+}
+
+/// A date written YYYY-MM-DD (format.md §23, the `review` field), or None.
+fn parse_day(text: &str) -> Option<NaiveDate> {
+    NaiveDate::parse_from_str(text.trim(), "%Y-%m-%d").ok()
+}
+
+/// Whether the entry was imported from a document: `imported: yes` (format.md §23, R-IMPORT-5).
+fn imported(entry: &Entry) -> bool {
+    entry
+        .field("imported")
+        .is_some_and(|value| value.eq_ignore_ascii_case("yes"))
+}
+
+/// Whether a tool's script changed since its checksum was recorded (format.md §22, R-USE-11): the
+/// `location` is a file that exists, the entry has a `checksum`, and the file's checksum now
+/// differs. The location is relative to the project folder, or absolute. A location that is a
+/// command name or a URL, a missing checksum, and a file that cannot be read give no mark.
+fn file_changed(root: &Path, entry: &Entry) -> bool {
+    if entry.kind() != Some(Kind::Tool) {
+        return false;
+    }
+    let (Some(location), Some(recorded)) = (entry.field("location"), entry.field("checksum"))
+    else {
+        return false;
+    };
+    let path = root.join(&location);
+    !recorded.is_empty()
+        && path.is_file()
+        && filesum::checksum(&path).is_ok_and(|now| now != recorded)
 }
 
 /// `[rests on <IDs>]` from the field `rests-on` (format.md §14), the IDs joined with `, `. None

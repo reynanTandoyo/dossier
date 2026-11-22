@@ -21,6 +21,20 @@ const CHANGED_STATEMENT: &str =
 const DECLINE_REASON: &str = "An invented reason: the inlet profile was not checked.";
 /// The time of that declining: a day after the fixed clock of `common::Project`.
 const DECLINED_AT: &str = "2026-11-21T09:30:00+01:00";
+/// The fixed clock of `common::Project`, and a later run a day after it: a review date of the
+/// fixed day is due then.
+const NOW: &str = "2026-11-20T10:00:00+01:00";
+const NEXT_DAY: &str = "2026-11-21T09:00:00+01:00";
+/// Invented text for the how-to and the tool of the tests that approve them by hand.
+const HOWTO_TITLE: &str = "Invented solver setup";
+const HOWTO_PURPOSE: &str = "An invented how-to for the test solver setup.";
+const HOWTO_STEPS: &str = "1. Invented step one.";
+const TOOL_TITLE: &str = "Invented rebuild script for the test table";
+const TOOL_PURPOSE: &str = "An invented script that rebuilds the test table.";
+/// The script of the tool tests, relative to the project folder, and the same script edited.
+const SCRIPT_FILE: &str = "scripts/rebuild.py";
+const SCRIPT: &str = "print('invented rebuild step')\n";
+const SCRIPT_EDITED: &str = "print('invented rebuild step, edited by hand')\n";
 
 /// The file text of the entry with `id`.
 fn text_of(project: &Project, id: &str) -> String {
@@ -62,6 +76,54 @@ fn hand_written_finding(id: &str, status: &str, extra: &str) -> String {
     format!(
         "<!-- dossier-format: 1 -->\n# {id} · An invented finding\n\n- kind: finding\n- status: {status}\n- created: 2026-11-20T10:00:00+01:00\n- author: anna\n{extra}- history: 2026-11-20T10:00:00+01:00 anna: created\n\n## Observation\n\nAn invented observation.\n"
     )
+}
+
+/// The standard output of `show <id>` run as anna at the time `now`; the run must succeed.
+fn shown_at(project: &Project, now: &str, id: &str) -> String {
+    let output = project
+        .run_at("anna", now, &["show", id])
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    String::from_utf8(output).expect("the standard output is UTF-8")
+}
+
+/// The checksum of a file of the project, written as format.md §18 writes it.
+fn checksum_of(project: &Project, relative: &str) -> String {
+    dossier::filesum::checksum(&project.root().join(relative)).expect("the checksum of the file")
+}
+
+/// Adds an entry of `kind` as anna, as a draft, with the given fields and sections (`key=value`
+/// and `Name=text`), then has a person approve it: the approval records its checksum, as for a
+/// lesson, how-to or tool. Returns the ID, such as TOOL-001.
+fn approved_by_hand_of(
+    project: &Project,
+    kind: &str,
+    title: &str,
+    fields: &[&str],
+    sections: &[&str],
+) -> String {
+    let mut args = vec!["add", kind, "--title", title, "--draft"];
+    for field in fields.iter().copied() {
+        args.extend(["--field", field]);
+    }
+    for section in sections.iter().copied() {
+        args.extend(["--section", section]);
+    }
+    let added = project.stdout("anna", &args);
+    let id = added
+        .split(':')
+        .next()
+        .expect("the first line starts with the ID")
+        .to_string();
+    project
+        .command("anna", NOW)
+        .env("DOSSIER_ANSWERS", "a")
+        .args(["approve", &id])
+        .assert()
+        .success();
+    id
 }
 
 #[test]
@@ -362,4 +424,319 @@ fn an_unknown_id_is_exit_1_and_as_json_names_not_found() {
         .code(1)
         .stdout(contains("\"ok\":false"))
         .stdout(contains("\"code\":\"NOT_FOUND\""));
+}
+
+#[test]
+fn an_entry_whose_review_date_is_before_today_is_due_for_review() {
+    let project = Project::new();
+    project.stdout("anna", &["found", "The oscillation stayed."]);
+    project.stdout("anna", &["set", "FND-001", "--field", "review=2026-11-19"]);
+
+    let text = text_of(&project, "FND-001");
+    assert_eq!(
+        project.stdout("anna", &["show", "FND-001"]),
+        format!("[due for review]\n{text}")
+    );
+    let data = show_data(&project, "FND-001");
+    assert_eq!(data["marks"], json!(["[due for review]"]));
+    assert_eq!(data["fields"]["review"], "2026-11-19");
+}
+
+#[test]
+fn a_review_date_of_today_or_later_is_not_due_for_review() {
+    let project = Project::new();
+    project.stdout("anna", &["found", "The oscillation stayed."]);
+    project.stdout("anna", &["found", "The oscillation grew."]);
+    project.stdout("anna", &["set", "FND-001", "--field", "review=2026-11-20"]);
+    project.stdout("anna", &["set", "FND-002", "--field", "review=2026-12-01"]);
+
+    for id in ["FND-001", "FND-002"] {
+        let text = text_of(&project, id);
+        assert_eq!(project.stdout("anna", &["show", id]), text, "{id}");
+        assert_eq!(show_data(&project, id)["marks"], json!([]), "{id}");
+    }
+}
+
+#[test]
+fn the_review_date_is_compared_with_the_day_of_the_run() {
+    let project = Project::new();
+    project.stdout("anna", &["found", "The oscillation stayed."]);
+    project.stdout("anna", &["set", "FND-001", "--field", "review=2026-11-20"]);
+
+    let text = text_of(&project, "FND-001");
+    assert_eq!(shown_at(&project, NOW, "FND-001"), text);
+    assert_eq!(
+        shown_at(&project, NEXT_DAY, "FND-001"),
+        format!("[due for review]\n{text}")
+    );
+}
+
+#[test]
+fn a_review_value_that_is_not_a_date_gives_no_due_mark() {
+    let project = Project::new();
+    project.write(
+        "DOSSIER/findings/FND-001-soon.md",
+        &hand_written_finding("FND-001", "approved", "- review: soon\n"),
+    );
+
+    let text = text_of(&project, "FND-001");
+    assert_eq!(project.stdout("anna", &["show", "FND-001"]), text);
+    assert_eq!(show_data(&project, "FND-001")["marks"], json!([]));
+}
+
+#[test]
+fn an_imported_entry_shows_the_imported_mark_whatever_its_status() {
+    let project = Project::new();
+    project.write(
+        "DOSSIER/findings/FND-001-imported.md",
+        &hand_written_finding("FND-001", "approved", "- imported: yes\n"),
+    );
+    project.write(
+        "DOSSIER/findings/FND-002-imported-draft.md",
+        &hand_written_finding("FND-002", "draft", "- imported: yes\n"),
+    );
+    project.write(
+        "DOSSIER/findings/FND-003-not-imported.md",
+        &hand_written_finding("FND-003", "approved", "- imported: no\n"),
+    );
+
+    let text = text_of(&project, "FND-001");
+    assert_eq!(
+        project.stdout("anna", &["show", "FND-001"]),
+        format!("[imported]\n{text}")
+    );
+    assert_eq!(
+        show_data(&project, "FND-001")["marks"],
+        json!(["[imported]"])
+    );
+    let text = text_of(&project, "FND-002");
+    assert_eq!(
+        project.stdout("anna", &["show", "FND-002"]),
+        format!("[draft] [imported]\n{text}")
+    );
+    assert_eq!(
+        show_data(&project, "FND-002")["marks"],
+        json!(["[draft]", "[imported]"])
+    );
+    let text = text_of(&project, "FND-003");
+    assert_eq!(project.stdout("anna", &["show", "FND-003"]), text);
+}
+
+#[test]
+fn due_for_review_imported_and_rests_on_marks_come_in_that_order() {
+    let project = Project::new();
+    project.write(
+        "DOSSIER/findings/FND-001-all-marks.md",
+        &hand_written_finding(
+            "FND-001",
+            "approved",
+            "- review: 2026-11-19\n- imported: yes\n- rests-on: ASM-001\n",
+        ),
+    );
+
+    let text = text_of(&project, "FND-001");
+    assert_eq!(
+        project.stdout("anna", &["show", "FND-001"]),
+        format!("[due for review] [imported] [rests on ASM-001]\n{text}")
+    );
+    let data = show_data(&project, "FND-001");
+    assert_eq!(
+        data["marks"],
+        json!(["[due for review]", "[imported]", "[rests on ASM-001]"])
+    );
+}
+
+#[test]
+fn an_approved_how_to_changed_by_hand_is_changed_after_approval() {
+    let project = Project::new();
+    let id = approved_by_hand_of(
+        &project,
+        "howto",
+        HOWTO_TITLE,
+        &["software=invented-solver"],
+        &[
+            &format!("Purpose={HOWTO_PURPOSE}"),
+            &format!("Steps={HOWTO_STEPS}"),
+        ],
+    );
+    assert_eq!(id, "HOW-001");
+    let original = text_of(&project, &id);
+    assert_eq!(project.stdout("anna", &["show", &id]), original);
+
+    let changed = original.replace(HOWTO_PURPOSE, "An invented how-to, changed by hand.");
+    assert_ne!(changed, original);
+    fs::write(project.entry_file(&id), &changed).expect("the entry is changed by hand");
+
+    assert_eq!(
+        project.stdout("anna", &["show", &id]),
+        format!("[changed after approval]\n{changed}")
+    );
+    assert_eq!(
+        show_data(&project, &id)["marks"],
+        json!(["[changed after approval]"])
+    );
+}
+
+#[test]
+fn an_approved_tool_changed_by_hand_is_changed_after_approval() {
+    let project = Project::new();
+    let id = approved_by_hand_of(
+        &project,
+        "tool",
+        TOOL_TITLE,
+        &["type=command", "location=python"],
+        &[&format!("Purpose={TOOL_PURPOSE}")],
+    );
+    assert_eq!(id, "TOOL-001");
+    let original = text_of(&project, &id);
+    assert_eq!(project.stdout("anna", &["show", &id]), original);
+
+    let changed = original.replace(TOOL_PURPOSE, "An invented tool, changed by hand.");
+    assert_ne!(changed, original);
+    fs::write(project.entry_file(&id), &changed).expect("the entry is changed by hand");
+
+    assert_eq!(
+        project.stdout("anna", &["show", &id]),
+        format!("[changed after approval]\n{changed}")
+    );
+}
+
+#[test]
+fn an_approved_finding_changed_by_hand_is_not_marked_changed_after_approval() {
+    let project = Project::new();
+    project.stdout("anna", &["found", "The oscillation stayed."]);
+    let original = text_of(&project, "FND-001");
+    let changed = original.replace("The oscillation stayed.", "The oscillation grew.");
+    assert_ne!(changed, original);
+    fs::write(project.entry_file("FND-001"), &changed).expect("the entry is changed by hand");
+
+    assert_eq!(project.stdout("anna", &["show", "FND-001"]), changed);
+    assert_eq!(show_data(&project, "FND-001")["marks"], json!([]));
+}
+
+#[test]
+fn a_tool_whose_script_changed_since_approval_shows_the_file_changed_mark() {
+    let project = Project::new();
+    project.write(SCRIPT_FILE, SCRIPT);
+    let checksum = checksum_of(&project, SCRIPT_FILE);
+    let location = format!("location={SCRIPT_FILE}");
+    let recorded = format!("checksum={checksum}");
+    let id = approved_by_hand_of(
+        &project,
+        "tool",
+        TOOL_TITLE,
+        &["type=script", &location, &recorded],
+        &[&format!("Purpose={TOOL_PURPOSE}")],
+    );
+    assert_eq!(id, "TOOL-001");
+    let text = text_of(&project, &id);
+    assert_eq!(project.stdout("anna", &["show", &id]), text);
+
+    project.write(SCRIPT_FILE, SCRIPT_EDITED);
+
+    assert_eq!(
+        project.stdout("anna", &["show", &id]),
+        format!("[file changed since approval]\n{text}")
+    );
+    let data = show_data(&project, &id);
+    assert_eq!(data["marks"], json!(["[file changed since approval]"]));
+    assert_eq!(data["fields"]["checksum"], checksum);
+    assert_eq!(data["fields"]["location"], SCRIPT_FILE);
+}
+
+#[test]
+fn a_script_given_by_an_absolute_location_is_checked_too() {
+    let project = Project::new();
+    project.write(SCRIPT_FILE, SCRIPT);
+    let checksum = checksum_of(&project, SCRIPT_FILE);
+    let absolute = project.root().join(SCRIPT_FILE);
+    let location = format!("location={}", absolute.display());
+    let recorded = format!("checksum={checksum}");
+    let id = approved_by_hand_of(
+        &project,
+        "tool",
+        TOOL_TITLE,
+        &["type=script", &location, &recorded],
+        &[&format!("Purpose={TOOL_PURPOSE}")],
+    );
+    let text = text_of(&project, &id);
+    assert_eq!(project.stdout("anna", &["show", &id]), text);
+
+    project.write(SCRIPT_FILE, SCRIPT_EDITED);
+
+    assert_eq!(
+        project.stdout("anna", &["show", &id]),
+        format!("[file changed since approval]\n{text}")
+    );
+}
+
+#[test]
+fn a_location_that_is_no_file_or_a_tool_without_checksum_gives_no_file_mark() {
+    let project = Project::new();
+    project.write(SCRIPT_FILE, SCRIPT);
+    let wrong = format!("sha256:{}", "0".repeat(64));
+    let wrong_checksum = format!("checksum={wrong}");
+    // A command name and a URL are not files; the checksum of a missing file cannot differ.
+    let command = approved_by_hand_of(
+        &project,
+        "tool",
+        "Invented command tool",
+        &["type=command", "location=python", &wrong_checksum],
+        &[&format!("Purpose={TOOL_PURPOSE}")],
+    );
+    let url = approved_by_hand_of(
+        &project,
+        "tool",
+        "Invented web tool",
+        &[
+            "type=repo",
+            "location=https://example.invalid/tool",
+            &wrong_checksum,
+        ],
+        &[&format!("Purpose={TOOL_PURPOSE}")],
+    );
+    // A script with no checksum recorded has nothing to differ from.
+    let unrecorded = approved_by_hand_of(
+        &project,
+        "tool",
+        "Invented script without checksum",
+        &["type=script", &format!("location={SCRIPT_FILE}")],
+        &[&format!("Purpose={TOOL_PURPOSE}")],
+    );
+    project.write(SCRIPT_FILE, SCRIPT_EDITED);
+
+    for id in [command, url, unrecorded] {
+        let text = text_of(&project, &id);
+        assert_eq!(project.stdout("anna", &["show", &id]), text, "{id}");
+        assert_eq!(show_data(&project, &id)["marks"], json!([]), "{id}");
+    }
+}
+
+#[test]
+fn a_tool_changed_by_hand_and_with_a_changed_script_has_both_marks_in_order() {
+    let project = Project::new();
+    project.write(SCRIPT_FILE, SCRIPT);
+    let checksum = checksum_of(&project, SCRIPT_FILE);
+    let location = format!("location={SCRIPT_FILE}");
+    let recorded = format!("checksum={checksum}");
+    let id = approved_by_hand_of(
+        &project,
+        "tool",
+        TOOL_TITLE,
+        &["type=script", &location, &recorded],
+        &[&format!("Purpose={TOOL_PURPOSE}")],
+    );
+    let original = text_of(&project, &id);
+    let changed = original.replace(TOOL_PURPOSE, "An invented script, changed by hand.");
+    fs::write(project.entry_file(&id), &changed).expect("the entry is changed by hand");
+    project.write(SCRIPT_FILE, SCRIPT_EDITED);
+
+    assert_eq!(
+        project.stdout("anna", &["show", &id]),
+        format!("[changed after approval] [file changed since approval]\n{changed}")
+    );
+    assert_eq!(
+        show_data(&project, &id)["marks"],
+        json!(["[changed after approval]", "[file changed since approval]"])
+    );
 }
