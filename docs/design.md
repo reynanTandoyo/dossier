@@ -850,8 +850,9 @@ pub team: Option<PathBuf>,            // the team dossier of a project (cfg.team
 pub from_document: Option<String>,    // g.from_document, stored (paths::stored)
 pub project: Option<PathBuf>,         // with --team from a project: that project's DOSSIER
 // Ctx::load: when g.team is set and the current dossier is a project, the context is the team
-// dossier's (its folders and settings) and `who` is resolved against the project's and the
-// team's people together; a project's cfg gains the team's members and names in memory.
+// dossier's (its folders and settings) and `who` is resolved against the team's members only
+// (R-TEAM-7: only members write there); the project's plain names are added so they can be
+// named as a source. A project's cfg gains the team's members and names in memory.
 // A team dossier that cannot be reached: Code::NoDossier naming the path (R-PLACE-8).
 /// The context of this project's team dossier, with the same who, json and dry_run.
 pub fn team_ctx(&self) -> Result<Ctx>;
