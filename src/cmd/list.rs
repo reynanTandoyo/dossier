@@ -46,7 +46,8 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
 }
 
 /// One line of the list: `<ID>  <kind>  <mark> <title>`, the mark only when the entry is not
-/// plainly approved. With `wide`, the creation and approval follow in parentheses.
+/// plainly approved. A how-to or a tool adds what it is for and what it was tested with (see
+/// `purpose_and_tests`). With `wide`, the creation and approval follow in parentheses.
 fn line(ctx: &Ctx, item: &Item, wide: bool) -> String {
     let entry = &item.entry;
     let mark = mark(ctx, item).map_or_else(String::new, |mark| format!("{mark} "));
@@ -56,10 +57,36 @@ fn line(ctx: &Ctx, item: &Item, wide: bool) -> String {
         entry.kind().map_or("-", Kind::name),
         entry.title()
     );
+    text.push_str(&purpose_and_tests(entry));
     if wide {
         text.push_str(&format!("  ({})", created_and_approved(entry)));
     }
     text
+}
+
+/// For a how-to or a tool: `  — <first line of Purpose>` and `  (tested with <first line of Tested
+/// with>)`, each left out when its section is missing or empty (R-USE-5, R-USE-10). Other kinds
+/// give nothing.
+fn purpose_and_tests(entry: &Entry) -> String {
+    if !matches!(entry.kind(), Some(Kind::Howto | Kind::Tool)) {
+        return String::new();
+    }
+    let mut text = String::new();
+    if let Some(purpose) = first_line(entry, "Purpose") {
+        text.push_str(&format!("  — {purpose}"));
+    }
+    if let Some(tested) = first_line(entry, "Tested with") {
+        text.push_str(&format!("  (tested with {tested})"));
+    }
+    text
+}
+
+/// The first line of the section `name`, trimmed. None when the section is missing or its first
+/// line is empty.
+fn first_line(entry: &Entry, name: &str) -> Option<String> {
+    let body = entry.section(name)?;
+    let first = body.lines().next()?.trim();
+    (!first.is_empty()).then(|| first.to_string())
 }
 
 /// `created <time> by <author>`, and `, approved <time> by <person>` when the entry has an

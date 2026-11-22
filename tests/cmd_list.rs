@@ -266,3 +266,110 @@ fn on_lists_the_decision_in_force_on_a_day_so_a_superseded_one_shows_only_before
         "DEC-002  decision  Second choice\n1 entry\n"
     );
 }
+
+/// Invented text for the how-to and the tool of the purpose tests.
+const HOWTO_TITLE: &str = "Export the rig mesh";
+const HOWTO_PURPOSE: &str = "Export the mesh of an invented test rig for the solver.";
+const HOWTO_STEPS: &str = "Open the invented rig file, then export the mesh.";
+const HOWTO_TESTED: &str = "MeshTool 2.4.1 on an invented rig.";
+const TOOL_TITLE: &str = "Count solver warnings";
+const TOOL_PURPOSE: &str = "Counts the warnings in an invented solver log.";
+const TOOL_TESTED: &str = "Python 3.12 on an invented log.";
+
+/// anna writes a how-to and a tool with purpose and tested-with sections. She is a person, so
+/// both are approved at once: HOW-001 and TOOL-001.
+fn anna_writes_howto_and_tool(project: &Project) {
+    let purpose = format!("Purpose={HOWTO_PURPOSE}");
+    let steps = format!("Steps={HOWTO_STEPS}");
+    let tested = format!("Tested with={HOWTO_TESTED}");
+    project
+        .run(
+            "anna",
+            &[
+                "add",
+                "howto",
+                "--title",
+                HOWTO_TITLE,
+                "--field",
+                "software=MeshTool 2.4",
+                "--section",
+                &purpose,
+                "--section",
+                &steps,
+                "--section",
+                &tested,
+            ],
+        )
+        .success();
+    let purpose = format!("Purpose={TOOL_PURPOSE}");
+    let tested = format!("Tested with={TOOL_TESTED}");
+    project
+        .run(
+            "anna",
+            &[
+                "add",
+                "tool",
+                "--title",
+                TOOL_TITLE,
+                "--field",
+                "type=script",
+                "--section",
+                &purpose,
+                "--section",
+                &tested,
+            ],
+        )
+        .success();
+}
+
+#[test]
+fn a_howto_and_a_tool_show_their_purpose_and_the_versions_tested() {
+    let project = Project::new();
+    anna_writes_howto_and_tool(&project);
+
+    assert_eq!(
+        project.stdout("anna", &["list", "--kind", "howto"]),
+        format!(
+            "HOW-001  howto  {HOWTO_TITLE}  — {HOWTO_PURPOSE}  (tested with {HOWTO_TESTED})\n1 entry\n"
+        )
+    );
+    assert_eq!(
+        project.stdout("anna", &["list", "--kind", "tool"]),
+        format!(
+            "TOOL-001  tool  {TOOL_TITLE}  — {TOOL_PURPOSE}  (tested with {TOOL_TESTED})\n1 entry\n"
+        )
+    );
+}
+
+#[test]
+fn the_purpose_is_its_first_line_and_a_missing_or_empty_part_is_left_out() {
+    let project = Project::new();
+    // A how-to with a two-line purpose and an empty Tested with section.
+    project.write(
+        "DOSSIER/howtos/HOW-001-export-the-rig-mesh.md",
+        "<!-- dossier-format: 1 -->\n# HOW-001 · Export the rig mesh\n\n- kind: howto\n- status: approved\n- created: 2026-11-10T09:00:00+01:00\n- author: anna\n- software: MeshTool 2.4\n\n## Purpose\n\nFirst line of the invented purpose.\nA second line that the list does not show.\n\n## Steps\n\nOpen the invented rig file.\n\n## Tested with\n\n",
+    );
+    // A tool without a Purpose section, with its Tested with section.
+    project.write(
+        "DOSSIER/tools/TOOL-001-count-solver-warnings.md",
+        "<!-- dossier-format: 1 -->\n# TOOL-001 · Count solver warnings\n\n- kind: tool\n- status: approved\n- created: 2026-11-10T09:00:00+01:00\n- author: anna\n- type: script\n\n## Tested with\n\nPython 3.12 on an invented log.\n",
+    );
+
+    assert_eq!(
+        project.stdout("anna", &["list"]),
+        "HOW-001  howto  Export the rig mesh  — First line of the invented purpose.\nTOOL-001  tool  Count solver warnings  (tested with Python 3.12 on an invented log.)\n2 entries\n"
+    );
+}
+
+#[test]
+fn wide_puts_the_purpose_before_who_created_and_approved_the_how_to() {
+    let project = Project::new();
+    anna_writes_howto_and_tool(&project);
+
+    assert_eq!(
+        project.stdout("anna", &["list", "--kind", "howto", "--wide"]),
+        format!(
+            "HOW-001  howto  {HOWTO_TITLE}  — {HOWTO_PURPOSE}  (tested with {HOWTO_TESTED})  (created 2026-11-20T10:00:00+01:00 by anna, approved 2026-11-20T10:00:00+01:00 by anna)\n1 entry\n"
+        )
+    );
+}
