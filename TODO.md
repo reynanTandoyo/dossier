@@ -2755,14 +2755,16 @@
 - note (2026-11-22, haiku-t-260): done
 
 ### T-261 · brief and status: guarded kinds and due for review
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-261
+- claimed: 2026-11-22T12:35+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-050
 - why: R-LIFE-6, R-LIFE-7, R-CTX-4.
 - summary: Marks changed and overdue how-tos and tools in brief and status.
 - depends: T-255, T-254
-- files: src/cmd/brief.rs, src/cmd/status.rs
+- files: src/cmd/brief.rs, src/cmd/status.rs, tests/cmd_brief.rs, tests/cmd_status.rs
 - read: docs/design.md, docs/format.md
 - steps:
   1. In brief, the '[changed after approval]' mark and in status the 'changed by hand' count use approval::guarded instead of lessons only; both add ' [due for review]' to shown entries whose review date has passed.
