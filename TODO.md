@@ -6068,10 +6068,8 @@
 - note (2026-11-22, haiku-t-279): done
 
 ### T-280 · team member remove: the last member stays
-- status: claimed
+- status: done
 - owner: haiku-t-280
-- claimed: 2026-11-22T14:05+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: bug
 - milestone: T-042
 - why: R-TEAM-7: found at the 0.3.0 release run; removing the last member leaves a team dossier nobody can write to, and team member add then fails.
@@ -6083,7 +6081,11 @@
   3. Run cargo test --test cmd_team.
 - accept: A team dossier always keeps at least one member.
 - verify: cargo test --test cmd_team
+- verified: 2026-11-22
+- commit: 5e2c9126b2eb326707d74591668a8f712f79288f
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, coordinator): added
+- note (2026-11-22, haiku-t-280): done
 
 ### T-281 · tool add: the help says Purpose is required
 - status: claimed
