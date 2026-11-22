@@ -1790,8 +1790,10 @@
 - note (2026-11-22, coordinator): commit: d678d91 (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-224 · team member add and remove
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-224
+- claimed: 2026-11-22T11:51+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: R-TEAM-7: only members write to the team dossier.
@@ -1856,8 +1858,10 @@
 - note (2026-11-22, coordinator): commit: e091c7b (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-227 · init --with-team: link a new project and register its code
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-227
+- claimed: 2026-11-22T11:52+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: R-PLACE-2 and R-PLACE-4: project codes are unique in the team.
@@ -2042,8 +2046,10 @@
 - note (2026-11-21, planner): split into T-234, T-235, T-236
 
 ### T-234 · create.rs: imported drafts and approval checksums for every guarded kind
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-234
+- claimed: 2026-11-22T11:52+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-045
 - why: R-IMPORT-5, R-LIFE-6, R-WRITE-5.
@@ -2170,8 +2176,10 @@
 - note (2026-11-22, coordinator): commit: 291cb08, a99b3b0 (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-239 · where-used: where and how a software was used
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-239
+- claimed: 2026-11-22T11:52+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-046
 - why: R-USE-4.
@@ -2190,10 +2198,8 @@
 - note (2026-11-21, planner): added
 
 ### T-240 · list: purpose and tested versions of how-tos and tools
-- status: claimed
+- status: done
 - owner: haiku-t-240
-- claimed: 2026-11-22T11:40+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-046
 - why: R-USE-5, R-USE-10.
@@ -2207,8 +2213,12 @@
   3. Run cargo test --test cmd_list.
 - accept: list --kind howto and list --kind tool show what each is for.
 - verify: cargo test --test cmd_list
+- verified: 2026-11-22
+- commit: 44ad99af0ae5ae5769d99fd2d0fd0da03751a872
 - reqs: R-USE-5, R-USE-10
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-240): done
 
 ### T-047 · Tools: one kind for scripts, commands, installed software and git repositories (TOOL-001)
 - status: open
@@ -2391,8 +2401,10 @@
 - note (2026-11-21, haiku-t-247): done
 
 ### T-248 · term: add a term or look one up
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-248
+- claimed: 2026-11-22T11:52+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-048
 - why: R-TERM-1.
@@ -2461,8 +2473,10 @@
 - note (2026-11-22, coordinator): commit: cf1d3b3 (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-251 · search: find a term's other spellings
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-251
+- claimed: 2026-11-22T11:52+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-048
 - why: R-TERM-4, D25.
@@ -2504,8 +2518,10 @@
 - note (2026-11-22, coordinator): commit: f694d47 (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-253 · brief --task: glossary terms and the last uses of the software
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-253
+- claimed: 2026-11-22T11:52+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-048
 - why: R-TERM-2, R-CTX-2.
@@ -5657,8 +5673,10 @@
 - note (2026-11-21, haiku-t-212): done
 
 ### T-213 · The rules text for LLMs: phase 3
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-213
+- claimed: 2026-11-22T11:52+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-042
 - why: R-AGENT-1.
