@@ -2586,10 +2586,8 @@
 - note (2026-11-21, planner): split into T-256, T-257, T-258, T-259, T-260, T-261
 
 ### T-256 · reviewed: a person confirms an entry still holds
-- status: claimed
+- status: done
 - owner: haiku-t-256
-- claimed: 2026-11-22T11:33+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-050
 - why: R-LIFE-7, D33.
@@ -2604,8 +2602,12 @@
   4. Run cargo test --test cmd_reviewed.
 - accept: A person confirms an entry and sets the next review date.
 - verify: cargo test --test cmd_reviewed
+- verified: 2026-11-22
+- commit: 5ffd37e
 - reqs: R-LIFE-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-256): done
 
 ### T-257 · learn: --review <date>
 - status: done
