@@ -2080,10 +2080,8 @@
 - note (2026-11-22, haiku-t-234): done
 
 ### T-235 · promote: copy a project entry into the team dossier
-- status: claimed
+- status: done
 - owner: haiku-t-235
-- claimed: 2026-11-22T12:17+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 2 · type: feature
 - milestone: T-045
 - why: R-TEAM-2, R-TEAM-3, R-ENTRY-18.
@@ -2102,8 +2100,12 @@
   7. Run cargo test --test cmd_promote.
 - accept: Project knowledge reaches the team dossier as a checked draft, linked both ways.
 - verify: cargo test --test cmd_promote
+- verified: 2026-11-22
+- commit: 57c50140d8526bb370135cf6b4a0f800245a34e3
 - reqs: R-TEAM-2, R-TEAM-3, R-ENTRY-18
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-235): done
 
 ### T-236 · close: sort out a finished project's knowledge
 - status: open
