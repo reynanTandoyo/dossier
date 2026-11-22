@@ -5806,10 +5806,8 @@
 - note (2026-11-22, haiku-t-214): done
 
 ### T-215 · Release 0.3.0
-- status: claimed
+- status: done
 - owner: haiku-t-215
-- claimed: 2026-11-22T13:49+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 2 · type: chore
 - milestone: T-042
 - why: Phase 3 ends with a release used on real work.
@@ -5824,8 +5822,12 @@
   3. Do not push or tag.
 - accept: Version 0.3.0 builds and every check passes.
 - verify: cargo build
+- verified: 2026-11-22
+- commit: ec8d43f8a869945d7d7f211a57fcf399d458c758
 - reqs: REL-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-215): done
 
 ### T-269 · show team:<ID>: read an entry of the team dossier
 - status: done
