@@ -7,20 +7,23 @@
 //! groups: every word in the title, a word in a tag field, then the rest; inside a group the newest
 //! created first, then by ID (the team's entries sorted in with the project's). Drafts and other
 //! statuses follow the filter rules, so a draft is found only with `--drafts` (R-DRAFT-6) and is
-//! marked.
+//! marked. Each result carries the marks `show` gives (cmd/show.rs), in the same order.
 
 use crate::approval::{self, Mark};
 use crate::cli::Global;
 use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
+use crate::filesum;
 use crate::filter::Filter;
 use crate::glossary::{self, Term};
 use crate::output::Output;
 use crate::store::{self, Item};
-use chrono::{DateTime, FixedOffset};
+use crate::time;
+use chrono::{DateTime, FixedOffset, NaiveDate};
 use serde_json::{Value, json};
 use std::cmp::Reverse;
+use std::path::Path;
 
 /// The tag fields that put an entry in the second group.
 const TAG_FIELDS: [&str; 4] = ["machine", "analysis", "software", "tags"];
@@ -77,6 +80,8 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         .iter()
         .map(|word| matching_spellings(&terms, word))
         .collect();
+    let now = time::now();
+    let today = time::date(&now);
     let mut hits: Vec<Hit> = Vec::new();
     for scanned in places {
         let (items, found) = store::all(&scanned.dossier);
@@ -85,7 +90,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             items
                 .into_iter()
                 .filter(|item| args.filter.matches(item))
-                .filter_map(|item| hit(scanned, item, &words)),
+                .filter_map(|item| hit(scanned, item, &words, today)),
         );
     }
     // Newest first within a group, then by ID in the order `store::all` uses. An entry of each
@@ -164,9 +169,9 @@ fn holds(text: &str, spellings: &[String]) -> bool {
 }
 
 /// The match of one entry of the dossier `ctx`: its place, group, creation time, mark and matched
-/// line. `words` holds the spellings of each search word. None when a word is missing from the
-/// entry's text.
-fn hit(ctx: &Ctx, item: Item, words: &[Vec<String>]) -> Option<Hit> {
+/// line. `words` holds the spellings of each search word; `today` is the day of the run,
+/// YYYY-MM-DD. None when a word is missing from the entry's text.
+fn hit(ctx: &Ctx, item: Item, words: &[Vec<String>], today: &str) -> Option<Hit> {
     let entry = &item.entry;
     let text = entry.text().to_lowercase();
     if !words.iter().all(|spellings| holds(&text, spellings)) {
@@ -184,7 +189,7 @@ fn hit(ctx: &Ctx, item: Item, words: &[Vec<String>]) -> Option<Hit> {
         place: place_of(ctx),
         group,
         created: created(entry),
-        mark: mark(ctx, &item),
+        mark: mark(ctx, &item, today),
         line: matched_line(entry, &words[0]),
         item,
     })
@@ -236,41 +241,94 @@ fn created(entry: &Entry) -> Option<DateTime<FixedOffset>> {
     DateTime::parse_from_rfc3339(&entry.field("created")?).ok()
 }
 
-/// The mark of an entry in search (R-READ-1): its status mark, then `[rests on <IDs>]` when it
-/// rests on wrong assumptions (format.md §14), joined with a space. No mark when neither applies.
-fn mark(ctx: &Ctx, item: &Item) -> Option<String> {
+/// The mark of an entry in search (R-READ-1): its marks in the order `show` gives them
+/// (cmd/show.rs), joined with a space. `today` is the day of the run, YYYY-MM-DD. No mark when none
+/// applies.
+fn mark(ctx: &Ctx, item: &Item, today: &str) -> Option<String> {
     let entry = &item.entry;
-    let marks: Vec<String> = status_mark(ctx, item)
-        .into_iter()
-        .chain(rests_on_mark(entry))
-        .collect();
+    let mut marks: Vec<String> = status_mark(entry).into_iter().collect();
+    if due_for_review(entry, today) {
+        marks.push("[due for review]".to_string());
+    }
+    if imported(entry) {
+        marks.push("[imported]".to_string());
+    }
+    if changed_after_approval(ctx, item) {
+        marks.push("[changed after approval]".to_string());
+    }
+    if file_changed(&ctx.root, entry) {
+        marks.push("[file changed since approval]".to_string());
+    }
+    marks.extend(rests_on_mark(entry));
     (!marks.is_empty()).then(|| marks.join(" "))
 }
 
 /// The status mark of an entry: `[draft]`, `[proposed]`, `[rejected]`, `[declined]`, `[superseded
-/// by <ID>]`, `[retired]`, and `[changed after approval]` for an approved lesson whose file
-/// changed since it was approved.
-fn status_mark(ctx: &Ctx, item: &Item) -> Option<String> {
-    let entry = &item.entry;
+/// by <ID>]`, `[retired]`. An approved entry has no status mark.
+fn status_mark(entry: &Entry) -> Option<String> {
     match entry.status()? {
         Status::Draft => Some("[draft]".to_string()),
         Status::Proposed => Some("[proposed]".to_string()),
         Status::Rejected => Some("[rejected]".to_string()),
         Status::Declined => Some("[declined]".to_string()),
-        Status::Superseded => Some(match entry.field("superseded-by") {
-            Some(by) => format!("[superseded by {by}]"),
-            None => "[superseded]".to_string(),
-        }),
+        Status::Superseded => Some(
+            match entry.field("superseded-by").filter(|by| !by.is_empty()) {
+                Some(by) => format!("[superseded by {by}]"),
+                None => "[superseded]".to_string(),
+            },
+        ),
         Status::Retired => Some("[retired]".to_string()),
-        Status::Approved => {
-            let lesson = entry.kind() == Some(Kind::Lesson);
-            let changed = matches!(
-                approval::mark(&ctx.state, &entry.id(), &item.raw),
-                Mark::Changed
-            );
-            (lesson && changed).then(|| "[changed after approval]".to_string())
-        }
+        Status::Approved => None,
     }
+}
+
+/// Whether the `review` date of the entry (format.md §23) is before `today`, both as YYYY-MM-DD
+/// (R-LIFE-7). A review value that is not a date gives no mark.
+fn due_for_review(entry: &Entry, today: &str) -> bool {
+    let review = entry.field("review").and_then(|text| parse_day(&text));
+    matches!((review, parse_day(today)), (Some(review), Some(today)) if review < today)
+}
+
+/// A date written YYYY-MM-DD (format.md §23, the `review` field), or None.
+fn parse_day(text: &str) -> Option<NaiveDate> {
+    NaiveDate::parse_from_str(text.trim(), "%Y-%m-%d").ok()
+}
+
+/// Whether the entry was imported from a document: `imported: yes` (format.md §23, R-IMPORT-5).
+fn imported(entry: &Entry) -> bool {
+    entry
+        .field("imported")
+        .is_some_and(|value| value.eq_ignore_ascii_case("yes"))
+}
+
+/// Whether an approved lesson, how-to or tool (approval::guarded) differs from the checksum
+/// recorded at its approval (R-LIFE-6).
+fn changed_after_approval(ctx: &Ctx, item: &Item) -> bool {
+    let entry = &item.entry;
+    entry.kind().is_some_and(approval::guarded)
+        && entry.status() == Some(Status::Approved)
+        && matches!(
+            approval::mark(&ctx.state, &entry.id(), &item.raw),
+            Mark::Changed
+        )
+}
+
+/// Whether a tool's script changed since its checksum was recorded (format.md §22, R-USE-11): the
+/// `location` is a file that exists, the entry has a `checksum`, and the file's checksum now
+/// differs. The location is relative to the dossier's project folder, or absolute. A location that
+/// is a command name or a URL, a missing checksum, and a file that cannot be read give no mark.
+fn file_changed(root: &Path, entry: &Entry) -> bool {
+    if entry.kind() != Some(Kind::Tool) {
+        return false;
+    }
+    let (Some(location), Some(recorded)) = (entry.field("location"), entry.field("checksum"))
+    else {
+        return false;
+    };
+    let path = root.join(&location);
+    !recorded.is_empty()
+        && path.is_file()
+        && filesum::checksum(&path).is_ok_and(|now| now != recorded)
 }
 
 /// `[rests on <IDs>]` from the field `rests-on` (format.md §14), the IDs joined with `, `. None

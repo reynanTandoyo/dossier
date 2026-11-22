@@ -664,3 +664,153 @@ fn an_unreadable_glossary_is_a_warning_and_the_search_goes_on() {
         1 match\n";
     assert_eq!(stdout, expected);
 }
+
+#[test]
+fn a_review_date_before_the_day_of_the_run_marks_the_result_as_due() {
+    let project = Project::new();
+    project
+        .run("anna", &["found", "Stall seen at the lowest mass flow"])
+        .success();
+    project
+        .run("anna", &["set", "FND-001", "--field", "review=2026-11-20"])
+        .success();
+
+    // On the day of the review date the entry is not yet due.
+    let plain = "FND-001  Stall seen at the lowest mass flow  — \
+        # FND-001 · Stall seen at the lowest mass flow\n\
+        1 match\n";
+    assert_eq!(project.stdout("", &["search", "stall"]), plain);
+
+    // The next day it is.
+    project
+        .run_at("", LATER, &["search", "stall"])
+        .success()
+        .stdout(
+            "FND-001  [due for review] Stall seen at the lowest mass flow  — \
+        # FND-001 · Stall seen at the lowest mass flow\n\
+        1 match\n",
+        );
+}
+
+#[test]
+fn the_marks_of_a_result_come_in_the_order_show_gives_them() {
+    let project = Project::new();
+    project.write(
+        "DOSSIER/findings/FND-001-stall-marks.md",
+        "<!-- dossier-format: 1 -->\n# FND-001 · Stall seen in the rig\n\n- kind: finding\n- status: approved\n- created: 2026-11-10T09:00:00+01:00\n- author: anna\n- review: 2026-11-19\n- imported: yes\n- rests-on: ASM-001\n\n## Observation\n\nAn invented observation.\n",
+    );
+    project.write(
+        "DOSSIER/findings/FND-002-stall-draft.md",
+        "<!-- dossier-format: 1 -->\n# FND-002 · Stall draft\n\n- kind: finding\n- status: draft\n- created: 2026-11-10T09:00:00+01:00\n- author: anna\n- imported: yes\n\n## Observation\n\nAn invented observation.\n",
+    );
+
+    assert_eq!(
+        project.stdout("", &["search", "stall", "--drafts"]),
+        "FND-001  [due for review] [imported] [rests on ASM-001] Stall seen in the rig  — # FND-001 · Stall seen in the rig\nFND-002  [draft] [imported] Stall draft  — # FND-002 · Stall draft\n2 matches\n"
+    );
+}
+
+#[test]
+fn an_approved_how_to_changed_by_hand_is_marked_in_search() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "add",
+                "howto",
+                "--title",
+                "Export the rig mesh",
+                "--field",
+                "software=MeshTool 2.4",
+                "--section",
+                "Purpose=Export the mesh of an invented test rig.",
+                "--section",
+                "Steps=Open the invented rig file, then export the mesh.",
+            ],
+        )
+        .success();
+    assert_eq!(
+        project.stdout("", &["search", "mesh"]),
+        "HOW-001  Export the rig mesh  — # HOW-001 · Export the rig mesh\n1 match\n"
+    );
+
+    let howto = project.entry_file("HOW-001");
+    let text = fs::read_to_string(&howto).expect("the how-to file");
+    let changed = text.replace("export the mesh.\n", "export the mesh twice.\n");
+    assert_ne!(changed, text, "the steps are in the file");
+    fs::write(&howto, changed).expect("the how-to is changed by hand");
+
+    assert_eq!(
+        project.stdout("", &["search", "mesh"]),
+        "HOW-001  [changed after approval] Export the rig mesh  — # HOW-001 · Export the rig mesh\n1 match\n"
+    );
+}
+
+#[test]
+fn a_tool_whose_script_changed_since_approval_is_marked_in_search() {
+    let project = Project::new();
+    project.write("scripts/count.py", "print('invented count')\n");
+    let checksum = dossier::filesum::checksum(&project.root().join("scripts/count.py"))
+        .expect("the checksum of the script");
+    let recorded = format!("checksum={checksum}");
+    project
+        .run(
+            "anna",
+            &[
+                "add",
+                "tool",
+                "--title",
+                "Count solver warnings",
+                "--field",
+                "type=script",
+                "--field",
+                "location=scripts/count.py",
+                "--field",
+                &recorded,
+                "--section",
+                "Purpose=Counts the warnings in an invented solver log.",
+            ],
+        )
+        .success();
+    assert_eq!(
+        project.stdout("", &["search", "warnings"]),
+        "TOOL-001  Count solver warnings  — # TOOL-001 · Count solver warnings\n1 match\n"
+    );
+
+    project.write(
+        "scripts/count.py",
+        "print('invented count, edited by hand')\n",
+    );
+    assert_eq!(
+        project.stdout("", &["search", "warnings"]),
+        "TOOL-001  [file changed since approval] Count solver warnings  — # TOOL-001 · Count solver warnings\n1 match\n"
+    );
+}
+
+#[test]
+fn a_team_entry_due_for_review_is_marked_after_its_team_prefix() {
+    let project = Project::new();
+    let team = linked_team(&project);
+    learn_in_team(
+        &team,
+        &project,
+        NOW,
+        "Steady runs overpredict the stall margin",
+    );
+    project
+        .command("anna", NOW)
+        .current_dir(team.path())
+        .args(["set", "LES-001", "--field", "review=2026-11-19"])
+        .assert()
+        .success();
+
+    project
+        .run_at("", NOW, &["search", "stall"])
+        .success()
+        .stdout(
+            "team:LES-001  [due for review] Steady runs overpredict the stall margin  — \
+        # LES-001 · Steady runs overpredict the stall margin\n\
+        1 match\n",
+        );
+}

@@ -373,3 +373,138 @@ fn wide_puts_the_purpose_before_who_created_and_approved_the_how_to() {
         )
     );
 }
+
+/// The invented script of the tool test, its place in the project folder, and the same script
+/// edited by hand.
+const SCRIPT_FILE: &str = "scripts/count.py";
+const SCRIPT: &str = "print('invented count')\n";
+const SCRIPT_EDITED: &str = "print('invented count, edited by hand')\n";
+
+#[test]
+fn the_marks_come_in_the_order_show_gives_them() {
+    let project = Project::new();
+    project.write(
+        "DOSSIER/findings/FND-001-all-marks.md",
+        &entry_text(
+            "FND-001 · All marks",
+            "finding",
+            "approved",
+            "- review: 2026-11-19\n- imported: yes\n- rests-on: ASM-001\n",
+        ),
+    );
+    project.write(
+        "DOSSIER/findings/FND-002-imported-draft.md",
+        &entry_text(
+            "FND-002 · Imported draft",
+            "finding",
+            "draft",
+            "- imported: yes\n",
+        ),
+    );
+
+    assert_eq!(
+        project.stdout("anna", &["list", "--all"]),
+        "FND-001  finding  [due for review] [imported] [rests on ASM-001] All marks\nFND-002  finding  [draft] [imported] Imported draft\n2 entries\n"
+    );
+}
+
+#[test]
+fn a_review_date_before_the_day_of_the_run_is_due_for_review() {
+    let project = Project::new();
+    project
+        .run("anna", &["found", OBSERVATION, "--title", FINDING_TITLE])
+        .success();
+    project
+        .run("anna", &["set", "FND-001", "--field", "review=2026-11-20"])
+        .success();
+
+    // On the day of the review date the entry is not yet due.
+    assert_eq!(
+        project.stdout("anna", &["list"]),
+        "FND-001  finding  Stall above Mach 1.1\n1 entry\n"
+    );
+    // The next day it is.
+    project
+        .run_at("anna", LATER, &["list"])
+        .success()
+        .stdout("FND-001  finding  [due for review] Stall above Mach 1.1\n1 entry\n");
+}
+
+#[test]
+fn a_how_to_and_a_tool_changed_by_hand_show_the_changed_mark() {
+    let project = Project::new();
+    anna_writes_howto_and_tool(&project);
+    let howto = project.entry_file("HOW-001");
+    let text = fs::read_to_string(&howto).expect("the how-to file");
+    let changed = text.replace(HOWTO_STEPS, "Changed by hand: export the mesh twice.");
+    assert_ne!(changed, text, "the steps are in the file");
+    fs::write(&howto, changed).expect("the how-to is changed by hand");
+
+    assert_eq!(
+        project.stdout("anna", &["list", "--kind", "howto"]),
+        format!(
+            "HOW-001  howto  [changed after approval] {HOWTO_TITLE}  — {HOWTO_PURPOSE}  (tested with {HOWTO_TESTED})\n1 entry\n"
+        )
+    );
+    assert_eq!(
+        project.stdout("anna", &["list", "--kind", "tool"]),
+        format!(
+            "TOOL-001  tool  {TOOL_TITLE}  — {TOOL_PURPOSE}  (tested with {TOOL_TESTED})\n1 entry\n"
+        )
+    );
+}
+
+#[test]
+fn a_tool_whose_script_changed_since_approval_shows_the_file_changed_mark() {
+    let project = Project::new();
+    project.write(SCRIPT_FILE, SCRIPT);
+    let checksum = dossier::filesum::checksum(&project.root().join(SCRIPT_FILE))
+        .expect("the checksum of the script");
+    let location = format!("location={SCRIPT_FILE}");
+    let recorded = format!("checksum={checksum}");
+    let purpose = format!("Purpose={TOOL_PURPOSE}");
+    project
+        .run(
+            "anna",
+            &[
+                "add",
+                "tool",
+                "--title",
+                TOOL_TITLE,
+                "--field",
+                "type=script",
+                "--field",
+                &location,
+                "--field",
+                &recorded,
+                "--section",
+                &purpose,
+            ],
+        )
+        .success();
+    assert_eq!(
+        project.stdout("anna", &["list", "--kind", "tool"]),
+        format!("TOOL-001  tool  {TOOL_TITLE}  — {TOOL_PURPOSE}\n1 entry\n")
+    );
+
+    project.write(SCRIPT_FILE, SCRIPT_EDITED);
+    assert_eq!(
+        project.stdout("anna", &["list", "--kind", "tool"]),
+        format!(
+            "TOOL-001  tool  [file changed since approval] {TOOL_TITLE}  — {TOOL_PURPOSE}\n1 entry\n"
+        )
+    );
+
+    // A hand change to the tool's own text as well: both marks, in the order of show.
+    let path = project.entry_file("TOOL-001");
+    let text = fs::read_to_string(&path).expect("the tool file");
+    let changed = text.replace(TOOL_PURPOSE, "An invented script, changed by hand.");
+    assert_ne!(changed, text, "the purpose is in the file");
+    fs::write(&path, changed).expect("the tool is changed by hand");
+    assert_eq!(
+        project.stdout("anna", &["list", "--kind", "tool"]),
+        format!(
+            "TOOL-001  tool  [changed after approval] [file changed since approval] {TOOL_TITLE}  — An invented script, changed by hand.\n1 entry\n"
+        )
+    );
+}
