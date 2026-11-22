@@ -2143,7 +2143,7 @@
 - why: R-USE-3.
 - summary: Notes each software run in the team's index, without names of files or tasks.
 - depends: T-221, T-218
-- files: src/cmd/used.rs, tests/cmd_used.rs
+- files: src/cmd/used.rs, tests/cmd_used.rs, src/ctx.rs
 - read: docs/design.md, docs/format.md
 - steps:
   1. After the run is recorded (same command, a second tx::write on ctx.team_ctx() when the project has a team dossier; none: nothing): add a block '<code>:<USE-ID>' to usage-index.md (teamfiles::usage) with date (first 10 characters of the time), code, software, version, analysis and machine (from the usage entry or the project's tags), howto, person (the writer's person); history 'used'. No title, task or file names (R-USE-3).
@@ -2154,6 +2154,7 @@
 - verify: cargo test --test cmd_used
 - reqs: R-USE-3, R-USE-12
 - note (2026-11-21, planner): added
+- note (2026-11-22, planner): forced set (owner was haiku-t-238)
 
 ### T-239 · where-used: where and how a software was used
 - status: open
@@ -2273,10 +2274,8 @@
 - note (2026-11-22, haiku-t-243): done
 
 ### T-244 · retitle and image: the approval rule for how-tos and tools
-- status: claimed
+- status: done
 - owner: haiku-t-244
-- claimed: 2026-11-22T11:14+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-047
 - why: R-WRITE-8, R-LIFE-6.
@@ -2289,8 +2288,12 @@
   2. Run cargo test --test cmd_retitle and cargo test --test cmd_image.
 - accept: retitle and image treat how-tos and tools like lessons.
 - verify: cargo test --test cmd_retitle
+- verified: 2026-11-22
+- commit: 16c420c
 - reqs: R-WRITE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-244): done
 
 ### T-245 · approve and reopen: the approval rule for how-tos and tools
 - status: done
