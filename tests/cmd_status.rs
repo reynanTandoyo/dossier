@@ -1320,6 +1320,8 @@ fn team_of(project: &Project) -> (tempfile::TempDir, std::path::PathBuf) {
     dossier::config::set_list(&team, "members", &["anna".to_string()]).expect("the members");
     let stored = team.display().to_string().replace('\\', "/");
     link_team(project, &stored);
+    // A team write from the project needs the project's confidential terms first (R-CONF-5).
+    project.stdout("anna", &["confidential", "add", "NT-999"]);
     (folder, team)
 }
 
