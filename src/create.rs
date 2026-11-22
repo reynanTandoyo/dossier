@@ -1,7 +1,9 @@
 //! Creating an entry inside a transaction.
 
 use crate::approval;
-use crate::config::Config;
+use crate::conf;
+use crate::config::{self, Config};
+use crate::ctx::Ctx;
 use crate::entry::new::{self, Draft};
 use crate::entry::rules;
 use crate::entry::{Entry, Kind, Status};
@@ -44,9 +46,9 @@ struct Plan {
 
 /// Creates one entry inside a transaction and returns its ID and file text.
 /// Author and status: a person writing: author = person, approved unless `draft`.
-/// An LLM with `said_by` naming a person of the settings: author = that person, via = the LLM,
-/// approved unless `draft`. An LLM without `said_by`: author = its person, via = the LLM;
-/// approved for assumption, finding and usage unless `draft`; draft for a lesson.
+/// An LLM with `said_by` naming a person or a plain name of the settings: author = that name, via
+/// = the LLM, approved unless `draft`. An LLM without `said_by`: author = its person, via = the
+/// LLM; approved for assumption, finding and usage unless `draft`; draft for a lesson.
 /// An LLM writing a decision without `said_by`: Code::NeedsPerson, unless it is a draft: then it
 /// is a proposal by the LLM's person, via the LLM (R-WRITE-12: anyone may propose).
 /// A decision is a proposal (R-WRITE-12, R-WRITE-13, D21, D28) when it is written with `draft`
@@ -54,6 +56,9 @@ struct Plan {
 /// and `valid-from`, history lines created and proposed, and the journal detail `proposed`.
 /// Approved entries get `approved`, `valid-from`, two history lines (created, approved) and,
 /// for a lesson, approval::record. Refusing unknown tag values is not part of v0.1.
+/// A team write from a project (`ctx.project`) is refused when the entry holds a confidential term
+/// of that project, or when the project has no terms and has not stated there are none
+/// (conf::gate and conf::check, R-WRITE-6, R-CONF-2). Both are checked before anything is queued.
 pub fn create(tx: &mut Tx, new: &New) -> Result<(String, String)> {
     let who = tx.ctx().writer()?.clone();
     let plan = plan_for(&tx.ctx().cfg, &who, new)?;
@@ -66,6 +71,14 @@ pub fn create(tx: &mut Tx, new: &New) -> Result<(String, String)> {
         check_for_approval(new.kind, &entry_text(new, &placeholder, &time, &who, &plan))?;
     }
 
+    // The confidential terms of the project, for a team write from a project. The entry is
+    // checked with the placeholder ID before an ID is given out, as above; the text is checked
+    // again with its ID, which is only known now.
+    let terms = project_terms(tx.ctx())?;
+    if let Some(terms) = &terms {
+        conf::check(terms, &entry_text(new, &placeholder, &time, &who, &plan))?;
+    }
+
     let ctx = tx.ctx();
     let id = if ctx.dry_run {
         placeholder
@@ -73,6 +86,9 @@ pub fn create(tx: &mut Tx, new: &New) -> Result<(String, String)> {
         ids::next(&ctx.dossier, &ctx.state, new.kind)?
     };
     let text = entry_text(new, &id, &time, &who, &plan);
+    if let Some(terms) = &terms {
+        conf::check(terms, &text)?;
+    }
     let path = store::path_for(&ctx.dossier, new.kind, &id, &new.title);
     let state = ctx.state.clone();
     let dry_run = ctx.dry_run;
@@ -109,7 +125,7 @@ fn plan_for(cfg: &Config, who: &Who, new: &New) -> Result<Plan> {
     } else {
         match said_by(new) {
             Some(name) => (
-                person_as_written(cfg, name)?,
+                name_as_written(cfg, name)?,
                 Some(who.name.clone()),
                 !new.draft,
             ),
@@ -145,22 +161,37 @@ fn said_by(new: &New) -> Option<&str> {
         .filter(|name| !name.is_empty())
 }
 
-/// The person called `name` (ignoring case), written as the settings write the name.
-fn person_as_written(cfg: &Config, name: &str) -> Result<String> {
+/// The name called `name` (ignoring case), written as the settings write it: a person, a member
+/// or a plain name (names::is_known). Code::UnknownName for any other name.
+fn name_as_written(cfg: &Config, name: &str) -> Result<String> {
     let unknown = || {
         Error::new(
             Code::UnknownName,
             format!("no person {name} in dossier.toml"),
         )
     };
-    if !names::is_person(cfg, name) {
+    if !names::is_known(cfg, name) {
         return Err(unknown());
     }
+    let wanted = name.trim().to_lowercase();
     cfg.people
         .iter()
-        .find(|person| person.name.to_lowercase() == name.to_lowercase())
-        .map(|person| person.name.clone())
+        .map(|person| person.name.as_str())
+        .chain(cfg.members.iter().map(String::as_str))
+        .chain(cfg.names.iter().map(String::as_str))
+        .find(|known| known.to_lowercase() == wanted)
+        .map(str::to_string)
         .ok_or_else(unknown)
+}
+
+/// The confidential terms of the project that a team write comes from: None when `ctx` is not a
+/// team write from a project. The project's code is read from its settings (conf::gate).
+fn project_terms(ctx: &Ctx) -> Result<Option<Vec<String>>> {
+    let Some(project) = &ctx.project else {
+        return Ok(None);
+    };
+    let code = config::load(project)?.code;
+    conf::gate(project, &code).map(Some)
 }
 
 /// The text of the entry with `id`: the tool's fields, the command's fields, then the history
@@ -238,8 +269,7 @@ fn check_for_approval(kind: Kind, text: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config;
-    use crate::ctx::Ctx;
+    use crate::blockfile::BlockFile;
     use crate::output::Output;
     use crate::tx;
     use std::fs;
@@ -448,6 +478,54 @@ mod tests {
             assert_eq!(error.code, Code::UnknownName);
             assert_eq!(error.message, format!("no person {name} in dossier.toml"));
         }
+    }
+
+    #[test]
+    fn a_plain_name_can_be_the_person_a_decision_came_from() {
+        let _guard = quiet();
+        let (_dir, mut ctx) = project("anna-claude", false);
+        ctx.cfg.names = vec!["Dr. Weber".to_string()];
+        // The name is matched without regard to case and written as the settings have it.
+        let new = New {
+            sections: decision_sections(),
+            said_by: Some("dr. weber".to_string()),
+            ..new_of(Kind::Decision, "Use the transient runs")
+        };
+        let (id, text, time) = run(&ctx, &new).expect("the decision is created");
+
+        assert_eq!(id, "DEC-001");
+        let entry = Entry::parse(&text).expect("the text is an entry");
+        assert_eq!(entry.status(), Some(Status::Approved));
+        assert_eq!(entry.field("author").as_deref(), Some("Dr. Weber"));
+        assert_eq!(entry.field("via").as_deref(), Some("anna-claude"));
+        assert_eq!(
+            entry.field("approved"),
+            Some(format!("{time} by Dr. Weber"))
+        );
+        assert_eq!(
+            entry.history(),
+            vec![
+                format!("{time} anna via anna-claude: created"),
+                format!("{time} anna via anna-claude: approved"),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_member_named_with_said_by_is_the_author_as_the_settings_write_it() {
+        let _guard = quiet();
+        let (_dir, mut ctx) = project("anna-claude", false);
+        ctx.cfg.members = vec!["Tony".to_string()];
+        let new = New {
+            sections: decision_sections(),
+            said_by: Some("TONY".to_string()),
+            ..new_of(Kind::Decision, "Use the transient runs")
+        };
+        let (_id, text, _time) = run(&ctx, &new).expect("the decision is created");
+
+        let entry = Entry::parse(&text).expect("the text is an entry");
+        assert_eq!(entry.field("author").as_deref(), Some("Tony"));
+        assert_eq!(entry.field("via").as_deref(), Some("anna-claude"));
     }
 
     #[test]
@@ -748,6 +826,148 @@ mod tests {
             journal_events(&ctx),
             vec![("created".to_string(), "approved".to_string())]
         );
+    }
+
+    /// A team dossier as `project` makes it, and a project of the code P-001 written from it. The
+    /// project's DOSSIER folder holds `terms` as its confidential.md, or no file when `terms` is
+    /// None. The context is the team's, and `ctx.project` is the project's DOSSIER folder, as a
+    /// team write from a project has it. The folder names have a space and a non-ASCII letter.
+    fn team_write_from(
+        writer: &str,
+        terms: Option<String>,
+    ) -> (tempfile::TempDir, tempfile::TempDir, Ctx) {
+        let (team, mut ctx) = project(writer, false);
+        let folder = tempfile::Builder::new()
+            .prefix("Projekt Öl ")
+            .tempdir()
+            .expect("temporary folder");
+        let dossier = folder.path().join("DOSSIER");
+        fs::create_dir_all(&dossier).expect("the project DOSSIER folder");
+        fs::write(dossier.join("dossier.toml"), config::default_text("P-001"))
+            .expect("dossier.toml");
+        if let Some(text) = terms {
+            fs::write(dossier.join("confidential.md"), text).expect("confidential.md");
+        }
+        ctx.project = Some(dossier);
+        (team, folder, ctx)
+    }
+
+    /// A project's confidential.md, built as BlockFile text: a block for each term, with a
+    /// history line.
+    fn terms_text(terms: &[&str]) -> String {
+        let mut file = BlockFile::empty("Confidential terms of P-001");
+        for term in terms {
+            file.add_block(
+                term,
+                &[pair("history", "2026-11-02T09:00:00+01:00 anna: added")],
+            );
+        }
+        file.text()
+    }
+
+    /// A project's confidential.md in which a person stated that there are no terms.
+    fn none_text() -> String {
+        let mut file = BlockFile::empty("Confidential terms of P-001");
+        file.add_block(
+            conf::NONE,
+            &[pair("stated", "2026-11-02T09:00:00+01:00 by anna")],
+        );
+        file.text()
+    }
+
+    #[test]
+    fn a_team_write_from_a_project_with_a_term_in_the_title_is_refused() {
+        let _guard = quiet();
+        let (_team, _folder, ctx) = team_write_from("anna", Some(terms_text(&["Nordwind"])));
+        let new = New {
+            sections: decision_sections(),
+            ..new_of(Kind::Decision, "Nordwind pilot")
+        };
+        let error = run(&ctx, &new).expect_err("the title holds a term");
+        assert_eq!(error.code, Code::Refused);
+        assert_eq!(error.message, "confidential terms found: Nordwind (line 2)");
+        // Refused before anything is queued: no ID is given out and no entry is written.
+        assert!(!ctx.state.join("ids.json").exists());
+        assert!(dir_is_empty(&ctx.dossier.join("decisions")));
+    }
+
+    #[test]
+    fn a_team_write_from_a_project_with_a_term_in_the_text_is_refused() {
+        let _guard = quiet();
+        let (_team, _folder, ctx) = team_write_from("anna", Some(terms_text(&["Nordwind"])));
+        let new = New {
+            sections: vec![
+                pair("Decision", "The Nordwind pilot goes ahead."),
+                pair("Reason", "An invented reason for a test."),
+            ],
+            ..new_of(Kind::Decision, "Use the transient runs")
+        };
+        let error = run(&ctx, &new).expect_err("the text holds a term");
+        assert_eq!(error.code, Code::Refused);
+        assert!(
+            error
+                .message
+                .starts_with("confidential terms found: Nordwind (line "),
+            "{}",
+            error.message
+        );
+        assert!(!ctx.state.join("ids.json").exists());
+        assert!(dir_is_empty(&ctx.dossier.join("decisions")));
+    }
+
+    #[test]
+    fn a_team_write_from_a_project_without_terms_or_a_statement_is_refused() {
+        let _guard = quiet();
+        let (_team, _folder, ctx) = team_write_from("anna", None);
+        let new = New {
+            sections: decision_sections(),
+            ..new_of(Kind::Decision, "Use the transient runs")
+        };
+        let error = run(&ctx, &new).expect_err("the project has no terms and no statement");
+        assert_eq!(error.code, Code::Refused);
+        assert!(
+            error
+                .message
+                .starts_with("this project has no confidential terms yet"),
+            "{}",
+            error.message
+        );
+        assert!(!ctx.state.join("ids.json").exists());
+        assert!(dir_is_empty(&ctx.dossier.join("decisions")));
+    }
+
+    #[test]
+    fn a_team_write_from_a_project_is_written_when_no_term_is_in_it() {
+        let _guard = quiet();
+        // A project that states it has no terms, and a project whose term is not in the entry.
+        for terms in [none_text(), terms_text(&["Nordwind"])] {
+            let (_team, _folder, ctx) = team_write_from("anna", Some(terms));
+            let new = New {
+                sections: decision_sections(),
+                ..new_of(Kind::Decision, "Use the transient runs")
+            };
+            let (id, text, _time) = run(&ctx, &new).expect("the decision is created");
+
+            assert_eq!(id, "DEC-001");
+            let entry = Entry::parse(&text).expect("the text is an entry");
+            assert_eq!(entry.status(), Some(Status::Approved));
+            let path = store::path_for(&ctx.dossier, Kind::Decision, &id, "Use the transient runs");
+            assert_eq!(fs::read_to_string(path).expect("the file"), text);
+        }
+    }
+
+    #[test]
+    fn a_project_write_is_not_checked_against_confidential_terms() {
+        let _guard = quiet();
+        // Only a team write from a project is checked: a project's own entry may hold any term.
+        let (_dir, ctx) = project("anna", false);
+        assert!(ctx.project.is_none());
+        let new = New {
+            sections: decision_sections(),
+            ..new_of(Kind::Decision, "Nordwind pilot")
+        };
+        let (id, _text, _time) = run(&ctx, &new).expect("the decision is created");
+        assert_eq!(id, "DEC-001");
     }
 
     /// The (event, detail) of every journal line of the project, oldest first.
