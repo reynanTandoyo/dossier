@@ -1645,8 +1645,10 @@
 - note (2026-11-21, haiku-t-217): done
 
 ### T-218 · ctx.rs: load the team dossier of a project, --team and team_ctx
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-218
+- claimed: 2026-11-22T10:53+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: Every team command starts from the project it is run in (R-PLACE-5, R-PLACE-8).
@@ -1690,8 +1692,10 @@
 - note (2026-11-21, haiku-t-219): done
 
 ### T-220 · tx.rs: commit the team dossier after a write
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-220
+- claimed: 2026-11-22T10:53+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: D36: every team change is in git without anyone running git by hand.
@@ -1732,8 +1736,10 @@
 - note (2026-11-22, haiku-t-221): done
 
 ### T-222 · init --team-dossier: create a team dossier
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-222
+- claimed: 2026-11-22T10:53+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: R-PLACE-3.
@@ -1854,8 +1860,8 @@
 - note (2026-11-21, planner): added
 
 ### T-228 · hooks.rs: DOSSIER_AGENT in .claude/settings.local.json
-- status: open
-- owner: —
+- status: done
+- owner: haiku-t-228
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: D34: Claude's writes are always marked as an LLM's.
@@ -1869,8 +1875,12 @@
   3. Run cargo test --lib hooks::.
 - accept: The personal Claude Code settings carry the LLM name.
 - verify: cargo test --lib hooks::
+- verified: 2026-11-22
+- commit: 16f941a
 - reqs: D34
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-228): done
 
 ### T-229 · hooks install: also set the LLM name for Claude Code
 - status: open
@@ -2222,8 +2232,10 @@
 - note (2026-11-21, planner): added
 
 ### T-243 · set and edit: the approval rule for how-tos and tools
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-243
+- claimed: 2026-11-22T10:53+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-047
 - why: R-WRITE-8, R-LIFE-6.
@@ -2660,8 +2672,10 @@
 - note (2026-11-21, planner): added
 
 ### T-263 · imports.rs: which documents were reviewed
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-263
+- claimed: 2026-11-22T10:53+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-051
 - why: R-IMPORT-3.
