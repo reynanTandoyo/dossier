@@ -1,17 +1,22 @@
 //! The `team` command (docs/design.md section 12): shows the team settings of the current dossier,
-//! and `team use <path>` links a project to its team dossier (R-PLACE-2, format.md §26). The team
-//! settings are the members and plain names of dossier.toml (format.md §21); a project with a
-//! reachable team dossier also knows the team's members and names, which `Ctx::load` adds. Linking
-//! changes dossier.toml, so it is recorded in the journal with who and when (D29), as `people` is.
+//! `team use <path>` links a project to its team dossier (R-PLACE-2, format.md §26), and `team
+//! member add|remove` keeps the list of people who may write there (R-TEAM-7). The team settings
+//! are the members and plain names of dossier.toml (format.md §21); a project with a reachable team
+//! dossier also knows the team's members and names, which `Ctx::load` adds. Linking and every
+//! member change rewrite dossier.toml, so each is recorded in the journal with who and when (D29),
+//! as `people` is.
 
 use crate::cli::Global;
 use crate::config;
 use crate::ctx::Ctx;
 use crate::error::{Code, Error, Result};
+use crate::gitcommit;
 use crate::journal;
-use crate::names;
+use crate::lock;
+use crate::names::{self, Who};
 use crate::output::Output;
 use crate::paths;
+use crate::term;
 use crate::time;
 use serde_json::json;
 use std::path::{Component, Path, PathBuf};
@@ -44,15 +49,36 @@ pub enum Action {
         /// The team dossier: its DOSSIER folder, or the folder that holds it
         path: PathBuf,
     },
+    /// Adds a member to the team, or removes one (R-TEAM-7)
+    Member {
+        #[command(subcommand)]
+        action: MemberAction,
+    },
 }
 
-/// Runs `team`: shows the team dossier, the members and the plain names, or links the project to
-/// a team dossier with `team use`.
+/// What `team member` does.
+#[derive(clap::Subcommand, Debug)]
+pub enum MemberAction {
+    /// Adds a member: the username, the operating-system login of a person
+    Add {
+        /// The username, such as tony: one word, with no space
+        username: String,
+    },
+    /// Removes a member; a person at a terminal does it
+    Remove {
+        /// The username of the member, in any case
+        username: String,
+    },
+}
+
+/// Runs `team`: shows the team dossier, the members and the plain names, links the project to a
+/// team dossier with `team use`, or changes the members with `team member`.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "team")?;
     match &args.action {
         None => Ok(show(&ctx)),
         Some(Action::Use { path }) => link(&ctx, g, path),
+        Some(Action::Member { action }) => member(members_ctx(ctx)?, g, action),
     }
 }
 
@@ -117,7 +143,11 @@ fn link(ctx: &Ctx, g: &Global, path: &Path) -> Result<Output> {
         );
     }
     config::set_value(&ctx.dossier, "team", &quoted(&stored))?;
-    record_change(ctx, g, &stored)?;
+    let who = ctx
+        .who
+        .clone()
+        .unwrap_or_else(|| names::unchecked(g.agent.as_deref()));
+    record_change(ctx, &who, &format!("team {stored}"))?;
     Ok(Output::with(text, data))
 }
 
@@ -196,23 +226,171 @@ fn quoted(text: &str) -> String {
     format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
-/// Appends the journal line of a link: the settings event `changed`, with who and when (D29). The
-/// name is the one that acts when it is in the settings; otherwise the name given by --agent or
-/// the environment, as `names::unchecked` resolves it.
-fn record_change(ctx: &Ctx, g: &Global, stored: &str) -> Result<()> {
-    let who = ctx
-        .who
-        .clone()
-        .unwrap_or_else(|| names::unchecked(g.agent.as_deref()));
+/// The context the members are changed in (R-TEAM-7): the team dossier of a project that names
+/// one, else the current dossier. A team dossier that cannot be reached is Code::NoDossier naming
+/// its path (R-PLACE-8): the members to change are the team's.
+fn members_ctx(ctx: Ctx) -> Result<Ctx> {
+    if ctx.cfg.kind == TEAM {
+        return Ok(ctx);
+    }
+    let Some(stored) = ctx.cfg.team.clone() else {
+        return Ok(ctx);
+    };
+    if ctx.team.is_none() {
+        return Err(Error::new(
+            Code::NoDossier,
+            format!(
+                "{}: the team dossier cannot be reached",
+                ctx.root.join(paths::shown(&stored)).display()
+            ),
+        ));
+    }
+    ctx.team_ctx()
+}
+
+/// Runs `team member add` or `team member remove` in `ctx`. Only members write to the team
+/// dossier (R-TEAM-7), so the name that acts must be a person of its settings or an LLM of one:
+/// Code::Usage without any name, Code::UnknownName for anyone else.
+fn member(ctx: Ctx, g: &Global, action: &MemberAction) -> Result<Output> {
+    let who = names::resolve(&ctx.cfg, g.agent.as_deref())?;
+    match action {
+        MemberAction::Add { username } => add_member(&ctx, &who, username),
+        MemberAction::Remove { username } => remove_member(&ctx, &who, username),
+    }
+}
+
+/// Adds `username` to the members. The name is one word (Code::BadValue) and not a member yet
+/// (Code::Exists, names compared ignoring case). With --dry-run nothing is written.
+fn add_member(ctx: &Ctx, who: &Who, username: &str) -> Result<Output> {
+    check_username(username)?;
+    if ctx.cfg.members.iter().any(|member| same(member, username)) {
+        return Err(Error::new(
+            Code::Exists,
+            format!("{username} is already a member"),
+        ));
+    }
+    let mut members = ctx.cfg.members.clone();
+    members.push(username.to_string());
+    let output = Output::with(
+        format!("added member {username}"),
+        json!({"member": username, "members": members}),
+    );
+    write_members(
+        ctx,
+        who,
+        &members,
+        &format!("member {username} added"),
+        output,
+    )
+}
+
+/// Removes `username` from the members. Only a person may do it, at a terminal (R-TEAM-7): an
+/// LLM is Code::NeedsPerson, a run without a terminal Code::NeedsTerminal. The member must exist
+/// (Code::NotFound, names compared ignoring case). With --dry-run nothing is written.
+fn remove_member(ctx: &Ctx, who: &Who, username: &str) -> Result<Output> {
+    if who.is_llm {
+        return Err(Error::new(
+            Code::NeedsPerson,
+            format!("team member remove is for a person; {} is an LLM", who.name),
+        ));
+    }
+    if !term::is_terminal() {
+        return Err(Error::new(
+            Code::NeedsTerminal,
+            "team member remove must be run by a person at a terminal",
+        ));
+    }
+    let Some(index) = ctx
+        .cfg
+        .members
+        .iter()
+        .position(|member| same(member, username))
+    else {
+        return Err(Error::new(
+            Code::NotFound,
+            format!("{username} is not a member"),
+        ));
+    };
+    let stored = ctx.cfg.members[index].clone();
+    let mut members = ctx.cfg.members.clone();
+    members.remove(index);
+    let output = Output::with(
+        format!("removed member {stored}"),
+        json!({"member": stored, "members": members}),
+    );
+    write_members(
+        ctx,
+        who,
+        &members,
+        &format!("member {stored} removed"),
+        output,
+    )
+}
+
+/// Writes `members` as the members of the dossier's settings, journals the change with `detail`
+/// as who and when (D29), and in a team dossier that is a git repository commits it (D36,
+/// R-TEAM-6). The write lock is held until the commit is made, as tx holds it. With --dry-run
+/// nothing is written and the output gets the warning `dry run: would write <file>`.
+fn write_members(
+    ctx: &Ctx,
+    who: &Who,
+    members: &[String],
+    detail: &str,
+    output: Output,
+) -> Result<Output> {
+    if ctx.dry_run {
+        let file = ctx.dossier.join(SETTINGS);
+        return Ok(output.warn(format!("dry run: would write {}", file.display())));
+    }
+    let _guard = lock::acquire(&ctx.state, ctx.cfg.lock_wait_seconds, &who.name, "team")?;
+    config::set_list(&ctx.dossier, "members", members)?;
+    record_change(ctx, who, detail)?;
+    Ok(commit_change(ctx, output, &format!("team: {detail}")))
+}
+
+/// A username is one word: not empty, and without a space or any other whitespace, so that it
+/// stays one word in the settings and the journal (format.md §21). Code::BadValue otherwise.
+fn check_username(username: &str) -> Result<()> {
+    if username.is_empty() || username.chars().any(char::is_whitespace) {
+        return Err(Error::new(
+            Code::BadValue,
+            "a username must not be empty or contain a space",
+        ));
+    }
+    Ok(())
+}
+
+/// Two usernames are the same when they differ in case only, as the settings compare them
+/// (format.md §21).
+fn same(a: &str, b: &str) -> bool {
+    a.to_lowercase() == b.to_lowercase()
+}
+
+/// Commits the change of a team dossier that is a git repository, with `subject` as the message
+/// (D36, R-TEAM-6). Other dossiers are not committed. A failure is a warning on `output`, never
+/// an error: the change is written already.
+fn commit_change(ctx: &Ctx, output: Output, subject: &str) -> Output {
+    if ctx.cfg.kind != TEAM {
+        return output;
+    }
+    match gitcommit::commit(&ctx.root, &ctx.dossier, subject) {
+        Ok(_) => output,
+        Err(error) => output.warn(format!("git: {}", error.message)),
+    }
+}
+
+/// Appends the journal line of a settings change: the settings event `changed`, with who and when
+/// (D29) and `detail` as its detail. The journal is the one of the dossier in `ctx`.
+fn record_change(ctx: &Ctx, who: &Who, detail: &str) -> Result<()> {
     let record = journal::Record {
         time: time::now(),
-        name: who.name,
-        person: who.person,
+        name: who.name.clone(),
+        person: who.person.clone(),
         llm: who.is_llm,
         command: "team".to_string(),
         id: SETTINGS_ID.to_string(),
         event: "changed".to_string(),
-        detail: format!("team {stored}"),
+        detail: detail.to_string(),
     };
     journal::append(&ctx.state, &record)
 }

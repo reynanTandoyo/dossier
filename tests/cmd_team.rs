@@ -1,7 +1,8 @@
-//! Runs the built program for `team`: the team settings are shown, and `team use` links a project
-//! to its team dossier (R-PLACE-2) and refuses a folder that is not one. Each test runs in its own
-//! project folder with the clock fixed by `common::Project` (2026-11-20T10:00:00+01:00). The team
-//! dossier is made in a second folder whose name has a space and an umlaut.
+//! Runs the built program for `team`: the team settings are shown, `team use` links a project to
+//! its team dossier (R-PLACE-2) and refuses a folder that is not one, and `team member add|remove`
+//! changes who may write to the team dossier (R-TEAM-7). Each test runs in its own project folder
+//! with the clock fixed by `common::Project` (2026-11-20T10:00:00+01:00). The team dossier is made
+//! in a second folder whose name has a space and an umlaut.
 
 mod common;
 
@@ -9,6 +10,7 @@ use common::Project;
 use predicates::str::contains;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 
 /// The fixed clock of `common::Project`.
 const NOW: &str = "2026-11-20T10:00:00+01:00";
@@ -282,4 +284,337 @@ fn a_team_dossier_that_cannot_be_reached_is_a_warning_when_shown() {
             "team dossier: {path}\nmembers: none\nnames: none\n"
         ))
         .stderr(contains("warning: the team dossier cannot be reached"));
+}
+
+/// A list of strings, as the settings hold it.
+fn owned(values: &[&str]) -> Vec<String> {
+    values.iter().map(|value| value.to_string()).collect()
+}
+
+/// The members of a DOSSIER folder's settings.
+fn members_of(dossier: &Path) -> Vec<String> {
+    dossier::config::load(dossier)
+        .expect("the settings load")
+        .members
+}
+
+/// The records of the team dossier's journal, oldest first.
+fn team_journal(team: &Team) -> Vec<dossier::journal::Record> {
+    dossier::journal::read(&team.dossier.join(".state")).expect("the team's journal reads")
+}
+
+/// Whether git runs here. Without git the git test does nothing, as the tests of tx do.
+fn git_runs() -> bool {
+    Command::new("git")
+        .arg("--version")
+        .stdin(Stdio::null())
+        .output()
+        .is_ok_and(|output| output.status.success())
+}
+
+/// Runs git in `dir` with `args`, and returns its standard output without the line end. Panics
+/// when git fails.
+fn git_out(dir: &Path, args: &[&str]) -> String {
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(args)
+        .stdin(Stdio::null())
+        .output()
+        .expect("git runs");
+    assert!(
+        output.status.success(),
+        "git {args:?}: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8(output.stdout)
+        .expect("git's output is UTF-8")
+        .trim_end()
+        .to_string()
+}
+
+/// The project's team dossier, linked as anna. Returns the team dossier with its members.
+fn linked_team(project: &Project) -> Team {
+    let team = team_dossier(project);
+    project
+        .run(
+            "anna",
+            &["team", "use", &team.dossier.display().to_string()],
+        )
+        .success();
+    team
+}
+
+#[test]
+fn member_add_adds_the_username_to_the_team_and_journals_it_with_who_and_when() {
+    let project = Project::new();
+    let team = linked_team(&project);
+    let before = team_journal(&team).len();
+
+    project
+        .run("anna", &["team", "member", "add", "tony"])
+        .success()
+        .stdout("added member tony\n")
+        .stderr("");
+    assert_eq!(members_of(&team.dossier), owned(&["anna", "tony"]));
+    assert!(
+        settings_of(&team.dossier).contains("members = [\"anna\", \"tony\"]"),
+        "dossier.toml lists both members: {}",
+        settings_of(&team.dossier)
+    );
+
+    let records = team_journal(&team);
+    assert_eq!(records.len(), before + 1);
+    let record = records.last().expect("the change is in the team's journal");
+    assert_eq!(record.id, "SETTINGS");
+    assert_eq!(record.event, "changed");
+    assert_eq!(record.command, "team");
+    assert_eq!(record.detail, "member tony added");
+    assert_eq!(record.name, "anna");
+    assert_eq!(record.person, "anna");
+    assert!(!record.llm);
+    assert_eq!(record.time, NOW);
+}
+
+#[test]
+fn member_add_as_json_gives_the_member_and_the_members() {
+    let project = Project::new();
+    let _team = linked_team(&project);
+    let out = project.stdout("anna", &["--json", "team", "member", "add", "tony"]);
+    let line: Value = serde_json::from_str(out.trim_end()).expect("one JSON line");
+    assert_eq!(line["schema"], "dossier.team.v1");
+    assert_eq!(line["ok"], true);
+    assert_eq!(line["data"]["member"], "tony");
+    assert_eq!(line["data"]["members"], serde_json::json!(["anna", "tony"]));
+    assert_eq!(line["warnings"], serde_json::json!([]));
+}
+
+#[test]
+fn a_member_added_to_the_team_can_write_in_the_project() {
+    let project = Project::new();
+    let team = linked_team(&project);
+    let observation = "An invented observation for the team test.";
+
+    // Tony is not a member yet, so the project does not know him as a writer.
+    project
+        .run("tony", &["found", observation])
+        .failure()
+        .code(1);
+
+    project
+        .run("anna", &["team", "member", "add", "tony"])
+        .success();
+    project.run("tony", &["found", observation]).success();
+    let last = project
+        .entry_journal()
+        .last()
+        .cloned()
+        .expect("tony's entry is in the journal");
+    assert_eq!(last.name, "tony");
+    assert_eq!(members_of(&team.dossier), owned(&["anna", "tony"]));
+}
+
+#[test]
+fn member_add_refuses_an_existing_member_or_a_bad_name_and_changes_nothing() {
+    let project = Project::new();
+    let team = linked_team(&project);
+    let before = team_journal(&team).len();
+    let settings_before = settings_of(&team.dossier);
+
+    for (args, code) in [
+        (vec!["team", "member", "add", "Anna"], "EXISTS"),
+        (vec!["team", "member", "add", "tony smith"], "BAD_VALUE"),
+        (vec!["team", "member", "add", ""], "BAD_VALUE"),
+    ] {
+        let out = project
+            .command("anna", NOW)
+            .arg("--json")
+            .args(&args)
+            .assert()
+            .failure()
+            .code(1)
+            .get_output()
+            .stdout
+            .clone();
+        let line: Value = serde_json::from_slice(&out).expect("one JSON line");
+        assert_eq!(line["ok"], false);
+        assert_eq!(line["error"]["code"], code, "for {args:?}");
+    }
+    assert_eq!(settings_of(&team.dossier), settings_before);
+    assert_eq!(team_journal(&team).len(), before);
+}
+
+#[test]
+fn member_remove_needs_a_person_at_a_terminal() {
+    let project = Project::new();
+    let team = linked_team(&project);
+    project
+        .run("anna", &["team", "member", "add", "tony"])
+        .success();
+    let before = team_journal(&team).len();
+
+    // Run by a test, the command has no terminal: a person is refused.
+    project
+        .command("anna", NOW)
+        .args(["team", "member", "remove", "tony"])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(contains("must be run by a person at a terminal"));
+    // An LLM is refused even at a terminal (DOSSIER_ANSWERS stands in for one).
+    project
+        .command("anna-claude", NOW)
+        .env("DOSSIER_ANSWERS", "yes")
+        .args(["team", "member", "remove", "tony"])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(contains("is for a person; anna-claude is an LLM"));
+
+    assert_eq!(members_of(&team.dossier), owned(&["anna", "tony"]));
+    assert_eq!(team_journal(&team).len(), before);
+}
+
+#[test]
+fn member_remove_by_a_person_at_a_terminal_removes_the_member_and_journals_it() {
+    let project = Project::new();
+    let team = linked_team(&project);
+    project
+        .run("anna", &["team", "member", "add", "tony"])
+        .success();
+    let before = team_journal(&team).len();
+
+    project
+        .command("anna", NOW)
+        .env("DOSSIER_ANSWERS", "yes")
+        .args(["team", "member", "remove", "TONY"])
+        .assert()
+        .success()
+        .stdout("removed member tony\n")
+        .stderr("");
+    assert_eq!(members_of(&team.dossier), owned(&["anna"]));
+
+    let records = team_journal(&team);
+    assert_eq!(records.len(), before + 1);
+    let record = records
+        .last()
+        .expect("the removal is in the team's journal");
+    assert_eq!(record.id, "SETTINGS");
+    assert_eq!(record.event, "changed");
+    assert_eq!(record.command, "team");
+    assert_eq!(record.detail, "member tony removed");
+    assert_eq!(record.name, "anna");
+    assert_eq!(record.time, NOW);
+
+    // A name that is not a member is not found, and nothing changes.
+    project
+        .command("anna", NOW)
+        .env("DOSSIER_ANSWERS", "yes")
+        .args(["team", "member", "remove", "nobody"])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(contains("nobody is not a member"));
+    assert_eq!(members_of(&team.dossier), owned(&["anna"]));
+    assert_eq!(team_journal(&team).len(), before + 1);
+}
+
+#[test]
+fn a_project_person_who_is_not_a_team_member_cannot_change_the_members() {
+    let project = Project::new();
+    let team = linked_team(&project);
+    // Ben is a person of the project, but not a member of the team.
+    let out = project
+        .command("ben", NOW)
+        .args(["--json", "team", "member", "add", "carl"])
+        .assert()
+        .failure()
+        .get_output()
+        .stdout
+        .clone();
+    let line: Value = serde_json::from_slice(&out).expect("one JSON line");
+    assert_eq!(line["error"]["code"], "UNKNOWN_NAME");
+    assert_eq!(members_of(&team.dossier), owned(&["anna"]));
+}
+
+#[test]
+fn member_add_with_dry_run_writes_nothing() {
+    let project = Project::new();
+    let team = linked_team(&project);
+    let before = team_journal(&team).len();
+    let settings_before = settings_of(&team.dossier);
+
+    project
+        .command("anna", NOW)
+        .args(["--dry-run", "team", "member", "add", "tony"])
+        .assert()
+        .success()
+        .stdout(contains("added member tony"))
+        .stderr(contains("dry run: would write"));
+    assert_eq!(settings_of(&team.dossier), settings_before);
+    assert_eq!(team_journal(&team).len(), before);
+}
+
+#[test]
+fn without_a_team_the_members_change_in_the_project() {
+    let project = Project::new();
+    project
+        .run("anna", &["team", "member", "add", "tony"])
+        .success()
+        .stdout("added member tony\n");
+    let dossier = project.root().join("DOSSIER");
+    assert_eq!(members_of(&dossier), owned(&["tony"]));
+
+    let records = journal(&project);
+    let record = records
+        .last()
+        .expect("the change is in the project's journal");
+    assert_eq!(record.id, "SETTINGS");
+    assert_eq!(record.command, "team");
+    assert_eq!(record.detail, "member tony added");
+    assert_eq!(record.name, "anna");
+}
+
+#[test]
+fn a_team_that_cannot_be_reached_refuses_a_member_change() {
+    let project = Project::new();
+    let team = linked_team(&project);
+    std::fs::remove_dir_all(&team.dossier).expect("remove the team dossier");
+
+    project
+        .command("anna", NOW)
+        .args(["team", "member", "add", "tony"])
+        .assert()
+        .failure()
+        .code(4)
+        .stderr(contains("the team dossier cannot be reached"));
+}
+
+#[test]
+fn a_member_change_in_a_team_repository_is_committed_with_its_subject() {
+    if !git_runs() {
+        return;
+    }
+    let project = Project::new();
+    let team = linked_team(&project);
+    let folder = team.dir.path();
+    git_out(folder, &["init", "-q"]);
+    git_out(folder, &["config", "user.name", "Test Person"]);
+    git_out(
+        folder,
+        &["config", "user.email", "test.person@example.invalid"],
+    );
+    git_out(folder, &["config", "commit.gpgsign", "false"]);
+
+    project
+        .command("anna", NOW)
+        .args(["team", "member", "add", "tony"])
+        .assert()
+        .success()
+        .stderr("");
+    assert_eq!(
+        git_out(folder, &["log", "-1", "--format=%s"]),
+        "team: member tony added"
+    );
+    assert_eq!(git_out(folder, &["status", "--porcelain"]), "");
 }
