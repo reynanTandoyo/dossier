@@ -1,14 +1,17 @@
 //! Runs the built program for `confidential`: anyone in the project adds a term, an LLM too (D32);
 //! the terms are listed with a count; a term already listed is refused in any spelling of its
 //! separators; a removed term is added again (R-CONF-1, format.md §24). A person at a terminal
-//! removes a term or states that there are none (D32, R-CONF-5). `--team` is refused, since the
-//! terms belong to the project. Each test runs in its own project folder, with the clock fixed by
+//! removes a term or states that there are none (D32, R-CONF-5). `scan` finds the terms in the team
+//! dossier, also those added after the team write (R-CONF-6). `--team` is refused, since the terms
+//! belong to the project. Each test runs in its own project folder, with the clock fixed by
 //! `common::Project` (2026-11-20T10:00:00+01:00).
 
 mod common;
 
 use common::Project;
 use predicates::str::contains;
+use std::fs;
+use std::path::{Path, PathBuf};
 
 /// The fixed clock of `common::Project`.
 const NOW: &str = "2026-11-20T10:00:00+01:00";
@@ -447,6 +450,7 @@ fn every_subcommand_refuses_the_team_flag_and_writes_nothing() {
         vec!["confidential", "add", "NT-450", "--team"],
         vec!["confidential", "remove", "NT-450", "--team"],
         vec!["confidential", "none", "--yes", "--team"],
+        vec!["confidential", "scan", "--team"],
     ] {
         at_terminal(&project, "anna", &args)
             .failure()
@@ -489,4 +493,169 @@ fn with_a_linked_team_the_flag_is_still_refused_and_the_team_dossier_gets_no_ter
         "the team dossier gets no terms"
     );
     assert!(!project.root().join("DOSSIER/confidential.md").exists());
+}
+
+/// A team dossier made by `init --team-dossier --code TEAM` in its own temporary folder, whose name
+/// has a space and an umlaut, with anna as its member, and the project linked to it by `team use`.
+/// Returns the folder (it keeps the folder alive) and the DOSSIER folder in it.
+fn linked_team(project: &Project) -> (tempfile::TempDir, PathBuf) {
+    let folder = tempfile::Builder::new()
+        .prefix("Team Äpfel ")
+        .tempdir()
+        .expect("a temporary team folder");
+    project
+        .command("anna", NOW)
+        .current_dir(folder.path())
+        .args(["init", "--code", "TEAM", "--team-dossier"])
+        .assert()
+        .success();
+    let team = folder.path().join("DOSSIER");
+    dossier::config::set_list(&team, "members", &["anna".to_string()])
+        .expect("anna is a member of the team");
+    let path = team.display().to_string();
+    project
+        .run("anna", &["team", "use", path.as_str()])
+        .success();
+    (folder, team)
+}
+
+/// The 1-based number of the first line of `text` that contains `needle`.
+fn line_of(text: &str, needle: &str) -> usize {
+    text.lines()
+        .position(|line| line.contains(needle))
+        .map(|index| index + 1)
+        .expect("the text holds the needle")
+}
+
+/// The name of the one file in `folder` whose name starts with `prefix`.
+fn file_named(folder: &Path, prefix: &str) -> String {
+    let names: Vec<String> = fs::read_dir(folder)
+        .expect("the folder can be read")
+        .map(|entry| entry.expect("a folder entry").file_name())
+        .map(|name| name.to_string_lossy().into_owned())
+        .filter(|name| name.starts_with(prefix))
+        .collect();
+    assert_eq!(names.len(), 1, "one file starts with {prefix}");
+    names.into_iter().next().expect("one file")
+}
+
+#[test]
+fn a_term_added_after_a_team_write_is_found_in_the_team_lesson_and_glossary() {
+    let project = Project::new();
+    let (_folder, team) = linked_team(&project);
+    // No term is listed yet and a person states there are none, so the team writes pass (R-CONF-5).
+    at_terminal(&project, "anna", &["confidential", "none", "--yes"]).success();
+    project
+        .run(
+            "anna",
+            &[
+                "learn",
+                "Steady runs converge early near stall at stage nt 999",
+                "--title",
+                "Steady runs converge early",
+                "--valid-for",
+                "Transonic front stages",
+                "--evidence",
+                "Comparison of speedlines, report section 4.2",
+                "--confidence",
+                "measured",
+                "--team",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "term",
+                "add",
+                "pressure ratio",
+                "outlet pressure divided by inlet pressure, see NT999",
+                "--team",
+            ],
+        )
+        .success();
+    // The term is added later, so the team already holds both texts.
+    project
+        .run("anna", &["confidential", "add", "NT-999"])
+        .success();
+
+    let lesson = file_named(&team.join("lessons"), "LES-");
+    let lesson_text =
+        fs::read_to_string(team.join("lessons").join(&lesson)).expect("the team lesson");
+    let glossary_text = fs::read_to_string(team.join("glossary.md")).expect("the team glossary");
+    let lesson_hit = format!(
+        "DOSSIER/lessons/{lesson}:{}: NT-999",
+        line_of(&lesson_text, "nt 999")
+    );
+    let glossary_hit = format!(
+        "DOSSIER/glossary.md:{}: NT-999",
+        line_of(&glossary_text, "NT999")
+    );
+    project
+        .run("anna", &["confidential", "scan"])
+        .failure()
+        .code(1)
+        .stderr(contains(format!(
+            "error: {lesson_hit}\n{glossary_hit}\n2 matches"
+        )));
+}
+
+#[test]
+fn a_team_with_no_term_in_it_gives_zero_matches() {
+    let project = Project::new();
+    let (_folder, _team) = linked_team(&project);
+    project
+        .run("anna", &["confidential", "add", "NT-999"])
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "learn",
+                "Steady runs converge early near stall",
+                "--valid-for",
+                "Transonic front stages",
+                "--evidence",
+                "Comparison of speedlines, report section 4.2",
+                "--confidence",
+                "measured",
+                "--team",
+            ],
+        )
+        .success();
+    assert_eq!(
+        project.stdout("anna", &["confidential", "scan"]),
+        "0 matches\n"
+    );
+}
+
+#[test]
+fn a_scan_needs_terms_or_a_statement_of_none_before_it_reports_zero_matches() {
+    let project = Project::new();
+    let (_folder, _team) = linked_team(&project);
+    project
+        .run("anna", &["confidential", "scan"])
+        .failure()
+        .code(1)
+        .stderr(contains("this project has no confidential terms yet"));
+
+    at_terminal(&project, "anna", &["confidential", "none", "--yes"]).success();
+    assert_eq!(
+        project.stdout("anna", &["confidential", "scan"]),
+        "0 matches\n"
+    );
+}
+
+#[test]
+fn a_scan_without_a_team_dossier_says_the_project_has_none() {
+    let project = Project::new();
+    project
+        .run("anna", &["confidential", "add", "NT-999"])
+        .success();
+    project
+        .run("anna", &["confidential", "scan"])
+        .failure()
+        .code(4)
+        .stderr(contains("this project has no team dossier"));
 }

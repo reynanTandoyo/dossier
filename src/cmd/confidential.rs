@@ -1,19 +1,24 @@
 //! The `confidential` command (docs/design.md section 12, format.md §24): the confidential terms of
 //! the project. Anyone in the project may add a term, an LLM too (D32, R-CONF-1), and `list` shows
 //! the terms and whether a person stated there are none. A person at a terminal removes a term or
-//! states that there are none (D32, R-CONF-5). Scanning comes later. The terms belong to the
-//! project, so `--team` is refused.
+//! states that there are none (D32, R-CONF-5). `scan` looks for the terms in the team dossier, for
+//! the terms added after a team write (R-CONF-6). The terms belong to the project, so `--team` is
+//! refused.
 
 use crate::blockfile::BlockFile;
 use crate::cli::Global;
 use crate::conf;
 use crate::ctx::Ctx;
 use crate::error::{Code, Error, Result};
+use crate::glossary;
 use crate::names::Who;
 use crate::output::Output;
+use crate::store;
+use crate::teamfiles;
 use crate::term;
 use crate::tx::{self, Change};
 use serde_json::json;
+use std::path::{MAIN_SEPARATOR, Path};
 
 /// The file of the project dossier that holds the terms (format.md §24).
 const FILE: &str = "confidential.md";
@@ -52,6 +57,8 @@ pub enum Action {
         #[arg(long)]
         yes: bool,
     },
+    /// Looks for the project's terms in the team dossier; exit 1 with each hit when there are some
+    Scan,
 }
 
 /// Runs `confidential`. `--team` is refused before anything is loaded, for every subcommand.
@@ -65,6 +72,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         Action::Remove { term } => remove(&ctx, term),
         Action::List => list(&ctx),
         Action::None { yes } => none(&ctx, *yes),
+        Action::Scan => scan(&ctx),
     }
 }
 
@@ -216,6 +224,83 @@ fn none(ctx: &Ctx, yes: bool) -> Result<Output> {
             json!({"term": conf::NONE, "status": "stated"}),
         ))
     })
+}
+
+/// Looks for the project's terms in the team dossier (R-CONF-6), so that a term added after a team
+/// write is still found. Every entry of the team is searched, then the team's glossary, usage index
+/// and project list when they exist (a missing block file holds only its heading, so it is not
+/// searched). Each hit is `<path>:<line>: <term>`, the path relative to the team folder with `/`,
+/// and the count follows: `0 matches` for none. Hits fail with Code::Refused (exit 1), so that a
+/// script notices. The terms are read as `conf::gate` reads them: a project with no terms and no
+/// statement of none is refused, since a scan with nothing to look for would look clean.
+fn scan(ctx: &Ctx) -> Result<Output> {
+    let terms = conf::gate(&ctx.dossier, &ctx.cfg.code)?;
+    let team = ctx.team_ctx()?;
+    let (items, warnings) = store::all(&team.dossier);
+    let mut hits: Vec<String> = Vec::new();
+    for item in &items {
+        let path = shown_path(&team.root, &item.path);
+        hits_in(&terms, &path, &item.entry.text(), &mut hits);
+    }
+    let code = team.cfg.code.as_str();
+    let blocks = [
+        ("glossary.md", glossary::load(&team.dossier, code)?),
+        ("usage-index.md", teamfiles::usage(&team.dossier, code)?),
+        ("projects.md", teamfiles::projects(&team.dossier, code)?),
+    ];
+    for (name, (file, bytes)) in blocks {
+        if bytes.is_some() {
+            let path = shown_path(&team.root, &team.dossier.join(name));
+            hits_in(&terms, &path, &file.text(), &mut hits);
+        }
+    }
+
+    if !hits.is_empty() {
+        let count = hits.len();
+        hits.push(count_matches(count));
+        return Err(Error::new(Code::Refused, hits.join("\n")));
+    }
+    let mut output = Output::with(count_matches(0), json!({"count": 0}));
+    for warning in &warnings {
+        output = output.warn(shown_warning(&team.root, warning));
+    }
+    Ok(output)
+}
+
+/// Appends `<path>:<line>: <term>` to `hits` for each term that `conf::find` finds in `text`.
+fn hits_in(terms: &[String], path: &str, text: &str, hits: &mut Vec<String>) {
+    for (term, line) in conf::find(terms, text) {
+        hits.push(format!("{path}:{line}: {term}"));
+    }
+}
+
+/// A path as people see it: relative to the team folder, with `/` as the separator.
+fn shown_path(root: &Path, path: &Path) -> String {
+    let relative = path.strip_prefix(root).unwrap_or(path);
+    relative.to_string_lossy().replace(MAIN_SEPARATOR, "/")
+}
+
+/// A warning of the store, `<path>: <message>` or `<path>:<line>: <message>`, with its path shown
+/// relative to the team folder as `shown_path` does. A warning without the folder in front is kept.
+fn shown_warning(root: &Path, warning: &str) -> String {
+    let root_text = root.display().to_string();
+    let Some(rest) = warning.strip_prefix(root_text.as_str()) else {
+        return warning.to_string();
+    };
+    let rest = rest.strip_prefix(['\\', '/']).unwrap_or(rest);
+    match rest.split_once(": ") {
+        Some((path, message)) => format!("{}: {message}", path.replace(MAIN_SEPARATOR, "/")),
+        None => warning.to_string(),
+    }
+}
+
+/// `1 match`, or `<n> matches`.
+fn count_matches(n: usize) -> String {
+    if n == 1 {
+        "1 match".to_string()
+    } else {
+        format!("{n} matches")
+    }
 }
 
 /// The name that acts, when it is a person at a terminal. An LLM is Code::NeedsPerson, and a run
