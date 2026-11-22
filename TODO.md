@@ -2913,10 +2913,8 @@
 - note (2026-11-22, coordinator): commit: 7827eb6 (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-267 · import status: progress of bringing in a finished project
-- status: claimed
+- status: done
 - owner: haiku-t-267
-- claimed: 2026-11-22T12:16+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-051
 - why: R-IMPORT-7.
@@ -2931,8 +2929,12 @@
   4. Run cargo test --test cmd_import.
 - accept: import status shows how far an old project has been brought in.
 - verify: cargo test --test cmd_import
+- verified: 2026-11-22
+- commit: f93e8e9e877121a178141f4070148f67f06fd7f5
 - reqs: R-IMPORT-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-267): done
 
 ### T-268 · drafts --imported: imported drafts by document
 - status: done
