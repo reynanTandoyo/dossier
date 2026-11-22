@@ -427,3 +427,209 @@ fn a_rests_on_field_of_a_file_block_is_checked_like_an_entry_link() {
         )
     );
 }
+
+/// An approved how-to written by hand, with its software and its sections Purpose and Steps.
+const HOW_TO: &str = "<!-- dossier-format: 1 -->\n# HOW-001 · Warm the solver before a run\n\n- kind: howto\n- status: approved\n- created: 2026-11-20T10:00:00+01:00\n- author: anna\n- approved: 2026-11-20T10:00:00+01:00 by anna\n- valid-from: 2026-11-20T10:00:00+01:00\n- software: Invented Solver\n- history: 2026-11-20T10:00:00+01:00 anna: created\n- history: 2026-11-20T10:00:00+01:00 anna: approved\n\n## Purpose\n\nPrepares an invented solver run.\n\n## Steps\n\nStart the invented run with one iteration.\n";
+
+/// The file of the script that TOOL-001 names: a name with a space and a letter that is not ASCII.
+const SCRIPT: &str = "scripts/Netz prüfen.py";
+
+/// The text of an approved tool written by hand, with the field lines `fields` (each ends with a
+/// newline) between its software and its history.
+fn tool_text(fields: &str) -> String {
+    format!(
+        "<!-- dossier-format: 1 -->\n# TOOL-001 · Mesh check script\n\n- kind: tool\n- status: approved\n- created: 2026-11-20T10:00:00+01:00\n- author: anna\n- approved: 2026-11-20T10:00:00+01:00 by anna\n- valid-from: 2026-11-20T10:00:00+01:00\n- software: Invented Solver\n{fields}- history: 2026-11-20T10:00:00+01:00 anna: created\n- history: 2026-11-20T10:00:00+01:00 anna: approved\n\n## Purpose\n\nChecks an invented mesh.\n"
+    )
+}
+
+/// Writes the tool file TOOL-001 with `fields` and returns its text.
+fn write_tool(project: &Project, fields: &str) -> String {
+    let text = tool_text(fields);
+    project.write("DOSSIER/tools/TOOL-001-mesh-check-script.md", &text);
+    text
+}
+
+/// Writes the script SCRIPT with `text` and returns its checksum, as the program records it.
+fn write_script(project: &Project, text: &str) -> String {
+    project.write(SCRIPT, text);
+    dossier::filesum::checksum(&project.root().join(SCRIPT)).expect("the checksum of the script")
+}
+
+/// Records the approval of the entry `id` with the text `text`, as `approve` does for a person at
+/// a terminal, which the tests cannot run.
+fn record_approval(project: &Project, id: &str, text: &str) {
+    let state = project.root().join("DOSSIER").join(".state");
+    dossier::approval::record(&state, id, text.as_bytes()).expect("the approval is recorded");
+}
+
+#[test]
+fn an_entry_whose_review_date_has_passed_gives_review() {
+    let project = Project::new();
+    decide(&project);
+    project.stdout("anna", &["set", "DEC-001", "--field", "review=2026-01-01"]);
+    let line = line_of(&text_of(&project, "DEC-001"), "- review: 2026-01-01");
+
+    assert_eq!(
+        problems(&project),
+        format!(
+            "error: {}:{line}: DEC-001 REVIEW due for review: review date 2026-01-01 has passed\nDOSSIER: 1 problems\n",
+            shown(&project.entry_file("DEC-001"))
+        )
+    );
+}
+
+#[test]
+fn a_review_date_of_today_or_later_is_not_due() {
+    let project = Project::new();
+    decide(&project);
+    for review in ["2026-11-20", "2026-11-21"] {
+        let field = format!("review={review}");
+        project.stdout("anna", &["set", "DEC-001", "--field", &field]);
+        assert_eq!(project.stdout("anna", &["check"]), OK, "review {review}");
+    }
+}
+
+#[test]
+fn a_review_date_that_is_not_a_date_gives_review() {
+    let project = Project::new();
+    decide(&project);
+    project.stdout("anna", &["set", "DEC-001", "--field", "review=soon"]);
+    let line = line_of(&text_of(&project, "DEC-001"), "- review: soon");
+
+    assert_eq!(
+        problems(&project),
+        format!(
+            "error: {}:{line}: DEC-001 REVIEW review is not a date: \"soon\"\nDOSSIER: 1 problems\n",
+            shown(&project.entry_file("DEC-001"))
+        )
+    );
+}
+
+#[test]
+fn an_approved_how_to_edited_by_hand_gives_changed() {
+    let project = Project::new();
+    project.write(
+        "DOSSIER/howtos/HOW-001-warm-the-solver-before-a-run.md",
+        HOW_TO,
+    );
+    record_approval(&project, "HOW-001", HOW_TO);
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+
+    let changed = HOW_TO.replace("with one iteration", "with two iterations");
+    assert_ne!(changed, HOW_TO);
+    write_entry(&project, "HOW-001", &changed);
+
+    assert_eq!(
+        problems(&project),
+        format!(
+            "error: {}:1: HOW-001 CHANGED approved howto changed after approval\nDOSSIER: 1 problems\n",
+            shown(&project.entry_file("HOW-001"))
+        )
+    );
+}
+
+#[test]
+fn an_approved_tool_edited_by_hand_gives_changed() {
+    let project = Project::new();
+    let text = write_tool(&project, "");
+    record_approval(&project, "TOOL-001", &text);
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+
+    let changed = text.replace("Checks an invented mesh.", "Checks an invented grid.");
+    assert_ne!(changed, text);
+    write_entry(&project, "TOOL-001", &changed);
+
+    assert_eq!(
+        problems(&project),
+        format!(
+            "error: {}:1: TOOL-001 CHANGED approved tool changed after approval\nDOSSIER: 1 problems\n",
+            shown(&project.entry_file("TOOL-001"))
+        )
+    );
+}
+
+#[test]
+fn a_tool_whose_script_is_unchanged_is_ok() {
+    let project = Project::new();
+    let checksum = write_script(&project, "print('invented mesh check')\n");
+    write_tool(
+        &project,
+        &format!(
+            "- type: script\n- location: {SCRIPT}\n- language: python\n- checksum: {checksum}\n"
+        ),
+    );
+
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+}
+
+#[test]
+fn a_tool_whose_script_changed_gives_tool() {
+    let project = Project::new();
+    let checksum = write_script(&project, "print('invented mesh check')\n");
+    let text = write_tool(
+        &project,
+        &format!(
+            "- type: script\n- location: {SCRIPT}\n- language: python\n- checksum: {checksum}\n"
+        ),
+    );
+    write_script(&project, "print('changed mesh check')\n");
+
+    let line = line_of(&text, &format!("- checksum: {checksum}"));
+    assert_eq!(
+        problems(&project),
+        format!(
+            "error: {}:{line}: TOOL-001 TOOL file changed since its checksum: {SCRIPT}\nDOSSIER: 1 problems\n",
+            shown(&project.entry_file("TOOL-001"))
+        )
+    );
+}
+
+#[test]
+fn a_tool_whose_script_is_gone_gives_tool() {
+    let project = Project::new();
+    let checksum = write_script(&project, "print('invented mesh check')\n");
+    let text = write_tool(
+        &project,
+        &format!("- type: script\n- location: {SCRIPT}\n- checksum: {checksum}\n"),
+    );
+    std::fs::remove_file(project.root().join(SCRIPT)).expect("the script is removed");
+
+    let line = line_of(&text, &format!("- location: {SCRIPT}"));
+    assert_eq!(
+        problems(&project),
+        format!(
+            "error: {}:{line}: TOOL-001 TOOL file is gone: {SCRIPT}\nDOSSIER: 1 problems\n",
+            shown(&project.entry_file("TOOL-001"))
+        )
+    );
+}
+
+#[test]
+fn a_tool_with_an_absolute_location_is_checked_too() {
+    let project = Project::new();
+    let checksum = write_script(&project, "print('invented mesh check')\n");
+    let location = project.root().join(SCRIPT).display().to_string();
+    let text = write_tool(
+        &project,
+        &format!("- type: script\n- location: {location}\n- checksum: {checksum}\n"),
+    );
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+
+    write_script(&project, "print('changed mesh check')\n");
+    let line = line_of(&text, &format!("- checksum: {checksum}"));
+    assert_eq!(
+        problems(&project),
+        format!(
+            "error: {}:{line}: TOOL-001 TOOL file changed since its checksum: {location}\nDOSSIER: 1 problems\n",
+            shown(&project.entry_file("TOOL-001"))
+        )
+    );
+}
+
+#[test]
+fn a_tool_whose_location_is_a_command_name_is_not_checked() {
+    let project = Project::new();
+    write_tool(&project, "- type: command\n- location: ansys-cfx\n");
+
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+}

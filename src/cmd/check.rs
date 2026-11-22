@@ -14,12 +14,14 @@ use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
 use crate::exchange;
 use crate::filelist;
+use crate::filesum;
 use crate::mapfile;
 use crate::output::Output;
 use crate::paths;
 use crate::store::{self, Item};
 use crate::time;
 use crate::values;
+use chrono::NaiveDate;
 use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
 
@@ -45,8 +47,9 @@ pub fn run(_args: &Args, g: &Global) -> Result<Output> {
         .map(|warning| parse_problem(&ctx.root, warning))
         .collect();
     found.extend(duplicates(&ctx.root, &items));
+    let today = time::date(&time::now()).to_string();
     for item in &items {
-        found.extend(entry_problems(&ctx, item, &known));
+        found.extend(entry_problems(&ctx, item, &known, &today));
     }
     found.extend(block_problems(&ctx, &known));
     if found.is_empty() {
@@ -168,8 +171,9 @@ fn duplicates(root: &Path, items: &[Item]) -> Vec<Found> {
     found
 }
 
-/// The problems of one entry, except duplicated IDs (which need the other entries).
-fn entry_problems(ctx: &Ctx, item: &Item, known: &HashSet<String>) -> Vec<Found> {
+/// The problems of one entry, except duplicated IDs (which need the other entries). `today` is
+/// the date (YYYY-MM-DD) that review dates are compared with.
+fn entry_problems(ctx: &Ctx, item: &Item, known: &HashSet<String>, today: &str) -> Vec<Found> {
     let entry = &item.entry;
     let id = entry.id();
     let file = relative(&ctx.root, &item.path);
@@ -236,16 +240,28 @@ fn entry_problems(ctx: &Ctx, item: &Item, known: &HashSet<String>) -> Vec<Found>
         }
     }
 
-    // CHANGED: an approved lesson whose text differs from the checksum recorded at approval.
-    if entry.kind() == Some(Kind::Lesson)
+    // CHANGED: an approved lesson, how-to or tool (approval::guarded) whose text differs from the
+    // checksum recorded at approval.
+    if entry.kind().is_some_and(approval::guarded)
         && entry.status() == Some(Status::Approved)
         && matches!(approval::mark(&ctx.state, &id, &item.raw), Mark::Changed)
     {
+        let kind = entry.kind().map_or("entry", Kind::name);
         add(
             1,
             "CHANGED",
-            "approved lesson changed after approval".to_string(),
+            format!("approved {kind} changed after approval"),
         );
+    }
+
+    // REVIEW: a review date that has passed, or that is not a date (R-LIFE-7, format.md §23).
+    if let Some(message) = review_problem(entry, today) {
+        add(field_line(entry, "review"), "REVIEW", message);
+    }
+
+    // TOOL: a tool whose file is gone, or changed since its checksum (R-USE-11, format.md §22).
+    if let Some((line, message)) = tool_problem(ctx, entry) {
+        add(line, "TOOL", message);
     }
 
     // TIME: created, and approved when there is one (or the entry is approved), starts with a
@@ -285,6 +301,61 @@ fn entry_problems(ctx: &Ctx, item: &Item, known: &HashSet<String>) -> Vec<Found>
         add(1, "WHO", "no history line".to_string());
     }
     found
+}
+
+/// The REVIEW message of an entry whose `review` date (YYYY-MM-DD, format.md §23) is before
+/// `today`, or that is not a date at all. An empty value is no review date, and a review date of
+/// today is not yet past (R-LIFE-7). None when `today` is not a date.
+fn review_problem(entry: &Entry, today: &str) -> Option<String> {
+    let value = entry.field("review").filter(|value| !value.is_empty())?;
+    let Some(date) = review_date(&value) else {
+        return Some(format!("review is not a date: \"{value}\""));
+    };
+    let today = review_date(today)?;
+    (date < today).then(|| format!("due for review: review date {value} has passed"))
+}
+
+/// A date of the form YYYY-MM-DD, None for any other text.
+fn review_date(text: &str) -> Option<NaiveDate> {
+    NaiveDate::parse_from_str(text, "%Y-%m-%d")
+        .ok()
+        .filter(|_| text.len() == 10)
+}
+
+/// The TOOL problem of a tool that has a `checksum` and a `location` (format.md §22): its file is
+/// gone, or it no longer has the recorded checksum. The location is a path, relative to the
+/// project folder or absolute. A checksum is written only for a location that is a file, so a
+/// tool without one (a command name or a URL) is not checked. The line is the location's for a
+/// missing file and the checksum's for a changed one.
+fn tool_problem(ctx: &Ctx, entry: &Entry) -> Option<(usize, String)> {
+    if entry.kind() != Some(Kind::Tool) {
+        return None;
+    }
+    let recorded = entry.field("checksum").filter(|value| !value.is_empty())?;
+    let location = entry.field("location").filter(|value| !value.is_empty())?;
+    let path = Path::new(&location);
+    let path = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        ctx.root.join(path)
+    };
+    if !path.exists() {
+        return Some((
+            field_line(entry, "location"),
+            format!("file is gone: {location}"),
+        ));
+    }
+    match filesum::checksum(&path) {
+        Ok(now) if now == recorded => None,
+        Ok(_) => Some((
+            field_line(entry, "checksum"),
+            format!("file changed since its checksum: {location}"),
+        )),
+        Err(error) => Some((
+            field_line(entry, "location"),
+            format!("cannot read the file {location}: {}", error.message),
+        )),
+    }
 }
 
 /// The problems of the block files (format.md §17): values.md, map.md, exchange.md and every
