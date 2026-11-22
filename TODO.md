@@ -2407,10 +2407,8 @@
 - note (2026-11-21, haiku-t-247): done
 
 ### T-248 · term: add a term or look one up
-- status: claimed
+- status: done
 - owner: haiku-t-248
-- claimed: 2026-11-22T11:52+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-048
 - why: R-TERM-1.
@@ -2426,8 +2424,12 @@
   5. Run cargo test --test cmd_term.
 - accept: Terms are added and looked up in the project and the team glossary.
 - verify: cargo test --test cmd_term
+- verified: 2026-11-22
+- commit: cbe5de8530dabf48c739e1c11d9c9cc1fa5f93d1
 - reqs: R-TERM-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-248): done
 
 ### T-249 · glossary: every term of the project and the team
 - status: done
