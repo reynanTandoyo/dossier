@@ -3,6 +3,11 @@
 //! the project is also linked to that team dossier and its code is registered in the team's
 //! `projects.md` (R-PLACE-2, R-PLACE-4). No dossier is needed, because there is none yet. The
 //! creation is recorded in the journal with who and when (D29).
+//!
+//! With `--past` the dossier is for a finished project (format.md §25, R-IMPORT-1). With `--in
+//! <folder>` (which needs `--past`) it is made in that folder instead, and dossier.toml records
+//! the current folder as the project folder it describes, for a project folder that cannot be
+//! written to.
 
 use crate::atomic;
 use crate::blockfile::BlockFile;
@@ -90,6 +95,14 @@ pub struct Args {
     /// that holds it) and registers the code there (R-PLACE-2, R-PLACE-4)
     #[arg(long = "with-team")]
     pub with_team: Option<String>,
+    /// The project is finished and is brought in later: `past = true` (format.md §25, R-IMPORT-1)
+    #[arg(long)]
+    pub past: bool,
+    /// Makes the DOSSIER in this folder instead of the current one, for a finished project whose
+    /// folder cannot be written to; the current folder is recorded as the one it describes
+    /// (R-IMPORT-1). Needs --past.
+    #[arg(long = "in", value_name = "folder")]
+    pub in_folder: Option<String>,
 }
 
 /// The team side of `init --with-team`, checked before anything is created.
@@ -123,9 +136,35 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             "a team dossier is not linked to a team: drop --with-team or --team-dossier",
         ));
     }
+    if args.team_dossier && args.past {
+        return Err(Error::new(
+            Code::BadValue,
+            "a team dossier is not a finished project: drop --past or --team-dossier",
+        ));
+    }
+    if args.in_folder.is_some() && !args.past {
+        return Err(Error::new(
+            Code::BadValue,
+            "--in is for a finished project: add --past",
+        ));
+    }
     let root = std::env::current_dir()
         .map_err(|error| Error::new(Code::Io, format!("the current folder: {error}")))?;
-    let dossier = root.join(FOLDER);
+    // The folder the DOSSIER goes into: the current one, or the folder --in names (R-IMPORT-1).
+    let base = match &args.in_folder {
+        Some(path) => {
+            let folder = absolute(Path::new(path))?;
+            if !folder.is_dir() {
+                return Err(Error::new(
+                    Code::BadValue,
+                    format!("{}: the folder for --in does not exist", folder.display()),
+                ));
+            }
+            folder
+        }
+        None => root.clone(),
+    };
+    let dossier = base.join(FOLDER);
     if dossier.symlink_metadata().is_ok() {
         return Err(exists());
     }
@@ -161,7 +200,13 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         event: "created".to_string(),
         detail,
     };
-    create(&dossier, args, &record)?;
+    // With --in, the project folder the dossier describes is the current folder (format.md §25).
+    let describes = match args.in_folder {
+        Some(_) => Some(stored(&root)?),
+        None => None,
+    };
+    let lines = settings_lines(args, describes.as_deref());
+    create(&dossier, args, &lines, &record)?;
     let warnings = match &team_plan {
         Some(plan) => match join_team(&dossier, &args.code, g, plan) {
             Ok(warnings) => warnings,
@@ -181,12 +226,25 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         } else {
             ""
         };
+        let past_line = if args.past {
+            "\nfinished project: marked as past"
+        } else {
+            ""
+        };
+        let in_line = match &describes {
+            Some(folder) => format!(
+                "\nDOSSIER is at {}\ndescribes the project folder {}",
+                dossier.display(),
+                paths::shown(folder)
+            ),
+            None => String::new(),
+        };
         let team_line = match &team_plan {
             Some(plan) => format!("\n{}", team_text(&args.code, plan)),
             None => String::new(),
         };
         format!(
-            "created DOSSIER for {}{code_line}{team_line}\nnext: dossier people add <person> --llm <name>{GROUP_LINE}",
+            "created DOSSIER for {}{code_line}{past_line}{in_line}{team_line}\nnext: dossier people add <person> --llm <name>{GROUP_LINE}",
             args.code
         )
     };
@@ -195,6 +253,8 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         "dossier": dossier.display().to_string(),
         "team": team_plan.as_ref().map(|plan| plan.stored_team.clone()),
         "registered": team_plan.as_ref().map(|plan| plan.add),
+        "past": args.past,
+        "describes": describes,
     });
     let mut output = Output::with(text, data);
     for warning in warnings {
@@ -423,13 +483,13 @@ fn exists() -> Error {
 /// Creates the dossier folder, its folders, its settings file and its first journal line. When
 /// a step after the first one fails, the dossier folder is removed again, so that a second
 /// `init` can run.
-fn create(dossier: &Path, args: &Args, record: &journal::Record) -> Result<()> {
+fn create(dossier: &Path, args: &Args, lines: &[String], record: &journal::Record) -> Result<()> {
     match std::fs::create_dir(dossier) {
         Ok(()) => {}
         Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => return Err(exists()),
         Err(error) => return Err(io_error(dossier, error)),
     }
-    let built = build(dossier, args, record);
+    let built = build(dossier, args, lines, record);
     if built.is_err() {
         // This command made the folder a moment ago, so only its own parts are removed.
         let _ = std::fs::remove_dir_all(dossier);
@@ -438,9 +498,9 @@ fn create(dossier: &Path, args: &Args, record: &journal::Record) -> Result<()> {
 }
 
 /// Sets the mode of the dossier folder, makes the folders and the state folder, writes
-/// dossier.toml with the code, and appends the journal line that records the creation. A team
-/// dossier's state folder also gets its ignore file.
-fn build(dossier: &Path, args: &Args, record: &journal::Record) -> Result<()> {
+/// dossier.toml with the code and the `lines` after it, and appends the journal line that records
+/// the creation. A team dossier's state folder also gets its ignore file.
+fn build(dossier: &Path, args: &Args, lines: &[String], record: &journal::Record) -> Result<()> {
     set_mode(dossier, FOLDER_MODE)?;
     for folder in folders(args.team_dossier) {
         make_dir(&dossier.join(folder))?;
@@ -455,7 +515,7 @@ fn build(dossier: &Path, args: &Args, record: &journal::Record) -> Result<()> {
     let settings = dossier.join(SETTINGS);
     atomic::replace(
         &settings,
-        settings_text(&args.code, settings_line(args)).as_bytes(),
+        settings_text(&args.code, lines).as_bytes(),
         Some(&None),
     )?;
     set_mode(&settings, FILE_MODE)?;
@@ -473,33 +533,56 @@ fn folders(team_dossier: bool) -> Vec<&'static str> {
     }
 }
 
-/// The setting that follows the code line of dossier.toml: `kind = "team"` (format.md §26) for a
-/// team dossier, `code_project = true` (format.md §19) for a code project, else none.
-fn settings_line(args: &Args) -> Option<&'static str> {
+/// The settings that follow the code line of dossier.toml, in this order: `kind = "team"`
+/// (format.md §26) for a team dossier, `code_project = true` (format.md §19) for a code project,
+/// `past = true` for a finished project, and `describes` (format.md §25) with `--in`. `describes`
+/// is the project folder as stored (absolute, with /).
+fn settings_lines(args: &Args, describes: Option<&str>) -> Vec<String> {
+    let mut lines = Vec::new();
     if args.team_dossier {
-        Some("kind = \"team\"")
-    } else if args.code_project {
-        Some("code_project = true")
-    } else {
-        None
+        lines.push("kind = \"team\"".to_string());
     }
+    if args.code_project {
+        lines.push("code_project = true".to_string());
+    }
+    if args.past {
+        lines.push("past = true".to_string());
+    }
+    if let Some(folder) = describes {
+        lines.push(format!("describes = {}", quoted(folder)));
+    }
+    lines
 }
 
-/// The text of dossier.toml for `code` (format.md §10). With `line`, that line follows the code
-/// line.
-fn settings_text(code: &str, line: Option<&str>) -> String {
+/// The text of dossier.toml for `code` (format.md §10). Each of `lines` follows the code line.
+fn settings_text(code: &str, lines: &[String]) -> String {
     let text = config::default_text(code);
-    let Some(line) = line else {
-        return text;
-    };
     let mut out = String::new();
     for text_line in text.split_inclusive('\n') {
         out.push_str(text_line);
         if text_line.starts_with("code = ") {
-            out.push_str(line);
-            out.push('\n');
+            for line in lines {
+                out.push_str(line);
+                out.push('\n');
+            }
         }
     }
+    out
+}
+
+/// A TOML basic string holding `text`: quotes, backslashes and control characters escaped
+/// (format.md §10).
+fn quoted(text: &str) -> String {
+    let mut out = String::from("\"");
+    for c in text.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            c if c.is_control() => out.push_str(&format!("\\u{:04X}", u32::from(c))),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
     out
 }
 

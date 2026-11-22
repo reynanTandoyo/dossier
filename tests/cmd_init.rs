@@ -1,7 +1,7 @@
 //! Runs the built program for `init`: the folders and the settings of a new project dossier, the
-//! journal line that records who created it, the refusals, and `--with-team`, which links the
-//! project to its team dossier and registers its code there. Each test runs in its own temporary
-//! folder.
+//! journal line that records who created it, the refusals, `--with-team`, which links the project
+//! to its team dossier and registers its code there, and `--past` with `--in`, which make the
+//! dossier of a finished project. Each test runs in its own temporary folder.
 
 mod common;
 
@@ -671,4 +671,247 @@ fn a_dry_run_with_team_creates_and_writes_nothing() {
         .stderr(contains("warning: dry run: would write"));
     assert!(!project.root().join("DOSSIER").exists());
     assert_eq!(projects_of(&team), before);
+}
+
+/// A folder for the archive of a finished project, whose name has a space and an umlaut.
+fn archive_folder() -> tempfile::TempDir {
+    tempfile::Builder::new()
+        .prefix("Archiv Äpfel ")
+        .tempdir()
+        .unwrap()
+}
+
+#[test]
+fn past_marks_the_settings_right_after_the_code_line() {
+    let folder = tempfile::tempdir().unwrap();
+    init(folder.path(), &["--code", "P-003", "--past"])
+        .success()
+        .stdout(contains("created DOSSIER for P-003"))
+        .stdout(contains("finished project: marked as past"));
+    assert!(
+        settings(folder.path()).starts_with("format = 1\ncode = \"P-003\"\npast = true\n"),
+        "{}",
+        settings(folder.path())
+    );
+    let cfg = dossier::config::load(&folder.path().join("DOSSIER")).unwrap();
+    assert!(cfg.past);
+    assert_eq!(cfg.describes, None);
+}
+
+#[test]
+fn a_project_without_past_is_not_marked_as_past() {
+    let folder = tempfile::tempdir().unwrap();
+    init(folder.path(), &["--code", "P-001"])
+        .success()
+        .stdout(contains("finished project:").not());
+    assert!(!settings(folder.path()).contains("past"));
+    let cfg = dossier::config::load(&folder.path().join("DOSSIER")).unwrap();
+    assert!(!cfg.past);
+    assert_eq!(cfg.describes, None);
+}
+
+#[test]
+fn past_with_a_code_project_marks_both_after_the_code_line() {
+    let folder = tempfile::tempdir().unwrap();
+    init(
+        folder.path(),
+        &["--code", "P-003", "--past", "--code-project"],
+    )
+    .success();
+    assert!(
+        settings(folder.path()).contains("code = \"P-003\"\ncode_project = true\npast = true\n"),
+        "{}",
+        settings(folder.path())
+    );
+    let cfg = dossier::config::load(&folder.path().join("DOSSIER")).unwrap();
+    assert!(cfg.past);
+    assert!(cfg.code_project);
+}
+
+#[test]
+fn in_puts_the_dossier_in_that_folder_and_describes_the_current_one() {
+    let project = tempfile::tempdir().unwrap();
+    let archive = archive_folder();
+    init_with(
+        project.path(),
+        &[("DOSSIER_AGENT", "anna")],
+        &[
+            "--code",
+            "P-003",
+            "--past",
+            "--in",
+            archive.path().to_str().unwrap(),
+        ],
+    )
+    .success()
+    .stdout(contains("DOSSIER is at"))
+    .stdout(contains("describes the project folder"));
+    assert!(!project.path().join("DOSSIER").exists());
+
+    let dossier = archive.path().join("DOSSIER");
+    let text = std::fs::read_to_string(dossier.join("dossier.toml")).unwrap();
+    assert!(
+        text.contains(&format!(
+            "past = true\ndescribes = \"{}\"\n",
+            slashed(project.path())
+        )),
+        "{text}"
+    );
+    let cfg = dossier::config::load(&dossier).unwrap();
+    assert!(cfg.past);
+    assert_eq!(
+        cfg.describes.as_deref(),
+        Some(slashed(project.path()).as_str())
+    );
+
+    // The journal of the dossier made in the archive records the creation.
+    let records = dossier::journal::read(&dossier.join(".state")).unwrap();
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].name, "anna");
+    assert_eq!(records[0].command, "init");
+    assert_eq!(records[0].event, "created");
+}
+
+#[test]
+fn in_as_json_names_the_past_project_and_the_folder_it_describes() {
+    let project = tempfile::tempdir().unwrap();
+    let archive = archive_folder();
+    init(
+        project.path(),
+        &[
+            "--code",
+            "P-003",
+            "--past",
+            "--in",
+            archive.path().to_str().unwrap(),
+            "--json",
+        ],
+    )
+    .success()
+    .stdout(contains("\"past\":true"))
+    .stdout(contains(format!(
+        "\"describes\":\"{}\"",
+        slashed(project.path())
+    )));
+}
+
+#[test]
+fn in_without_past_is_refused_and_nothing_is_created() {
+    let project = tempfile::tempdir().unwrap();
+    let archive = archive_folder();
+    init(
+        project.path(),
+        &["--code", "P-003", "--in", archive.path().to_str().unwrap()],
+    )
+    .code(1)
+    .stderr(contains(
+        "error: --in is for a finished project: add --past",
+    ));
+    assert!(!archive.path().join("DOSSIER").exists());
+    assert!(!project.path().join("DOSSIER").exists());
+}
+
+#[test]
+fn in_a_folder_that_does_not_exist_is_refused_and_nothing_is_created() {
+    let project = tempfile::tempdir().unwrap();
+    let missing = project.path().join("nowhere");
+    init(
+        project.path(),
+        &[
+            "--code",
+            "P-003",
+            "--past",
+            "--in",
+            missing.to_str().unwrap(),
+        ],
+    )
+    .code(1)
+    .stderr(contains("the folder for --in does not exist"));
+    assert!(!missing.exists());
+    assert!(!project.path().join("DOSSIER").exists());
+}
+
+#[test]
+fn a_team_dossier_cannot_also_be_a_finished_project() {
+    let folder = tempfile::tempdir().unwrap();
+    init(
+        folder.path(),
+        &["--code", "P-001", "--team-dossier", "--past"],
+    )
+    .code(1)
+    .stderr(contains(
+        "error: a team dossier is not a finished project: drop --past or --team-dossier",
+    ));
+    assert!(!folder.path().join("DOSSIER").exists());
+}
+
+#[test]
+fn in_with_team_registers_the_project_folder_it_describes() {
+    let (_team_folder, team) = team_dossier();
+    let project = empty_project();
+    let archive = archive_folder();
+    project
+        .run_at(
+            "anna",
+            TEAM_NOW,
+            &[
+                "init",
+                "--code",
+                "P-003",
+                "--past",
+                "--in",
+                archive.path().to_str().unwrap(),
+                "--with-team",
+                team.to_str().unwrap(),
+            ],
+        )
+        .success()
+        .stdout(contains("registered P-003 in the team dossier"));
+
+    // The team registers the project folder, which is the folder the dossier describes.
+    let stored_project = slashed(project.root());
+    assert!(
+        projects_of(&team).contains(&format!(
+            "## P-003\n\n- folder: {stored_project}\n- history: 2026-11-20T10:00:00+01:00 anna: registered\n"
+        )),
+        "{}",
+        projects_of(&team)
+    );
+    assert!(!project.root().join("DOSSIER").exists());
+    let cfg = dossier::config::load(&archive.path().join("DOSSIER")).unwrap();
+    assert!(cfg.past);
+    assert_eq!(cfg.team.as_deref(), Some(slashed(&team).as_str()));
+    assert_eq!(cfg.describes.as_deref(), Some(stored_project.as_str()));
+}
+
+#[cfg(unix)]
+#[test]
+fn a_finished_project_whose_folder_cannot_be_written_gets_its_dossier_with_in() {
+    use std::os::unix::fs::PermissionsExt;
+    let project = tempfile::tempdir().unwrap();
+    let archive = archive_folder();
+    let set_mode = |mode: u32| {
+        std::fs::set_permissions(project.path(), std::fs::Permissions::from_mode(mode)).unwrap()
+    };
+    set_mode(0o555);
+    let outcome = init(
+        project.path(),
+        &[
+            "--code",
+            "P-003",
+            "--past",
+            "--in",
+            archive.path().to_str().unwrap(),
+        ],
+    );
+    set_mode(0o755);
+    outcome.success();
+    assert!(!project.path().join("DOSSIER").exists());
+    assert!(
+        archive
+            .path()
+            .join("DOSSIER")
+            .join("dossier.toml")
+            .is_file()
+    );
 }
