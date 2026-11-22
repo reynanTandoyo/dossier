@@ -5871,10 +5871,8 @@
 - note (2026-11-22, haiku-t-271): done
 
 ### T-272 · show: a how-to not tested with the newest version
-- status: claimed
+- status: done
 - owner: haiku-t-272
-- claimed: 2026-11-22T13:06+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-050
 - why: R-LIFE-8: a how-to goes out of date quietly when the software moves on.
@@ -5889,7 +5887,11 @@
   5. Run cargo test --test cmd_show.
 - accept: show marks a how-to whose software was used in a newer version than it was tested with.
 - verify: cargo test --test cmd_show
+- verified: 2026-11-22
+- commit: 27212f60ac3b3a14e9d0e615336697c938712e21
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, coordinator): added
+- note (2026-11-22, haiku-t-272): done
 
 ### T-273 · list: a how-to not tested with the newest version
 - status: open
