@@ -1,46 +1,102 @@
 //! The `show` command: prints one entry as it is stored, with its marks on a first line
 //! (design.md section 5, R-READ-1, R-LIFE-6, R-LIFE-7, R-IMPORT-5, R-USE-11). With `--json` it
-//! gives every field, every section and every history line. Nothing is changed.
+//! gives every field, every section and every history line. Nothing is changed. An ID with the
+//! place `team:` (R-ID-2) shows an entry of the team dossier of the project; its JSON `id` keeps
+//! the place.
 
 use crate::approval::{self, Mark};
 use crate::cli::Global;
 use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status};
-use crate::error::Result;
+use crate::error::{Code, Error, Result};
 use crate::filesum;
 use crate::output::Output;
+use crate::paths;
 use crate::store::{self, Item};
 use crate::time;
 use chrono::NaiveDate;
 use serde_json::{Map, Value, json};
-use std::path::Path;
+use std::path::{MAIN_SEPARATOR, Path};
+
+/// The place of an entry of the team dossier, as an ID is written from a project (R-ID-2).
+const TEAM: &str = "team";
 
 /// The arguments of `show`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
-    /// The ID of the entry, such as DEC-012; any case, with or without a place prefix
+    /// The ID of the entry, such as DEC-012; any case, with or without a place prefix. `team:`
+    /// before the ID shows an entry of the team dossier
     pub id: String,
 }
 
 /// Runs `show`: reads the entry, works out its marks, and prints the marks line (when there are
-/// marks) followed by the file text. Problems in other files of the dossier are passed on as
-/// warnings.
+/// marks) followed by the file text. An ID with the place `team:` is read from the team dossier of
+/// the project (Code::NoDossier when there is none). Problems in other files of the dossier are
+/// passed on as warnings.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "show")?;
-    let (_, warnings) = store::all(&ctx.dossier);
-    let item = store::get(&ctx.dossier, &args.id)?;
-    let marks = marks(&ctx, &item);
+    let team = team_id(&args.id);
+    let (target, id) = match team {
+        Some(id) => (team_of(&ctx)?, id),
+        None => (ctx, args.id.as_str()),
+    };
+    let (_, warnings) = store::all(&target.dossier);
+    let item = store::get(&target.dossier, id)?;
+    let shown_id = if team.is_some() {
+        format!("{TEAM}:{}", item.entry.id())
+    } else {
+        item.entry.id()
+    };
+    let marks = marks(&target, &item);
     let file = item.entry.text();
     let text = if marks.is_empty() {
         file
     } else {
         format!("{}\n{file}", marks.join(" "))
     };
-    let mut output = Output::with(text, data(&ctx, &item, &marks));
+    let mut output = Output::with(text, data(&target, &item, &marks, &shown_id));
     for warning in warnings {
-        output = output.warn(warning);
+        output = output.warn(shown_warning(&target.root, &warning));
     }
     Ok(output)
+}
+
+/// The ID after the place `team:` (any case), or None when the ID has no such place.
+fn team_id(id: &str) -> Option<&str> {
+    let (place, rest) = id.split_once(':')?;
+    place.eq_ignore_ascii_case(TEAM).then_some(rest)
+}
+
+/// The team dossier of the project as a context, for an ID with the place `team:` (R-ID-2).
+/// Code::NoDossier naming `dossier team use <path>` when the project names no team dossier
+/// (R-PLACE-8), or naming the path when the team dossier it names cannot be reached.
+fn team_of(ctx: &Ctx) -> Result<Ctx> {
+    if ctx.team.is_none()
+        && let Some(stored) = &ctx.cfg.team
+    {
+        return Err(Error::new(
+            Code::NoDossier,
+            format!(
+                "{}: the team dossier cannot be reached",
+                ctx.root.join(paths::shown(stored)).display()
+            ),
+        ));
+    }
+    ctx.team_ctx()
+}
+
+/// A warning of a dossier read, with the path in it shown relative to `root`, with `/` between its
+/// parts. A warning without a path under `root` is kept as it is.
+fn shown_warning(root: &Path, warning: &str) -> String {
+    let root_text = root.display().to_string();
+    let Some(rest) = warning.strip_prefix(root_text.as_str()) else {
+        return warning.to_string();
+    };
+    let rest = rest.strip_prefix(['\\', '/']).unwrap_or(rest);
+    match rest.split_once(": ") {
+        Some((path, message)) => format!("{}: {message}", path.replace(MAIN_SEPARATOR, "/")),
+        None => warning.to_string(),
+    }
 }
 
 /// The marks of an entry, in this order: its status (design.md section 5); `[due for review]`
@@ -134,10 +190,10 @@ fn rests_on_mark(entry: &Entry) -> Option<String> {
     (!ids.is_empty()).then(|| format!("[rests on {}]", ids.join(", ")))
 }
 
-/// The data of `--json`: the ID, title, kind, status, marks, the fields (each non-history field
-/// once, with its first value; the history as a list), the sections, and the path of the file
-/// relative to the project folder.
-fn data(ctx: &Ctx, item: &Item, marks: &[String]) -> Value {
+/// The data of `--json`: the ID (`shown_id`, with `team:` before it for a team entry), title, kind,
+/// status, marks, the fields (each non-history field once, with its first value; the history as a
+/// list), the sections, and the path of the file relative to the folder of the dossier read.
+fn data(ctx: &Ctx, item: &Item, marks: &[String], shown_id: &str) -> Value {
     let entry = &item.entry;
     let mut fields = Map::new();
     for (key, value) in entry.fields() {
@@ -153,7 +209,7 @@ fn data(ctx: &Ctx, item: &Item, marks: &[String]) -> Value {
         }
     }
     json!({
-        "id": entry.id(),
+        "id": shown_id,
         "title": entry.title(),
         "kind": entry.kind().map(Kind::name),
         "status": entry.status().map(Status::name),

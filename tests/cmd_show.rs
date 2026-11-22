@@ -1,6 +1,8 @@
 //! Runs the built program for `show`: the file text as stored, the marks on a first line, the
-//! `--json` data with every field, section and history line, and an unknown ID as exit 1. Each
-//! test runs in its own project folder, with the clock fixed by `common::Project`.
+//! `--json` data with every field, section and history line, and an unknown ID as exit 1. An ID
+//! with the place `team:` shows an entry of the team dossier of the project (R-ID-2): without a
+//! team dossier it is exit 4, and its JSON `id` keeps the place. Each test runs in its own project
+//! folder, with the clock fixed by `common::Project`.
 
 mod common;
 
@@ -8,6 +10,7 @@ use common::Project;
 use predicates::str::contains;
 use serde_json::{Value, json};
 use std::fs;
+use std::path::{Path, PathBuf};
 
 /// Invented text for the parts of a lesson.
 const STATEMENT: &str = "Steady runs with a mixing-plane interface overpredict the stall margin.";
@@ -739,4 +742,247 @@ fn a_tool_changed_by_hand_and_with_a_changed_script_has_both_marks_in_order() {
         show_data(&project, &id)["marks"],
         json!(["[changed after approval]", "[file changed since approval]"])
     );
+}
+
+/// Invented text of the team's lesson: the project's own lessons do not share it.
+const TEAM_STATEMENT: &str = "An invented team lesson: the inlet profile sets the stall margin.";
+const TEAM_TITLE: &str = "Invented team lesson on the inlet profile";
+/// The file of the team lesson `LES-001`, relative to the team folder.
+const TEAM_LESSON_FILE: &str =
+    "DOSSIER/lessons/LES-001-invented-team-lesson-on-the-inlet-profile.md";
+
+/// A team dossier made by `init --team-dossier --code TEAM` in a folder of its own, whose name has
+/// a space and an umlaut, run as anna, with anna as its member. Returns the folder (it keeps the
+/// folder alive) and the DOSSIER folder in it.
+fn team_dossier(project: &Project) -> (tempfile::TempDir, PathBuf) {
+    let folder = tempfile::Builder::new()
+        .prefix("Team Äpfel ")
+        .tempdir()
+        .expect("a temporary team folder");
+    project
+        .command("anna", NOW)
+        .current_dir(folder.path())
+        .args(["init", "--team-dossier", "--code", "TEAM"])
+        .assert()
+        .success();
+    let dossier = folder.path().join("DOSSIER");
+    dossier::config::set_list(&dossier, "members", &["anna".to_string()])
+        .expect("anna is a member of the team");
+    (folder, dossier)
+}
+
+/// Makes the project link to the team dossier at `team`, as `team use` does.
+fn link(project: &Project, team: &Path) {
+    project.stdout("anna", &["team", "use", &team.display().to_string()]);
+}
+
+/// Gives the project one confidential term, so that a team write from it passes the check of
+/// R-CONF-2. The term is used by no other test text.
+fn with_confidential_term(project: &Project) {
+    project.stdout("anna", &["confidential", "add", "NT-999"]);
+}
+
+/// Records the team's lesson with `learn --team` as `agent`. Returns the standard output of `learn`.
+fn team_lesson_by(project: &Project, agent: &str) -> String {
+    project.stdout(
+        agent,
+        &[
+            "learn",
+            TEAM_STATEMENT,
+            "--valid-for",
+            VALID_FOR,
+            "--evidence",
+            EVIDENCE,
+            "--confidence",
+            "simulated",
+            "--title",
+            TEAM_TITLE,
+            "--team",
+        ],
+    )
+}
+
+/// The file text of the entry `id` in the team dossier at `dossier`.
+fn team_text(dossier: &Path, id: &str) -> String {
+    let item = dossier::store::get(dossier, id).expect("the team entry");
+    String::from_utf8(item.raw).expect("the entry file is UTF-8")
+}
+
+#[test]
+fn a_team_lesson_is_shown_from_the_team_dossier_with_its_place_in_json() {
+    let project = Project::new();
+    let (_folder, team) = team_dossier(&project);
+    link(&project, &team);
+    with_confidential_term(&project);
+    assert_eq!(
+        team_lesson_by(&project, "anna"),
+        "LES-001: added (approved)\n"
+    );
+
+    let stored = team_text(&team, "LES-001");
+    assert!(stored.starts_with("<!-- dossier-format: 1 -->\n# LES-001 · "));
+    assert_eq!(project.stdout("anna", &["show", "team:LES-001"]), stored);
+
+    let data = show_data(&project, "team:LES-001");
+    assert_eq!(data["id"], "team:LES-001");
+    assert_eq!(data["title"], TEAM_TITLE);
+    assert_eq!(data["kind"], "lesson");
+    assert_eq!(data["status"], "approved");
+    assert_eq!(data["marks"], json!([]));
+    assert_eq!(data["path"], TEAM_LESSON_FILE);
+    assert_eq!(data["sections"]["Statement"], TEAM_STATEMENT);
+}
+
+#[test]
+fn the_team_place_is_found_in_any_case_and_a_project_entry_with_the_same_number_stays_its_own() {
+    let project = Project::new();
+    let (_folder, team) = team_dossier(&project);
+    link(&project, &team);
+    with_confidential_term(&project);
+    learn_by(&project, "anna");
+    team_lesson_by(&project, "anna");
+
+    assert_eq!(
+        project.stdout("anna", &["show", "LES-001"]),
+        text_of(&project, "LES-001")
+    );
+    assert_eq!(
+        show_data(&project, "LES-001")["sections"]["Statement"],
+        STATEMENT
+    );
+
+    let stored = team_text(&team, "LES-001");
+    for id in ["team:LES-001", "TEAM:les-001", "Team:LES-001"] {
+        assert_eq!(project.stdout("anna", &["show", id]), stored, "{id}");
+    }
+    assert_eq!(
+        show_data(&project, "team:LES-001")["sections"]["Statement"],
+        TEAM_STATEMENT
+    );
+}
+
+#[test]
+fn a_team_draft_shows_the_draft_mark_and_the_project_holds_no_such_entry() {
+    let project = Project::new();
+    let (_folder, team) = team_dossier(&project);
+    link(&project, &team);
+    with_confidential_term(&project);
+    assert_eq!(
+        team_lesson_by(&project, "anna-claude"),
+        "LES-001: added (draft, waiting for approval)\n"
+    );
+
+    let stored = team_text(&team, "LES-001");
+    assert_eq!(
+        project.stdout("anna", &["show", "team:LES-001"]),
+        format!("[draft]\n{stored}")
+    );
+    assert_eq!(
+        show_data(&project, "team:LES-001")["marks"],
+        json!(["[draft]"])
+    );
+    project
+        .run("anna", &["show", "LES-001"])
+        .code(1)
+        .stderr(contains("no entry LES-001"));
+}
+
+#[test]
+fn a_team_lesson_changed_by_hand_is_marked_from_the_team_dossier() {
+    let project = Project::new();
+    let (_folder, team) = team_dossier(&project);
+    link(&project, &team);
+    with_confidential_term(&project);
+    team_lesson_by(&project, "anna");
+
+    let original = team_text(&team, "LES-001");
+    let changed = original.replace("sets the stall margin", "does not set the stall margin");
+    assert_ne!(changed, original);
+    let file = dossier::store::get(&team, "LES-001")
+        .expect("the team lesson")
+        .path;
+    fs::write(&file, &changed).expect("the team lesson is changed by hand");
+
+    assert_eq!(
+        project.stdout("anna", &["show", "team:LES-001"]),
+        format!("[changed after approval]\n{changed}")
+    );
+    assert_eq!(
+        show_data(&project, "team:LES-001")["marks"],
+        json!(["[changed after approval]"])
+    );
+}
+
+#[test]
+fn a_team_id_in_a_project_without_a_team_is_no_dossier_and_says_how_to_link_one() {
+    let project = Project::new();
+    project
+        .run("anna", &["show", "team:LES-001"])
+        .code(4)
+        .stderr(contains("dossier team use <path>"));
+    project
+        .run("anna", &["show", "team:LES-001", "--json"])
+        .code(4)
+        .stdout(contains("\"ok\":false"))
+        .stdout(contains("\"code\":\"NO_DOSSIER\""));
+}
+
+#[test]
+fn a_team_that_cannot_be_reached_is_no_dossier_naming_its_path() {
+    let project = Project::new();
+    let missing = project.root().join("NOWHERE").join("DOSSIER");
+    let stored = missing.display().to_string().replace('\\', "/");
+    dossier::config::set_value(
+        &project.root().join("DOSSIER"),
+        "team",
+        &format!("\"{stored}\""),
+    )
+    .expect("set the team path");
+
+    project
+        .run("anna", &["show", "team:LES-001"])
+        .code(4)
+        .stderr(contains("the team dossier cannot be reached"))
+        .stderr(contains("NOWHERE"));
+}
+
+#[test]
+fn a_team_id_the_team_does_not_hold_is_not_found() {
+    let project = Project::new();
+    let (_folder, team) = team_dossier(&project);
+    link(&project, &team);
+
+    project
+        .run("anna", &["show", "team:LES-999"])
+        .code(1)
+        .stderr(contains("no entry LES-999"));
+    project
+        .run("anna", &["show", "team:LES-999", "--json"])
+        .code(1)
+        .stdout(contains("\"code\":\"NOT_FOUND\""));
+}
+
+#[test]
+fn a_broken_file_in_the_team_dossier_is_a_warning_with_its_path_from_the_team_folder() {
+    let project = Project::new();
+    let (_folder, team) = team_dossier(&project);
+    link(&project, &team);
+    with_confidential_term(&project);
+    team_lesson_by(&project, "anna");
+    let broken = team.join("decisions").join("DEC-009-broken.md");
+    fs::create_dir_all(broken.parent().expect("the decisions folder")).expect("the folder");
+    fs::write(
+        &broken,
+        "<!-- dossier-format: 1 -->\nthis file has no heading\n",
+    )
+    .expect("the broken file");
+
+    project
+        .run("anna", &["show", "team:LES-001"])
+        .success()
+        .stdout(contains("# LES-001 · "))
+        .stderr(contains("warning:"))
+        .stderr(contains(
+            "DOSSIER/decisions/DEC-009-broken.md: line 2: no heading",
+        ));
 }
