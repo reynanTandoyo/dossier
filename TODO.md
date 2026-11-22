@@ -2679,10 +2679,8 @@
 - note (2026-11-21, planner): added
 
 ### T-264 · folderscan.rs: the tree and the documents of an old folder
-- status: claimed
+- status: done
 - owner: haiku-t-264
-- claimed: 2026-11-21T23:53+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-051
 - why: R-IMPORT-2.
@@ -2696,8 +2694,12 @@
   3. Run cargo test --lib folderscan::.
 - accept: An old project folder is listed without opening a file.
 - verify: cargo test --lib folderscan::
+- verified: 2026-11-22
+- commit: b4f6333
 - reqs: R-IMPORT-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-264): done
 
 ### T-265 · review-folder: the material for drafting from an old folder
 - status: open
