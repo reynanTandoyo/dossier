@@ -5938,10 +5938,8 @@
 - note (2026-11-22, haiku-t-274): done
 
 ### T-275 · used: a deviation adds an open remark to the team how-to
-- status: claimed
+- status: done
 - owner: haiku-t-275
-- claimed: 2026-11-22T13:18+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-046
 - why: R-USE-6: the owner of a how-to sees what to update.
@@ -5956,7 +5954,11 @@
   4. Run cargo test --test cmd_used.
 - accept: A deviation reaches the team how-to as one open remark, after the confidentiality check.
 - verify: cargo test --test cmd_used
+- verified: 2026-11-22
+- commit: a30175f7e692d97e782808c656d9079b6d952d01
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, coordinator): added
+- note (2026-11-22, haiku-t-275): done
 
 ### T-276 · check: abbreviations missing from the glossary
 - status: done
