@@ -2608,10 +2608,8 @@
 - note (2026-11-21, planner): added
 
 ### T-257 · learn: --review <date>
-- status: claimed
+- status: done
 - owner: haiku-t-257
-- claimed: 2026-11-22T11:33+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-050
 - why: R-LIFE-7, D33.
@@ -2625,8 +2623,12 @@
   3. Run cargo test --test cmd_learn.
 - accept: A lesson can carry a review date.
 - verify: cargo test --test cmd_learn
+- verified: 2026-11-22
+- commit: a58be95
 - reqs: R-LIFE-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-257): done
 
 ### T-258 · show: due for review, imported, file changed since approval
 - status: claimed
