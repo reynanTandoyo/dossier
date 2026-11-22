@@ -1883,8 +1883,10 @@
 - note (2026-11-22, haiku-t-228): done
 
 ### T-229 · hooks install: also set the LLM name for Claude Code
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-229
+- claimed: 2026-11-22T11:03+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: D34.
@@ -2672,10 +2674,8 @@
 - note (2026-11-21, planner): added
 
 ### T-263 · imports.rs: which documents were reviewed
-- status: claimed
+- status: done
 - owner: haiku-t-263
-- claimed: 2026-11-22T10:53+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-051
 - why: R-IMPORT-3.
@@ -2689,8 +2689,12 @@
   3. Run cargo test --lib imports::.
 - accept: The review state of old documents is read.
 - verify: cargo test --lib imports::
+- verified: 2026-11-22
+- commit: 4527409
 - reqs: R-IMPORT-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-263): done
 
 ### T-264 · folderscan.rs: the tree and the documents of an old folder
 - status: done
