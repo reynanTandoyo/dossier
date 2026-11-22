@@ -1692,10 +1692,8 @@
 - note (2026-11-21, haiku-t-219): done
 
 ### T-220 · tx.rs: commit the team dossier after a write
-- status: claimed
+- status: done
 - owner: haiku-t-220
-- claimed: 2026-11-22T10:53+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: D36: every team change is in git without anyone running git by hand.
@@ -1709,8 +1707,12 @@
   3. Run cargo test --lib tx::.
 - accept: Writes to a team dossier are committed to git when it is a repository.
 - verify: cargo test --lib tx::
+- verified: 2026-11-22
+- commit: 036f03b
 - reqs: D36, R-TEAM-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-220): done
 
 ### T-221 · teamfiles.rs: projects.md and usage-index.md of the team dossier
 - status: done
