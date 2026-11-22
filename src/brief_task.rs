@@ -55,9 +55,10 @@ const USES_LIMIT: usize = 3;
 /// last usage records of its software and analysis in the team's usage index (R-CTX-2), the
 /// approved dead ends that match it (R-CTX-16), the entries whose code pointers lie in the files
 /// todo names for it (R-CODE-4), then select::best over the remaining approved entries and the
-/// team's approved lessons and how-tos (R-CTX-2, marked `team:`), with the task's machine,
-/// analysis and software fields as tags and its title as words. A decision or lesson printed with
-/// its text is followed by its pictures (R-ENTRY-17).
+/// team's approved lessons and how-tos (R-CTX-2, marked `team:`), except a copy of a project entry
+/// that is listed (R-TEAM-4), with the task's machine, analysis and software fields as tags and
+/// its title as words. A decision or lesson printed with its text is followed by its pictures
+/// (R-ENTRY-17).
 pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
     let data = todo_bridge::json(&ctx.root, &["show", task]).map_err(|error| {
         if error.code == Code::TodoMissing {
@@ -156,7 +157,16 @@ pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
     let team = team_items(ctx);
     let team_paths: HashSet<PathBuf> = team.iter().map(|item| item.path.clone()).collect();
     pool.extend(team);
-    let related = select::best(&pool, &query, RELATED_LIMIT);
+    // A team copy of a listed project entry is left out (R-TEAM-4). Leaving it out can bring
+    // another entry into the choice, so the choice is made again without it.
+    let related = loop {
+        let picked = select::best(&pool, &query, RELATED_LIMIT);
+        let left_out = copies_left_out(&picked, &team_paths, &listed, &ctx.cfg.code);
+        if left_out.is_empty() {
+            break picked;
+        }
+        pool.retain(|item| !left_out.contains(&item.path));
+    };
     if !related.is_empty() {
         out.push(RELATED.to_string());
         for item in related {
@@ -183,6 +193,39 @@ fn team_items(ctx: &Ctx) -> Vec<Item> {
         .into_iter()
         .filter(|item| item.entry.status() == Some(Status::Approved))
         .filter(|item| matches!(item.entry.kind(), Some(Kind::Lesson | Kind::Howto)))
+        .collect()
+}
+
+/// The ID of the project entry that a team entry was copied from: the part after the colon of its
+/// `source` field (`<project code>:<ID>`, format.md §23), when the part before the colon is `code`,
+/// ignoring case. None when there is no such field or it names another project.
+fn promoted_from(item: &Item, code: &str) -> Option<String> {
+    let source = item.entry.field("source")?;
+    let (from, id) = source.rsplit_once(':')?;
+    same(from, code).then(|| id.trim().to_string())
+}
+
+/// The team entries among `picked` that are copies of a project entry which is listed: one listed
+/// under an earlier heading (`listed`), or one of the project entries picked (R-TEAM-4). Their
+/// paths; the project's own entry stays.
+fn copies_left_out(
+    picked: &[&Item],
+    team_paths: &HashSet<PathBuf>,
+    listed: &HashSet<String>,
+    code: &str,
+) -> Vec<PathBuf> {
+    let shown: HashSet<String> = picked
+        .iter()
+        .filter(|item| !team_paths.contains(&item.path))
+        .map(|item| item.entry.id())
+        .collect();
+    picked
+        .iter()
+        .filter(|item| team_paths.contains(&item.path))
+        .filter(|item| {
+            promoted_from(item, code).is_some_and(|id| listed.contains(&id) || shown.contains(&id))
+        })
+        .map(|item| item.path.clone())
         .collect()
 }
 
@@ -1552,6 +1595,150 @@ mod tests {
                 "LES-010 · lesson · Compressor stall notes",
                 "  Statement: Stall came early.",
                 "  Valid for: Front stages only.",
+            ]
+        );
+    }
+
+    #[test]
+    fn a_promoted_lesson_is_listed_once_when_its_project_entry_is_picked() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, mut ctx) = project();
+        let team = team_of(&ctx);
+        ctx.team = Some(team.dossier.clone());
+        let title = "Steady mixing-plane runs overpredict stall margin";
+        let sections = [
+            (
+                "Statement",
+                "Steady runs converge where rotating stall is seen.",
+            ),
+            ("Valid for", "Transonic front stages."),
+        ];
+        // The project's LES-001 and the team's copy of it, with source P-001:LES-001. Their tags
+        // match alike, so both are picked for Related.
+        let fields = [
+            ("machine", "axial compressor"),
+            ("analysis", "steady RANS, speedline"),
+            ("confidence", "simulated"),
+        ];
+        write_entry(
+            &ctx,
+            Kind::Lesson,
+            "LES-001",
+            title,
+            "approved",
+            &fields,
+            &sections,
+        );
+        let mut copied = fields.to_vec();
+        copied.push(("source", "P-001:LES-001"));
+        write_entry(
+            &team,
+            Kind::Lesson,
+            "LES-001",
+            title,
+            "approved",
+            &copied,
+            &sections,
+        );
+        let show = stand_in(dir.path(), "todo-show", &envelope(speedline_task()));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let found = lines(&ctx, "T-132", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        // The project's copy is the one line; the team's copy is left out.
+        assert_eq!(
+            found.expect("the lines"),
+            vec![
+                "Task T-132 · Speedline of the compressor",
+                "## Related",
+                "LES-001 · lesson · Steady mixing-plane runs overpredict stall margin",
+                "  Statement: Steady runs converge where rotating stall is seen.",
+                "  Valid for: Transonic front stages.",
+            ]
+        );
+    }
+
+    #[test]
+    fn a_copy_is_left_out_when_its_project_entry_is_listed_above() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, mut ctx) = project();
+        let team = team_of(&ctx);
+        ctx.team = Some(team.dossier.clone());
+        let title = "Steady mixing-plane runs overpredict stall margin";
+        let sections = [
+            (
+                "Statement",
+                "Steady runs converge where rotating stall is seen.",
+            ),
+            ("Valid for", "Transonic front stages."),
+        ];
+        // The project's LES-001 is listed under Recorded. Its team copy names the project in lower
+        // case, which still counts. The team's LES-002 is a copy of another project's LES-001, so
+        // it stays.
+        write_entry(
+            &ctx,
+            Kind::Lesson,
+            "LES-001",
+            title,
+            "approved",
+            &[
+                ("task", "T-132"),
+                ("machine", "axial compressor"),
+                ("analysis", "steady RANS, speedline"),
+                ("confidence", "simulated"),
+            ],
+            &sections,
+        );
+        write_entry(
+            &team,
+            Kind::Lesson,
+            "LES-001",
+            title,
+            "approved",
+            &[
+                ("machine", "axial compressor"),
+                ("analysis", "steady RANS, speedline"),
+                ("confidence", "simulated"),
+                ("source", "p-001:LES-001"),
+            ],
+            &sections,
+        );
+        write_entry(
+            &team,
+            Kind::Lesson,
+            "LES-002",
+            "Steady runs converge at the stability limit",
+            "approved",
+            &[
+                ("machine", "axial compressor"),
+                ("analysis", "steady RANS"),
+                ("source", "P-002:LES-001"),
+            ],
+            &sections,
+        );
+        let show = stand_in(dir.path(), "todo-show", &envelope(speedline_task()));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let found = lines(&ctx, "T-132", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        assert_eq!(
+            found.expect("the lines"),
+            vec![
+                "Task T-132 · Speedline of the compressor",
+                "## Recorded for this task",
+                "LES-001 · lesson · Steady mixing-plane runs overpredict stall margin",
+                "## Related",
+                "team:LES-002 · lesson · Steady runs converge at the stability limit",
+                "  Statement: Steady runs converge where rotating stall is seen.",
+                "  Valid for: Transonic front stages.",
             ]
         );
     }
