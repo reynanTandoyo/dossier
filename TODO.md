@@ -2021,10 +2021,8 @@
 - note (2026-11-22, haiku-t-232): done
 
 ### T-233 · confidential scan: look for the project's terms in the team dossier
-- status: claimed
+- status: done
 - owner: haiku-t-233
-- claimed: 2026-11-22T12:16+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-044
 - why: R-CONF-6.
@@ -2038,8 +2036,12 @@
   3. Run cargo test --test cmd_confidential.
 - accept: Terms added late are found in the team dossier.
 - verify: cargo test --test cmd_confidential
+- verified: 2026-11-22
+- commit: ec9cde9de892047a1157896ae6419f9f51e17ec6
 - reqs: R-CONF-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-233): done
 
 ### T-045 · Promotion and closing a project: promote, close
 - status: open
