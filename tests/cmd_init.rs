@@ -272,3 +272,138 @@ fn on_windows_no_group_line_is_written() {
         .success()
         .stdout(contains("group:").not());
 }
+
+#[test]
+fn team_dossier_creates_the_team_folders_and_the_state_folder_only() {
+    let folder = tempfile::tempdir().unwrap();
+    init(folder.path(), &["--code", "P-001", "--team-dossier"]).success();
+    let dossier = folder.path().join("DOSSIER");
+    for name in ["lessons", "howtos", "tools", ".state"] {
+        assert!(dossier.join(name).is_dir(), "{name} is missing");
+    }
+    for name in ["decisions", "assumptions", "findings", "usage"] {
+        assert!(!dossier.join(name).exists(), "{name} must not be there");
+    }
+}
+
+#[test]
+fn team_dossier_settings_say_kind_team_right_after_the_code() {
+    let folder = tempfile::tempdir().unwrap();
+    init(folder.path(), &["--code", "P-001", "--team-dossier"]).success();
+    assert!(
+        settings(folder.path()).starts_with("format = 1\ncode = \"P-001\"\nkind = \"team\"\n"),
+        "{}",
+        settings(folder.path())
+    );
+    let cfg = dossier::config::load(&folder.path().join("DOSSIER")).unwrap();
+    assert_eq!(cfg.kind, "team");
+    assert_eq!(cfg.code, "P-001");
+    assert!(!cfg.code_project);
+}
+
+#[test]
+fn team_dossier_state_folder_has_a_gitignore_for_the_lock_and_the_holder() {
+    let folder = tempfile::tempdir().unwrap();
+    init(folder.path(), &["--code", "P-001", "--team-dossier"]).success();
+    let ignore = folder
+        .path()
+        .join("DOSSIER")
+        .join(".state")
+        .join(".gitignore");
+    assert_eq!(
+        std::fs::read_to_string(ignore).unwrap(),
+        "write.lock\nholder.json\n"
+    );
+}
+
+#[test]
+fn team_dossier_says_so_on_its_first_line() {
+    let folder = tempfile::tempdir().unwrap();
+    let out = init(folder.path(), &["--code", "P-001", "--team-dossier"])
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let text = String::from_utf8(out).unwrap();
+    assert_eq!(text.lines().next(), Some("created the team dossier P-001"));
+}
+
+#[test]
+fn team_dossier_journal_line_names_the_team_dossier_and_the_agent() {
+    let folder = tempfile::tempdir().unwrap();
+    init_with(
+        folder.path(),
+        &[("DOSSIER_AGENT", "anna")],
+        &["--code", "P-001", "--team-dossier"],
+    )
+    .success();
+    let records = journal_of(folder.path());
+    assert_eq!(records.len(), 1);
+    let record = &records[0];
+    assert_eq!(record.time, NOW);
+    assert_eq!(record.name, "anna");
+    assert_eq!(record.person, "anna");
+    assert_eq!(record.command, "init");
+    assert_eq!(record.id, "DOSSIER");
+    assert_eq!(record.event, "created");
+    assert_eq!(record.detail, "team dossier, code P-001");
+}
+
+#[test]
+fn team_dossier_with_code_project_is_refused_and_nothing_is_created() {
+    let folder = tempfile::tempdir().unwrap();
+    init(
+        folder.path(),
+        &["--code", "P-001", "--team-dossier", "--code-project"],
+    )
+    .code(1)
+    .stderr(contains(
+        "error: a team dossier is not a code project: drop --code-project or --team-dossier",
+    ));
+    assert!(!folder.path().join("DOSSIER").exists());
+}
+
+#[test]
+fn a_refused_team_dossier_as_json_gives_the_bad_value_name() {
+    let folder = tempfile::tempdir().unwrap();
+    init(
+        folder.path(),
+        &[
+            "--code",
+            "P-001",
+            "--team-dossier",
+            "--code-project",
+            "--json",
+        ],
+    )
+    .code(1)
+    .stdout(contains("\"ok\":false"))
+    .stdout(contains("\"code\":\"BAD_VALUE\""));
+    assert!(!folder.path().join("DOSSIER").exists());
+}
+
+#[test]
+fn a_project_dossier_has_no_kind_line_and_no_state_gitignore() {
+    let folder = tempfile::tempdir().unwrap();
+    init(folder.path(), &["--code", "P-001"]).success();
+    let dossier = folder.path().join("DOSSIER");
+    assert!(!settings(folder.path()).contains("kind ="));
+    assert!(!dossier.join(".state").join(".gitignore").exists());
+    let cfg = dossier::config::load(&dossier).unwrap();
+    assert_eq!(cfg.kind, "project");
+}
+
+#[cfg(unix)]
+#[test]
+fn on_linux_the_team_dossier_ignore_file_is_group_writable() {
+    use std::os::unix::fs::PermissionsExt;
+    let folder = tempfile::tempdir().unwrap();
+    init(folder.path(), &["--code", "P-001", "--team-dossier"]).success();
+    let ignore = folder
+        .path()
+        .join("DOSSIER")
+        .join(".state")
+        .join(".gitignore");
+    let mode = std::fs::metadata(&ignore).unwrap().permissions().mode() & 0o7777;
+    assert_eq!(mode, 0o664);
+}
