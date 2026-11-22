@@ -1736,10 +1736,8 @@
 - note (2026-11-22, haiku-t-221): done
 
 ### T-222 · init --team-dossier: create a team dossier
-- status: claimed
+- status: done
 - owner: haiku-t-222
-- claimed: 2026-11-22T10:53+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: R-PLACE-3.
@@ -1754,8 +1752,12 @@
   4. Run cargo test --test cmd_init.
 - accept: init --team-dossier creates a team dossier.
 - verify: cargo test --test cmd_init
+- verified: 2026-11-22
+- commit: f5d21c8
 - reqs: R-PLACE-3, R-TEAM-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-222): done
 
 ### T-223 · team: show the team settings and link a project (team use)
 - status: open
