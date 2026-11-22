@@ -5767,8 +5767,10 @@
 - note (2026-11-22, haiku-t-213): done
 
 ### T-214 · README for v0.3
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-214
+- claimed: 2026-11-22T13:04+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-042
 - why: REL-2.
@@ -5791,7 +5793,7 @@
 - why: Phase 3 ends with a release used on real work.
 - summary: Prepares the 0.3.0 release.
 - final: Checking every command by hand cannot be listed in advance.
-- depends: T-213, T-214, T-043, T-044, T-045, T-046, T-047, T-048, T-049, T-050, T-051, T-210, T-211, T-212
+- depends: T-213,T-214,T-043,T-044,T-045,T-046,T-047,T-048,T-049,T-050,T-051,T-210,T-211,T-212
 - files: Cargo.toml, Cargo.lock
 - read: docs/requirements.md
 - steps:
@@ -5867,6 +5869,102 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-22, coordinator): added
 - note (2026-11-22, haiku-t-271): done
+
+### T-272 · show: a how-to not tested with the newest version
+- status: claimed
+- owner: haiku-t-272
+- claimed: 2026-11-22T13:06+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-050
+- why: R-LIFE-8: a how-to goes out of date quietly when the software moves on.
+- summary: A how-to is marked 'not tested with <version>' when the software was used in a newer version than the one it was tested with.
+- files: src/cmd/show.rs, tests/cmd_show.rs
+- read: docs/requirements.md, docs/format.md, src/cmd/used.rs, src/teamfiles.rs
+- steps:
+  1. The versions a how-to was tested with: each line of its 'Tested with' section; the version of a line is its last word that contains a digit. The newest is the highest by comparing the dot- or dash-separated parts as numbers where both are numbers, else as text.
+  2. The newest use of the how-to's software (field software, ignoring case): the usage entries of the dossier (Kind::Usage, fields software, version, and the entry's created time) and, when the project has a team dossier (ctx.team), the blocks of the team's usage-index.md (teamfiles::usage: software, version, date); the newest by time or date wins.
+  3. When the newest use has a version and it is higher than the newest tested version (or the how-to has no tested version at all), show adds the mark '[not tested with <version>]' after the other marks. Put the rule in one pub(crate) function in show.rs, not_tested_with(ctx: &Ctx, entry: &Entry) -> Option<String>, so that list can call it.
+  4. Tests: a how-to tested with 2410 and a usage record of the same software 2502 is marked; tested with 2502 is not; another software's record does not count.
+  5. Run cargo test --test cmd_show.
+- accept: show marks a how-to whose software was used in a newer version than it was tested with.
+- verify: cargo test --test cmd_show
+- note (2026-11-22, coordinator): added
+
+### T-273 · list: a how-to not tested with the newest version
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-050
+- why: R-LIFE-8.
+- summary: list marks a how-to 'not tested with <version>' as show does.
+- depends: T-272
+- files: src/cmd/list.rs, tests/cmd_list.rs
+- read: src/cmd/show.rs
+- steps:
+  1. Add the mark '[not tested with <version>]' to a how-to's line in list, from crate::cmd::show::not_tested_with (T-272).
+  2. Test: a how-to tested with 2410 and a usage record of the same software 2502 is marked in list.
+  3. Run cargo test --test cmd_list.
+- accept: list shows the same mark as show.
+- verify: cargo test --test cmd_list
+- note (2026-11-22, coordinator): added
+
+### T-274 · entry: how-tos may have an Open remarks section
+- status: claimed
+- owner: haiku-t-274
+- claimed: 2026-11-22T13:07+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-046
+- why: R-USE-6, format.md section 22: how-tos get Open remarks after Tested with.
+- summary: A how-to may carry the section Open remarks, last.
+- files: src/entry/new.rs, src/entry/rules.rs
+- read: docs/format.md
+- steps:
+  1. Add "Open remarks" after "Tested with" to the how-to sections in src/entry/new.rs and src/entry/rules.rs (format.md section 22), and update the tests in both files that list the sections.
+  2. Run cargo test --lib entry::.
+- accept: A how-to with an Open remarks section is valid and the section sorts last.
+- verify: cargo test --lib entry::
+- note (2026-11-22, coordinator): added
+
+### T-275 · used: a deviation adds an open remark to the team how-to
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-046
+- why: R-USE-6: the owner of a how-to sees what to update.
+- summary: A usage record with deviations that names a team how-to adds a line to that how-to's Open remarks in the team dossier.
+- depends: T-274
+- files: src/cmd/used.rs, tests/cmd_used.rs
+- read: docs/format.md, docs/requirements.md, src/approval.rs, src/conf.rs
+- steps:
+  1. When used is given --howto <ID> and --deviations <text>, and the how-to is the team's (the ID starts with 'team:' in any case, or the project has no entry with that ID and the team dossier has a how-to with it), and the project has a team dossier: check the deviation with conf::gate and conf::check first (a refusal refuses the whole command before anything is written).
+  2. In a tx::write on ctx.team_ctx(): add the line '- <project code> <YYYY-MM-DD>: <deviation>' at the end of the how-to's Open remarks section (create the section, last, when missing), with a history line 'remark' and detail the project code; when approval::mark gave Unchanged before the change, approval::record the new bytes so the remark is not a hand change (format.md section 22).
+  3. Tests: a team how-to (approved by anna with --team after 'dossier confidential add "NT-999"') gets the line, stays unchanged for show (no [changed after approval]); a deviation holding NT-999 is refused; without --deviations nothing is added.
+  4. Run cargo test --test cmd_used.
+- accept: A deviation reaches the team how-to as one open remark, after the confidentiality check.
+- verify: cargo test --test cmd_used
+- note (2026-11-22, coordinator): added
+
+### T-276 · check: abbreviations missing from the glossary
+- status: claimed
+- owner: haiku-t-276
+- claimed: 2026-11-22T13:07+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-048
+- why: R-TERM-3.
+- summary: check lists abbreviations of two to six capital letters that appear in at least three entries and are in no glossary.
+- files: src/cmd/check.rs, tests/cmd_check.rs
+- read: docs/requirements.md, src/glossary.rs
+- steps:
+  1. Split the title and section text of every entry into words at characters that are not letters or digits. An abbreviation is a word of 2 to 6 ASCII capital letters that is not an entry ID prefix (DEC, FND, LES, ASM, HOW, TOOL, USE and every other Kind prefix) and not the project code.
+  2. Count the entries each abbreviation appears in; when it is 3 or more and it is not a term, symbol or other spelling (ignoring case) of the project's or the team's glossary (glossary::load, glossary::terms), report it with the code TERM: '<ABBR> appears in <n> entries and is in no glossary; add it with: dossier term add <ABBR> "<meaning>"', at the first entry's file and line where it appears. A warning, like the other SHOULD reports.
+  3. Tests: CFD in three entries and no glossary is reported; in two entries it is not; with 'term add CFD ...' it is not; LES-001 references are not abbreviations.
+  4. Run cargo test --test cmd_check.
+- accept: check reports a frequent abbreviation that no glossary explains.
+- verify: cargo test --test cmd_check
+- note (2026-11-22, coordinator): added
 
 ## Questions
 
