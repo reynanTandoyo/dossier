@@ -1764,10 +1764,8 @@
 - note (2026-11-22, haiku-t-222): done
 
 ### T-223 · team: show the team settings and link a project (team use)
-- status: claimed
+- status: done
 - owner: haiku-t-223
-- claimed: 2026-11-22T11:22+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: R-PLACE-2: a project knows its team dossier.
@@ -1783,8 +1781,12 @@
   5. Run cargo test --test cmd_team.
 - accept: A project is linked to its team dossier and the settings are shown.
 - verify: cargo test --test cmd_team
+- verified: 2026-11-22
+- commit: 0d690ae
 - reqs: R-PLACE-2, R-PLACE-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-223): done
 
 ### T-224 · team member add and remove
 - status: open
