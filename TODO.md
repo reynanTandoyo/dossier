@@ -2149,10 +2149,8 @@
 - note (2026-11-21, planner): split into T-237, T-238, T-239, T-240
 
 ### T-237 · howto: write a how-to
-- status: claimed
+- status: done
 - owner: haiku-t-237
-- claimed: 2026-11-22T12:16+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-046
 - why: R-ENTRY-8, R-WRITE-5, R-WRITE-6.
@@ -2168,8 +2166,12 @@
   5. Run cargo test --test cmd_howto.
 - accept: How-tos are written in the project or, with --team, in the team dossier.
 - verify: cargo test --test cmd_howto
+- verified: 2026-11-22
+- commit: 56061b823677e1291039c5840ae914195acdb585
 - reqs: R-ENTRY-8, R-WRITE-5, R-WRITE-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-237): done
 
 ### T-238 · used: add a line to the team's usage index
 - status: done
