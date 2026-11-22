@@ -6,7 +6,9 @@
 //! assumption, `--on <date>` and the order in which the line limit cuts. Each test runs in its own
 //! temporary project folder (common::Project), with
 //! the clock fixed at 2026-11-20T10:00:00+01:00. Phase 3 adds the team's lessons and how-tos whose
-//! tags match the project's, and the news line (R-CTX-1, R-READ-11).
+//! tags match the project's, and the news line (R-CTX-1, R-READ-11). The later part adds the
+//! `[due for review]` mark of every entry printed, and the changed mark of team how-tos
+//! (R-LIFE-6, R-LIFE-7, R-CTX-4).
 
 mod common;
 
@@ -1668,4 +1670,190 @@ fn a_team_that_cannot_be_reached_leaves_the_brief_without_a_team_part() {
 
     assert!(text.starts_with("Project P-001\n"), "{text}");
     assert!(!text.contains("## Team lessons and how-tos"), "{text}");
+}
+
+/// Sets the `review` date of entry `id` as anna at the fixed clock, a person's change.
+fn set_review(project: &Project, id: &str, review: &str) {
+    let field = format!("review={review}");
+    project
+        .run("anna", &["set", id, "--field", field.as_str()])
+        .success();
+}
+
+#[test]
+fn entries_the_brief_prints_are_marked_when_their_review_date_has_passed() {
+    let project = project_with_entries();
+    for id in ["DEC-001", "ASM-001", "FND-001", "LES-001"] {
+        set_review(&project, id, "2026-11-19");
+    }
+
+    let text = brief_now(&project, NOW);
+
+    let lines: Vec<&str> = text.lines().collect();
+    for line in [
+        "DEC-001 · Transient speedline points (anna, 2026-11-20) [due for review]",
+        "ASM-001 · Uniform inlet profile [due for review]",
+        "FND-001 · Steady run stalls at low flow [due for review]",
+        "LES-001 · Mixing-plane stall margin [due for review]",
+    ] {
+        assert!(lines.contains(&line), "{line} is missing: {text}");
+    }
+}
+
+#[test]
+fn a_review_date_of_today_or_later_gives_no_due_mark() {
+    let project = project_with_entries();
+    set_review(&project, "DEC-001", "2026-11-20");
+    set_review(&project, "LES-001", "2026-12-01");
+
+    let text = brief_now(&project, NOW);
+
+    assert!(!text.contains("[due for review]"), "{text}");
+    assert!(
+        text.lines()
+            .any(|line| line == "LES-001 · Mixing-plane stall margin"),
+        "{text}"
+    );
+}
+
+#[test]
+fn a_lesson_changed_by_hand_and_past_its_review_date_has_the_due_mark_before_the_changed_mark() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "learn",
+                "Steady runs overpredict the stall margin.",
+                "--valid-for",
+                "Transonic front stages.",
+                "--evidence",
+                "Speedline comparison, section 4.2.",
+                "--confidence",
+                "simulated",
+                "--title",
+                "Stall margin lesson",
+            ],
+        )
+        .success();
+    set_review(&project, "LES-001", "2026-11-19");
+    let path = project.entry_file("LES-001");
+    let text = fs::read_to_string(&path).expect("the lesson file");
+    fs::write(&path, text.replace("overpredict", "underpredict")).expect("change it by hand");
+
+    let text = brief_now(&project, NOW);
+
+    assert!(
+        text.lines().any(|line| line
+            == "LES-001 · Stall margin lesson [due for review] [changed after approval]"),
+        "{text}"
+    );
+}
+
+/// A draft how-to of the team for `software` (format.md §22), written as the `howto` command would
+/// write it, for `approve` to approve.
+fn write_draft_how_to(team: &Team, id: &str, title: &str, software: &str) {
+    let text = format!(
+        "<!-- dossier-format: 1 -->\n\
+         # {id} · {title}\n\
+         \n\
+         - kind: howto\n\
+         - status: draft\n\
+         - created: {NOW}\n\
+         - author: anna\n\
+         - software: {software}\n\
+         - history: {NOW} anna: created\n\
+         \n\
+         ## Purpose\n\
+         \n\
+         An invented purpose.\n\
+         \n\
+         ## Steps\n\
+         \n\
+         An invented step.\n"
+    );
+    let folder = team.dossier.join("howtos");
+    fs::create_dir_all(&folder).expect("the howtos folder is created");
+    let slug = title.to_lowercase().replace(' ', "-");
+    fs::write(folder.join(format!("{id}-{slug}.md")), text).expect("the how-to is written");
+}
+
+/// Approves the draft `id` of the team dossier as anna, answering `a` to its question.
+fn approve_in_team(project: &Project, team: &Team, id: &str) {
+    project
+        .command("anna", NOW)
+        .arg("--dossier")
+        .arg(&team.dossier)
+        .env("DOSSIER_ANSWERS", "a")
+        .args(["approve", id])
+        .assert()
+        .success();
+}
+
+#[test]
+fn a_team_how_to_changed_by_hand_after_its_approval_is_marked() {
+    let project = Project::new();
+    tag_project(&project);
+    let team = with_team(&project);
+    write_draft_how_to(&team, "HOW-001", "Restart the solver", "ExampleSolver");
+    approve_in_team(&project, &team, "HOW-001");
+    let path = entry_file_in(&team.dossier, "howtos", "HOW-001");
+    let text = fs::read_to_string(&path).expect("the how-to is read");
+    fs::write(&path, format!("{text}\nA line added by hand.\n")).expect("the how-to is changed");
+
+    let text = brief_now(&project, NOW);
+
+    assert!(
+        text.lines()
+            .any(|line| line == "team:HOW-001 · Restart the solver [changed after approval]"),
+        "{text}"
+    );
+}
+
+#[test]
+fn a_team_lesson_and_how_to_past_their_review_date_are_marked_due_for_review() {
+    let project = Project::new();
+    tag_project(&project);
+    let team = with_team(&project);
+    learn_in_team(
+        &project,
+        &team,
+        "anna",
+        NOW,
+        "Steady runs overpredict the stall margin.",
+        "Stall margin",
+        "axial compressor",
+    )
+    .success();
+    in_team(
+        &project,
+        &team,
+        "anna",
+        NOW,
+        &["set", "LES-001", "--field", "review=2026-11-19"],
+    )
+    .success();
+    write_how_to(&team, "HOW-001", "Restart the solver", "ExampleSolver");
+    let path = entry_file_in(&team.dossier, "howtos", "HOW-001");
+    let text = fs::read_to_string(&path).expect("the how-to is read");
+    fs::write(
+        &path,
+        text.replace(
+            "- software: ExampleSolver\n",
+            "- software: ExampleSolver\n- review: 2026-11-19\n",
+        ),
+    )
+    .expect("the review date is set");
+
+    let text = brief_now(&project, NOW);
+
+    let lines: Vec<&str> = text.lines().collect();
+    assert!(
+        lines.contains(&"team:LES-001 · Stall margin [due for review]"),
+        "{text}"
+    );
+    assert!(
+        lines.contains(&"team:HOW-001 · Restart the solver [due for review]"),
+        "{text}"
+    );
 }

@@ -12,6 +12,11 @@
 //! `--on <date>` gives the decisions, findings, key values and last exchange as they were on that
 //! day (R-LIFE-9), and leaves the map out. The tasks and the unsettled part (drafts, proposals,
 //! open assumptions, marks) are as of now: a past day has no record of what waited on it.
+//!
+//! The decisions, findings, open assumptions and entries that rest on a wrong assumption carry
+//! `[due for review]` when their review date has passed (R-LIFE-7). The unsettled part counts the
+//! approved lessons, how-tos and tools changed by hand after their approval (approval::guarded,
+//! R-LIFE-6); its JSON key stays `changed_lessons`.
 
 use crate::approval::{self, Mark};
 use crate::atomic;
@@ -19,7 +24,7 @@ use crate::blockfile::BlockFile;
 use crate::cli::Global;
 use crate::config::Tags;
 use crate::ctx::Ctx;
-use crate::entry::{Kind, Status};
+use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
 use crate::filter::Filter;
 use crate::journal::{self, Record};
@@ -375,7 +380,11 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
     if !open_assumptions.is_empty() {
         let mut section = Section::list(
             "## Open assumptions",
-            open_assumptions.iter().copied().map(heading_of).collect(),
+            open_assumptions
+                .iter()
+                .copied()
+                .map(|item| format!("{}{}", heading_of(item), due_mark(&item.entry)))
+                .collect(),
             "none",
             "dossier list --kind assumption",
         );
@@ -457,7 +466,7 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
         "unsettled": {
             "drafts": counts.drafts,
             "open_assumptions": counts.open_assumptions,
-            "changed_lessons": counts.changed_lessons,
+            "changed_lessons": counts.changed,
         },
     });
     Screen {
@@ -723,15 +732,16 @@ fn number_of(id: &str) -> u64 {
     digits.parse().unwrap_or(0)
 }
 
-/// One entry as `<ID> · <title> (<author>, <date>)`.
+/// One entry as `<ID> · <title> (<author>, <date>)`, then its due-for-review mark.
 fn entry_line(item: &Item) -> String {
     let stamp = approval_stamp(item);
     format!(
-        "{} · {} ({}, {})",
+        "{} · {} ({}, {}){}",
         item.entry.id(),
         item.entry.title(),
         item.entry.field("author").unwrap_or_default(),
         time::date(&stamp),
+        due_mark(&item.entry),
     )
 }
 
@@ -745,6 +755,22 @@ fn heading_of(item: &Item) -> String {
     }
 }
 
+/// ` [due for review]` when the `review` date of an entry (format.md §23) is before today
+/// (R-LIFE-7), with today the day of the run, as `show` compares it. A review value that is not a
+/// date, or no review date, gives nothing.
+fn due_mark(entry: &Entry) -> &'static str {
+    let now = time::now();
+    let today = NaiveDate::parse_from_str(time::date(&now), "%Y-%m-%d").ok();
+    let review = entry
+        .field("review")
+        .and_then(|text| NaiveDate::parse_from_str(text.trim(), "%Y-%m-%d").ok());
+    if matches!((review, today), (Some(review), Some(today)) if review < today) {
+        " [due for review]"
+    } else {
+        ""
+    }
+}
+
 /// The IDs of the entries, in their order.
 fn ids(items: &[&Item]) -> Vec<String> {
     items.iter().map(|item| item.entry.id()).collect()
@@ -755,7 +781,8 @@ fn ids(items: &[&Item]) -> Vec<String> {
 struct Unsettled {
     drafts: usize,
     open_assumptions: usize,
-    changed_lessons: usize,
+    /// The approved lessons, how-tos and tools changed by hand (approval::guarded).
+    changed: usize,
     proposals: usize,
     resting: usize,
 }
@@ -768,8 +795,8 @@ fn is_open_assumption(item: &Item) -> bool {
         && item.entry.field("state").as_deref() == Some("open")
 }
 
-/// Counts the drafts, the approved assumptions that are still open, and the approved lessons
-/// whose file was changed by hand after their approval.
+/// Counts the drafts, the approved assumptions that are still open, and the approved lessons,
+/// how-tos and tools (approval::guarded) whose file was changed by hand after their approval.
 fn count_unsettled(scope: &[&Item], state: &Path) -> Unsettled {
     let mut counts = Unsettled::default();
     for item in scope {
@@ -784,13 +811,14 @@ fn count_unsettled(scope: &[&Item], state: &Path) -> Unsettled {
             Some(Kind::Assumption) if is_open_assumption(item) => {
                 counts.open_assumptions += 1;
             }
-            Some(Kind::Lesson)
-                if matches!(
-                    approval::mark(state, &item.entry.id(), &item.raw),
-                    Mark::Changed
-                ) =>
+            Some(kind)
+                if approval::guarded(kind)
+                    && matches!(
+                        approval::mark(state, &item.entry.id(), &item.raw),
+                        Mark::Changed
+                    ) =>
             {
-                counts.changed_lessons += 1;
+                counts.changed += 1;
             }
             _ => {}
         }
@@ -811,11 +839,11 @@ fn unsettled_lines(counts: &Unsettled) -> Vec<String> {
             "open assumptions",
         ));
     }
-    if counts.changed_lessons > 0 {
+    if counts.changed > 0 {
         lines.push(counted(
-            counts.changed_lessons,
-            "approved lesson changed by hand",
-            "approved lessons changed by hand",
+            counts.changed,
+            "approved lesson, how-to or tool changed by hand",
+            "approved lessons, how-tos or tools changed by hand",
         ));
     }
     if counts.proposals > 0 {
@@ -1167,9 +1195,10 @@ fn resting_lines(
         (
             item.entry.id(),
             format!(
-                "{}{}{}",
+                "{}{}{}{}",
                 heading_of(item),
                 status_mark(item),
+                due_mark(&item.entry),
                 rests_mark(assumptions)
             ),
         )

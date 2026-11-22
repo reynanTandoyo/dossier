@@ -15,6 +15,10 @@
 //! team since the person's marker, when there are any (R-READ-11): the marker is the one
 //! `status --since last` writes, so a person who has never run it gets no news line. With `--on`
 //! the team lines are those in force on that day, and the news line is left out.
+//!
+//! Every entry printed carries `[due for review]` when its review date has passed (R-LIFE-7,
+//! R-CTX-4), and a lesson, how-to or tool changed by hand after its approval carries
+//! `[changed after approval]` (R-LIFE-6): the same marks, in the same order, as `show` gives.
 
 use crate::approval::{self, Mark};
 use crate::blockfile::BlockFile;
@@ -124,7 +128,7 @@ fn for_project(ctx: &Ctx, remote: bool, day: Option<&str>) -> Result<Output> {
     let rests_section = match day {
         Some(_) => Vec::new(),
         None => {
-            let (lines, found) = rests_lines(&ctx.dossier, &items);
+            let (lines, found) = rests_lines(&ctx.dossier, &ctx.state, &items);
             problems.extend(found);
             lines
         }
@@ -301,43 +305,33 @@ impl Brief {
             values: value_section,
             decisions: decisions
                 .into_iter()
-                .map(|item| decision_of(item, &wrong))
+                .map(|item| decision_of(item, &ctx.state, &wrong))
                 .collect(),
             assumptions: shown(items, Kind::Assumption, day)
                 .into_iter()
                 .filter(|item| is_open(&item.entry, day))
-                .map(|item| line(&item.entry, "", &wrong))
+                .map(|item| line(&item.entry, &review_marks(&ctx.state, item), &wrong))
                 .collect(),
             findings: shown(items, Kind::Finding, day)
                 .into_iter()
                 .map(|item| {
-                    let mark = if is_dead_end(&item.entry) {
+                    let dead_end = if is_dead_end(&item.entry) {
                         " (dead end)"
                     } else {
                         ""
                     };
-                    line(&item.entry, mark, &wrong)
+                    let suffix = format!("{dead_end}{}", review_marks(&ctx.state, item));
+                    line(&item.entry, &suffix, &wrong)
                 })
                 .collect(),
             lessons: shown(items, Kind::Lesson, day)
                 .into_iter()
-                .map(|item| {
-                    let changed = matches!(
-                        approval::mark(&ctx.state, &item.entry.id(), &item.raw),
-                        Mark::Changed
-                    );
-                    let mark = if changed {
-                        " [changed after approval]"
-                    } else {
-                        ""
-                    };
-                    line(&item.entry, mark, &wrong)
-                })
+                .map(|item| line(&item.entry, &review_marks(&ctx.state, item), &wrong))
                 .collect(),
             proposals: if day.is_some() {
                 Vec::new()
             } else {
-                proposals_of(items, &wrong)
+                proposals_of(items, &ctx.state, &wrong)
             },
             rests: rests_section,
             drafts: if day.is_some() {
@@ -520,15 +514,18 @@ fn shown<'a>(items: &'a [Item], kind: Kind, day: Option<&str>) -> Vec<&'a Item> 
 }
 
 /// The decisions waiting for a decider (status `proposed`), in the order of `store::all`, each as
-/// `<ID> · <title> (<author>)`.
-fn proposals_of(items: &[Item], wrong: &Wrong) -> Vec<Line> {
+/// `<ID> · <title> (<author>)`, then its review marks. `state` is the state folder of the dossier.
+fn proposals_of(items: &[Item], state: &Path, wrong: &Wrong) -> Vec<Line> {
     items
         .iter()
         .filter(|item| {
             item.entry.kind() == Some(Kind::Decision)
                 && item.entry.status() == Some(Status::Proposed)
         })
-        .map(|item| line(&item.entry, &format!(" ({})", author(&item.entry)), wrong))
+        .map(|item| {
+            let suffix = format!(" ({}){}", author(&item.entry), review_marks(state, item));
+            line(&item.entry, &suffix, wrong)
+        })
         .collect()
 }
 
@@ -537,7 +534,7 @@ fn proposals_of(items: &[Item], wrong: &Wrong) -> Vec<Line> {
 /// lists that are not detached and whose `rests-on` field names an ID, the tasks in order and the
 /// blocks in the order of their list. Each is one line. A list that cannot be read gives its
 /// problem and no lines.
-fn rests_lines(dossier: &Path, items: &[Item]) -> (Vec<Line>, Vec<String>) {
+fn rests_lines(dossier: &Path, state: &Path, items: &[Item]) -> (Vec<Line>, Vec<String>) {
     let mut lines: Vec<Line> = items
         .iter()
         .filter(|item| item.entry.status() == Some(Status::Approved))
@@ -545,7 +542,12 @@ fn rests_lines(dossier: &Path, items: &[Item]) -> (Vec<Line>, Vec<String>) {
             let assumptions = item.entry.list(RESTS_ON);
             (!assumptions.is_empty()).then(|| Line {
                 id: item.entry.id(),
-                text: format!("{}{}", entry_text(&item.entry), rests_mark(&assumptions)),
+                text: format!(
+                    "{}{}{}",
+                    entry_text(&item.entry),
+                    review_marks(state, item),
+                    rests_mark(&assumptions)
+                ),
             })
         })
         .collect();
@@ -636,9 +638,9 @@ fn tags_line(tags: &Tags) -> Option<String> {
     (!parts.is_empty()).then(|| format!("tags: {}", parts.join("; ")))
 }
 
-/// The decision as printed: `<ID> · <title> (<author>, <date>)`, with its rests-on mark, and its
-/// bodies.
-fn decision_of(item: &Item, wrong: &Wrong) -> Decision {
+/// The decision as printed: `<ID> · <title> (<author>, <date>)`, with its review marks and its
+/// rests-on mark, and its bodies. `state` is the state folder of the dossier.
+fn decision_of(item: &Item, state: &Path, wrong: &Wrong) -> Decision {
     let entry = &item.entry;
     let date = entry
         .field("created")
@@ -648,9 +650,10 @@ fn decision_of(item: &Item, wrong: &Wrong) -> Decision {
     Decision {
         id: entry.id(),
         summary: format!(
-            "{} ({}, {date}){}",
+            "{} ({}, {date}){}{}",
             entry_text(entry),
             author(entry),
+            review_marks(state, item),
             wrong.mark(entry)
         ),
         body: bodies(entry),
@@ -686,6 +689,39 @@ fn line(entry: &Entry, suffix: &str, wrong: &Wrong) -> Line {
     Line {
         id: entry.id(),
         text: format!("{}{suffix}{}", entry_text(entry), wrong.mark(entry)),
+    }
+}
+
+/// The review marks of an entry shown by the brief, in the order `show` gives them (R-READ-1):
+/// `[due for review]` when its review date has passed (R-LIFE-7), then `[changed after approval]`
+/// for an approved lesson, how-to or tool (approval::guarded) whose text differs from its recorded
+/// checksum (R-LIFE-6). `state` is the state folder of the dossier the entry is in.
+fn review_marks(state: &Path, item: &Item) -> String {
+    let entry = &item.entry;
+    let changed = entry.kind().is_some_and(approval::guarded)
+        && entry.status() == Some(Status::Approved)
+        && matches!(approval::mark(state, &entry.id(), &item.raw), Mark::Changed);
+    let changed_mark = if changed {
+        " [changed after approval]"
+    } else {
+        ""
+    };
+    format!("{}{changed_mark}", due_mark(entry))
+}
+
+/// ` [due for review]` when the `review` date of an entry (format.md §23) is before today
+/// (R-LIFE-7), with today the day of the run, as `show` compares it. A review value that is not a
+/// date, or no review date, gives nothing.
+fn due_mark(entry: &Entry) -> &'static str {
+    let now = time::now();
+    let today = NaiveDate::parse_from_str(time::date(&now), "%Y-%m-%d").ok();
+    let review = entry
+        .field("review")
+        .and_then(|text| NaiveDate::parse_from_str(text.trim(), "%Y-%m-%d").ok());
+    if matches!((review, today), (Some(review), Some(today)) if review < today) {
+        " [due for review]"
+    } else {
+        ""
     }
 }
 
@@ -929,18 +965,13 @@ fn team_part(ctx: &Ctx, team: &Ctx, day: Option<&str>) -> (Vec<Line>, usize, Vec
     let lines = matching
         .into_iter()
         .take(MAX_TEAM)
-        .map(|item| {
-            let id = item.entry.id();
-            let changed = matches!(approval::mark(&team.state, &id, &item.raw), Mark::Changed);
-            let mark = if changed {
-                " [changed after approval]"
-            } else {
-                ""
-            };
-            Line {
-                text: format!("team:{}{mark}", entry_text(&item.entry)),
-                id,
-            }
+        .map(|item| Line {
+            text: format!(
+                "team:{}{}",
+                entry_text(&item.entry),
+                review_marks(&team.state, item)
+            ),
+            id: item.entry.id(),
         })
         .collect();
     let problems = warnings

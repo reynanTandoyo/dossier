@@ -1513,3 +1513,143 @@ fn a_team_that_cannot_be_reached_is_a_warning_and_its_part_is_left_out() {
         "Project P-001\n## Since 2026-11-21\nnone\n"
     );
 }
+
+/// Sets the `review` date of entry `id` as anna at the fixed clock, a person's change.
+fn set_review(project: &Project, id: &str, review: &str) {
+    let field = format!("review={review}");
+    project
+        .run("anna", &["set", id, "--field", field.as_str()])
+        .success();
+}
+
+/// A draft how-to (format.md §22) written as the `howto` command would write it.
+const DRAFT_HOW_TO: &str = "<!-- dossier-format: 1 -->\n\
+     # HOW-001 · Restart the solver\n\
+     \n\
+     - kind: howto\n\
+     - status: draft\n\
+     - created: 2026-11-20T10:00:00+01:00\n\
+     - author: anna\n\
+     - software: ExampleSolver\n\
+     - history: 2026-11-20T10:00:00+01:00 anna: created\n\
+     \n\
+     ## Purpose\n\
+     \n\
+     An invented purpose.\n\
+     \n\
+     ## Steps\n\
+     \n\
+     An invented step.\n";
+
+/// A draft tool (format.md §22) written as the `tool` command would write it.
+const DRAFT_TOOL: &str = "<!-- dossier-format: 1 -->\n\
+     # TOOL-001 · Export the mesh\n\
+     \n\
+     - kind: tool\n\
+     - status: draft\n\
+     - created: 2026-11-20T10:00:00+01:00\n\
+     - author: anna\n\
+     - history: 2026-11-20T10:00:00+01:00 anna: created\n\
+     \n\
+     ## Purpose\n\
+     \n\
+     An invented purpose.\n";
+
+#[test]
+fn entries_the_screen_names_are_marked_when_their_review_date_has_passed() {
+    let project = project_with_entries();
+    project
+        .run(
+            "anna",
+            &[
+                "assume",
+                "The inlet profile is uniform.",
+                "--reason",
+                "No measured profile was delivered.",
+                "--title",
+                "Uniform inlet profile",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "found",
+                "The steady run stalled at the lowest mass flow.",
+                "--title",
+                "Steady run stalls at low flow",
+            ],
+        )
+        .success();
+    for id in ["DEC-001", "ASM-001", "FND-002"] {
+        set_review(&project, id, "2026-11-19");
+    }
+
+    let stdout = project.stdout("anna", &["status"]);
+
+    let lines: Vec<&str> = stdout.lines().collect();
+    assert!(
+        lines.contains(
+            &"DEC-001 · Use transient runs for the last three speedline points (anna, 2026-11-20) [due for review]"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        lines.contains(&"ASM-001 · Uniform inlet profile [due for review]"),
+        "{stdout}"
+    );
+    assert!(
+        lines.contains(
+            &"FND-002 · Steady run stalls at low flow (anna, 2026-11-20) [due for review]"
+        ),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn a_review_date_of_today_or_later_gives_no_due_mark_in_the_screen() {
+    let project = project_with_entries();
+    set_review(&project, "DEC-001", "2026-11-20");
+
+    let stdout = project.stdout("anna", &["status"]);
+
+    assert!(!stdout.contains("[due for review]"), "{stdout}");
+}
+
+#[test]
+fn a_how_to_and_a_tool_changed_by_hand_after_their_approval_are_counted_as_changed() {
+    let project = Project::new();
+    project.write("DOSSIER/howtos/HOW-001-restart-the-solver.md", DRAFT_HOW_TO);
+    project.write("DOSSIER/tools/TOOL-001-export-the-mesh.md", DRAFT_TOOL);
+    project
+        .command("anna", NOW)
+        .env("DOSSIER_ANSWERS", "a|a")
+        .args(["approve", "HOW-001", "TOOL-001"])
+        .assert()
+        .success();
+    for path in [
+        "DOSSIER/howtos/HOW-001-restart-the-solver.md",
+        "DOSSIER/tools/TOOL-001-export-the-mesh.md",
+    ] {
+        let text = project.read(path);
+        project.write(path, &format!("{text}\nA line added by hand.\n"));
+    }
+
+    let stdout = project.stdout("anna", &["status"]);
+    assert!(
+        stdout
+            .lines()
+            .any(|line| line == "2 approved lessons, how-tos or tools changed by hand"),
+        "{stdout}"
+    );
+
+    let value = status_json(&project);
+    assert_eq!(value["data"]["unsettled"]["changed_lessons"], 2);
+}
+
+/// `status --json` as anna, parsed.
+fn status_json(project: &Project) -> Value {
+    let stdout = project.stdout("anna", &["status", "--json"]);
+    serde_json::from_str(stdout.trim()).expect("one JSON object")
+}
