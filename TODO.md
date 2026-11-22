@@ -2576,10 +2576,8 @@
 - note (2026-11-21, planner): added
 
 ### T-255 · brief: the news line and the team's lessons and how-tos
-- status: claimed
+- status: done
 - owner: haiku-t-255
-- claimed: 2026-11-22T11:40+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-049
 - why: R-CTX-1, R-READ-11.
@@ -2594,8 +2592,12 @@
   4. Run cargo test --test cmd_brief.
 - accept: brief shows the team's matching knowledge and says when there is news.
 - verify: cargo test --test cmd_brief
+- verified: 2026-11-22
+- commit: dd494cc1522dd42add5b87723a8ce4c40e236924
 - reqs: R-CTX-1, R-READ-11
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-255): done
 
 ### T-050 · Review dates and how-tos not tested with the newest version
 - status: open
