@@ -5930,8 +5930,10 @@
 - note (2026-11-22, haiku-t-274): done
 
 ### T-275 · used: a deviation adds an open remark to the team how-to
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-275
+- claimed: 2026-11-22T13:18+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-046
 - why: R-USE-6: the owner of a how-to sees what to update.
