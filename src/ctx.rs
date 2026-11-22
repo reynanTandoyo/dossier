@@ -157,6 +157,7 @@ impl Ctx {
         };
         let mut cfg = config::load(&team)?;
         add_missing(&mut cfg.names, &self.cfg.names);
+        add_member_llms(&mut cfg, &self.cfg);
         let who = match &self.who {
             Some(who) => resolve_who(&cfg, Some(who.name.as_str()), &self.command)?,
             None => None,
@@ -224,6 +225,28 @@ fn resolve_who(cfg: &Config, flag: Option<&str>, command: &str) -> Result<Option
 fn add_members_and_names(into: &mut Config, from: &Config) {
     add_missing(&mut into.members, &from.members);
     add_missing(&mut into.names, &from.names);
+}
+
+/// The LLMs a project registered with `people add --llm`, for people who are members of the
+/// team: such an LLM may write to the team dossier for its person (R-TEAM-7 still holds, since
+/// its person is a member). People who are not team members bring nothing.
+fn add_member_llms(team: &mut Config, project: &Config) {
+    for person in &project.people {
+        if person.llms.is_empty() || !crate::names::is_person(team, &person.name) {
+            continue;
+        }
+        match team
+            .people
+            .iter_mut()
+            .find(|known| same(&known.name, &person.name))
+        {
+            Some(known) => add_missing(&mut known.llms, &person.llms),
+            None => team.people.push(config::Person {
+                name: person.name.clone(),
+                llms: person.llms.clone(),
+            }),
+        }
+    }
 }
 
 /// Appends each of `new` that `list` does not hold yet, ignoring case.
@@ -581,6 +604,35 @@ mod tests {
         assert!(ctx.project.is_none());
         assert!(ctx.team.is_none());
         assert_eq!(ctx.who.as_ref().map(|who| who.name.as_str()), Some("tony"));
+    }
+
+    #[test]
+    fn a_registered_llm_of_a_team_member_writes_to_the_team_and_one_of_a_non_member_does_not() {
+        let (dir, dossier) = project();
+        team(dir.path(), "TEAM", &["anna"], &[]);
+        link(&dossier, "TEAM/DOSSIER");
+        let g = Global {
+            dossier: Some(dossier.clone()),
+            agent: Some("anna-claude".to_string()),
+            ..Default::default()
+        };
+        let ctx = Ctx::load(&g, "used").expect("the project loads");
+        let team_ctx = ctx.team_ctx().expect("Anna is a team member");
+        let who = team_ctx.who.expect("anna-claude writes");
+        assert!(who.is_llm);
+        assert_eq!(who.person.to_lowercase(), "anna");
+
+        let (other, other_dossier) = project();
+        team(other.path(), "TEAM", &["tony"], &[]);
+        link(&other_dossier, "TEAM/DOSSIER");
+        let g = Global {
+            dossier: Some(other_dossier),
+            agent: Some("anna-claude".to_string()),
+            ..Default::default()
+        };
+        let ctx = Ctx::load(&g, "used").expect("the project loads");
+        let error = ctx.team_ctx().err().expect("Anna is not a team member");
+        assert_eq!(error.code, Code::UnknownName);
     }
 
     #[test]
