@@ -4,6 +4,7 @@
 use crate::atomic::{self, Seen};
 use crate::ctx::Ctx;
 use crate::error::{Code, Error, Result};
+use crate::gitcommit;
 use crate::hash;
 use crate::journal;
 use crate::lock;
@@ -170,7 +171,33 @@ where
         }));
     }
     apply(ctx, who, &tx.time, &tx.queued)?;
-    Ok(output)
+    Ok(commit_team(ctx, &tx.queued, output))
+}
+
+/// Commits the changes of a team dossier to git (D36, R-TEAM-6): one commit for the command,
+/// its subject the command and the change IDs. Only a team dossier, and only when a change was
+/// written. A failure is a warning on `output` (the change is written already), never an error.
+fn commit_team(ctx: &Ctx, queued: &[Queued], output: Output) -> Output {
+    if ctx.cfg.kind != "team" || queued.is_empty() {
+        return output;
+    }
+    let message = format!("{}: {}", ctx.command, change_ids(queued).join(", "));
+    match gitcommit::commit(&ctx.root, &ctx.dossier, &message) {
+        Ok(_) => output,
+        Err(error) => output.warn(format!("git: {}", error.message)),
+    }
+}
+
+/// The IDs of the queued changes, each once, in the order they were queued.
+fn change_ids(queued: &[Queued]) -> Vec<&str> {
+    let mut ids: Vec<&str> = Vec::new();
+    for op in queued {
+        let id = op.change.id.as_str();
+        if !ids.contains(&id) {
+            ids.push(id);
+        }
+    }
+    ids
 }
 
 /// Whether the program was started with `--allow-network-drive`. The arguments are read as they
@@ -344,6 +371,8 @@ mod tests {
     use crate::store;
     use std::cell::Cell;
     use std::fs;
+    use std::path::Path;
+    use std::process::{Command, Stdio};
 
     /// The time that DOSSIER_NOW is set to during the tests.
     const NOW: &str = "2026-11-21T10:15:00+01:00";
@@ -1093,5 +1122,249 @@ mod tests {
             !ctx.state.join("write.lock").exists(),
             "a dry run takes no lock"
         );
+    }
+
+    /// A team dossier: the project of `project()` with the kind of a team.
+    fn team() -> (tempfile::TempDir, Ctx) {
+        let (dir, mut ctx) = project();
+        ctx.cfg.kind = "team".to_string();
+        (dir, ctx)
+    }
+
+    /// Whether git runs here. The repository tests return early without it.
+    fn git_runs() -> bool {
+        Command::new("git")
+            .arg("--version")
+            .stdin(Stdio::null())
+            .output()
+            .is_ok_and(|output| output.status.success())
+    }
+
+    /// Runs git in `dir` with `args` and returns its standard output.
+    fn git_out(dir: &Path, args: &[&str]) -> String {
+        let output = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .stdin(Stdio::null())
+            .output()
+            .expect("git runs");
+        String::from_utf8_lossy(&output.stdout).to_string()
+    }
+
+    /// Makes the project folder of `ctx` a git repository, with an invented identity and no
+    /// commit signing, so that the commits work on any machine. It also writes the
+    /// `.state/.gitignore` that `init --team-dossier` writes (format.md §20), so that the lock
+    /// files stay out of the commits.
+    fn git_repository(ctx: &Ctx) {
+        fs::write(ctx.state.join(".gitignore"), "write.lock\nholder.json\n")
+            .expect("the .gitignore of the state folder");
+        for args in [
+            vec!["init", "-q"],
+            vec!["config", "user.name", "Test Person"],
+            vec!["config", "user.email", "test.person@example.invalid"],
+            vec!["config", "commit.gpgsign", "false"],
+        ] {
+            let output = Command::new("git")
+                .arg("-C")
+                .arg(&ctx.root)
+                .args(&args)
+                .stdin(Stdio::null())
+                .output()
+                .expect("git runs");
+            assert!(
+                output.status.success(),
+                "git {args:?}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
+
+    /// The subjects of the commits in `dir`, newest first. Empty when there is no commit.
+    fn subjects(dir: &Path) -> Vec<String> {
+        git_out(dir, &["log", "--format=%s"])
+            .lines()
+            .map(str::to_string)
+            .collect()
+    }
+
+    #[test]
+    fn a_team_write_outside_a_repository_writes_normally_and_gives_no_warning() {
+        let _clock = FixedClock::new();
+        let (_dir, ctx) = team();
+        let path = ctx.dossier.join("lessons").join("LES-001-first.md");
+        let text = "<!-- dossier-format: 1 -->\n# LES-001 · First\n\n- kind: lesson\n".to_string();
+        let output = write(&ctx, |tx| {
+            tx.put(
+                path.clone(),
+                None,
+                text.clone(),
+                change("LES-001", "created", ""),
+            );
+            Ok(Output::text("LES-001: added"))
+        })
+        .expect("the change is written");
+
+        assert_eq!(output.text, "LES-001: added");
+        assert!(output.warnings.is_empty());
+        assert_eq!(fs::read_to_string(&path).expect("the file"), text);
+        assert_eq!(journal::read(&ctx.state).expect("the journal").len(), 1);
+        assert!(!ctx.root.join(".git").exists());
+    }
+
+    #[test]
+    fn a_team_write_in_a_repository_is_one_commit_named_by_the_command_and_the_ids() {
+        if !git_runs() {
+            return;
+        }
+        let _clock = FixedClock::new();
+        let (_dir, ctx) = team();
+        git_repository(&ctx);
+        let path = ctx.dossier.join("lessons").join("LES-001-first.md");
+        let raw = ctx.dossier.join("files").join("T-001.md");
+        let output = write(&ctx, |tx| {
+            tx.put(
+                path.clone(),
+                None,
+                "lesson text\n".to_string(),
+                change("LES-001", "created", ""),
+            );
+            tx.put_raw(
+                raw.clone(),
+                None,
+                block_text("models/wing-v3.step", "first note"),
+                change("FILES-T-001", "attached", "models/wing-v3.step"),
+            );
+            Ok(Output::text("two changes"))
+        })
+        .expect("the changes are written");
+
+        assert!(output.warnings.is_empty());
+        assert_eq!(subjects(&ctx.root), ["found: LES-001, FILES-T-001"]);
+        assert_eq!(git_out(&ctx.root, &["status", "--porcelain"]), "");
+    }
+
+    #[test]
+    fn a_commit_that_fails_is_a_warning_and_the_change_stays_written() {
+        if !git_runs() {
+            return;
+        }
+        let _clock = FixedClock::new();
+        let (_dir, ctx) = team();
+        git_repository(&ctx);
+        // A lock file left behind by another git process makes `git add` fail.
+        fs::write(ctx.root.join(".git").join("index.lock"), "").expect("the lock file");
+        let path = ctx.dossier.join("lessons").join("LES-001-first.md");
+        let output = write(&ctx, |tx| {
+            tx.put(
+                path.clone(),
+                None,
+                "lesson text\n".to_string(),
+                change("LES-001", "created", ""),
+            );
+            Ok(Output::text("LES-001: added"))
+        })
+        .expect("the change is written");
+
+        assert_eq!(output.text, "LES-001: added");
+        assert_eq!(output.warnings.len(), 1, "{:?}", output.warnings);
+        assert!(
+            output.warnings[0].starts_with("git: git add failed"),
+            "{:?}",
+            output.warnings
+        );
+        assert_eq!(
+            fs::read_to_string(&path).expect("the file"),
+            "lesson text\n"
+        );
+        assert_eq!(journal::read(&ctx.state).expect("the journal").len(), 1);
+        assert!(subjects(&ctx.root).is_empty());
+    }
+
+    #[test]
+    fn a_dry_run_of_a_team_write_makes_no_commit() {
+        if !git_runs() {
+            return;
+        }
+        let _clock = FixedClock::new();
+        let (_dir, mut ctx) = team();
+        git_repository(&ctx);
+        ctx.dry_run = true;
+        let path = ctx.dossier.join("lessons").join("LES-001-first.md");
+        let output = write(&ctx, |tx| {
+            tx.put(
+                path.clone(),
+                None,
+                "lesson text\n".to_string(),
+                change("LES-001", "created", ""),
+            );
+            Ok(Output::text("dry"))
+        })
+        .expect("the dry run");
+
+        assert_eq!(
+            output.warnings,
+            ["dry run: would write DOSSIER/lessons/LES-001-first.md"]
+        );
+        assert!(!path.exists());
+        assert!(subjects(&ctx.root).is_empty());
+    }
+
+    #[test]
+    fn a_project_write_is_not_committed_and_a_team_write_without_a_change_is_not_either() {
+        if !git_runs() {
+            return;
+        }
+        let _clock = FixedClock::new();
+        let (_dir, ctx) = project();
+        git_repository(&ctx);
+        let path = ctx.dossier.join("decisions").join("DEC-001-first.md");
+        let output = write(&ctx, |tx| {
+            tx.put(
+                path.clone(),
+                None,
+                entry_text("DEC-001 · First"),
+                change("DEC-001", "created", ""),
+            );
+            Ok(Output::text("DEC-001: added"))
+        })
+        .expect("the change is written");
+        assert!(output.warnings.is_empty());
+        assert!(subjects(&ctx.root).is_empty(), "a project is not committed");
+
+        let (_team_dir, team_ctx) = team();
+        git_repository(&team_ctx);
+        let output = write(&team_ctx, |_tx| Ok(Output::text("nothing to change")))
+            .expect("the command runs");
+        assert!(output.warnings.is_empty());
+        assert!(subjects(&team_ctx.root).is_empty(), "no change, no commit");
+    }
+
+    #[test]
+    fn the_change_ids_of_a_command_are_each_named_once_in_order() {
+        let queued = vec![
+            Queued {
+                action: Action::Delete {
+                    path: PathBuf::from("a.md"),
+                },
+                old: None,
+                change: change("DEC-001", "changed", ""),
+            },
+            Queued {
+                action: Action::Delete {
+                    path: PathBuf::from("b.md"),
+                },
+                old: None,
+                change: change("DEC-002", "removed", ""),
+            },
+            Queued {
+                action: Action::Delete {
+                    path: PathBuf::from("c.md"),
+                },
+                old: None,
+                change: change("DEC-001", "changed", "again"),
+            },
+        ];
+        assert_eq!(change_ids(&queued), ["DEC-001", "DEC-002"]);
     }
 }
