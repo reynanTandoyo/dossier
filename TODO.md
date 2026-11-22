@@ -1991,10 +1991,8 @@
 - note (2026-11-22, haiku-t-231): done
 
 ### T-232 · confidential remove and confidential none
-- status: claimed
+- status: done
 - owner: haiku-t-232
-- claimed: 2026-11-22T11:43+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-044
 - why: D32, R-CONF-5.
@@ -2009,8 +2007,12 @@
   4. Run cargo test --test cmd_confidential.
 - accept: Only a person removes a term or states there are none.
 - verify: cargo test --test cmd_confidential
+- verified: 2026-11-22
+- commit: 6f5b55946a001c5c6a9c5a8cab95f2eab3b11bf7
 - reqs: D32, R-CONF-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-232): done
 
 ### T-233 · confidential scan: look for the project's terms in the team dossier
 - status: open
