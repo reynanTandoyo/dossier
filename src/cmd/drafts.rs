@@ -1,7 +1,8 @@
 //! The `drafts` command: the entries waiting for approval, oldest first, with who proposed each,
 //! from which task and how many days ago (R-DRAFT-3). `--mine` keeps those proposed for the
 //! calling person. Drafts older than the `draft_days` setting are marked `(old)` (R-DRAFT-8).
-//! Nothing is changed.
+//! Imported drafts are marked `[imported]`; `--imported` lists only them, grouped under the
+//! document each was drafted from (R-IMPORT-6). Nothing is changed.
 
 use crate::cli::Global;
 use crate::ctx::Ctx;
@@ -14,17 +15,24 @@ use chrono::{DateTime, FixedOffset};
 use serde_json::{Value, json};
 use std::path::{MAIN_SEPARATOR, Path};
 
+/// The heading of the drafts that have no source document under `--imported`.
+const NO_DOCUMENT: &str = "(no source document)";
+
 /// The arguments of `drafts`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
     /// Only the drafts proposed for the calling person
     #[arg(long)]
     pub mine: bool,
+    /// Only the imported drafts, grouped under the document each was drafted from (R-IMPORT-6)
+    #[arg(long)]
+    pub imported: bool,
 }
 
 /// Runs `drafts`: the draft entries, oldest `created` first (the instant, not the text of the
 /// stamp), with the warnings of reading the dossier. A draft whose `created` is missing or is not
-/// a time stamp comes last and has no age.
+/// a time stamp comes last and has no age. With `--imported`, the imported drafts only, grouped by
+/// their `source-document` (see `grouped`).
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "drafts")?;
     let mine = if args.mine {
@@ -36,6 +44,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let mut drafts: Vec<&Item> = items
         .iter()
         .filter(|item| item.entry.status() == Some(Status::Draft))
+        .filter(|item| !args.imported || imported(&item.entry))
         .filter(|item| mine.as_deref().is_none_or(|person| by(&item.entry, person)))
         .collect();
     drafts.sort_by_key(|item| {
@@ -44,9 +53,17 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     });
 
     let now = time::now();
-    let mut lines: Vec<String> = drafts.iter().map(|item| line(&ctx, item, &now)).collect();
-    lines.push(count(drafts.len()));
-    let data: Vec<Value> = drafts.iter().map(|item| row(item, &now)).collect();
+    let (mut lines, shown): (Vec<String>, Vec<&Item>) = if args.imported {
+        grouped(&ctx, &drafts, &now)
+    } else {
+        let lines = drafts
+            .iter()
+            .map(|item| line(&ctx, item, &now, true))
+            .collect();
+        (lines, drafts)
+    };
+    lines.push(count(shown.len()));
+    let data: Vec<Value> = shown.iter().map(|item| row(item, &now)).collect();
 
     let mut output = Output::with(lines.join("\n"), json!(data));
     for warning in &warnings {
@@ -55,9 +72,40 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     Ok(output)
 }
 
+/// The lines of `--imported`, and the drafts in the order they are listed: the drafts grouped
+/// under a `## <source-document>` heading each, a blank line between groups, the groups in the
+/// order of their document name with the drafts that have no document last, and the drafts of a
+/// group oldest first.
+fn grouped<'a>(ctx: &Ctx, drafts: &[&'a Item], now: &str) -> (Vec<String>, Vec<&'a Item>) {
+    let mut groups: Vec<(Option<String>, Vec<&'a Item>)> = Vec::new();
+    for &item in drafts {
+        let document = value(&item.entry, "source-document");
+        match groups.iter().position(|(key, _)| *key == document) {
+            Some(index) => groups[index].1.push(item),
+            None => groups.push((document, vec![item])),
+        }
+    }
+    groups.sort_by(|(a, _), (b, _)| a.is_none().cmp(&b.is_none()).then_with(|| a.cmp(b)));
+
+    let mut lines = Vec::new();
+    let mut shown = Vec::new();
+    for (index, (document, members)) in groups.iter().enumerate() {
+        if index > 0 {
+            lines.push(String::new());
+        }
+        lines.push(format!("## {}", document.as_deref().unwrap_or(NO_DOCUMENT)));
+        for &item in members {
+            lines.push(line(ctx, item, now, false));
+            shown.push(item);
+        }
+    }
+    (lines, shown)
+}
+
 /// One line of the list: `<ID>  <kind>  <title>  by <author>[ via <via>][  task <task>]  <n> days`,
-/// with `  (old)` after the age when the draft is older than `draft_days`.
-fn line(ctx: &Ctx, item: &Item, now: &str) -> String {
+/// with `  (old)` after the age when the draft is older than `draft_days`, and `  [imported]` after
+/// that when `mark_imported` is set and the draft is imported (R-IMPORT-5).
+fn line(ctx: &Ctx, item: &Item, now: &str, mark_imported: bool) -> String {
     let entry = &item.entry;
     let mut text = format!(
         "{}  {}  {}  by {}",
@@ -81,6 +129,9 @@ fn line(ctx: &Ctx, item: &Item, now: &str) -> String {
         }
         None => text.push_str("  age unknown"),
     }
+    if mark_imported && imported(entry) {
+        text.push_str("  [imported]");
+    }
     text
 }
 
@@ -103,6 +154,13 @@ fn row(item: &Item, now: &str) -> Value {
 /// Whether the entry was proposed for `person`: its `author` field, ignoring case.
 fn by(entry: &Entry, person: &str) -> bool {
     value(entry, "author").is_some_and(|author| author.to_lowercase() == person.to_lowercase())
+}
+
+/// Whether the entry is an imported draft: `imported: yes` (format.md §23, R-IMPORT-5).
+fn imported(entry: &Entry) -> bool {
+    entry
+        .field("imported")
+        .is_some_and(|text| text.eq_ignore_ascii_case("yes"))
 }
 
 /// The value of a field, when the entry has it and it is not empty.
