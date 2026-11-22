@@ -2780,10 +2780,8 @@
 - note (2026-11-21, planner): added
 
 ### T-266 · review-document and reviewed-document
-- status: claimed
+- status: done
 - owner: haiku-t-266
-- claimed: 2026-11-22T11:14+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-051
 - why: R-IMPORT-3.
@@ -2799,8 +2797,12 @@
   5. Run cargo test --test cmd_review_document.
 - accept: Documents are marked as being reviewed and as done.
 - verify: cargo test --test cmd_review_document
+- verified: 2026-11-22
+- commit: 627e5e1
 - reqs: R-IMPORT-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-266): done
 
 ### T-267 · import status: progress of bringing in a finished project
 - status: open
