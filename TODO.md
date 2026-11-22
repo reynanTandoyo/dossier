@@ -5782,10 +5782,8 @@
 - note (2026-11-21, planner): added
 
 ### T-269 · show team:<ID>: read an entry of the team dossier
-- status: claimed
+- status: done
 - owner: haiku-t-269
-- claimed: 2026-11-22T12:16+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: R-ID-2: commands accept an ID with its place; search marks team results team:<ID>, so show must find them (found by the T-250 worker).
@@ -5800,8 +5798,12 @@
   4. Run cargo test --test cmd_show.
 - accept: show team:<ID> shows the team dossier's entry from a project.
 - verify: cargo test --test cmd_show
+- verified: 2026-11-22
+- commit: 25ecdde4bd5c48071f51a316f481ba756fb233b7
 - reqs: R-ID-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, planner): added
+- note (2026-11-22, haiku-t-269): done
 
 ### T-270 · brief --task: a promoted entry is listed once
 - status: claimed
