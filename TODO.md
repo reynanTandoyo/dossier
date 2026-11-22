@@ -1709,10 +1709,8 @@
 - note (2026-11-21, planner): added
 
 ### T-221 · teamfiles.rs: projects.md and usage-index.md of the team dossier
-- status: claimed
+- status: done
 - owner: haiku-t-221
-- claimed: 2026-11-21T23:43+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: init --team registers projects there; used adds usage lines there.
@@ -1726,8 +1724,12 @@
   3. Run cargo test --lib teamfiles::.
 - accept: The team's project list and usage index are read.
 - verify: cargo test --lib teamfiles::
+- verified: 2026-11-22
+- commit: af99af2
 - reqs: R-PLACE-4, R-USE-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-221): done
 
 ### T-222 · init --team-dossier: create a team dossier
 - status: open
