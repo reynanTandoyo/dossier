@@ -2112,8 +2112,10 @@
 - note (2026-11-22, haiku-t-235): done
 
 ### T-236 · close: sort out a finished project's knowledge
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-236
+- claimed: 2026-11-22T12:44+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-045
 - why: R-TEAM-4.
@@ -2287,8 +2289,10 @@
 - note (2026-11-22, haiku-t-241): done
 
 ### T-242 · tool update: record a script's checksum again
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-242
+- claimed: 2026-11-22T12:44+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-047
 - why: R-USE-11.
