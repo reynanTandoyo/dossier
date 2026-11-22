@@ -2804,10 +2804,8 @@
 - note (2026-11-21, planner): split into T-262, T-263, T-264, T-265, T-266, T-267, T-268
 
 ### T-262 · init --past and --in: a dossier for a finished project
-- status: claimed
+- status: done
 - owner: haiku-t-262
-- claimed: 2026-11-22T12:23+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-051
 - why: R-IMPORT-1.
@@ -2821,8 +2819,12 @@
   3. Run cargo test --test cmd_init.
 - accept: Finished projects get a dossier, also when their folder cannot be written to.
 - verify: cargo test --test cmd_init
+- verified: 2026-11-22
+- commit: e127d166aaecbf8d9510d59d9b6a36063d6281b5
 - reqs: R-IMPORT-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-262): done
 
 ### T-263 · imports.rs: which documents were reviewed
 - status: done
@@ -5840,6 +5842,21 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-22, coordinator): added
 - note (2026-11-22, haiku-t-270): done
+
+### T-271 · init --dry-run: create nothing
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: bug
+- why: R-WRITE: --dry-run never writes; two workers found that plain init --dry-run still creates DOSSIER (only --with-team honours it).
+- summary: init with --dry-run prints what it would create and creates nothing.
+- files: src/cmd/init.rs, tests/cmd_init.rs
+- steps:
+  1. With the global --dry-run, init (without --with-team as well) prints the folders and files it would create as warnings and writes nothing.
+  2. Test: init --dry-run in an empty temporary folder leaves it empty and exits 0.
+  3. Run cargo test --test cmd_init.
+- accept: init --dry-run leaves the folder untouched.
+- verify: cargo test --test cmd_init
+- note (2026-11-22, coordinator): added
 
 ## Questions
 
