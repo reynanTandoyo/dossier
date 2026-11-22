@@ -4,7 +4,7 @@
 while doing its projects. People and their LLMs write to it and read from it, so that neither has
 to rely on memory.
 
-**Status: v0.2 (phase 2)**
+**Status: v0.3 (phase 3)**
 
 - [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the five phases it is
   built in.
@@ -379,12 +379,416 @@ The `SessionStart` hook runs `dossier brief` when a session starts. The `PreTool
 message says to use the dossier commands. The skill file tells Claude how to use the commands.
 `dossier hooks uninstall --yes` removes the two hooks.
 
-### Not in version 0.2
+### What version 0.3 adds
+
+Version 0.3 shares what one project learned with the other projects of a team, without customer
+data, and brings in the finished projects of the past. Each feature has one short example. The
+examples start from new folders, so their IDs begin again. They use a team dossier, `TEAM`, and two
+projects: `P-021`, which is running, and `P-009`, which is finished. Their dates are 22 and 23
+November 2026.
+
+#### The team dossier
+
+The team dossier holds the lessons, how-tos, tools, glossary and usage index that all projects of
+the team can read. Make it once, in a folder of its own:
+
+```sh
+dossier init --code TEAM --team-dossier
+```
+
+```
+created the team dossier TEAM
+```
+
+Its members are the usernames of the people who may write to it. No command adds the first member,
+so add it by hand: open `DOSSIER/dossier.toml` in the team dossier and put this line above `[tags]`:
+
+```toml
+members = ["anna"]
+```
+
+Then anna adds ben, and a plain name for someone who is not a user:
+
+```sh
+dossier team member add ben
+dossier team name add "Dr. Weber"
+```
+
+```
+added member ben
+added name Dr. Weber
+```
+
+A project is linked to the team dossier with `team use`. Then a command with `--team` works on the
+team dossier, and a command without it works on the project:
+
+```sh
+cd /projects/P-021
+dossier init --code P-021
+dossier people add anna --llm anna-claude
+dossier people add ben --llm ben-claude
+dossier team use ../TEAM
+dossier team
+```
+
+```
+team dossier: /projects/TEAM/DOSSIER
+members: anna, ben
+names: Dr. Weber
+```
+
+#### Names
+
+A member's name is their operating-system username. An LLM is named `<person> - <anything>`, such as
+`anna - claude opus 5.5 high`, and it needs no registration. A plain name can be an author or a
+source, but it cannot write. `hooks install` names the LLM of Claude Code after the person, so the
+entries that Claude Code writes are anna's:
+
+```sh
+dossier found "The outlet temperature is 2 K above the model" --evidence "results/point07.txt" --agent "anna - claude opus 5.5 high"
+```
+
+```
+FND-002: added (approved)
+```
+
+The log names the LLM after the person. Its newest line, which `dossier log` prints first, is:
+
+```
+2026-11-22T09:00:00+01:00  anna via anna - claude opus 5.5 high  created  FND-002  The outlet temperature is 2 K above the model
+```
+
+A plain name is refused when it tries to write:
+
+```sh
+dossier found "A plain name tries to write" --evidence "results/point07.txt" --agent "Dr. Weber"
+```
+
+```
+error: 'Dr. Weber' is a plain name in dossier.toml: it may be an author or a source, but it cannot write. Write as a member (an operating-system user) or as an LLM named <person> - <anything>
+```
+
+Anna runs `hooks install --yes` in the project folder, and Claude Code then writes as `anna - claude`:
+
+```sh
+dossier hooks install --yes
+```
+
+```
+hooks installed in .claude/settings.json and DOSSIER_AGENT set in .claude/settings.local.json
++ PreToolUse (Edit|Write|MultiEdit): dossier guard
++ SessionStart: dossier brief
++ env DOSSIER_AGENT: anna - claude
+```
+
+#### Confidential terms
+
+A project lists the names that identify its customer as confidential terms: the customer's name,
+its products and machines, and the names of its people. Anyone in the project may add a term, also
+an LLM. Only a person at a terminal removes one. Before anything is written from a project to the
+team dossier, the whole text is checked against these terms, and the write is refused when a term
+is found. A project with no terms must first say so, as a person, with
+`dossier confidential none --yes`.
+
+```sh
+dossier confidential add "Example Customer"
+dossier confidential list
+```
+
+```
+Example Customer: added
+Example Customer
+1 term
+```
+
+`promote` runs the check before it copies an entry. LES-002 names the customer, so it is refused,
+and the message gives each term with its line in the entry file:
+
+```sh
+dossier promote LES-002
+```
+
+```
+error: confidential terms found: Example Customer (line 2); Example Customer (line 17)
+```
+
+#### Promoting and closing
+
+`promote` copies an approved finding, lesson or how-to into the team dossier as a draft, with its
+own team ID and a link to the project entry. A person approves the copy in the team dossier, with
+`--team`. `approve` shows the copy in full and asks; the last lines are the result:
+
+```sh
+dossier promote LES-001
+dossier approve LES-001 --team
+```
+
+```
+LES-001: promoted as team:LES-001 (draft, waiting for approval in the team dossier)
+LES-001: approved
+```
+
+At the end of a project, a person runs `dossier close` at a terminal. It shows each approved
+finding, lesson and how-to that is not promoted yet, and asks for each one: `p` promotes it, `k`
+keeps it in the project, and `l` decides later. Each answer is saved, so a second run asks only
+about what is left:
+
+```sh
+dossier close
+```
+
+```
+FND-001: promoted as team:LES-002
+FND-002: left for later
+LES-002: kept in the project
+FND-003: kept in the project
+FND-004: promoted as team:LES-003
+2 promoted, 2 kept, 1 left for later
+```
+
+A promoted finding becomes a lesson, so FND-001 is LES-002 in the team dossier. That lesson cannot
+be approved until it has *Valid for* and a confidence:
+
+```sh
+dossier approve LES-002 --team
+```
+
+```
+LES-002: skipped
+warning: LES-002 cannot be approved yet: missing section Valid for; missing field confidence
+```
+
+#### How-tos
+
+A how-to says how a software is run for a kind of analysis: its purpose, steps, settings, traps and
+what it was tested with. A person's how-to is approved at once, and an LLM's is a draft. `--team`
+writes it to the team dossier, and `--review` sets the date to check it again:
+
+```sh
+dossier howto --software "ExampleSolver 2406" --title "Speedline with the steady mixing plane" --section "Purpose=Finds the speedline of a compressor stage with steady runs" --section "Steps=Run the steady case at each back pressure. Stop at the first point that does not converge." --section "Traps=Steady runs overpredict the stall margin near the stability limit." --machine "axial compressor" --analysis speedline --review 2027-06-01 --team
+dossier list --team --kind howto --software "ExampleSolver 2406"
+```
+
+```
+HOW-001: added (approved)
+HOW-001  howto  Speedline with the steady mixing plane  — Finds the speedline of a compressor stage with steady runs
+1 entry
+```
+
+In a project, `brief` prints the team's lessons and how-tos whose machine, analysis or software
+tags match the project's. The tags are in `[tags]` of the project's `dossier.toml`. A project that
+runs ExampleSolver 2406 has this line there:
+
+```toml
+software = ["ExampleSolver 2406"]
+```
+
+```sh
+dossier brief
+```
+
+```
+Project P-021
+tags: software ExampleSolver 2406
+...
+## Team lessons and how-tos
+team:HOW-001 · Speedline with the steady mixing plane
+```
+
+#### Tools
+
+A tool is a script, a command, installed software or a git repository, with its purpose and how to
+run it. For a script, the checksum of its file is recorded, so that a later change after approval
+is marked. `tool update` records the checksum again after an intended change. A script's location
+is relative to the folder that holds its dossier, so for a team tool the command runs in the team
+folder, where the file `scripts/mesh_check.py` is:
+
+```sh
+cd /projects/TEAM
+dossier tool add --title "Mesh check: cell count" --type script --location scripts/mesh_check.py --language Python --software "ExampleSolver 2406" --section "Purpose=Counts the cells of a mesh before a run"
+```
+
+```
+TOOL-001: added (approved)
+```
+
+#### Where used
+
+`used` records a run of a software in a project, as in version 0.2. With a team dossier, it also
+adds one line to the team's usage index, without the title, the task or the files. `where-used`
+reads that index:
+
+```sh
+cd /projects/P-021
+dossier used ExampleSolver --version 2406 --task T-042 --output results/point07.txt --param "backpressure=1.42" --note "Speedline point 7"
+dossier where-used ExampleSolver
+```
+
+```
+USE-001: run recorded
+2026-11-22  P-021  ExampleSolver 2406  -  -  anna
+1 use
+```
+
+Each line gives the date, the project, the software and its version, the analysis and the machine,
+and the person. The analysis and the machine are the project's tags when the run is recorded, and
+`-` when there are none. `--analysis` and `--machine` keep only the uses whose analysis or machine
+contains the text.
+
+#### Glossary
+
+The team dossier holds a glossary. Each term has a meaning, and it can have a symbol, a unit and
+other spellings, such as a German word. `term` looks a word up in any of its spellings, and
+`glossary` prints all the terms:
+
+```sh
+dossier term add "mass flow" "Mass of fluid per second through the machine" --symbol m-dot --unit kg/s --also "Massenstrom, mdot" --team
+dossier term add "pressure ratio" "Outlet total pressure divided by inlet total pressure" --symbol PR --unit "-" --team
+dossier term Massenstrom
+dossier glossary --team
+```
+
+```
+mass flow: added
+pressure ratio: added
+mass flow (m-dot, kg/s): Mass of fluid per second through the machine  [also: Massenstrom, mdot]  [team]
+mass flow (m-dot, kg/s): Mass of fluid per second through the machine  [also: Massenstrom, mdot]  [team]
+pressure ratio (PR, -): Outlet total pressure divided by inlet total pressure  [team]
+2 terms
+```
+
+#### What is new
+
+`status --since last` shows what was recorded since the person's last run, in the project and in the
+team dossier. The first run lists everything recorded so far. Each run moves the person's marker to
+now. `brief` ends with a line when there is news, as here, after a finding by ben on 23 November:
+
+```
+1 new entry since 2026-11-22: dossier status --since last
+```
+
+```sh
+dossier status --since last
+```
+
+```
+Project P-021
+## Since 2026-11-22T11:00:00+01:00
+## Project P-021
+2026-11-23T10:00:00+01:00  ben  created  FND-003  Stage 2 rotor tip gap changes the stall margin
+## Team
+none
+```
+
+#### Review dates
+
+An entry can have a review date, set with `--review`. When the date has passed, `brief`, `show` and
+`check` mark the entry `[due for review]`. A person confirms that the entry still holds with
+`reviewed`, and gives the next date:
+
+```sh
+cd /projects/TEAM
+dossier howto --software "ExampleSolver 2406" --title "Mesh check before a speedline" --section "Purpose=Checks the mesh before the speedline runs" --section "Steps=Run the mesh check script, then the steady case." --review 2026-11-01
+dossier check
+dossier reviewed HOW-002 --next 2027-05-23
+dossier check
+```
+
+```
+HOW-002: added (approved)
+error: DOSSIER/howtos/HOW-002-mesh-check-before-a-speedline.md:11: HOW-002 REVIEW due for review: review date 2026-11-01 has passed
+DOSSIER: 1 problems
+HOW-002: reviewed, next review 2027-05-23
+DOSSIER: ok (0 problems)
+```
+
+#### Finished projects
+
+A finished project is brought in from its own folder. `init --past` marks the folder as finished.
+`review-folder` lists the documents in it, newest first, with the rules for drafting. Each document
+is then marked as being reviewed with `review-document`, and the LLM drafts entries from it with
+`--from-document`. A draft from a document is marked as imported, and a person approves it as usual.
+`drafts --imported` lists these drafts by document. `reviewed-document` marks the document as done,
+and `import status` shows how far the project has come:
+
+```sh
+cd /projects/P-009
+dossier init --code P-009 --past
+dossier people add anna --llm anna-claude
+dossier review-folder
+```
+
+```
+created DOSSIER for P-009
+finished project: marked as past
+next: dossier people add <person> --llm <name>
+added anna with anna-claude
+# Folder .
+
+## Tree
+reports/
+  final-report.txt  93
+scripts/
+  old_check.py  19
+
+## Documents
+reports/final-report.txt  report  93  2026-11-22  [not reviewed]
+scripts/old_check.py  script  19  2026-11-22  [not reviewed]
+
+## Already reviewed
+0 of 2 documents reviewed (done or nothing), 0 being reviewed.
+
+## Import rules
+...
+```
+
+```sh
+dossier review-document reports/final-report.txt --agent anna-claude
+dossier learn "The rig stalls above a tip Mach number of 1.1" --valid-for "Single-stage test rigs with a tip Mach number above 1.1" --evidence "Final report, page 1" --confidence measured --from-document reports/final-report.txt --agent anna-claude
+dossier approve LES-001
+dossier reviewed-document reports/final-report.txt
+dossier import status
+```
+
+```
+reports/final-report.txt: reviewing
+import rules:
+- Draft only what a later project would use.
+...
+draft with: --from-document reports/final-report.txt
+LES-001: added (draft, waiting for approval)
+LES-001: approved
+reports/final-report.txt: done
+Import status of P-009 (folder .)
+Documents found: 2
+  not reviewed: 1
+  being reviewed: 0
+  done: 1
+  nothing to take: 0
+Imported entries:
+  drafts waiting for approval: 0
+  approved: 1
+  promoted to the team: 0
+```
+
+An imported entry is promoted like any other entry, after the project's confidential terms are
+stated:
+
+```sh
+dossier confidential add "Example Customer"
+dossier team use ../TEAM
+dossier promote LES-001
+```
+
+```
+Example Customer: added
+LES-001: promoted as team:LES-004 (draft, waiting for approval in the team dossier)
+```
+
+### Not in version 0.3
 
 These come in later phases. See [`docs/requirements.md`](docs/requirements.md), section 11.
 
-- **Phase 3 (v0.3):** the team dossier, promoting entries from one project to another, how-tos,
-  scripts, the software list, the glossary, what is new, and finished projects.
 - **Phase 4 (v0.4):** copying large simulation files to a PC and back.
 - **Phase 5 (v0.5):** milestone digests, session review, and export.
 
@@ -639,7 +1043,8 @@ dossier log
 
 The dossier is one copy, on the server. There is no second copy and no git history. So the
 server's backup must include the project folders. Each project folder holds its `DOSSIER` folder
-and the files that the entries point to, such as simulation files and reports.
+and the files that the entries point to, such as simulation files and reports. The team dossier,
+from version 0.3, is a folder on the server too, and the backup must include it.
 
 `dossier pack` writes the whole dossier, with its history, into one archive. It does not include
 the files that the entries point to. Use it as an extra copy:
@@ -683,11 +1088,12 @@ This creates `/restore/P-001/DOSSIER`, and checks it.
 
 ## Confidentiality
 
-Versions 0.1 and 0.2 have one dossier per project, and no team dossier. Nothing is shared between
-projects. So customer names and customer data stay in the project's own folder. The exchange
-records name the files and their checksums, but do not copy the files. The team dossier comes in
-phase 3 (v0.3). It keeps the lessons that can be reused in other projects,
-without customer data.
+Versions 0.1 and 0.2 have one dossier per project, and nothing is shared between projects. So
+customer names and customer data stay in the project's own folder. The exchange records name the
+files and their checksums, but do not copy the files. From version 0.3, a team dossier keeps the
+lessons, how-tos and tools that can be reused in other projects, without customer data. Before
+anything is written from a project to the team dossier, it is checked against the project's
+confidential terms; see [Confidential terms](#confidential-terms).
 
 ## Building from source
 
