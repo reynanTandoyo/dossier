@@ -2180,10 +2180,8 @@
 - note (2026-11-22, coordinator): commit: 291cb08, a99b3b0 (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-239 · where-used: where and how a software was used
-- status: claimed
+- status: done
 - owner: haiku-t-239
-- claimed: 2026-11-22T11:52+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-046
 - why: R-USE-4.
@@ -2198,8 +2196,12 @@
   4. Run cargo test --test cmd_where_used.
 - accept: where-used answers how and where a software was used before.
 - verify: cargo test --test cmd_where_used
+- verified: 2026-11-22
+- commit: 565716a1087f89386c2c64d09fa7f1c06d325db0
 - reqs: R-USE-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-239): done
 
 ### T-240 · list: purpose and tested versions of how-tos and tools
 - status: done
