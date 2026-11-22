@@ -2771,10 +2771,8 @@
 - note (2026-11-22, haiku-t-260): done
 
 ### T-261 · brief and status: guarded kinds and due for review
-- status: claimed
+- status: done
 - owner: haiku-t-261
-- claimed: 2026-11-22T12:35+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-050
 - why: R-LIFE-6, R-LIFE-7, R-CTX-4.
@@ -2787,8 +2785,12 @@
   2. Run cargo test --test cmd_brief and cargo test --test cmd_status.
 - accept: brief and status treat how-tos and tools like lessons and show review marks.
 - verify: cargo test --test cmd_brief
+- verified: 2026-11-22
+- commit: 25f7f2f0339230c587d620c963c292f1786c81c1
 - reqs: R-LIFE-6, R-LIFE-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-261): done
 
 ### T-051 · Bringing in finished projects: init --past, review-folder, review-document, import status
 - status: open
