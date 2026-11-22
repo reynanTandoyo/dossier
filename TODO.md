@@ -2254,10 +2254,8 @@
 - note (2026-11-21, planner): split into T-241, T-242, T-243, T-244, T-245, T-246
 
 ### T-241 · tool add: record a tool
-- status: claimed
+- status: done
 - owner: haiku-t-241
-- claimed: 2026-11-22T12:16+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-047
 - why: D31, D37.
@@ -2273,8 +2271,12 @@
   5. Run cargo test --test cmd_tool.
 - accept: Tools are recorded with a name and, when known, a location.
 - verify: cargo test --test cmd_tool
+- verified: 2026-11-22
+- commit: 46cf2dbb4a63f6473c3da54b56fe6f780f32d4af
 - reqs: D31, D37, R-USE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-241): done
 
 ### T-242 · tool update: record a script's checksum again
 - status: open
