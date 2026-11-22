@@ -1981,8 +1981,10 @@
 - note (2026-11-22, haiku-t-231): done
 
 ### T-232 · confidential remove and confidential none
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-232
+- claimed: 2026-11-22T11:43+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-044
 - why: D32, R-CONF-5.
