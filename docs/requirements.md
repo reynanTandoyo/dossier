@@ -441,6 +441,8 @@ Every write command needs a name (D13) and prints one line such as `DEC-012: add
   the working folder of a git repository on the server). A team script's `path` is relative to
   it; a project script's `path` is relative to the project folder. `dossier` never copies or
   changes a script file.
+  *Phase 3 (D37):* there is no `script_root`; a tool keeps its `location` as given (relative
+  to the project folder or absolute), and `dossier` still never copies or changes a script file.
 - **R-USE-10 MUST** `list --kind script [--software <name>] [--language "…"] [words…]` lists approved scripts with
   their purpose, language and tested versions; `show <ID>` also prints the full path and whether
   the file still matches its recorded checksum.

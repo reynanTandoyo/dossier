@@ -514,7 +514,7 @@ or a plain name. In history lines an LLM is written as `<person> via <full LLM n
 
 | Kind | Prefix | Folder | Sections, in this order | Required |
 |---|---|---|---|---|
-| howto | `HOW` | `howtos/` | `Purpose`, `Steps`, `Settings`, `Traps`, `Tested with` | field `software`, `Purpose`, `Steps` |
+| howto | `HOW` | `howtos/` | `Purpose`, `Steps`, `Settings`, `Traps`, `Tested with`, `Open remarks` | field `software`, `Purpose`, `Steps` |
 | tool | `TOOL` | `tools/` | `Purpose`, `How to run`, `Inputs`, `Outputs`, `Traps`, `Tested with` | `Purpose` |
 
 Tool fields: `type` (`script`, `command`, `software`, `repo`), `location` (optional: a path, a
@@ -522,6 +522,11 @@ command name or a URL), `software`, `language`, `checksum` (`sha256:…` of a sc
 its location is a file that exists). Lessons, how-tos and tools are *guarded*: an LLM writes them
 as drafts, a person's approval records their checksum, and a hand change after approval is
 marked (R-LIFE-6).
+
+`Open remarks` of a team how-to holds one line per reported deviation (R-USE-6):
+`- <project code> <YYYY-MM-DD>: <deviation>`. The program adds these lines itself; adding one
+records the approval checksum again when the how-to was unchanged since approval, so a remark is
+not a hand change.
 
 ## 23. New entry fields
 
