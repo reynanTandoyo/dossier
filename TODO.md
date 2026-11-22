@@ -5983,10 +5983,8 @@
 - note (2026-11-22, haiku-t-276): done
 
 ### T-277 · status --since: no settings rows, --keep, LLMs never move the marker
-- status: claimed
+- status: done
 - owner: haiku-t-277
-- claimed: 2026-11-22T13:23+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: bug
 - milestone: T-049
 - why: R-READ-10, R-CTX-10: the README run showed settings records (DOSSIER, SETTINGS, AGENTS, HOOKS, SKILL) as '(removed)' lines in the project part, and --keep is missing.
@@ -6001,7 +5999,11 @@
   5. Run cargo test --test cmd_status.
 - accept: status --since shows no settings rows; --keep and LLM runs leave the marker.
 - verify: cargo test --test cmd_status
+- verified: 2026-11-22
+- commit: 98e800ebcb5acedf7c93eba52c893100bd3a62ac
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, coordinator): added
+- note (2026-11-22, haiku-t-277): done
 
 ### T-278 · init --team-dossier: the person who creates it is the first member
 - status: claimed
