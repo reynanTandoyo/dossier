@@ -8,6 +8,13 @@
 //! (R-CTX-16): the entries and file blocks marked `rests on <ID>`, under their own heading. With
 //! `--on <date>` it prints what was in force on that day instead (R-LIFE-9); the proposals, the
 //! drafts and what rests on a wrong assumption are then left out.
+//!
+//! When the project names a team dossier (R-CTX-1), the team's approved lessons and how-tos whose
+//! machine, analysis or software tags match the project's are printed under their own heading, at
+//! most MAX_TEAM of them. The last line says how many entries were approved in the project or the
+//! team since the person's marker, when there are any (R-READ-11): the marker is the one
+//! `status --since last` writes, so a person who has never run it gets no news line. With `--on`
+//! the team lines are those in force on that day, and the news line is left out.
 
 use crate::approval::{self, Mark};
 use crate::blockfile::BlockFile;
@@ -18,6 +25,7 @@ use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
 use crate::filelist;
+use crate::journal::{self, Record};
 use crate::mapfile;
 use crate::output::Output;
 use crate::store::{self, Item};
@@ -47,12 +55,16 @@ const DECISIONS: &str = "## Decisions in force";
 const ASSUMPTIONS: &str = "## Open assumptions";
 const FINDINGS: &str = "## Findings";
 const LESSONS: &str = "## Lessons";
+const TEAM: &str = "## Team lessons and how-tos";
 const PROPOSALS: &str = "## Proposals waiting";
 const RESTS: &str = "## Rests on a wrong assumption";
 
 /// The most lines of the map the brief prints (R-CODE-1), and the most values (R-VALUE-4).
 const MAX_MAP_LINES: usize = 25;
 const MAX_VALUES: usize = 15;
+
+/// The most team lessons and how-tos the brief names (R-CTX-1).
+const MAX_TEAM: usize = 10;
 
 /// The field that names the wrong assumptions an entry rests on (format.md §14), and the field
 /// that gives the time an assumption was found wrong.
@@ -117,6 +129,16 @@ fn for_project(ctx: &Ctx, remote: bool, day: Option<&str>) -> Result<Output> {
             lines
         }
     };
+    let team = team_context(ctx, &mut problems);
+    let (team_lines, team_left_out, team_problems) = match &team {
+        Some(team) => team_part(ctx, team, day),
+        None => (Vec::new(), 0, Vec::new()),
+    };
+    problems.extend(team_problems);
+    let news = match day {
+        Some(_) => None,
+        None => news_of(ctx, team.as_ref(), &mut problems),
+    };
     let mut brief = Brief::collect(
         ctx,
         &items,
@@ -126,7 +148,22 @@ fn for_project(ctx: &Ctx, remote: bool, day: Option<&str>) -> Result<Output> {
         value_section,
         rests_section,
     );
-    let lines = brief.fit(ctx.cfg.brief_lines);
+    brief.team = team_lines;
+    brief.team_left_out = team_left_out;
+    brief.news = news;
+    // The news line is the last line, so it takes one of the lines the limit allows.
+    let news_line = brief.news.as_ref().and_then(News::line);
+    let limit = ctx.cfg.brief_lines;
+    let mut lines = brief.fit(if news_line.is_some() {
+        limit.saturating_sub(1)
+    } else {
+        limit
+    });
+    if let Some(line) = news_line
+        && limit > 0
+    {
+        lines.push(line);
+    }
     let mut output = Output::with(lines.join("\n"), brief.data(&ctx.cfg.code));
     for warning in warnings.iter().chain(&problems) {
         output = output.warn(shown_warning(&ctx.root, warning));
@@ -150,6 +187,9 @@ struct Brief {
     findings: Vec<Line>,
     /// The lessons, by ID.
     lessons: Vec<Line>,
+    /// The team's approved lessons and how-tos whose tags match the project's, by ID, at most
+    /// MAX_TEAM (R-CTX-1). Set from the team dossier after `collect`.
+    team: Vec<Line>,
     /// The decisions proposed and waiting for a decider, by ID. Left out with `--on`.
     proposals: Vec<Line>,
     /// What rests on a wrong assumption (R-CTX-16): the approved entries, then the file blocks.
@@ -157,8 +197,13 @@ struct Brief {
     rests: Vec<Line>,
     /// The number of drafts waiting for approval. Left out with `--on`.
     drafts: usize,
+    /// The news of the project and the team since the person's marker (R-READ-11). Set after
+    /// `collect`; None with `--on`, and when no person is named or the person has no marker yet.
+    news: Option<News>,
     /// The number of entries cut to fit the limit (lessons, findings, decisions, assumptions).
     left_out: usize,
+    /// The number of team lines left out: those beyond MAX_TEAM, or cut to fit the limit.
+    team_left_out: usize,
     /// The number of proposals cut to fit the limit.
     proposals_left_out: usize,
     /// The number of lines of what rests on a wrong assumption cut to fit the limit.
@@ -303,7 +348,10 @@ impl Brief {
                     .filter(|item| item.entry.status() == Some(Status::Draft))
                     .count()
             },
+            team: Vec::new(),
+            news: None,
             left_out: 0,
+            team_left_out: 0,
             proposals_left_out: 0,
             rests_left_out: 0,
             values_left_out: 0,
@@ -324,6 +372,7 @@ impl Brief {
         push_section(&mut lines, ASSUMPTIONS, &texts(&self.assumptions));
         push_section(&mut lines, FINDINGS, &texts(&self.findings));
         push_section(&mut lines, LESSONS, &texts(&self.lessons));
+        push_section(&mut lines, TEAM, &texts(&self.team));
         push_section(&mut lines, PROPOSALS, &texts(&self.proposals));
         push_section(&mut lines, RESTS, &texts(&self.rests));
         if self.drafts > 0 {
@@ -335,6 +384,14 @@ impl Brief {
                 "entry",
                 "entries",
                 &command_text("list", day),
+            ));
+        }
+        if self.team_left_out > 0 {
+            lines.push(left_out_text(
+                self.team_left_out,
+                "team entry",
+                "team entries",
+                "dossier list --team",
             ));
         }
         if self.proposals_left_out > 0 {
@@ -390,12 +447,15 @@ impl Brief {
     }
 
     /// Cuts one thing to fit the limit, in this order: the last lesson, the last finding, the last
-    /// proposal, the last line that rests on a wrong assumption, the last value, the whole map, the
-    /// oldest decision, the last open assumption. Returns false when nothing is left to cut. Each
-    /// step stops at the first list that had something, so only one thing is cut per call.
+    /// team line, the last proposal, the last line that rests on a wrong assumption, the last value,
+    /// the whole map, the oldest decision, the last open assumption. Returns false when nothing is
+    /// left to cut. Each step stops at the first list that had something, so only one thing is cut
+    /// per call.
     fn cut_one(&mut self) -> bool {
         if self.lessons.pop().is_some() || self.findings.pop().is_some() {
             self.left_out += 1;
+        } else if self.team.pop().is_some() {
+            self.team_left_out += 1;
         } else if self.proposals.pop().is_some() {
             self.proposals_left_out += 1;
         } else if self.rests.pop().is_some() {
@@ -414,8 +474,8 @@ impl Brief {
     }
 
     /// The data of `--json`: the day, the map lines, and the IDs (values: names) of the entries
-    /// printed, and the number of drafts. A file block that rests on a wrong assumption is named
-    /// by its task and path, as `<task> <path>`.
+    /// printed, the team's IDs, the news, and the number of drafts. A file block that rests on a
+    /// wrong assumption is named by its task and path, as `<task> <path>`.
     fn data(&self, code: &str) -> Value {
         json!({
             "code": code,
@@ -426,9 +486,11 @@ impl Brief {
             "assumptions": ids(&self.assumptions),
             "findings": ids(&self.findings),
             "lessons": ids(&self.lessons),
+            "team": ids(&self.team),
             "proposals": ids(&self.proposals),
             "rests": ids(&self.rests),
             "drafts": self.drafts,
+            "news": self.news.as_ref().map(News::data),
         })
     }
 }
@@ -831,4 +893,199 @@ fn shown_warning(root: &Path, warning: &str) -> String {
         Some((path, message)) => format!("{}: {message}", path.replace(MAIN_SEPARATOR, "/")),
         None => warning.to_string(),
     }
+}
+
+/// The team dossier of the project as a context (R-PLACE-8), when the project names one that can
+/// be reached. A team dossier that cannot be read is a problem, and the brief has no team part.
+fn team_context(ctx: &Ctx, problems: &mut Vec<String>) -> Option<Ctx> {
+    // No team dossier named, or not reachable (then Ctx::load left `team` empty).
+    ctx.team.as_ref()?;
+    match ctx.team_ctx() {
+        Ok(team) => Some(team),
+        Err(error) => {
+            problems.push(error.message);
+            None
+        }
+    }
+}
+
+/// The team part of the brief (R-CTX-1): the approved lessons and how-tos of the team whose
+/// machine, analysis or software tags match the project's, in the order of `store::all`; with `day`
+/// the ones in force on it. At most MAX_TEAM are returned, with the number of matching ones beyond
+/// that. The problems of reading the team dossier come back with their paths shown relative to the
+/// team folder.
+fn team_part(ctx: &Ctx, team: &Ctx, day: Option<&str>) -> (Vec<Line>, usize, Vec<String>) {
+    let (items, warnings) = store::all(&team.dossier);
+    let matching: Vec<&Item> = items
+        .iter()
+        .filter(|item| matches!(item.entry.kind(), Some(Kind::Lesson | Kind::Howto)))
+        .filter(|item| match day {
+            Some(day) => in_force(&item.entry, day),
+            None => item.entry.status() == Some(Status::Approved),
+        })
+        .filter(|item| matches_tags(&item.entry, &ctx.cfg.tags))
+        .collect();
+    let left_out = matching.len().saturating_sub(MAX_TEAM);
+    let lines = matching
+        .into_iter()
+        .take(MAX_TEAM)
+        .map(|item| {
+            let id = item.entry.id();
+            let changed = matches!(approval::mark(&team.state, &id, &item.raw), Mark::Changed);
+            let mark = if changed {
+                " [changed after approval]"
+            } else {
+                ""
+            };
+            Line {
+                text: format!("team:{}{mark}", entry_text(&item.entry)),
+                id,
+            }
+        })
+        .collect();
+    let problems = warnings
+        .iter()
+        .map(|warning| format!("team: {}", shown_warning(&team.root, warning)))
+        .collect();
+    (lines, left_out, problems)
+}
+
+/// Whether an entry shares a machine, analysis or software tag with the project, ignoring case.
+fn matches_tags(entry: &Entry, tags: &Tags) -> bool {
+    shares(entry, "machine", &tags.machine)
+        || shares(entry, "analysis", &tags.analysis)
+        || shares(entry, "software", &tags.software)
+}
+
+/// Whether one of the comma-separated values of `key` equals one of `tags`, ignoring case.
+fn shares(entry: &Entry, key: &str, tags: &[String]) -> bool {
+    entry
+        .list(key)
+        .iter()
+        .filter(|value| !value.is_empty())
+        .any(|value| {
+            tags.iter()
+                .any(|tag| tag.trim().eq_ignore_ascii_case(value))
+        })
+}
+
+/// The news of the brief (R-READ-11): how many entries were approved in the project or in the team
+/// after the person's marker, and the day of the marker.
+struct News {
+    count: usize,
+    since: String,
+}
+
+impl News {
+    /// `1 new entry since <date>: dossier status --since last`, or `<n> new entries since <date>:
+    /// ...`. None when there is no news.
+    fn line(&self) -> Option<String> {
+        if self.count == 0 {
+            return None;
+        }
+        let what = if self.count == 1 {
+            "1 new entry".to_string()
+        } else {
+            format!("{} new entries", self.count)
+        };
+        Some(format!(
+            "{what} since {}: dossier status --since last",
+            self.since
+        ))
+    }
+
+    /// The news as data: the count, and the day of the marker.
+    fn data(&self) -> Value {
+        json!({"count": self.count, "since": self.since})
+    }
+}
+
+/// The news of the project (R-READ-11): the approvals in the journal of the project and of its
+/// team after the person's marker, `.state/seen-<person>.txt`, which `status --since last` writes.
+/// None when no person is named, and when the person has no marker yet: then nothing is new since
+/// a run, and the first `status --since last` starts the count.
+fn news_of(ctx: &Ctx, team: Option<&Ctx>, problems: &mut Vec<String>) -> Option<News> {
+    let who = ctx.who.as_ref()?;
+    let path = ctx
+        .state
+        .join(format!("seen-{}.txt", who.person.to_lowercase()));
+    let marker = marker_of(&ctx.root, &path, problems)?;
+    let mut count = approvals_since(&ctx.state, &marker, problems);
+    if let Some(team) = team {
+        count += approvals_since(&team.state, &marker, problems);
+    }
+    Some(News {
+        count,
+        since: time::date(&marker).to_string(),
+    })
+}
+
+/// The time in a person's marker file. None when there is no file. A file that holds no time, or
+/// cannot be read, is a problem, and then no news is shown.
+fn marker_of(root: &Path, path: &Path, problems: &mut Vec<String>) -> Option<String> {
+    match std::fs::read_to_string(path) {
+        Ok(text) => {
+            let stamp = text.trim();
+            if time::valid(stamp) {
+                Some(stamp.to_string())
+            } else {
+                problems.push(format!(
+                    "{} does not hold a time; no news is shown",
+                    shown_path(root, path)
+                ));
+                None
+            }
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+        Err(error) => {
+            problems.push(format!(
+                "{}: {error}; no news is shown",
+                shown_path(root, path)
+            ));
+            None
+        }
+    }
+}
+
+/// The approvals in the journal of `state` made after the time `after`. A journal that cannot be
+/// read is a problem and counts nothing.
+fn approvals_since(state: &Path, after: &str, problems: &mut Vec<String>) -> usize {
+    match journal::read(state) {
+        Ok(records) => records
+            .iter()
+            .filter(|record| is_approval(record))
+            .filter(|record| later(&record.time, after))
+            .count(),
+        Err(error) => {
+            problems.push(error.message);
+            0
+        }
+    }
+}
+
+/// Whether a journal record is an approval: an `approved` or `accepted` event, or a `created` event
+/// whose detail is `approved` (create.rs).
+fn is_approval(record: &Record) -> bool {
+    match record.event.as_str() {
+        "approved" | "accepted" => true,
+        "created" => record.detail == "approved",
+        _ => false,
+    }
+}
+
+/// Whether the time `stamp` is after `last`. False when either is not a time.
+fn later(stamp: &str, last: &str) -> bool {
+    match (
+        DateTime::parse_from_rfc3339(stamp),
+        DateTime::parse_from_rfc3339(last),
+    ) {
+        (Ok(stamp), Ok(last)) => stamp > last,
+        _ => false,
+    }
+}
+
+/// A path as people see it: relative to the project folder, with `/` as the separator.
+fn shown_path(root: &Path, path: &Path) -> String {
+    let relative = path.strip_prefix(root).unwrap_or(path);
+    relative.to_string_lossy().replace(MAIN_SEPARATOR, "/")
 }

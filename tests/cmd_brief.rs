@@ -5,13 +5,15 @@
 //! values, the proposals waiting, the `rests on` marks and the heading of what rests on a wrong
 //! assumption, `--on <date>` and the order in which the line limit cuts. Each test runs in its own
 //! temporary project folder (common::Project), with
-//! the clock fixed at 2026-11-20T10:00:00+01:00.
+//! the clock fixed at 2026-11-20T10:00:00+01:00. Phase 3 adds the team's lessons and how-tos whose
+//! tags match the project's, and the news line (R-CTX-1, R-READ-11).
 
 mod common;
 
 use common::Project;
 use predicates::str::contains;
 use std::fs;
+use std::path::{Path, PathBuf};
 
 /// The fixed clock of these tests (the same as common::Project uses).
 const NOW: &str = "2026-11-20T10:00:00+01:00";
@@ -1173,4 +1175,497 @@ fn what_rests_on_a_wrong_assumption_is_cut_after_the_proposals_and_says_how_many
         Some(&"4 lines resting on a wrong assumption left out: dossier list and dossier files"),
         "{text}"
     );
+}
+
+/// Invented text for the parts of a team lesson.
+const VALID_FOR: &str = "An invented rig with a tip Mach number above 1.1.";
+const EVIDENCE: &str = "An invented comparison of two speedlines, section 1.";
+
+/// A team dossier made for a project test, and the project names it. `dossier` is the team's
+/// DOSSIER folder; `_folder` keeps the temporary folder that holds it alive.
+struct Team {
+    _folder: tempfile::TempDir,
+    dossier: PathBuf,
+}
+
+/// Makes the team dossier with `init --team-dossier --code TEAM` run as anna in a second temporary
+/// folder, makes anna its member, and names it in the settings of `project` (with `/` as the
+/// separator, so that the TOML text needs no escapes).
+fn with_team(project: &Project) -> Team {
+    let folder = tempfile::tempdir().expect("a temporary team folder");
+    project
+        .command("anna", NOW)
+        .current_dir(folder.path())
+        .args(["init", "--code", "TEAM", "--team-dossier"])
+        .assert()
+        .success();
+    let dossier = folder.path().join("DOSSIER");
+    dossier::config::set_list(&dossier, "members", &["anna".to_string()])
+        .expect("the member is set");
+    let stored = dossier.display().to_string().replace('\\', "/");
+    dossier::config::set_value(
+        &project.root().join("DOSSIER"),
+        "team",
+        &format!("\"{stored}\""),
+    )
+    .expect("the team is named");
+    Team {
+        _folder: folder,
+        dossier,
+    }
+}
+
+/// Runs `args` against the team dossier as `agent` at the time `now`, from the project folder.
+fn in_team(
+    project: &Project,
+    team: &Team,
+    agent: &str,
+    now: &str,
+    args: &[&str],
+) -> assert_cmd::assert::Assert {
+    project
+        .command(agent, now)
+        .arg("--dossier")
+        .arg(&team.dossier)
+        .args(args)
+        .assert()
+}
+
+/// Writes a lesson into the team dossier with `learn`: approved when anna writes it, a draft when
+/// her LLM does (`agent` "anna - claude"). Returns the assertion of the command.
+fn learn_in_team(
+    project: &Project,
+    team: &Team,
+    agent: &str,
+    now: &str,
+    statement: &str,
+    title: &str,
+    machine: &str,
+) -> assert_cmd::assert::Assert {
+    in_team(
+        project,
+        team,
+        agent,
+        now,
+        &[
+            "learn",
+            statement,
+            "--valid-for",
+            VALID_FOR,
+            "--evidence",
+            EVIDENCE,
+            "--confidence",
+            "measured",
+            "--title",
+            title,
+            "--machine",
+            machine,
+        ],
+    )
+}
+
+/// Writes an approved how-to of the team for `software` as its file (format.md §22): the `howto`
+/// command is not built yet, so the test writes what the command would write.
+fn write_how_to(team: &Team, id: &str, title: &str, software: &str) {
+    let text = format!(
+        "<!-- dossier-format: 1 -->\n\
+         # {id} · {title}\n\
+         \n\
+         - kind: howto\n\
+         - status: approved\n\
+         - created: {NOW}\n\
+         - author: anna\n\
+         - approved: {NOW} by anna\n\
+         - valid-from: {NOW}\n\
+         - software: {software}\n\
+         - history: {NOW} anna: created\n\
+         - history: {NOW} anna: approved\n\
+         \n\
+         ## Purpose\n\
+         \n\
+         An invented purpose.\n\
+         \n\
+         ## Steps\n\
+         \n\
+         An invented step.\n"
+    );
+    let folder = team.dossier.join("howtos");
+    fs::create_dir_all(&folder).expect("the howtos folder is created");
+    let slug = title.to_lowercase().replace(' ', "-");
+    fs::write(folder.join(format!("{id}-{slug}.md")), text).expect("the how-to is written");
+}
+
+/// The file of entry `id` in `folder` of a dossier: the first file whose name starts with the ID
+/// and a dash. Panics when there is none.
+fn entry_file_in(dossier: &Path, folder: &str, id: &str) -> PathBuf {
+    let prefix = format!("{id}-");
+    fs::read_dir(dossier.join(folder))
+        .expect("the folder is read")
+        .map(|entry| entry.expect("a folder entry").path())
+        .find(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with(&prefix))
+        })
+        .unwrap_or_else(|| panic!("no {id} in {folder}"))
+}
+
+/// Sets the project's tags: the machine "axial compressor" and the software "ExampleSolver".
+fn tag_project(project: &Project) {
+    let path = "DOSSIER/dossier.toml";
+    let text = project
+        .read(path)
+        .replace("machine = []\n", "machine = [\"axial compressor\"]\n")
+        .replace("software = []\n", "software = [\"ExampleSolver\"]\n");
+    assert!(text.contains("machine = [\"axial compressor\"]"), "{text}");
+    project.write(path, &text);
+}
+
+/// `brief` as anna at the time `now`, its standard output.
+fn brief_now(project: &Project, now: &str) -> String {
+    let mut command = project.command("anna", now);
+    command.env_remove("SSH_CONNECTION");
+    let output = command
+        .arg("brief")
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    String::from_utf8(output).expect("the standard output is UTF-8")
+}
+
+/// `status --since last` as anna at `now`: the marker of anna is written then.
+fn mark_seen(project: &Project, now: &str) {
+    project
+        .run_at("anna", now, &["status", "--since", "last"])
+        .success();
+}
+
+#[test]
+fn a_team_lesson_and_how_to_with_matching_tags_are_listed_under_their_heading() {
+    let project = Project::new();
+    tag_project(&project);
+    let team = with_team(&project);
+    learn_in_team(
+        &project,
+        &team,
+        "anna",
+        NOW,
+        "Steady runs overpredict the stall margin.",
+        "Stall margin",
+        "axial compressor",
+    )
+    .success();
+    learn_in_team(
+        &project,
+        &team,
+        "anna",
+        NOW,
+        "Pump curves drift with wear.",
+        "Pump wear",
+        "pump",
+    )
+    .success();
+    learn_in_team(
+        &project,
+        &team,
+        "anna - claude",
+        NOW,
+        "A draft of the team that nobody approved.",
+        "Draft lesson",
+        "axial compressor",
+    )
+    .success();
+    write_how_to(&team, "HOW-001", "Restart the solver", "ExampleSolver");
+    write_how_to(&team, "HOW-002", "Other solver", "OtherSolver");
+
+    let text = brief_now(&project, NOW);
+
+    let lines: Vec<&str> = text.lines().collect();
+    assert!(lines.contains(&"## Team lessons and how-tos"), "{text}");
+    assert!(lines.contains(&"team:LES-001 · Stall margin"), "{text}");
+    assert!(
+        lines.contains(&"team:HOW-001 · Restart the solver"),
+        "{text}"
+    );
+    for left in ["LES-002", "LES-003", "HOW-002"] {
+        assert!(!text.contains(left), "{left} must not be listed: {text}");
+    }
+}
+
+#[test]
+fn at_most_ten_team_lines_are_printed_and_the_rest_is_said() {
+    let project = Project::new();
+    tag_project(&project);
+    let team = with_team(&project);
+    for number in 1..=11 {
+        learn_in_team(
+            &project,
+            &team,
+            "anna",
+            NOW,
+            &format!("Lesson number {number} about the stall margin."),
+            &format!("Lesson {number}"),
+            "axial compressor",
+        )
+        .success();
+    }
+
+    let text = brief_now(&project, NOW);
+
+    assert_eq!(
+        text.lines()
+            .filter(|line| line.starts_with("team:LES-"))
+            .count(),
+        10,
+        "{text}"
+    );
+    assert!(
+        text.lines()
+            .any(|line| line == "1 team entry left out: dossier list --team"),
+        "{text}"
+    );
+}
+
+#[test]
+fn the_news_line_appears_after_an_approval_and_not_before() {
+    let project = Project::new();
+    mark_seen(&project, "2026-11-21T09:00:00+01:00");
+
+    let before = brief_now(&project, "2026-11-21T09:30:00+01:00");
+    assert!(!before.contains("dossier status --since last"), "{before}");
+
+    project
+        .run_at(
+            "anna",
+            "2026-11-21T10:00:00+01:00",
+            &[
+                "found",
+                "The mass flow oscillates again.",
+                "--title",
+                "Oscillation again",
+            ],
+        )
+        .success();
+    let after = brief_now(&project, "2026-11-21T11:00:00+01:00");
+    assert_eq!(
+        after.lines().last(),
+        Some("1 new entry since 2026-11-21: dossier status --since last"),
+        "{after}"
+    );
+
+    // The person's run of `status --since last` moves the marker, and the news is then old.
+    mark_seen(&project, "2026-11-21T11:30:00+01:00");
+    let again = brief_now(&project, "2026-11-21T12:00:00+01:00");
+    assert!(!again.contains("dossier status --since last"), "{again}");
+}
+
+#[test]
+fn an_approval_in_the_team_counts_as_news_and_a_draft_does_not() {
+    let project = Project::new();
+    let team = with_team(&project);
+    mark_seen(&project, "2026-11-21T09:00:00+01:00");
+    learn_in_team(
+        &project,
+        &team,
+        "anna",
+        "2026-11-21T10:00:00+01:00",
+        "The team's statement.",
+        "Team lesson",
+        "axial compressor",
+    )
+    .success();
+    learn_in_team(
+        &project,
+        &team,
+        "anna - claude",
+        "2026-11-21T10:15:00+01:00",
+        "A team draft.",
+        "Team draft",
+        "axial compressor",
+    )
+    .success();
+    project
+        .run_at(
+            "anna",
+            "2026-11-21T10:30:00+01:00",
+            &[
+                "found",
+                "A finding of the project.",
+                "--title",
+                "Project finding",
+            ],
+        )
+        .success();
+
+    let text = brief_now(&project, "2026-11-21T11:00:00+01:00");
+
+    assert_eq!(
+        text.lines().last(),
+        Some("2 new entries since 2026-11-21: dossier status --since last"),
+        "{text}"
+    );
+}
+
+#[test]
+fn without_a_marker_there_is_no_news_line() {
+    let project = Project::new();
+    project
+        .run_at(
+            "anna",
+            "2026-11-21T10:00:00+01:00",
+            &[
+                "found",
+                "A finding of the project.",
+                "--title",
+                "Project finding",
+            ],
+        )
+        .success();
+
+    let text = brief_now(&project, "2026-11-21T11:00:00+01:00");
+
+    assert!(!text.contains("dossier status --since last"), "{text}");
+}
+
+#[test]
+fn a_team_lesson_changed_by_hand_after_its_approval_is_marked() {
+    let project = Project::new();
+    tag_project(&project);
+    let team = with_team(&project);
+    learn_in_team(
+        &project,
+        &team,
+        "anna",
+        NOW,
+        "Steady runs overpredict the stall margin.",
+        "Stall margin",
+        "axial compressor",
+    )
+    .success();
+    let path = entry_file_in(&team.dossier, "lessons", "LES-001");
+    let text = fs::read_to_string(&path).expect("the lesson is read");
+    fs::write(&path, format!("{text}\nA line added by hand.\n")).expect("the lesson is changed");
+
+    let text = brief_now(&project, NOW);
+
+    assert!(
+        text.lines()
+            .any(|line| line == "team:LES-001 · Stall margin [changed after approval]"),
+        "{text}"
+    );
+}
+
+#[test]
+fn the_json_data_names_the_team_lines_and_the_news() {
+    let project = Project::new();
+    tag_project(&project);
+    let team = with_team(&project);
+    mark_seen(&project, "2026-11-21T09:00:00+01:00");
+    learn_in_team(
+        &project,
+        &team,
+        "anna",
+        "2026-11-21T10:00:00+01:00",
+        "Steady runs overpredict the stall margin.",
+        "Stall margin",
+        "axial compressor",
+    )
+    .success();
+    let mut command = project.command("anna", "2026-11-21T11:00:00+01:00");
+    command.env_remove("SSH_CONNECTION");
+    let output = command
+        .args(["--json", "brief"])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+
+    let value: serde_json::Value = serde_json::from_slice(&output).expect("the JSON parses");
+    assert_eq!(
+        value["data"]["team"],
+        serde_json::json!(["LES-001"]),
+        "{value}"
+    );
+    assert_eq!(
+        value["data"]["news"],
+        serde_json::json!({"count": 1, "since": "2026-11-21"}),
+        "{value}"
+    );
+}
+
+#[test]
+fn on_a_day_the_team_lines_are_those_in_force_and_no_news_is_given() {
+    let project = Project::new();
+    tag_project(&project);
+    let team = with_team(&project);
+    mark_seen(&project, "2026-11-21T09:00:00+01:00");
+    learn_in_team(
+        &project,
+        &team,
+        "anna",
+        NOW,
+        "Steady runs overpredict the stall margin.",
+        "Stall margin",
+        "axial compressor",
+    )
+    .success();
+    project
+        .run_at(
+            "anna",
+            "2026-11-21T10:00:00+01:00",
+            &[
+                "found",
+                "A finding of the project.",
+                "--title",
+                "Project finding",
+            ],
+        )
+        .success();
+
+    let mut command = project.command("anna", "2026-11-22T10:00:00+01:00");
+    command.env_remove("SSH_CONNECTION");
+    let text = String::from_utf8(
+        command
+            .args(["brief", "--on", "2026-11-20"])
+            .assert()
+            .success()
+            .get_output()
+            .stdout
+            .clone(),
+    )
+    .expect("the standard output is UTF-8");
+
+    assert!(
+        text.lines()
+            .any(|line| line == "team:LES-001 · Stall margin"),
+        "{text}"
+    );
+    assert!(!text.contains("dossier status --since last"), "{text}");
+}
+
+#[test]
+fn a_team_that_cannot_be_reached_leaves_the_brief_without_a_team_part() {
+    let project = Project::new();
+    tag_project(&project);
+    let stored = project
+        .root()
+        .join("NOWHERE")
+        .join("DOSSIER")
+        .display()
+        .to_string()
+        .replace('\\', "/");
+    dossier::config::set_value(
+        &project.root().join("DOSSIER"),
+        "team",
+        &format!("\"{stored}\""),
+    )
+    .expect("the team is named");
+
+    let text = brief_now(&project, NOW);
+
+    assert!(text.starts_with("Project P-001\n"), "{text}");
+    assert!(!text.contains("## Team lessons and how-tos"), "{text}");
 }
