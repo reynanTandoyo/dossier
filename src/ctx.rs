@@ -1,7 +1,7 @@
 //! The context of a command: the dossier it works on, its settings, and who acts.
 
 use crate::cli::Global;
-use crate::config::{self, Config, Person};
+use crate::config::{self, Config};
 use crate::error::{Code, Error, Result};
 use crate::find;
 use crate::names::{self, Who};
@@ -136,23 +136,29 @@ impl Ctx {
         Ok(ctx)
     }
 
-    /// The context of this project's team dossier, with the same who, json, dry_run, command and
-    /// from_document. The team's settings gain this project's members, plain names and people,
-    /// so that the people of the project may write there. Code::NoDossier when the project has
-    /// no reachable team dossier.
+    /// The context of this project's team dossier, with the same json, dry_run, command and
+    /// from_document. Only team members write to the team dossier (R-TEAM-7), so the team's
+    /// settings gain only this project's plain names, not its members or people. The name that
+    /// acts is resolved again against the team's settings: a project person who is not a team
+    /// member is Code::UnknownName for a writing command and has no name for a reading one.
+    /// Code::NoDossier when the project has no reachable team dossier.
     pub fn team_ctx(&self) -> Result<Ctx> {
         let Some(team) = self.team.clone() else {
             return Err(Error::new(Code::NoDossier, NO_TEAM));
         };
         let mut cfg = config::load(&team)?;
-        add_everything(&mut cfg, &self.cfg);
+        add_missing(&mut cfg.names, &self.cfg.names);
+        let who = match &self.who {
+            Some(who) => resolve_who(&cfg, Some(who.name.as_str()), &self.command)?,
+            None => None,
+        };
         let (root, state) = folders(&team)?;
         Ok(Ctx {
             root,
             dossier: team,
             state,
             cfg,
-            who: self.who.clone(),
+            who,
             json: self.json,
             dry_run: self.dry_run,
             command: self.command.clone(),
@@ -209,24 +215,6 @@ fn resolve_who(cfg: &Config, flag: Option<&str>, command: &str) -> Result<Option
 fn add_members_and_names(into: &mut Config, from: &Config) {
     add_missing(&mut into.members, &from.members);
     add_missing(&mut into.names, &from.names);
-}
-
-/// `add_members_and_names`, and also the people of `from` with their LLMs (format.md §21).
-fn add_everything(into: &mut Config, from: &Config) {
-    add_members_and_names(into, from);
-    for person in &from.people {
-        match into
-            .people
-            .iter_mut()
-            .find(|known| same(&known.name, &person.name))
-        {
-            Some(known) => add_missing(&mut known.llms, &person.llms),
-            None => into.people.push(Person {
-                name: person.name.clone(),
-                llms: person.llms.clone(),
-            }),
-        }
-    }
 }
 
 /// Appends each of `new` that `list` does not hold yet, ignoring case.
@@ -496,7 +484,8 @@ mod tests {
         assert_eq!(ctx.root, dir.path().join("TEAM"));
         assert_eq!(ctx.state, team_dossier.join(".state"));
         assert_eq!(ctx.cfg.kind, "team");
-        assert_eq!(ctx.cfg.members, owned(&["tony", "Mia"]));
+        // Only team members write to the team dossier (R-TEAM-7): the project's Mia is not added.
+        assert_eq!(ctx.cfg.members, owned(&["tony"]));
         assert_eq!(ctx.cfg.names, owned(&["Dr. Weber"]));
         assert_eq!(ctx.project, Some(dossier));
         assert!(ctx.team.is_none());
@@ -515,22 +504,53 @@ mod tests {
     }
 
     #[test]
-    fn team_flag_lets_a_person_of_the_project_write_in_the_team() {
+    fn team_flag_refuses_a_project_person_who_is_not_a_team_member() {
         let (dir, dossier) = project();
         team(dir.path(), "TEAM", &["tony"], &[]);
         link(&dossier, "TEAM/DOSSIER");
+        // Anna writes in the project, but she is not a member of the team: a team write is
+        // refused by her name and by her LLM.
+        for agent in ["anna-claude", "Anna"] {
+            let g = Global {
+                dossier: Some(dossier.clone()),
+                team: true,
+                agent: Some(agent.to_string()),
+                ..Default::default()
+            };
+            let error = Ctx::load(&g, "decide")
+                .err()
+                .expect("a project person is refused for a team write");
+            assert_eq!(error.code, Code::UnknownName);
+        }
+        // A reading command runs in the team without a name.
         let g = Global {
             dossier: Some(dossier),
             team: true,
             agent: Some("anna-claude".to_string()),
             ..Default::default()
         };
-        let ctx = Ctx::load(&g, "decide").expect("the team dossier loads");
+        let ctx = Ctx::load(&g, "show").expect("show reads the team dossier");
+        assert!(ctx.who.is_none());
+        assert_eq!(ctx.cfg.kind, "team");
+    }
+
+    #[test]
+    fn team_flag_lets_a_team_member_and_its_llm_write_in_the_team() {
+        let (dir, dossier) = project();
+        team(dir.path(), "TEAM", &["tony"], &[]);
+        link(&dossier, "TEAM/DOSSIER");
+        let g = Global {
+            dossier: Some(dossier),
+            team: true,
+            agent: Some("tony - claude".to_string()),
+            ..Default::default()
+        };
+        let ctx = Ctx::load(&g, "decide").expect("the team member writes");
         assert_eq!(
             ctx.who,
             Some(Who {
-                name: "anna-claude".to_string(),
-                person: "Anna".to_string(),
+                name: "tony - claude".to_string(),
+                person: "tony".to_string(),
                 is_llm: true,
             })
         );
@@ -555,19 +575,21 @@ mod tests {
     }
 
     #[test]
-    fn team_ctx_is_the_team_with_the_same_who_and_the_project_set() {
+    fn team_ctx_keeps_the_team_member_who_writes_and_adds_only_the_project_names() {
         let (dir, dossier) = project();
-        let team_dossier = team(dir.path(), "TEAM", &["tony"], &[]);
+        config::set_list(&dossier, "members", &owned(&["Mia"])).expect("set the members");
+        config::set_list(&dossier, "names", &owned(&["Dr. Project"])).expect("set the names");
+        let team_dossier = team(dir.path(), "TEAM", &["tony"], &["Dr. Weber"]);
         link(&dossier, "TEAM/DOSSIER");
         let g = Global {
             dossier: Some(dossier.clone()),
-            agent: Some("anna-claude".to_string()),
+            agent: Some("tony".to_string()),
             json: true,
             dry_run: true,
             from_document: Some("docs/Bericht Ä.pdf".to_string()),
             ..Default::default()
         };
-        let ctx = Ctx::load(&g, "promote").expect("the project loads");
+        let ctx = Ctx::load(&g, "decide").expect("the project loads");
         let team_ctx = ctx.team_ctx().expect("the team dossier");
         assert_eq!(team_ctx.dossier, team_dossier);
         assert_eq!(team_ctx.root, dir.path().join("TEAM"));
@@ -575,26 +597,49 @@ mod tests {
         assert!(team_ctx.team.is_none());
         assert_eq!(team_ctx.who, ctx.who);
         assert_eq!(
-            team_ctx.who,
-            Some(Who {
-                name: "anna-claude".to_string(),
-                person: "Anna".to_string(),
-                is_llm: true,
-            })
+            team_ctx.who.as_ref().map(|who| who.name.as_str()),
+            Some("tony")
         );
         assert!(team_ctx.json);
         assert!(team_ctx.dry_run);
-        assert_eq!(team_ctx.command, "promote");
+        assert_eq!(team_ctx.command, "decide");
         assert_eq!(
             team_ctx.from_document.as_deref(),
             Some("docs/Bericht Ä.pdf")
         );
-        assert!(
-            team_ctx
-                .cfg
-                .people
-                .iter()
-                .any(|person| person.name == "Anna")
-        );
+        // Only the team's members and its people: the project's Mia and Anna are not added.
+        assert_eq!(team_ctx.cfg.members, owned(&["tony"]));
+        assert!(team_ctx.cfg.people.is_empty());
+        assert_eq!(team_ctx.cfg.names, owned(&["Dr. Weber", "Dr. Project"]));
+    }
+
+    #[test]
+    fn team_ctx_refuses_a_project_person_who_is_not_a_team_member_for_a_write() {
+        let (dir, dossier) = project();
+        team(dir.path(), "TEAM", &["tony"], &[]);
+        link(&dossier, "TEAM/DOSSIER");
+        let g = Global {
+            dossier: Some(dossier.clone()),
+            agent: Some("anna-claude".to_string()),
+            ..Default::default()
+        };
+        let ctx = Ctx::load(&g, "decide").expect("Anna writes in the project");
+        assert_eq!(ctx.writer().expect("Anna writes").person, "Anna");
+        let error = ctx
+            .team_ctx()
+            .err()
+            .expect("Anna is not a team member: no team write");
+        assert_eq!(error.code, Code::UnknownName);
+
+        // A reading command gets the team dossier without a name.
+        let g = Global {
+            dossier: Some(dossier),
+            agent: Some("anna-claude".to_string()),
+            ..Default::default()
+        };
+        let ctx = Ctx::load(&g, "show").expect("the project loads");
+        let team_ctx = ctx.team_ctx().expect("the team dossier reads");
+        assert!(team_ctx.who.is_none());
+        assert!(team_ctx.project.is_some());
     }
 }
