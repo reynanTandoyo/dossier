@@ -2471,10 +2471,8 @@
 - note (2026-11-21, planner): added
 
 ### T-252 · brief --task: team lessons and how-tos
-- status: claimed
+- status: done
 - owner: haiku-t-252
-- claimed: 2026-11-22T11:24+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-048
 - why: R-CTX-2.
@@ -2488,8 +2486,12 @@
   3. Run cargo test --lib brief_task::.
 - accept: brief --task shows how the team did this kind of work before.
 - verify: cargo test --lib brief_task::
+- verified: 2026-11-22
+- commit: 4d208f8
 - reqs: R-CTX-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-252): done
 
 ### T-253 · brief --task: glossary terms and the last uses of the software
 - status: open
