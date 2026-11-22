@@ -986,3 +986,219 @@ fn a_broken_file_in_the_team_dossier_is_a_warning_with_its_path_from_the_team_fo
             "DOSSIER/decisions/DEC-009-broken.md: line 2: no heading",
         ));
 }
+
+/// Invented text of the how-tos of the tests of `not tested with`: a how-to for the invented
+/// software FlowSim. Its body is written to FLOW_FILE of the project folder, which `howto --from`
+/// reads.
+const FLOW_TITLE: &str = "Invented flow setup";
+const FLOW_BODY: &str = "## Purpose\nAn invented how-to for the test software FlowSim.\n## Steps\n1. Invented step one.\n";
+const FLOW_FILE: &str = "flow.md";
+
+/// A how-to for FlowSim written as `agent`, with a `Tested with` section made of `tested` when it
+/// is not empty, in the team dossier when `team` is true (the confidential check must pass then).
+/// Returns its ID, such as HOW-001.
+fn flowsim_howto(project: &Project, agent: &str, tested: &str, team: bool) -> String {
+    let mut body = FLOW_BODY.to_string();
+    if !tested.is_empty() {
+        body.push_str(&format!("## Tested with\n{tested}\n"));
+    }
+    project.write(FLOW_FILE, &body);
+    let mut args = vec![
+        "howto",
+        "--software",
+        "FlowSim",
+        "--title",
+        FLOW_TITLE,
+        "--from",
+        FLOW_FILE,
+    ];
+    if team {
+        args.push("--team");
+    }
+    let added = project.stdout(agent, &args);
+    added
+        .split(':')
+        .next()
+        .expect("the first line starts with the ID")
+        .to_string()
+}
+
+/// Records a run of `software` in `version` as anna at `now`: a usage record for the task T-001,
+/// with no files.
+fn run_of(project: &Project, now: &str, software: &str, version: &str) {
+    project
+        .run_at(
+            "anna",
+            now,
+            &["used", software, "--version", version, "--task", "T-001"],
+        )
+        .success();
+}
+
+/// Writes the team's usage index with one line for a run of FlowSim in `version`, made by the
+/// project P-002 on `date` (YYYY-MM-DD) by ben, in the form `used` writes (format.md §20).
+fn team_index_with_flowsim(team: &Path, version: &str, date: &str) {
+    let text = format!(
+        "<!-- dossier-format: 1 -->\n# Usage of TEAM\n\n## P-002:USE-001\n\n- date: {date}\n- code: P-002\n- software: FlowSim\n- version: {version}\n- person: ben\n- history: {date}T09:00:00+01:00 ben: used\n"
+    );
+    fs::write(team.join("usage-index.md"), text).expect("the team's usage index");
+}
+
+#[test]
+fn a_how_to_tested_with_an_older_version_than_its_software_was_used_in_is_marked() {
+    let project = Project::new();
+    let id = flowsim_howto(&project, "anna", "FlowSim 2410", false);
+    run_of(&project, NOW, "FlowSim", "2502");
+
+    let text = text_of(&project, &id);
+    assert_eq!(
+        project.stdout("anna", &["show", &id]),
+        format!("[not tested with 2502]\n{text}")
+    );
+    let data = show_data(&project, &id);
+    assert_eq!(data["marks"], json!(["[not tested with 2502]"]));
+}
+
+#[test]
+fn a_how_to_tested_with_the_version_it_was_used_in_is_not_marked() {
+    let project = Project::new();
+    let id = flowsim_howto(&project, "anna", "FlowSim 2502", false);
+    run_of(&project, NOW, "FlowSim", "2502");
+
+    let text = text_of(&project, &id);
+    assert_eq!(project.stdout("anna", &["show", &id]), text);
+    assert_eq!(show_data(&project, &id)["marks"], json!([]));
+}
+
+#[test]
+fn another_softwares_use_does_not_count_and_the_name_is_compared_ignoring_case() {
+    let project = Project::new();
+    let id = flowsim_howto(&project, "anna", "FlowSim 2410", false);
+    run_of(&project, NOW, "OtherSolver", "2502");
+
+    let text = text_of(&project, &id);
+    assert_eq!(project.stdout("anna", &["show", &id]), text);
+
+    run_of(&project, NEXT_DAY, "flowsim", "2502");
+    assert_eq!(
+        project.stdout("anna", &["show", &id]),
+        format!("[not tested with 2502]\n{text}")
+    );
+}
+
+#[test]
+fn tested_versions_compare_as_numbers_so_nine_is_older_than_ten() {
+    let project = Project::new();
+    let id = flowsim_howto(&project, "anna", "FlowSim 9", false);
+    run_of(&project, NOW, "FlowSim", "10");
+
+    let text = text_of(&project, &id);
+    assert_eq!(
+        project.stdout("anna", &["show", &id]),
+        format!("[not tested with 10]\n{text}")
+    );
+}
+
+#[test]
+fn the_newest_tested_version_is_the_highest_of_all_lines_not_the_last_one() {
+    let project = Project::new();
+    let id = flowsim_howto(&project, "anna", "FlowSim 2502\nFlowSim 2410", false);
+    run_of(&project, NOW, "FlowSim", "2411");
+
+    let text = text_of(&project, &id);
+    assert_eq!(project.stdout("anna", &["show", &id]), text);
+
+    run_of(&project, NEXT_DAY, "FlowSim", "2503");
+    assert_eq!(
+        project.stdout("anna", &["show", &id]),
+        format!("[not tested with 2503]\n{text}")
+    );
+}
+
+#[test]
+fn the_newest_use_is_the_latest_in_time_not_the_highest_version() {
+    let project = Project::new();
+    let id = flowsim_howto(&project, "anna", "FlowSim 2410", false);
+    run_of(&project, NOW, "FlowSim", "2502");
+    run_of(&project, NEXT_DAY, "FlowSim", "2410");
+
+    let text = text_of(&project, &id);
+    assert_eq!(project.stdout("anna", &["show", &id]), text);
+}
+
+#[test]
+fn a_how_to_with_no_tested_version_is_marked_once_its_software_was_used() {
+    let project = Project::new();
+    // One how-to without a `Tested with` section, one whose section names no version.
+    let ids = [
+        flowsim_howto(&project, "anna", "", false),
+        flowsim_howto(&project, "anna", "FlowSim, all versions", false),
+    ];
+    let texts: Vec<String> = ids.iter().map(|id| text_of(&project, id)).collect();
+    for (id, text) in ids.iter().zip(&texts) {
+        assert_eq!(project.stdout("anna", &["show", id]), *text, "{id}");
+    }
+
+    run_of(&project, NOW, "FlowSim", "2502");
+    for (id, text) in ids.iter().zip(&texts) {
+        assert_eq!(
+            project.stdout("anna", &["show", id]),
+            format!("[not tested with 2502]\n{text}"),
+            "{id}"
+        );
+    }
+}
+
+#[test]
+fn the_not_tested_mark_comes_after_the_draft_mark() {
+    let project = Project::new();
+    let id = flowsim_howto(&project, "anna-claude", "FlowSim 2410", false);
+    assert_eq!(id, "HOW-001");
+    run_of(&project, NOW, "FlowSim", "2502");
+
+    let text = text_of(&project, &id);
+    assert_eq!(
+        project.stdout("anna", &["show", &id]),
+        format!("[draft] [not tested with 2502]\n{text}")
+    );
+    assert_eq!(
+        show_data(&project, &id)["marks"],
+        json!(["[draft]", "[not tested with 2502]"])
+    );
+}
+
+#[test]
+fn a_use_in_the_linked_teams_usage_index_marks_a_project_how_to() {
+    let project = Project::new();
+    let (_folder, team) = team_dossier(&project);
+    link(&project, &team);
+    let id = flowsim_howto(&project, "anna", "FlowSim 2410", false);
+    team_index_with_flowsim(&team, "2502", "2026-11-19");
+
+    let text = text_of(&project, &id);
+    assert_eq!(
+        project.stdout("anna", &["show", &id]),
+        format!("[not tested with 2502]\n{text}")
+    );
+}
+
+#[test]
+fn a_team_how_to_is_marked_from_the_team_usage_index() {
+    let project = Project::new();
+    let (_folder, team) = team_dossier(&project);
+    link(&project, &team);
+    with_confidential_term(&project);
+    let id = flowsim_howto(&project, "anna", "FlowSim 2410", true);
+    assert_eq!(id, "HOW-001");
+    team_index_with_flowsim(&team, "2502", "2026-11-19");
+
+    let text = team_text(&team, &id);
+    assert_eq!(
+        project.stdout("anna", &["show", "team:HOW-001"]),
+        format!("[not tested with 2502]\n{text}")
+    );
+    assert_eq!(
+        show_data(&project, "team:HOW-001")["marks"],
+        json!(["[not tested with 2502]"])
+    );
+}

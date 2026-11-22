@@ -13,13 +13,18 @@ use crate::filesum;
 use crate::output::Output;
 use crate::paths;
 use crate::store::{self, Item};
+use crate::teamfiles;
 use crate::time;
-use chrono::NaiveDate;
+use chrono::{DateTime, FixedOffset, NaiveDate};
 use serde_json::{Map, Value, json};
+use std::cmp::Ordering;
 use std::path::{MAIN_SEPARATOR, Path};
 
 /// The place of an entry of the team dossier, as an ID is written from a project (R-ID-2).
 const TEAM: &str = "team";
+
+/// The `kind` of a team dossier (format.md §26).
+const TEAM_KIND: &str = "team";
 
 /// The arguments of `show`.
 #[derive(clap::Args, Debug)]
@@ -104,7 +109,8 @@ fn shown_warning(root: &Path, warning: &str) -> String {
 /// into it (R-IMPORT-5); `[changed after approval]` for an approved guarded entry (lesson,
 /// how-to or tool) whose text differs from its recorded checksum (R-LIFE-6); `[file changed since
 /// approval]` for a tool whose script changed (R-USE-11); then `[rests on <IDs>]` when its
-/// `rests-on` field names a wrong assumption.
+/// `rests-on` field names a wrong assumption; then `[not tested with <version>]` when a how-to's
+/// software was used in a newer version than it was tested with (R-LIFE-8).
 fn marks(ctx: &Ctx, item: &Item) -> Vec<String> {
     let entry = &item.entry;
     let mut marks = Vec::new();
@@ -141,6 +147,9 @@ fn marks(ctx: &Ctx, item: &Item) -> Vec<String> {
         marks.push("[file changed since approval]".to_string());
     }
     if let Some(mark) = rests_on_mark(entry) {
+        marks.push(mark);
+    }
+    if let Some(mark) = not_tested_with(ctx, entry) {
         marks.push(mark);
     }
     marks
@@ -188,6 +197,145 @@ fn file_changed(root: &Path, entry: &Entry) -> bool {
 fn rests_on_mark(entry: &Entry) -> Option<String> {
     let ids = entry.list("rests-on");
     (!ids.is_empty()).then(|| format!("[rests on {}]", ids.join(", ")))
+}
+
+/// `[not tested with <version>]` for a how-to whose software was used in a newer version than the
+/// newest version the how-to was tested with (R-LIFE-8). The mark names the version of the newest
+/// use of the software (`newest_use`). None for an entry that is not a how-to, a how-to that names
+/// no software, a newest use with no version, or a newest use that is not newer than the newest
+/// tested version (`newest_tested`); a how-to with no tested version is marked by any use.
+pub(crate) fn not_tested_with(ctx: &Ctx, entry: &Entry) -> Option<String> {
+    if entry.kind() != Some(Kind::Howto) {
+        return None;
+    }
+    let software = entry.field("software")?.trim().to_lowercase();
+    if software.is_empty() {
+        return None;
+    }
+    let newest = newest_use(ctx, &software)?;
+    if newest.version.is_empty() {
+        return None;
+    }
+    match newest_tested(entry) {
+        Some(tested) if compare_versions(&newest.version, &tested).is_le() => None,
+        _ => Some(format!("[not tested with {}]", newest.version)),
+    }
+}
+
+/// A use of a software: its version, and when it was made (`when`, the sort key of `newest_use`).
+struct Use {
+    version: String,
+    /// The day, and the instant of a usage record (format.md §7). An index line has its day only.
+    /// A value that is not a time or a date is None, which sorts before any other value.
+    when: (Option<NaiveDate>, Option<DateTime<FixedOffset>>),
+}
+
+/// The newest use of `software` (lower case): among the usage records of the dossier and the
+/// lines of the team's usage index (`team_index_dossier`), the one with the latest time. A usage
+/// record is dated by its `created` time; an index line only by its `date`, so on the same day a
+/// usage record counts as newer. None when the software was used in neither.
+fn newest_use(ctx: &Ctx, software: &str) -> Option<Use> {
+    let (items, _) = store::all(&ctx.dossier);
+    let mut uses = Vec::new();
+    for item in items
+        .iter()
+        .filter(|item| item.entry.kind() == Some(Kind::Usage))
+    {
+        let created = item.entry.field("created").unwrap_or_default();
+        uses.push((
+            item.entry.field("software").unwrap_or_default(),
+            Use {
+                version: item.entry.field("version").unwrap_or_default(),
+                when: (
+                    parse_day(time::date(&created)),
+                    DateTime::parse_from_rfc3339(&created).ok(),
+                ),
+            },
+        ));
+    }
+    if let Some(dossier) = team_index_dossier(ctx) {
+        // An index that cannot be read gives no use, as a file that cannot be read gives no mark
+        // (`file_changed`).
+        if let Ok((index, _)) = teamfiles::usage(dossier, &ctx.cfg.code) {
+            for key in index.keys() {
+                let field = |name: &str| index.field(&key, name).unwrap_or_default();
+                uses.push((
+                    field("software"),
+                    Use {
+                        version: field("version"),
+                        when: (parse_day(&field("date")), None),
+                    },
+                ));
+            }
+        }
+    }
+    uses.into_iter()
+        .filter(|(name, _)| name.trim().to_lowercase() == software)
+        .map(|(_, used)| used)
+        .max_by_key(|used| used.when)
+}
+
+/// The DOSSIER folder whose usage index counts for a how-to: the team dossier the project links,
+/// or this dossier when it is a team dossier, since its own index holds the runs of the whole
+/// team (format.md §20). None when there is no such dossier.
+fn team_index_dossier(ctx: &Ctx) -> Option<&Path> {
+    match &ctx.team {
+        Some(team) => Some(team.as_path()),
+        None if ctx.cfg.kind == TEAM_KIND => Some(ctx.dossier.as_path()),
+        None => None,
+    }
+}
+
+/// The newest version a how-to was tested with: the version each line of its `Tested with` section
+/// names (`tested_version`), the highest of them by `compare_versions`. None when no line names one.
+fn newest_tested(entry: &Entry) -> Option<String> {
+    entry
+        .section("Tested with")?
+        .lines()
+        .filter_map(tested_version)
+        .max_by(|a, b| compare_versions(a, b))
+}
+
+/// The version a line of `Tested with` names: its last word that contains a digit, without the
+/// punctuation around it. None when no word of the line has a digit.
+fn tested_version(line: &str) -> Option<String> {
+    let word = line
+        .split_whitespace()
+        .rfind(|word| word.bytes().any(|byte| byte.is_ascii_digit()))?;
+    Some(
+        word.trim_matches(|c: char| !c.is_alphanumeric())
+            .to_string(),
+    )
+}
+
+/// Compares two versions part by part, the parts being the text between `.` and `-`. Two parts
+/// that are numbers compare as numbers (9 before 10), any other two as text. When one version
+/// goes on after the parts of the other are equal, it is the newer.
+fn compare_versions(a: &str, b: &str) -> Ordering {
+    let (parts_a, parts_b): (Vec<&str>, Vec<&str>) =
+        (a.split(['.', '-']).collect(), b.split(['.', '-']).collect());
+    parts_a
+        .iter()
+        .zip(&parts_b)
+        .map(|(x, y)| compare_parts(x, y))
+        .find(|order| order.is_ne())
+        .unwrap_or_else(|| parts_a.len().cmp(&parts_b.len()))
+}
+
+/// Compares two parts of versions: as numbers when both are digits only (leading zeros aside), else
+/// as text.
+fn compare_parts(a: &str, b: &str) -> Ordering {
+    if is_digits(a) && is_digits(b) {
+        let (a, b) = (a.trim_start_matches('0'), b.trim_start_matches('0'));
+        a.len().cmp(&b.len()).then_with(|| a.cmp(b))
+    } else {
+        a.cmp(b)
+    }
+}
+
+/// Whether the text is one or more ASCII digits.
+fn is_digits(text: &str) -> bool {
+    !text.is_empty() && text.bytes().all(|byte| byte.is_ascii_digit())
 }
 
 /// The data of `--json`: the ID (`shown_id`, with `team:` before it for a team entry), title, kind,
