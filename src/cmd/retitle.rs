@@ -1,6 +1,7 @@
 //! The `retitle` command: changes the title of an entry and renames its file to the slug of the new
-//! title (R-WRITE-8, R-ID-3). The ID stays. As `set` does, an LLM's change to an approved lesson
-//! takes it back to draft, and a person's change to one is recorded as its new approved text.
+//! title (R-WRITE-8, R-ID-3). The ID stays. As `set` does, an LLM's change to an approved lesson,
+//! how-to or tool takes it back to draft (approval::guarded), and a person's change to one is
+//! recorded as its new approved text.
 
 use crate::approval;
 use crate::cli::Global;
@@ -15,8 +16,8 @@ use serde_json::json;
 /// The part of the entry that changed, as the history line names it.
 const TITLE: &str = "title";
 
-/// Added to the detail of the history line when an LLM's change takes an approved lesson back to
-/// draft.
+/// Added to the detail of the history line when an LLM's change takes an approved lesson, how-to
+/// or tool back to draft.
 const BACK_TO_DRAFT: &str = "back to draft";
 
 /// The arguments of `retitle`.
@@ -30,8 +31,8 @@ pub struct Args {
 
 /// Runs `retitle`: sets the new title and moves the file to the slug of that title, in one
 /// transaction. The first output line is `<ID>: retitled`, with `(back to draft, waiting for
-/// approval)` after it when an LLM took an approved lesson back to draft, or `<ID>: no change`
-/// when the entry already has this title. A blank title is Code::BadValue.
+/// approval)` after it when an LLM took an approved lesson, how-to or tool back to draft, or
+/// `<ID>: no change` when the entry already has this title. A blank title is Code::BadValue.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "retitle")?;
     let title = args.title.trim();
@@ -40,9 +41,9 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     }
     let who = ctx.writer()?.clone();
 
-    // The ID and the new text of an approved lesson that changed. Its checksum is written after
-    // the file, so that a refused change leaves the checksum alone.
-    let mut lesson: Option<(String, String)> = None;
+    // The ID and the new text of an approved lesson, how-to or tool that changed. Its checksum is
+    // written after the file, so that a refused change leaves the checksum alone.
+    let mut approved: Option<(String, String)> = None;
     let output = tx::write(&ctx, |tx| {
         let item = store::get(&tx.ctx().dossier, &args.id)?;
         let mut entry = item.entry.clone();
@@ -62,10 +63,10 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
                 format!("{id} has no kind, so its file cannot be named"),
             )
         })?;
-        let approved_lesson = kind == Kind::Lesson && entry.status() == Some(Status::Approved);
+        let approved_guarded = approval::guarded(kind) && entry.status() == Some(Status::Approved);
         let mut detail = TITLE.to_string();
         let mut back_to_draft = false;
-        if approved_lesson && who.is_llm {
+        if approved_guarded && who.is_llm {
             entry.set_field("status", Status::Draft.name());
             entry.remove_field("approved");
             entry.remove_field("valid-from");
@@ -76,8 +77,8 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         entry.add_history(tx.time(), &who, "changed", &detail);
 
         let text = entry.text();
-        if approved_lesson {
-            lesson = Some((id.clone(), text.clone()));
+        if approved_guarded {
+            approved = Some((id.clone(), text.clone()));
         }
         // The file is named by its kind, its ID and the slug of its title (format.md §4).
         let new_path = store::path_for(&tx.ctx().dossier, kind, &id, &entry.title());
@@ -104,7 +105,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         ))
     })?;
 
-    if let Some((id, text)) = lesson.filter(|_| !ctx.dry_run) {
+    if let Some((id, text)) = approved.filter(|_| !ctx.dry_run) {
         if who.is_llm {
             approval::forget(&ctx.state, &id)?;
         } else {

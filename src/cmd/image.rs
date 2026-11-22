@@ -1,13 +1,14 @@
 //! The `image` command (docs/design.md section 9, R-ENTRY-16, R-ENTRY-17): adds or removes a
 //! picture of an entry. `image add` copies the picture into `DOSSIER/images/<ID>/` and adds its
 //! line, with the caption, to the entry's Pictures section; `image remove` takes the line out and
-//! deletes the file. The approved-lesson rule of `set` applies. Every change adds a history line
-//! with who and when, and a journal line (D29).
+//! deletes the file. The approval rule of `set` applies to lessons, how-tos and tools
+//! (approval::guarded). Every change adds a history line with who and when, and a journal line
+//! (D29).
 
 use crate::approval;
 use crate::cli::Global;
 use crate::ctx::Ctx;
-use crate::entry::{Entry, Kind, Status};
+use crate::entry::{Entry, Status};
 use crate::error::{Code, Error, Result};
 use crate::names::Who;
 use crate::output::Output;
@@ -25,8 +26,8 @@ const PICTURES: &str = "Pictures";
 /// The history event and the journal event of a picture change (format.md §14).
 const EVENT: &str = "picture";
 
-/// The detail added to the history line when an LLM's change takes an approved lesson back to
-/// draft. The same words as `set` uses.
+/// The detail added to the history line when an LLM's change takes an approved lesson, how-to or
+/// tool back to draft. The same words as `set` uses.
 const BACK_TO_DRAFT: &str = "back to draft";
 
 /// The arguments of `image`.
@@ -80,7 +81,7 @@ fn add(ctx: &Ctx, id: &str, file: &Path, caption: &str) -> Result<Output> {
         let item = store::get(&tx.ctx().dossier, id)?;
         let id = item.entry.id();
         let mut entry = item.entry.clone();
-        let approved_lesson = is_approved_lesson(&entry);
+        let approved_guarded = is_approved_guarded(&entry);
 
         let body = entry.section(PICTURES).unwrap_or_default();
         let count = body.lines().filter(|line| !line.trim().is_empty()).count();
@@ -101,13 +102,13 @@ fn add(ctx: &Ctx, id: &str, file: &Path, caption: &str) -> Result<Output> {
         entry.set_section(PICTURES, &next_body);
 
         let mut detail = format!("added {name}");
-        let back = approved_lesson && who.is_llm;
+        let back = approved_guarded && who.is_llm;
         if back {
             back_to_draft(&mut entry, &mut detail);
         }
         entry.add_history(tx.time(), &who, EVENT, &detail);
         let text = entry.text();
-        record_approval(tx.ctx(), &id, &who, approved_lesson, &text)?;
+        record_approval(tx.ctx(), &id, &who, approved_guarded, &text)?;
 
         tx.put_raw(
             folder.join(&name),
@@ -158,7 +159,7 @@ fn remove(ctx: &Ctx, id: &str, file: &Path) -> Result<Output> {
         let item = store::get(&tx.ctx().dossier, id)?;
         let id = item.entry.id();
         let mut entry = item.entry.clone();
-        let approved_lesson = is_approved_lesson(&entry);
+        let approved_guarded = is_approved_guarded(&entry);
 
         let body = entry.section(PICTURES).unwrap_or_default();
         let mut lines: Vec<String> = body.lines().map(str::to_string).collect();
@@ -174,13 +175,13 @@ fn remove(ctx: &Ctx, id: &str, file: &Path) -> Result<Output> {
         let path = tx.ctx().dossier.join("images").join(&id).join(&name);
         let old = read_if_present(&path)?;
         let mut detail = format!("removed {name}");
-        let back = approved_lesson && who.is_llm;
+        let back = approved_guarded && who.is_llm;
         if back {
             back_to_draft(&mut entry, &mut detail);
         }
         entry.add_history(tx.time(), &who, EVENT, &detail);
         let text = entry.text();
-        record_approval(tx.ctx(), &id, &who, approved_lesson, &text)?;
+        record_approval(tx.ctx(), &id, &who, approved_guarded, &text)?;
 
         let file_deleted = old.is_some();
         if let Some(old) = old {
@@ -302,13 +303,14 @@ fn is_line_of(line: &str, id: &str, name: &str) -> bool {
     line.starts_with("![") && line.ends_with(&format!("](../images/{id}/{name})"))
 }
 
-/// Whether the entry is an approved lesson, the kind `set` takes back to draft.
-fn is_approved_lesson(entry: &Entry) -> bool {
-    entry.kind() == Some(Kind::Lesson) && entry.status() == Some(Status::Approved)
+/// Whether the entry is an approved lesson, how-to or tool: the kinds `set` takes back to draft
+/// (approval::guarded).
+fn is_approved_guarded(entry: &Entry) -> bool {
+    entry.kind().is_some_and(approval::guarded) && entry.status() == Some(Status::Approved)
 }
 
-/// Takes an approved lesson back to draft, as `set` does, and adds `, back to draft` to the
-/// history detail.
+/// Takes an approved lesson, how-to or tool back to draft, as `set` does, and adds `, back to
+/// draft` to the history detail.
 fn back_to_draft(entry: &mut Entry, detail: &mut String) {
     entry.set_field("status", "draft");
     entry.remove_field("approved");
@@ -317,17 +319,17 @@ fn back_to_draft(entry: &mut Entry, detail: &mut String) {
     detail.push_str(BACK_TO_DRAFT);
 }
 
-/// The approval record of an approved lesson that changed, as `set` keeps it: an LLM's change
-/// forgets the checksum (the lesson is a draft now), a person's change records the new text.
-/// Nothing is recorded in a dry run.
+/// The approval record of an approved lesson, how-to or tool that changed, as `set` keeps it: an
+/// LLM's change forgets the checksum (the entry is a draft now), a person's change records the new
+/// text. Nothing is recorded in a dry run.
 fn record_approval(
     ctx: &Ctx,
     id: &str,
     who: &Who,
-    approved_lesson: bool,
+    approved_guarded: bool,
     text: &str,
 ) -> Result<()> {
-    if !approved_lesson || ctx.dry_run {
+    if !approved_guarded || ctx.dry_run {
         return Ok(());
     }
     let state = &ctx.state;
