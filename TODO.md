@@ -2698,10 +2698,8 @@
 - note (2026-11-21, planner): added
 
 ### T-260 · check: due for review and changed tool files
-- status: claimed
+- status: done
 - owner: haiku-t-260
-- claimed: 2026-11-22T11:40+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-050
 - why: R-LIFE-7, R-USE-11, R-CHECK-1.
@@ -2715,8 +2713,12 @@
   3. Run cargo test --test cmd_check.
 - accept: check reports entries due for review and changed tool files.
 - verify: cargo test --test cmd_check
+- verified: 2026-11-22
+- commit: a531b4bcb51100a2a54b61647ca7c3c8f6a6cd5d
 - reqs: R-LIFE-7, R-USE-11
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-260): done
 
 ### T-261 · brief and status: guarded kinds and due for review
 - status: open
