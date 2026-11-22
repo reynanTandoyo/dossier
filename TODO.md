@@ -1906,10 +1906,8 @@
 - note (2026-11-21, planner): split into T-230, T-231, T-232, T-233
 
 ### T-230 · conf.rs: confidential terms and the check
-- status: claimed
+- status: done
 - owner: haiku-t-230
-- claimed: 2026-11-21T23:43+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-044
 - why: R-CONF-1, R-CONF-2, R-CONF-5.
@@ -1925,8 +1923,12 @@
   5. Run cargo test --lib conf::.
 - accept: Confidential terms are matched ignoring case, spaces, hyphens and underscores.
 - verify: cargo test --lib conf::
+- verified: 2026-11-22
+- commit: da47711
 - reqs: R-CONF-1, R-CONF-2, R-CONF-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-230): done
 
 ### T-231 · confidential add and list
 - status: open
