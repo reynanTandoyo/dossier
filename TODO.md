@@ -1787,6 +1787,7 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-22, haiku-t-223): done
+- note (2026-11-22, coordinator): commit: d678d91 (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-224 · team member add and remove
 - status: open
@@ -1852,6 +1853,7 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-22, haiku-t-226): done
+- note (2026-11-22, coordinator): commit: e091c7b (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-227 · init --with-team: link a new project and register its code
 - status: open
@@ -2165,6 +2167,7 @@
 - note (2026-11-21, planner): added
 - note (2026-11-22, planner): forced set (owner was haiku-t-238)
 - note (2026-11-22, haiku-t-238): done
+- note (2026-11-22, coordinator): commit: 291cb08, a99b3b0 (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-239 · where-used: where and how a software was used
 - status: open
@@ -2431,6 +2434,7 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-22, haiku-t-249): done
+- note (2026-11-22, coordinator): commit: 07b1211 (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-250 · search: the project and the team dossier together
 - status: done
@@ -2454,6 +2458,7 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-22, haiku-t-250): done
+- note (2026-11-22, coordinator): commit: cf1d3b3 (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-251 · search: find a term's other spellings
 - status: open
@@ -2496,6 +2501,7 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-22, haiku-t-252): done
+- note (2026-11-22, coordinator): commit: f694d47 (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-253 · brief --task: glossary terms and the last uses of the software
 - status: open
@@ -2610,6 +2616,7 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-22, haiku-t-256): done
+- note (2026-11-22, coordinator): commit: 876cda4 (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-257 · learn: --review <date>
 - status: done
@@ -2633,6 +2640,7 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-22, haiku-t-257): done
+- note (2026-11-22, coordinator): commit: 4bb9b3c (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-258 · show: due for review, imported, file changed since approval
 - status: claimed
@@ -2791,10 +2799,8 @@
 - note (2026-11-22, haiku-t-264): done
 
 ### T-265 · review-folder: the material for drafting from an old folder
-- status: claimed
+- status: done
 - owner: haiku-t-265
-- claimed: 2026-11-22T11:14+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-051
 - why: R-IMPORT-2, R-IMPORT-4, R-IMPORT-9.
@@ -2809,8 +2815,12 @@
   4. Run cargo test --test cmd_review_folder.
 - accept: review-folder prints what an LLM needs to draft from an old project.
 - verify: cargo test --test cmd_review_folder
+- verified: 2026-11-22
+- commit: fb7bef9
 - reqs: R-IMPORT-2, R-IMPORT-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-265): done
 
 ### T-266 · review-document and reviewed-document
 - status: done
@@ -2836,6 +2846,7 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
 - note (2026-11-22, haiku-t-266): done
+- note (2026-11-22, coordinator): commit: 7827eb6 (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-267 · import status: progress of bringing in a finished project
 - status: open
