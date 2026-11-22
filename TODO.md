@@ -2479,10 +2479,8 @@
 - note (2026-11-22, coordinator): commit: cf1d3b3 (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-251 · search: find a term's other spellings
-- status: claimed
+- status: done
 - owner: haiku-t-251
-- claimed: 2026-11-22T11:52+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-048
 - why: R-TERM-4, D25.
@@ -2496,8 +2494,12 @@
   3. Run cargo test --test cmd_search.
 - accept: A German word finds the English entries.
 - verify: cargo test --test cmd_search
+- verified: 2026-11-22
+- commit: 2f2ad8a547077afb78040c028676accb5ae095f3
 - reqs: R-TERM-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-251): done
 
 ### T-252 · brief --task: team lessons and how-tos
 - status: done
