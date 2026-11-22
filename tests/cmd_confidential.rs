@@ -1,8 +1,9 @@
-//! Runs the built program for `confidential add` and `confidential list`: anyone in the project
-//! adds a term, an LLM too (D32); the terms are listed with a count; a term already listed is
-//! refused in any spelling of its separators; a removed term is added again (R-CONF-1, format.md
-//! §24). Each test runs in its own project folder, with the clock fixed by `common::Project`
-//! (2026-11-20T10:00:00+01:00).
+//! Runs the built program for `confidential`: anyone in the project adds a term, an LLM too (D32);
+//! the terms are listed with a count; a term already listed is refused in any spelling of its
+//! separators; a removed term is added again (R-CONF-1, format.md §24). A person at a terminal
+//! removes a term or states that there are none (D32, R-CONF-5). `--team` is refused, since the
+//! terms belong to the project. Each test runs in its own project folder, with the clock fixed by
+//! `common::Project` (2026-11-20T10:00:00+01:00).
 
 mod common;
 
@@ -189,4 +190,303 @@ fn a_project_with_no_terms_lists_none_and_a_statement_of_none_is_shown_until_a_t
         project.stdout("anna", &["confidential", "list"]),
         "NT-450\n1 term\n"
     );
+}
+
+/// The message of the refusal of `--team` (confidential.rs).
+const TEAM_REFUSED: &str = "confidential terms belong to a project; run without --team";
+
+/// Runs `confidential` as `agent` at a terminal: DOSSIER_ANSWERS stands in for the terminal (D32).
+/// None of these subcommands asks a question, so the value of the variable does not matter.
+fn at_terminal(project: &Project, agent: &str, args: &[&str]) -> assert_cmd::assert::Assert {
+    project
+        .command(agent, NOW)
+        .env("DOSSIER_ANSWERS", "")
+        .args(args)
+        .assert()
+}
+
+#[test]
+fn a_person_removes_a_term_by_any_spelling_and_it_is_no_longer_listed() {
+    let project = Project::new();
+    project
+        .run("anna-claude", &["confidential", "add", "NT-450"])
+        .success();
+    project
+        .run("ben", &["confidential", "add", "Falcon"])
+        .success();
+    at_terminal(&project, "anna", &["confidential", "remove", "nt450"])
+        .success()
+        .stdout(contains("NT-450: removed"));
+    let expected = format!(
+        "{HEADING}## NT-450\n\n- removed: {NOW} by anna\n- history: {NOW} anna via anna-claude: added\n- history: {NOW} anna: removed\n\n## Falcon\n\n- history: {NOW} ben: added\n\n"
+    );
+    assert_eq!(terms_text(&project), expected);
+    assert_eq!(
+        project.stdout("anna", &["confidential", "list"]),
+        "Falcon\n1 term\n"
+    );
+
+    let records = project.entry_journal();
+    let last = records.last().expect("the removal is in the journal");
+    assert_eq!(last.id, "CONFIDENTIAL");
+    assert_eq!(last.event, "removed");
+    assert_eq!(last.detail, "NT-450");
+    assert_eq!(last.name, "anna");
+    assert_eq!(last.person, "anna");
+    assert!(!last.llm);
+    assert_eq!(last.command, "confidential");
+}
+
+#[test]
+fn a_term_already_removed_or_never_listed_is_not_found_and_nothing_is_written() {
+    let project = Project::new();
+    project
+        .run("anna-claude", &["confidential", "add", "NT-450"])
+        .success();
+    at_terminal(&project, "anna", &["confidential", "remove", "NT-450"]).success();
+    let before = terms_text(&project);
+    at_terminal(&project, "anna", &["confidential", "remove", "nt-450"])
+        .failure()
+        .code(1)
+        .stderr(contains("NT-450 is already removed"));
+    at_terminal(&project, "anna", &["confidential", "remove", "Falcon"])
+        .failure()
+        .code(1)
+        .stderr(contains("Falcon is not a confidential term"));
+    assert_eq!(terms_text(&project), before);
+
+    let fresh = Project::new();
+    at_terminal(&fresh, "anna", &["confidential", "remove", "NT-450"])
+        .failure()
+        .code(1)
+        .stderr(contains("NT-450 is not a confidential term"));
+    assert!(
+        !fresh.root().join("DOSSIER/confidential.md").exists(),
+        "a refused removal writes no file"
+    );
+}
+
+#[test]
+fn removing_a_term_needs_a_person_at_a_terminal_and_a_name() {
+    let project = Project::new();
+    project
+        .run("anna-claude", &["confidential", "add", "NT-450"])
+        .success();
+    let before = terms_text(&project);
+    project
+        .command("anna-claude", NOW)
+        .env("DOSSIER_ANSWERS", "")
+        .args(["confidential", "remove", "NT-450"])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(contains(
+            "confidential remove is for a person; anna-claude is an LLM",
+        ));
+    project
+        .run("anna", &["confidential", "remove", "NT-450"])
+        .failure()
+        .code(1)
+        .stderr(contains(
+            "this command must be run by a person at a terminal",
+        ));
+    project
+        .run("", &["confidential", "remove", "NT-450"])
+        .failure()
+        .code(2)
+        .stderr(contains("needs a name"));
+    assert_eq!(terms_text(&project), before);
+}
+
+#[test]
+fn none_needs_yes_a_person_and_a_terminal_and_writes_nothing_without_them() {
+    let project = Project::new();
+    at_terminal(&project, "anna", &["confidential", "none"])
+        .failure()
+        .code(2)
+        .stderr(contains("add --yes"));
+    project
+        .command("anna-claude", NOW)
+        .env("DOSSIER_ANSWERS", "")
+        .args(["confidential", "none", "--yes"])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(contains(
+            "confidential none is for a person; anna-claude is an LLM",
+        ));
+    project
+        .run("anna", &["confidential", "none", "--yes"])
+        .failure()
+        .code(1)
+        .stderr(contains(
+            "this command must be run by a person at a terminal",
+        ));
+    assert!(
+        !project.root().join("DOSSIER/confidential.md").exists(),
+        "nothing is written"
+    );
+}
+
+#[test]
+fn none_with_yes_on_an_empty_list_states_there_are_none_and_says_who_and_when() {
+    let project = Project::new();
+    at_terminal(&project, "anna", &["confidential", "none", "--yes"])
+        .success()
+        .stdout(contains("(no confidential terms): stated"));
+    let expected = format!(
+        "{HEADING}## (no confidential terms)\n\n- stated: {NOW} by anna\n- history: {NOW} anna: stated\n\n"
+    );
+    assert_eq!(terms_text(&project), expected);
+    assert_eq!(
+        project.stdout("anna", &["confidential", "list"]),
+        format!("no confidential terms stated by anna at {NOW}\n")
+    );
+    let value = list_json(&project, "anna");
+    assert_eq!(value["data"]["none_stated"], true);
+
+    let records = project.entry_journal();
+    let last = records.last().expect("the statement is in the journal");
+    assert_eq!(last.id, "CONFIDENTIAL");
+    assert_eq!(last.event, "stated");
+    assert_eq!(last.detail, "(no confidential terms)");
+}
+
+#[test]
+fn none_is_refused_while_a_term_is_listed_and_allowed_once_the_term_is_removed() {
+    let project = Project::new();
+    project
+        .run("ben", &["confidential", "add", "NT-450"])
+        .success();
+    let before = terms_text(&project);
+    at_terminal(&project, "anna", &["confidential", "none", "--yes"])
+        .failure()
+        .code(1)
+        .stderr(contains("remove the terms first"));
+    assert_eq!(terms_text(&project), before);
+
+    at_terminal(&project, "anna", &["confidential", "remove", "NT-450"]).success();
+    at_terminal(&project, "anna", &["confidential", "none", "--yes"]).success();
+    assert_eq!(
+        project.stdout("anna", &["confidential", "list"]),
+        format!("no confidential terms stated by anna at {NOW}\n")
+    );
+}
+
+#[test]
+fn a_term_differing_only_in_its_separators_is_a_duplicate_as_conf_find_compares_them() {
+    let project = Project::new();
+    project
+        .run("anna-claude", &["confidential", "add", "NT-450"])
+        .success();
+    let before = terms_text(&project);
+    project
+        .run("ben", &["confidential", "add", "NT450"])
+        .failure()
+        .code(1)
+        .stderr(contains("NT-450 is already a confidential term"));
+    project
+        .run("ben", &["confidential", "add", "n_t 4 5-0"])
+        .failure()
+        .code(1)
+        .stderr(contains("NT-450 is already a confidential term"));
+    assert_eq!(terms_text(&project), before);
+
+    project
+        .run("anna-claude", &["confidential", "add", "Project Falcon"])
+        .success();
+    project
+        .run("ben", &["confidential", "add", "ProjectFalcon"])
+        .failure()
+        .code(1)
+        .stderr(contains("Project Falcon is already a confidential term"));
+
+    project
+        .run("ben", &["confidential", "add", "NT-45"])
+        .success()
+        .stdout(contains("NT-45: added"));
+    assert_eq!(
+        project.stdout("anna", &["confidential", "list"]),
+        "NT-450\nProject Falcon\nNT-45\n3 terms\n"
+    );
+}
+
+#[test]
+fn a_term_written_without_separators_is_the_same_term_as_one_with_them() {
+    let project = Project::new();
+    project
+        .run("anna-claude", &["confidential", "add", "NT450"])
+        .success()
+        .stdout(contains("NT450: added"));
+    project
+        .run("ben", &["confidential", "add", "NT-450"])
+        .failure()
+        .code(1)
+        .stderr(contains("NT450 is already a confidential term"));
+
+    at_terminal(&project, "anna", &["confidential", "remove", "NT-450"]).success();
+    project
+        .run("ben", &["confidential", "add", "NT 450"])
+        .success()
+        .stdout(contains("NT450: added"));
+    let expected = format!(
+        "{HEADING}## NT450\n\n- history: {NOW} anna via anna-claude: added\n- history: {NOW} anna: removed\n- history: {NOW} ben: added\n\n"
+    );
+    assert_eq!(terms_text(&project), expected);
+    assert_eq!(
+        project.stdout("anna", &["confidential", "list"]),
+        "NT450\n1 term\n"
+    );
+}
+
+#[test]
+fn every_subcommand_refuses_the_team_flag_and_writes_nothing() {
+    let project = Project::new();
+    for args in [
+        vec!["confidential", "list", "--team"],
+        vec!["confidential", "add", "NT-450", "--team"],
+        vec!["confidential", "remove", "NT-450", "--team"],
+        vec!["confidential", "none", "--yes", "--team"],
+    ] {
+        at_terminal(&project, "anna", &args)
+            .failure()
+            .code(2)
+            .stderr(contains(TEAM_REFUSED));
+    }
+    assert!(
+        !project.root().join("DOSSIER/confidential.md").exists(),
+        "a refused command writes no file"
+    );
+}
+
+#[test]
+fn with_a_linked_team_the_flag_is_still_refused_and_the_team_dossier_gets_no_terms() {
+    let project = Project::new();
+    let team_dir = tempfile::Builder::new()
+        .prefix("Team Äpfel ")
+        .tempdir()
+        .expect("a temporary team folder");
+    project
+        .command("anna", NOW)
+        .current_dir(team_dir.path())
+        .args(["init", "--team-dossier", "--code", "TEAM"])
+        .assert()
+        .success();
+    let team = team_dir.path().join("DOSSIER");
+    dossier::config::set_list(&team, "members", &["anna".to_string()])
+        .expect("anna is a member of the team");
+    project
+        .run("anna", &["team", "use", &team.display().to_string()])
+        .success();
+
+    project
+        .run("anna-claude", &["confidential", "add", "NT-450", "--team"])
+        .failure()
+        .code(2)
+        .stderr(contains(TEAM_REFUSED));
+    assert!(
+        !team.join("confidential.md").exists(),
+        "the team dossier gets no terms"
+    );
+    assert!(!project.root().join("DOSSIER/confidential.md").exists());
 }
