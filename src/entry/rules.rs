@@ -37,7 +37,14 @@ pub fn section_order(kind: Kind) -> &'static [&'static str] {
         Kind::Finding => &["Observation", "Evidence"],
         Kind::Lesson => &["Statement", "Valid for", "Evidence"],
         Kind::Usage => &["Parameters", "Outputs", "Deviations", "Notes"],
-        Kind::Howto => &["Purpose", "Steps", "Settings", "Traps", "Tested with"],
+        Kind::Howto => &[
+            "Purpose",
+            "Steps",
+            "Settings",
+            "Traps",
+            "Tested with",
+            "Open remarks",
+        ],
         Kind::Tool => &[
             "Purpose",
             "How to run",
@@ -477,7 +484,14 @@ results/run-1/
             (
                 Kind::Howto,
                 &["Purpose", "Steps"],
-                &["Purpose", "Steps", "Settings", "Traps", "Tested with"],
+                &[
+                    "Purpose",
+                    "Steps",
+                    "Settings",
+                    "Traps",
+                    "Tested with",
+                    "Open remarks",
+                ],
             ),
             (
                 Kind::Tool,
@@ -518,6 +532,24 @@ Run the invented case.
     #[test]
     fn a_complete_howto_has_no_problems() {
         assert!(whats(HOWTO).is_empty());
+    }
+
+    #[test]
+    fn a_howto_with_open_remarks_after_tested_with_has_no_problems() {
+        let text = format!(
+            "{HOWTO}
+## Tested with
+
+Version 1.2 on an invented case.
+
+## Open remarks
+
+- P-017 2026-11-20: Invented deviation.
+"
+        );
+        let found = whats(&text);
+        assert!(found.is_empty(), "{found:?}");
+        assert_eq!(section_order(Kind::Howto).last(), Some(&"Open remarks"));
     }
 
     #[test]

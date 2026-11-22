@@ -166,7 +166,14 @@ fn known_sections(kind: Kind) -> &'static [&'static str] {
         Kind::Finding => &["Observation", "Evidence"],
         Kind::Lesson => &["Statement", "Valid for", "Evidence"],
         Kind::Usage => &["Parameters", "Outputs", "Deviations", "Notes"],
-        Kind::Howto => &["Purpose", "Steps", "Settings", "Traps", "Tested with"],
+        Kind::Howto => &[
+            "Purpose",
+            "Steps",
+            "Settings",
+            "Traps",
+            "Tested with",
+            "Open remarks",
+        ],
         Kind::Tool => &[
             "Purpose",
             "How to run",
@@ -903,6 +910,7 @@ Run on the cluster.
             title: "Invented how-to".to_string(),
             fields: Vec::new(),
             sections: pairs(&[
+                ("Open remarks", "- P-017 2026-11-20: Invented deviation."),
                 ("Tested with", "Version 1."),
                 ("Traps", "None known."),
                 ("Steps", "1. Go."),
@@ -919,7 +927,8 @@ Run on the cluster.
                 "## Steps",
                 "## Settings",
                 "## Traps",
-                "## Tested with"
+                "## Tested with",
+                "## Open remarks",
             ]
         );
         let tool = Draft {
