@@ -6006,10 +6006,8 @@
 - note (2026-11-22, haiku-t-277): done
 
 ### T-278 · init --team-dossier: the person who creates it is the first member
-- status: claimed
+- status: done
 - owner: haiku-t-278
-- claimed: 2026-11-22T13:23+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: bug
 - milestone: T-043
 - why: R-TEAM-7: only members write to the team dossier and team member add needs a member, so a new team dossier could only get its first member by editing dossier.toml by hand.
@@ -6022,7 +6020,11 @@
   3. Run cargo test --test cmd_init.
 - accept: A new team dossier can be used without editing dossier.toml.
 - verify: cargo test --test cmd_init
+- verified: 2026-11-22
+- commit: 4b6391f
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, coordinator): added
+- note (2026-11-22, haiku-t-278): done
 
 ## Questions
 
