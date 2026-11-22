@@ -2048,10 +2048,8 @@
 - note (2026-11-21, planner): split into T-234, T-235, T-236
 
 ### T-234 · create.rs: imported drafts and approval checksums for every guarded kind
-- status: claimed
+- status: done
 - owner: haiku-t-234
-- claimed: 2026-11-22T11:52+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-045
 - why: R-IMPORT-5, R-LIFE-6, R-WRITE-5.
@@ -2066,8 +2064,12 @@
   4. Run cargo test --lib create::.
 - accept: Imported entries are drafts; how-tos and tools get the lesson rules.
 - verify: cargo test --lib create::
+- verified: 2026-11-22
+- commit: 2bc1275133fe1edec6b628d163791e6ecaf7b763
 - reqs: R-IMPORT-5, R-LIFE-6, R-WRITE-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-234): done
 
 ### T-235 · promote: copy a project entry into the team dossier
 - status: open
