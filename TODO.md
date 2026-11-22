@@ -2409,10 +2409,8 @@
 - note (2026-11-21, planner): added
 
 ### T-249 · glossary: every term of the project and the team
-- status: claimed
+- status: done
 - owner: haiku-t-249
-- claimed: 2026-11-22T11:33+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-048
 - why: R-TERM-1.
@@ -2427,8 +2425,12 @@
   4. Run cargo test --test cmd_glossary.
 - accept: glossary prints all terms.
 - verify: cargo test --test cmd_glossary
+- verified: 2026-11-22
+- commit: e189ca0
 - reqs: R-TERM-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-249): done
 
 ### T-250 · search: the project and the team dossier together
 - status: done
