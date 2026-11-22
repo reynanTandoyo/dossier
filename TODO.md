@@ -2540,10 +2540,8 @@
 - note (2026-11-22, coordinator): commit: f694d47 (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-253 · brief --task: glossary terms and the last uses of the software
-- status: claimed
+- status: done
 - owner: haiku-t-253
-- claimed: 2026-11-22T11:52+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-048
 - why: R-TERM-2, R-CTX-2.
@@ -2558,8 +2556,12 @@
   4. Run cargo test --lib brief_task::.
 - accept: brief --task explains the terms of the task and shows the last uses of its software.
 - verify: cargo test --lib brief_task::
+- verified: 2026-11-22
+- commit: 317d3dc15979d483ec37d42bdccebc8c7fb606e2
 - reqs: R-TERM-2, R-CTX-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-253): done
 
 ### T-049 · What is new: news, and the news line in brief
 - status: open
