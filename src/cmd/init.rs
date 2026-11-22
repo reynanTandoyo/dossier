@@ -8,6 +8,9 @@
 //! <folder>` (which needs `--past`) it is made in that folder instead, and dossier.toml records
 //! the current folder as the project folder it describes, for a project folder that cannot be
 //! written to.
+//!
+//! A new team dossier lists the name that creates it as its first member (R-TEAM-7), so that its
+//! members can be added with `team member add` at once.
 
 use crate::atomic;
 use crate::blockfile::BlockFile;
@@ -78,6 +81,10 @@ const REGISTERED: &str = "registered";
 
 /// The field of a code's block that names its project folder (format.md §20).
 const FOLDER_FIELD: &str = "folder";
+
+/// The warning of a team dossier made without any name: it has no member yet (R-TEAM-7).
+const NO_MEMBER: &str = "no name given, so the team dossier has no member: add one with \
+    'dossier team member add <username>', or put members = [\"<username>\"] in dossier.toml";
 
 /// The arguments of `init`.
 #[derive(clap::Args, Debug)]
@@ -204,9 +211,15 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         Some(_) => Some(stored(&root)?),
         None => None,
     };
-    let lines = settings_lines(args, describes.as_deref());
+    // The name that creates a team dossier is its first member (R-TEAM-7).
+    let first = if args.team_dossier {
+        first_member(g.agent.as_deref())
+    } else {
+        None
+    };
+    let lines = settings_lines(args, describes.as_deref(), first.as_deref());
     create(&dossier, args, &lines, &record)?;
-    let warnings = match &team_plan {
+    let mut warnings = match &team_plan {
         Some(plan) => match join_team(&dossier, &args.code, g, plan) {
             Ok(warnings) => warnings,
             Err(error) => {
@@ -217,6 +230,9 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         },
         None => Vec::new(),
     };
+    if args.team_dossier && first.is_none() {
+        warnings.push(NO_MEMBER.to_string());
+    }
     let text = if args.team_dossier {
         format!("created the team dossier {}{GROUP_LINE}", args.code)
     } else {
@@ -562,13 +578,17 @@ fn folders(team_dossier: bool) -> Vec<&'static str> {
 }
 
 /// The settings that follow the code line of dossier.toml, in this order: `kind = "team"`
-/// (format.md §26) for a team dossier, `code_project = true` (format.md §19) for a code project,
-/// `past = true` for a finished project, and `describes` (format.md §25) with `--in`. `describes`
-/// is the project folder as stored (absolute, with /).
-fn settings_lines(args: &Args, describes: Option<&str>) -> Vec<String> {
+/// (format.md §26) for a team dossier, with `members` (format.md §21) holding `first_member` when
+/// there is one, `code_project = true` (format.md §19) for a code project, `past = true` for a
+/// finished project, and `describes` (format.md §25) with `--in`. `describes` is the project folder
+/// as stored (absolute, with /).
+fn settings_lines(args: &Args, describes: Option<&str>, first_member: Option<&str>) -> Vec<String> {
     let mut lines = Vec::new();
     if args.team_dossier {
         lines.push("kind = \"team\"".to_string());
+        if let Some(name) = first_member {
+            lines.push(format!("members = [{}]", quoted(name)));
+        }
     }
     if args.code_project {
         lines.push("code_project = true".to_string());
@@ -580,6 +600,41 @@ fn settings_lines(args: &Args, describes: Option<&str>) -> Vec<String> {
         lines.push(format!("describes = {}", quoted(folder)));
     }
     lines
+}
+
+/// The name that creates a team dossier, and so becomes its first member (R-TEAM-7): the name from
+/// `flag`, DOSSIER_AGENT, TODO_AGENT, USERNAME or USER, the first one that is not blank, as
+/// names::unchecked takes it. The part before the first ` - ` is the member when the name has the
+/// form `<person> - <anything>` (format.md §21). None when no name is given at all.
+fn first_member(flag: Option<&str>) -> Option<String> {
+    let name = flag
+        .and_then(given)
+        .or_else(|| env_name("DOSSIER_AGENT"))
+        .or_else(|| env_name("TODO_AGENT"))
+        .or_else(|| env_name("USERNAME"))
+        .or_else(|| env_name("USER"))?;
+    Some(person_part(&name).to_string())
+}
+
+/// The value without surrounding spaces, or None when nothing is left of it.
+fn given(value: &str) -> Option<String> {
+    let value = value.trim();
+    (!value.is_empty()).then(|| value.to_string())
+}
+
+/// The environment variable `key` as a name, or None when it is unset or blank.
+fn env_name(key: &str) -> Option<String> {
+    std::env::var(key).ok().and_then(|value| given(&value))
+}
+
+/// The part of `name` before its first ` - `, when both parts are not blank; otherwise `name`.
+fn person_part(name: &str) -> &str {
+    match name.split_once(" - ") {
+        Some((person, rest)) if !person.trim().is_empty() && !rest.trim().is_empty() => {
+            person.trim()
+        }
+        _ => name,
+    }
 }
 
 /// The text of dossier.toml for `code` (format.md §10). Each of `lines` follows the code line.

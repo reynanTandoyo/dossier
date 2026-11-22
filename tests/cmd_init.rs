@@ -1,7 +1,8 @@
 //! Runs the built program for `init`: the folders and the settings of a new project dossier, the
 //! journal line that records who created it, the refusals, `--with-team`, which links the project
-//! to its team dossier and registers its code there, and `--past` with `--in`, which make the
-//! dossier of a finished project. Each test runs in its own temporary folder.
+//! to its team dossier and registers its code there, `--past` with `--in`, which make the dossier of
+//! a finished project, and the first member of a new team dossier. Each test runs in its own
+//! temporary folder.
 
 mod common;
 
@@ -414,6 +415,98 @@ fn on_linux_the_team_dossier_ignore_file_is_group_writable() {
     assert_eq!(mode, 0o664);
 }
 
+/// `init --team-dossier --code TEAM` run as `agent` ("" = no name) in `folder`, not yet checked.
+fn init_team_as(folder: &Path, agent: &str) -> assert_cmd::assert::Assert {
+    empty_project()
+        .command(agent, TEAM_NOW)
+        .current_dir(folder)
+        .args(["init", "--team-dossier", "--code", "TEAM"])
+        .assert()
+}
+
+#[test]
+fn a_new_team_dossier_lists_its_creator_as_the_first_member() {
+    let folder = tempfile::tempdir().unwrap();
+    init_team_as(folder.path(), "anna").success();
+    assert!(
+        settings(folder.path()).contains("kind = \"team\"\nmembers = [\"anna\"]\n"),
+        "{}",
+        settings(folder.path())
+    );
+    let cfg = dossier::config::load(&folder.path().join("DOSSIER")).unwrap();
+    assert_eq!(cfg.members, ["anna"]);
+}
+
+#[test]
+fn the_person_of_an_llm_name_is_the_first_member_of_a_new_team_dossier() {
+    let folder = tempfile::tempdir().unwrap();
+    init_team_as(folder.path(), "anna - claude").success();
+    let cfg = dossier::config::load(&folder.path().join("DOSSIER")).unwrap();
+    assert_eq!(cfg.members, ["anna"]);
+}
+
+#[test]
+fn the_agent_option_names_the_first_member_before_the_environment() {
+    let folder = tempfile::tempdir().unwrap();
+    init_with(
+        folder.path(),
+        &[("DOSSIER_AGENT", "anna")],
+        &["--team-dossier", "--code", "TEAM", "--agent", "ben"],
+    )
+    .success();
+    let cfg = dossier::config::load(&folder.path().join("DOSSIER")).unwrap();
+    assert_eq!(cfg.members, ["ben"]);
+}
+
+#[test]
+fn anna_can_add_ben_as_a_member_of_the_team_dossier_she_made() {
+    let folder = tempfile::tempdir().unwrap();
+    init_team_as(folder.path(), "anna").success();
+    empty_project()
+        .command("anna", TEAM_NOW)
+        .current_dir(folder.path())
+        .args(["team", "member", "add", "ben"])
+        .assert()
+        .success()
+        .stdout(contains("added member ben"));
+    let cfg = dossier::config::load(&folder.path().join("DOSSIER")).unwrap();
+    assert_eq!(cfg.members, ["anna", "ben"]);
+}
+
+#[test]
+fn a_new_team_dossier_without_a_name_has_no_member_and_says_how_to_add_one() {
+    let folder = tempfile::tempdir().unwrap();
+    init_team_as(folder.path(), "")
+        .success()
+        .stderr(contains(
+            "warning: no name given, so the team dossier has no member",
+        ))
+        .stderr(contains("team member add"));
+    assert!(
+        !settings(folder.path()).contains("members"),
+        "{}",
+        settings(folder.path())
+    );
+    let cfg = dossier::config::load(&folder.path().join("DOSSIER")).unwrap();
+    assert!(cfg.members.is_empty());
+}
+
+#[test]
+fn a_project_dossier_gets_no_members_line_even_when_anna_makes_it() {
+    let folder = tempfile::tempdir().unwrap();
+    init_with(
+        folder.path(),
+        &[("DOSSIER_AGENT", "anna")],
+        &["--code", "P-001"],
+    )
+    .success();
+    assert!(
+        !settings(folder.path()).contains("members"),
+        "{}",
+        settings(folder.path())
+    );
+}
+
 /// A folder for a project that has no dossier yet: `common::Project::new` would run `init` in it.
 fn empty_project() -> common::Project {
     common::Project {
@@ -422,8 +515,8 @@ fn empty_project() -> common::Project {
 }
 
 /// A team dossier made by anna (`init --team-dossier --code TEAM`) in a folder of its own, whose
-/// name has a space and an umlaut, with anna as its member. Returns the folder, which keeps the
-/// dossier alive, and the team's DOSSIER folder.
+/// name has a space and an umlaut. Anna, who made it, is its first member (R-TEAM-7). Returns the
+/// folder, which keeps the dossier alive, and the team's DOSSIER folder.
 fn team_dossier() -> (tempfile::TempDir, PathBuf) {
     let folder = tempfile::Builder::new()
         .prefix("Team Äpfel ")
@@ -436,7 +529,6 @@ fn team_dossier() -> (tempfile::TempDir, PathBuf) {
         .assert()
         .success();
     let dossier = folder.path().join("DOSSIER");
-    dossier::config::set_list(&dossier, "members", &["anna".to_string()]).unwrap();
     (folder, dossier)
 }
 
