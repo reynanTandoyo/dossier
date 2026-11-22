@@ -1830,10 +1830,8 @@
 - note (2026-11-21, planner): added
 
 ### T-226 · create.rs: --said-by and author accept plain names, and team writes are checked
-- status: claimed
+- status: done
 - owner: haiku-t-226
-- claimed: 2026-11-22T11:22+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: D34 and R-CONF-2: the check before every team write.
@@ -1848,8 +1846,12 @@
   4. Run cargo test --lib create::.
 - accept: Plain names can be the person a decision came from; nothing reaches the team dossier with a confidential term.
 - verify: cargo test --lib create::
+- verified: 2026-11-22
+- commit: d886862
 - reqs: D34, R-CONF-2, R-CONF-5, R-WRITE-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-226): done
 
 ### T-227 · init --with-team: link a new project and register its code
 - status: open
