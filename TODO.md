@@ -5955,10 +5955,8 @@
 - note (2026-11-22, coordinator): added
 
 ### T-276 · check: abbreviations missing from the glossary
-- status: claimed
+- status: done
 - owner: haiku-t-276
-- claimed: 2026-11-22T13:07+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-048
 - why: R-TERM-3.
@@ -5972,6 +5970,50 @@
   4. Run cargo test --test cmd_check.
 - accept: check reports a frequent abbreviation that no glossary explains.
 - verify: cargo test --test cmd_check
+- verified: 2026-11-22
+- commit: 187a00f97584e7fabb2ba0cde9c23d2de062470c
+- by: Reynan Henry Tandoyo
+- note (2026-11-22, coordinator): added
+- note (2026-11-22, haiku-t-276): done
+
+### T-277 · status --since: no settings rows, --keep, LLMs never move the marker
+- status: claimed
+- owner: haiku-t-277
+- claimed: 2026-11-22T13:23+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
+- priority: P1 · difficulty: 1 · type: bug
+- milestone: T-049
+- why: R-READ-10, R-CTX-10: the README run showed settings records (DOSSIER, SETTINGS, AGENTS, HOOKS, SKILL) as '(removed)' lines in the project part, and --keep is missing.
+- summary: status --since lists entry changes only; --keep leaves the marker; an LLM never moves its person's marker.
+- files: src/cmd/status.rs, tests/cmd_status.rs
+- read: docs/requirements.md, docs/format.md
+- steps:
+  1. In the project part of status --since, leave out journal records whose ID is not an entry ID (the settings IDs DOSSIER, SETTINGS, AGENTS, HOOKS, SKILL and anything without an entry prefix; format.md section 11).
+  2. Add --keep: with --since last the marker is not moved. --since <date> never moves it (check it stays so).
+  3. When the writer is an LLM ('<person> - <model>' or a registered LLM), --since last reads its person's marker and never moves it (R-READ-10).
+  4. Tests for each; update existing tests only where they expected settings rows.
+  5. Run cargo test --test cmd_status.
+- accept: status --since shows no settings rows; --keep and LLM runs leave the marker.
+- verify: cargo test --test cmd_status
+- note (2026-11-22, coordinator): added
+
+### T-278 · init --team-dossier: the person who creates it is the first member
+- status: claimed
+- owner: haiku-t-278
+- claimed: 2026-11-22T13:23+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
+- priority: P1 · difficulty: 1 · type: bug
+- milestone: T-043
+- why: R-TEAM-7: only members write to the team dossier and team member add needs a member, so a new team dossier could only get its first member by editing dossier.toml by hand.
+- summary: A new team dossier lists its creator as its first member.
+- files: src/cmd/init.rs, tests/cmd_init.rs
+- read: docs/format.md, src/names.rs
+- steps:
+  1. In init --team-dossier, write members = ["<name>"] where <name> is the writer's name (--agent, DOSSIER_AGENT, TODO_AGENT, then USERNAME or USER; the part before the first ' - ' when it has that form). No name: members stays empty and a warning says to add one with 'team member add'.
+  2. Tests: init --team-dossier as anna gives members ["anna"]; as 'anna - claude' also ["anna"]; after it, 'team member add ben' by anna in the team dossier works.
+  3. Run cargo test --test cmd_init.
+- accept: A new team dossier can be used without editing dossier.toml.
+- verify: cargo test --test cmd_init
 - note (2026-11-22, coordinator): added
 
 ## Questions
