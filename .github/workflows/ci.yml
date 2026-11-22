@@ -17,7 +17,7 @@ jobs:
         os: [windows-latest, ubuntu-latest]
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install stable Rust with rustfmt and clippy
         uses: dtolnay/rust-toolchain@stable
