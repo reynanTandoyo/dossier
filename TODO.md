@@ -1580,8 +1580,8 @@
 - note (2026-11-21, planner): Milestone-level depends of T-044 to T-051 removed: each small task has its own dependencies, and the old chain made a cycle (T-043 -> T-226 -> T-230 -> T-043).
 
 ### T-043 · Team dossier: init --team-dossier, project codes, team settings, team members
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P1 · type: milestone
 - milestone: T-042
 - goal: R-PLACE-3 to R-PLACE-6, R-TEAM-1, R-CFG-2 and R-CFG-4 hold; people move from the project settings to the team settings.
@@ -1590,10 +1590,12 @@
 - depends: T-041
 - accept: R-PLACE-3 to R-PLACE-6, R-TEAM-1, R-CFG-2 and R-CFG-4 hold; people move from the project settings to the team settings.
 - reqs: R-PLACE-3 to R-PLACE-6, R-TEAM-1, R-TEAM-7, R-CFG-2, R-CFG-4, D3, D29
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21: one team dossier path, given with init --team. Only members write to it; team member add <person> [--llm <name>] and team member remove <person> (a person at a terminal), each saved with who and when (R-TEAM-7, D29).
 - note (2026-11-21, planner): Owner 2026-11-21 (D34): the team is a list of usernames (OS logins) plus a separate list of plain names (non-users: may be author, source or --said-by, never write). An LLM is '<username> - <anything>' with no registration; without --agent/DOSSIER_AGENT the writer is the OS username; hooks install also sets DOSSIER_AGENT='<username> - claude' in .claude/settings.local.json. names.rs, people and hooks change accordingly; people add --llm keeps working. (D36) the team dossier is a git repository and dossier commits its own changes there, never pushes.
 - note (2026-11-21, planner): split into T-216, T-217, T-218, T-219, T-220, T-221, T-222, T-223, T-224, T-225, T-226, T-227, T-228, T-229
+- note (2026-11-22, coordinator): done
 
 ### T-216 · names.rs: usernames, plain names and '<person> - <anything>' LLM names (D34)
 - status: done
@@ -1934,8 +1936,8 @@
 - note (2026-11-22, haiku-t-229): done
 
 ### T-044 · Confidentiality: confidential terms and the check before any team write
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P0 · type: milestone
 - milestone: T-042
 - goal: R-CONF-1 to R-CONF-6 and R-ENTRY-18 hold, with the tests of TEST-6.
@@ -1943,9 +1945,11 @@
 - summary: Each project lists its confidential terms; nothing is written to the team dossier while one of them appears in the text.
 - accept: R-CONF-1 to R-CONF-6 and R-ENTRY-18 hold, with the tests of TEST-6.
 - reqs: R-CONF-1 to R-CONF-6, R-ENTRY-18, D8, D32, TEST-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21 (D32): anyone in the project adds a confidential term, also an LLM when its person tells it in the session (the rules text must say: add it at once with dossier confidential add); confidential remove needs a person at a terminal. No automatic terms; writing to the team dossier is refused until the project has at least one term or a person ran confidential none --yes.
 - note (2026-11-21, planner): split into T-230, T-231, T-232, T-233
+- note (2026-11-22, coordinator): done
 
 ### T-230 · conf.rs: confidential terms and the check
 - status: done
@@ -2046,8 +2050,8 @@
 - note (2026-11-22, haiku-t-233): done
 
 ### T-045 · Promotion and closing a project: promote, close
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P1 · type: milestone
 - milestone: T-042
 - goal: promote and close work as in R-TEAM-2 to R-TEAM-4 and R-TEAM-6; search and brief include the team dossier.
@@ -2055,9 +2059,11 @@
 - summary: A project's lesson or how-to is copied into the team dossier as a draft; at the end of a project, its knowledge is sorted out.
 - accept: promote and close work as in R-TEAM-2 to R-TEAM-4 and R-TEAM-6; search and brief include the team dossier.
 - reqs: R-TEAM-2 to R-TEAM-4, R-TEAM-6, R-WRITE-5, R-WRITE-6, D28, D30
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21 (D30): only knowledge (entry text) is promoted to the team dossier; simulation files, CAD parts, spreadsheets and scripts are never copied, only pointed to from their project (small pictures are the exception, confirmed one by one, R-ENTRY-18). The team copy says source: <code>:<ID>, the project entry promoted: team:<ID>. close is run by a person in deciders (D28).
 - note (2026-11-21, planner): split into T-234, T-235, T-236
+- note (2026-11-22, coordinator): done
 
 ### T-234 · create.rs: imported drafts and approval checksums for every guarded kind
 - status: done
@@ -2138,8 +2144,8 @@
 - note (2026-11-22, haiku-t-236): done
 
 ### T-046 · How-tos and the usage index: howto, where-used (software names come from tools, T-047)
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P1 · type: milestone
 - milestone: T-042
 - goal: R-USE-1, R-USE-3 to R-USE-7 and R-ENTRY-8 hold.
@@ -2147,10 +2153,12 @@
 - summary: How-tos say how a software is used for a task, and a team index shows where and with which version it was used.
 - accept: R-USE-1, R-USE-3 to R-USE-7 and R-ENTRY-8 hold.
 - reqs: R-USE-3 to R-USE-7, R-ENTRY-8, R-ENTRY-9, D31
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21 (D31): there is no separate software list; software is a tool of type software (T-047). The usage index and how-tos name tools by ID or name.
 - note (2026-11-21, planner): Owner 2026-11-21 (D35): software names stay free text for now; no refusal of unknown names.
 - note (2026-11-21, planner): split into T-237, T-238, T-239, T-240
+- note (2026-11-22, coordinator): done
 
 ### T-237 · howto: write a how-to
 - status: done
@@ -2251,8 +2259,8 @@
 - note (2026-11-22, haiku-t-240): done
 
 ### T-047 · Tools: one kind for scripts, commands, installed software and git repositories (TOOL-001)
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P1 · type: milestone
 - milestone: T-042
 - goal: R-USE-8 to R-USE-13 and R-ENTRY-12 hold.
@@ -2260,10 +2268,12 @@
 - summary: Scripts, commands, installed software and repositories are recorded as tools, with a name and, when known, a location.
 - accept: R-USE-8 to R-USE-13 and R-ENTRY-12 hold.
 - reqs: R-USE-8 to R-USE-13, R-USE-1, R-ENTRY-12, D19, D31
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21 (D31): one entry kind tool (prefix TOOL) with type script | command | software | repo and a location (a path on the server, a command name on PATH, the install place, a git URL). Checks: a script file still matches its checksum, a command still exists on the server; software and repos are not checked. Sections Purpose, How to run, Inputs, Outputs, Traps, Tested with. Replaces the software list, script entries and script_root; R-USE-1 and R-USE-8 to R-USE-13 are rewritten when phase 3 starts. The team standardises its tools in the meantime.
 - note (2026-11-21, planner): Owner 2026-11-21 (D37): a tool has a required name and an optional location; nothing is checked without a location. (D35) software names stay free text.
 - note (2026-11-21, planner): split into T-241, T-242, T-243, T-244, T-245, T-246
+- note (2026-11-22, coordinator): done
 
 ### T-241 · tool add: record a tool
 - status: done
@@ -2403,8 +2413,8 @@
 - note (2026-11-22, haiku-t-246): done
 
 ### T-048 · Glossary: term add, term, glossary, and search through other spellings
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P2 · type: milestone
 - milestone: T-042
 - goal: R-TERM-1 to R-TERM-4 hold; check warns about entries that look German as in R-ENTRY-20.
@@ -2412,8 +2422,10 @@
 - summary: A team glossary of terms, symbols and abbreviations; a German word finds the English entries.
 - accept: R-TERM-1 to R-TERM-4 hold; check warns about entries that look German as in R-ENTRY-20.
 - reqs: R-TERM-1 to R-TERM-4, R-ENTRY-20
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): split into T-247, T-248, T-249, T-250, T-251, T-252, T-253
+- note (2026-11-22, coordinator): done
 
 ### T-247 · glossary.rs: terms and their other spellings
 - status: done
@@ -2584,8 +2596,8 @@
 - note (2026-11-22, haiku-t-253): done
 
 ### T-049 · What is new: news, and the news line in brief
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P2 · type: milestone
 - milestone: T-042
 - goal: R-READ-10 and R-READ-11 hold.
@@ -2593,8 +2605,10 @@
 - summary: Each person sees what was added or approved since they last looked, in the project and the team dossier.
 - accept: R-READ-10 and R-READ-11 hold.
 - reqs: R-READ-10, R-READ-11
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): split into T-254, T-255
+- note (2026-11-22, coordinator): done
 
 ### T-254 · status --since last: the team dossier too, grouped by place
 - status: done
@@ -2644,8 +2658,8 @@
 - note (2026-11-22, haiku-t-255): done
 
 ### T-050 · Review dates and how-tos not tested with the newest version
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P2 · type: milestone
 - milestone: T-042
 - goal: R-LIFE-7 and R-LIFE-8 hold.
@@ -2653,9 +2667,11 @@
 - summary: Lessons and how-tos can carry a date to be checked again; how-tos not tested with the newest version are marked.
 - accept: R-LIFE-7 and R-LIFE-8 hold.
 - reqs: R-LIFE-7, R-LIFE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21 (D33): no default review date; it is set per entry with --review <date>.
 - note (2026-11-21, planner): split into T-256, T-257, T-258, T-259, T-260, T-261
+- note (2026-11-22, coordinator): done
 
 ### T-256 · reviewed: a person confirms an entry still holds
 - status: done
@@ -2797,8 +2813,8 @@
 - note (2026-11-22, haiku-t-261): done
 
 ### T-051 · Bringing in finished projects: init --past, review-folder, review-document, import status
-- status: open
-- owner: —
+- status: done
+- owner: coordinator
 - priority: P1 · type: milestone
 - milestone: T-042
 - goal: R-IMPORT-1 to R-IMPORT-9 hold; format.md and the tests cover every phase 3 addition; version 0.3.0 is released.
@@ -2806,8 +2822,10 @@
 - summary: Knowledge from finished projects is brought in: the tool prints the material, the LLM drafts, a person approves.
 - accept: R-IMPORT-1 to R-IMPORT-9 hold; format.md and the tests cover every phase 3 addition; version 0.3.0 is released.
 - reqs: R-IMPORT-1 to R-IMPORT-9, D27
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): split into T-262, T-263, T-264, T-265, T-266, T-267, T-268
+- note (2026-11-22, coordinator): done
 
 ### T-262 · init --past and --in: a dossier for a finished project
 - status: done
@@ -5795,7 +5813,7 @@
 - why: Phase 3 ends with a release used on real work.
 - summary: Prepares the 0.3.0 release.
 - final: Checking every command by hand cannot be listed in advance.
-- depends: T-213,T-214,T-043,T-044,T-045,T-046,T-047,T-048,T-049,T-050,T-051,T-210,T-211,T-212
+- depends: T-213,T-214,T-279,T-043,T-044,T-045,T-046,T-047,T-048,T-049,T-050,T-051,T-210,T-211,T-212
 - files: Cargo.toml, Cargo.lock
 - read: docs/requirements.md
 - steps:
@@ -6025,6 +6043,25 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-22, coordinator): added
 - note (2026-11-22, haiku-t-278): done
+
+### T-279 · README: the first team member and status --keep
+- status: claimed
+- owner: haiku-t-279
+- claimed: 2026-11-22T13:42+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
+- priority: P1 · difficulty: 1 · type: docs
+- milestone: T-042
+- why: T-278 made the creator of a team dossier its first member and T-277 added --keep; the README still says to edit dossier.toml by hand.
+- summary: The README matches init --team-dossier and status --since after T-277 and T-278.
+- files: README.md
+- steps:
+  1. In 'What version 0.3 adds', replace the paragraph and toml block that say to add the first member by hand: init --team-dossier makes the person who runs it the first member (show the members line it writes); keep 'team member add ben' and 'team name add'.
+  2. In 'What is new', add one sentence: --keep leaves the marker where it is, and an LLM's run never moves its person's marker.
+  3. Run each changed example yourself with target/debug/dossier.exe in a temporary folder outside the repository and paste the real output.
+  4. Run git ls-files --error-unmatch README.md.
+- accept: The README examples match the program.
+- verify: git ls-files --error-unmatch README.md
+- note (2026-11-22, coordinator): added
 
 ## Questions
 
