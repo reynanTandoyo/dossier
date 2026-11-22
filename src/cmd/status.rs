@@ -6,7 +6,8 @@
 //! files; a file that cannot be read is a warning and its part is left out. `--since <date>` prints
 //! what was recorded on or after the date, and `--since last` what is new since the person last ran
 //! it (R-READ-10). Only a person's run moves that marker: the LLMs of a person share the person's
-//! marker and never move it.
+//! marker and never move it. With a team dossier, the project's lines are under `## Project <code>`
+//! and the team's news under `## Team` (R-READ-10).
 //!
 //! `--on <date>` gives the decisions, findings, key values and last exchange as they were on that
 //! day (R-LIFE-9), and leaves the map out. The tasks and the unsettled part (drafts, proposals,
@@ -51,6 +52,10 @@ const NEXT_TASKS: usize = 5;
 /// The most lines of the Map part. When the map has more folders, the last of these lines says how
 /// many are left out.
 const MAP_LINES: usize = 10;
+
+/// The most lines of the Team part of `--since` (R-READ-10, news_lines). When there is more news,
+/// the last of these lines counts the news left out.
+const TEAM_LINES: usize = 20;
 
 /// The arguments of `status`.
 #[derive(clap::Args, Debug)]
@@ -1277,7 +1282,7 @@ fn parse_since(text: &str) -> Result<Since> {
 
 /// The screen with `--since`: the journal records that `bound` keeps, newest first, with the
 /// title of each entry. With `last`, the person's marker is read, and written when a person runs
-/// the command.
+/// the command. With a team dossier the team's news follows the project's lines (`team_news`).
 fn since_screen(ctx: &Ctx, since: Since, all: &[Item], milestone: Option<&str>) -> Result<Screen> {
     let mut warnings = Vec::new();
     let mut marker = None;
@@ -1323,14 +1328,110 @@ fn since_screen(ctx: &Ctx, since: Since, all: &[Item], milestone: Option<&str>) 
         .collect();
     let events_json =
         serde_json::to_value(&events).map_err(|error| Error::new(Code::Io, error.to_string()))?;
+    let team = team_news(ctx, &bound, milestone, &mut warnings);
+    let team_events = match &team {
+        Some(news) => serde_json::to_value(&news.records)
+            .map_err(|error| Error::new(Code::Io, error.to_string()))?,
+        None => Value::Null,
+    };
+    let mut sections = vec![Section::plain(vec![project_line(ctx)])];
+    match team {
+        Some(news) => {
+            sections.push(Section::headed(&heading, Vec::new()));
+            sections.push(Section::list(
+                &format!("## Project {}", ctx.cfg.code),
+                lines,
+                "none",
+                "dossier log",
+            ));
+            sections.push(news.section);
+        }
+        None => sections.push(Section::list(&heading, lines, "none", "dossier log")),
+    }
     Ok(Screen {
-        sections: vec![
-            Section::plain(vec![project_line(ctx)]),
-            Section::list(&heading, lines, "none", "dossier log"),
-        ],
-        data: json!({"since": bound.value(), "events": events_json}),
+        sections,
+        data: json!({"since": bound.value(), "events": events_json, "team_events": team_events}),
         warnings,
         marker,
+    })
+}
+
+/// The Team part of `--since` (R-READ-10): its section, and the records it lists, for the data.
+struct TeamNews {
+    section: Section,
+    records: Vec<Record>,
+}
+
+/// Whether a team journal record is news (R-READ-10): an entry approved, superseded, retired or
+/// accepted, or created approved. Drafts, rejections and changes to fields are not news.
+fn is_team_news(record: &Record) -> bool {
+    match record.event.as_str() {
+        "approved" | "superseded" | "retired" | "accepted" => true,
+        "created" => record.detail == "approved",
+        _ => false,
+    }
+}
+
+/// The Team part of `--since` (R-READ-10): the team dossier's journal records that `bound` keeps
+/// and that are news (`is_team_news`), newest first, each with the title of its team entry and the
+/// milestone rule of the project's lines. At most TEAM_LINES lines; the last one counts the news
+/// left out. None when the project has no team dossier. A team dossier that cannot be reached, or
+/// whose journal cannot be read, is a warning and its part is left out.
+fn team_news(
+    ctx: &Ctx,
+    bound: &Bound,
+    milestone: Option<&str>,
+    warnings: &mut Vec<String>,
+) -> Option<TeamNews> {
+    let stored = ctx.cfg.team.as_deref()?;
+    if ctx.team.is_none() {
+        warnings.push(format!(
+            "the team dossier {stored} cannot be reached; its news is left out"
+        ));
+        return None;
+    }
+    let team = match ctx.team_ctx() {
+        Ok(team) => team,
+        Err(error) => {
+            warnings.push(error.message);
+            return None;
+        }
+    };
+    let (items, item_warnings) = store::all(&team.dossier);
+    warnings.extend(item_warnings);
+    let records = match journal::read(&team.state) {
+        Ok(records) => records,
+        Err(error) => {
+            warnings.push(error.message);
+            return None;
+        }
+    };
+    let index: HashMap<String, &Item> = items.iter().map(|item| (item.entry.id(), item)).collect();
+    let mut news: Vec<Record> = records
+        .into_iter()
+        .filter(|record| is_team_news(record) && bound.keeps(&record.time))
+        .filter(|record| {
+            index
+                .get(&record.id.to_uppercase())
+                .map_or(milestone.is_none(), |item| in_scope(item, milestone))
+        })
+        .collect();
+    news.reverse();
+
+    let mut lines: Vec<String> = news
+        .iter()
+        .map(|record| event_line(record, &index))
+        .collect();
+    let mut hidden = 0;
+    if lines.len() > TEAM_LINES {
+        hidden = lines.len() - (TEAM_LINES - 1);
+        lines.truncate(TEAM_LINES - 1);
+    }
+    let mut section = Section::list("## Team", lines, "none", "dossier log --team");
+    section.hidden = hidden;
+    Some(TeamNews {
+        section,
+        records: news,
     })
 }
 

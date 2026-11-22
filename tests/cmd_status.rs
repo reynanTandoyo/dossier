@@ -1297,3 +1297,217 @@ fn an_entry_that_is_rejected_declined_or_retired_leaves_the_list_and_the_count()
     assert_eq!(data["rests"], json!([]));
     assert_eq!(data["rests_on"], json!([]));
 }
+
+/// A team dossier made in a folder of its own, with anna as its only member, linked from the
+/// project (`team` in its settings). Returns the folder, which keeps the team alive, and the team's
+/// DOSSIER folder.
+fn team_of(project: &Project) -> (tempfile::TempDir, std::path::PathBuf) {
+    let folder = tempfile::TempDir::new().expect("a temporary folder for the team");
+    assert_cmd::Command::cargo_bin("dossier")
+        .expect("the dossier program is built")
+        .current_dir(folder.path())
+        .env("DOSSIER_NOW", NOW)
+        .env("DOSSIER_AGENT", "anna")
+        .env(
+            "DOSSIER_REGISTER",
+            project.root().join(".test").join("projects.toml"),
+        )
+        .env_remove("TODO_AGENT")
+        .args(["init", "--team-dossier", "--code", "TEAM"])
+        .assert()
+        .success();
+    let team = folder.path().join("DOSSIER");
+    dossier::config::set_list(&team, "members", &["anna".to_string()]).expect("the members");
+    let stored = team.display().to_string().replace('\\', "/");
+    link_team(project, &stored);
+    (folder, team)
+}
+
+/// Writes `team = "<stored>"` into the settings of the project.
+fn link_team(project: &Project, stored: &str) {
+    dossier::config::set_value(
+        &project.root().join("DOSSIER"),
+        "team",
+        &format!("\"{stored}\""),
+    )
+    .expect("the team link");
+}
+
+/// `learn` of a team lesson with this statement, run as `agent` at `now` (`--team`).
+fn team_lesson(project: &Project, agent: &str, now: &str, statement: &str) {
+    project
+        .run_at(
+            agent,
+            now,
+            &[
+                "learn",
+                statement,
+                "--valid-for",
+                "Transonic front stages.",
+                "--evidence",
+                "Report section 4.2.",
+                "--confidence",
+                "measured",
+                "--team",
+            ],
+        )
+        .success();
+}
+
+/// anna approves the team's draft `id` at `now`, answering `a` at the terminal (`--team`).
+fn approve_team(project: &Project, id: &str, now: &str) {
+    project
+        .command("anna", now)
+        .env("DOSSIER_ANSWERS", "a")
+        .args(["approve", id, "--team"])
+        .assert()
+        .success();
+}
+
+#[test]
+fn a_team_lesson_approved_after_the_marker_appears_under_team() {
+    let project = Project::new();
+    let (_folder, _team) = team_of(&project);
+    team_lesson(
+        &project,
+        "anna - claude",
+        "2026-11-21T09:00:00+01:00",
+        "Steady mixing-plane runs overpredict stall margin",
+    );
+    // anna's first run at 09:30 writes her marker; the draft is not news.
+    let first = out_at(
+        &project,
+        "anna",
+        "2026-11-21T09:30:00+01:00",
+        &["status", "--since", "last"],
+    );
+    assert!(first.ends_with("## Team\nnone\n"), "{first}");
+
+    // anna approves the draft after the marker; a second draft stays a draft.
+    approve_team(&project, "LES-001", "2026-11-21T10:00:00+01:00");
+    team_lesson(
+        &project,
+        "anna - claude",
+        "2026-11-21T10:30:00+01:00",
+        "A second draft that nobody approves",
+    );
+    let second = out_at(
+        &project,
+        "anna",
+        "2026-11-21T11:00:00+01:00",
+        &["status", "--since", "last"],
+    );
+    assert_eq!(
+        second,
+        "Project P-001\n\
+         ## Since 2026-11-21T09:30:00+01:00\n\
+         ## Project P-001\n\
+         none\n\
+         ## Team\n\
+         2026-11-21T10:00:00+01:00  anna  approved  LES-001  Steady mixing-plane runs overpredict stall margin\n"
+    );
+}
+
+#[test]
+fn since_a_date_lists_the_team_approvals_and_leaves_out_drafts_and_rejections() {
+    let project = Project::new();
+    let (_folder, _team) = team_of(&project);
+    team_lesson(
+        &project,
+        "anna",
+        "2026-11-21T09:00:00+01:00",
+        "Created approved by a person",
+    );
+    team_lesson(
+        &project,
+        "anna - claude",
+        "2026-11-21T09:10:00+01:00",
+        "A draft by an LLM",
+    );
+    team_lesson(
+        &project,
+        "anna - claude",
+        "2026-11-21T09:20:00+01:00",
+        "A draft that is rejected",
+    );
+    project
+        .run_at(
+            "anna",
+            "2026-11-21T09:30:00+01:00",
+            &["reject", "LES-003", "--reason", "Not checked.", "--team"],
+        )
+        .success();
+    assert_eq!(
+        project.stdout("anna", &["status", "--since", "2026-11-21"]),
+        "Project P-001\n\
+         ## Since 2026-11-21\n\
+         ## Project P-001\n\
+         none\n\
+         ## Team\n\
+         2026-11-21T09:00:00+01:00  anna  created  LES-001  Created approved by a person\n"
+    );
+
+    approve_team(&project, "LES-002", "2026-11-21T10:00:00+01:00");
+    assert_eq!(
+        project.stdout("anna", &["status", "--since", "2026-11-21"]),
+        "Project P-001\n\
+         ## Since 2026-11-21\n\
+         ## Project P-001\n\
+         none\n\
+         ## Team\n\
+         2026-11-21T10:00:00+01:00  anna  approved  LES-002  A draft by an LLM\n\
+         2026-11-21T09:00:00+01:00  anna  created  LES-001  Created approved by a person\n"
+    );
+    let data = status_data(&project, &["--since", "2026-11-21"]);
+    assert_eq!(data["team_events"][0]["id"], "LES-002");
+    assert_eq!(data["team_events"][0]["event"], "approved");
+    assert_eq!(data["team_events"][1]["id"], "LES-001");
+    assert_eq!(data["team_events"].as_array().map(Vec::len), Some(2));
+    // Without a team dossier in the project there is no team part in the data.
+    assert_eq!(status_data(&project, &[])["team_events"], Value::Null);
+}
+
+#[test]
+fn the_team_part_names_at_most_twenty_lines_and_counts_the_rest() {
+    let project = Project::new();
+    let (_folder, _team) = team_of(&project);
+    for number in 1..=21 {
+        let statement = format!("Team lesson number {number:02}");
+        team_lesson(&project, "anna", "2026-11-21T09:00:00+01:00", &statement);
+    }
+    let stdout = project.stdout("anna", &["status", "--since", "2026-11-21"]);
+    let team: Vec<&str> = stdout
+        .lines()
+        .skip_while(|line| *line != "## Team")
+        .skip(1)
+        .collect();
+    assert_eq!(team.len(), 20, "{stdout}");
+    assert_eq!(
+        team[0], "2026-11-21T09:00:00+01:00  anna  created  LES-021  Team lesson number 21",
+        "{stdout}"
+    );
+    assert_eq!(
+        team[18], "2026-11-21T09:00:00+01:00  anna  created  LES-003  Team lesson number 03",
+        "{stdout}"
+    );
+    assert_eq!(team[19], "2 more: dossier log --team", "{stdout}");
+    // The data is not cut: every piece of news is in it.
+    let data = status_data(&project, &["--since", "2026-11-21"]);
+    assert_eq!(data["team_events"].as_array().map(Vec::len), Some(21));
+}
+
+#[test]
+fn a_team_that_cannot_be_reached_is_a_warning_and_its_part_is_left_out() {
+    let project = Project::new();
+    link_team(&project, "NOWHERE/DOSSIER");
+    project
+        .run("anna", &["status", "--since", "2026-11-21"])
+        .success()
+        .stderr(contains(
+            "warning: the team dossier NOWHERE/DOSSIER cannot be reached",
+        ));
+    assert_eq!(
+        project.stdout("anna", &["status", "--since", "2026-11-21"]),
+        "Project P-001\n## Since 2026-11-21\nnone\n"
+    );
+}
