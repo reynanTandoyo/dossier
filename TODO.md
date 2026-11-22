@@ -5812,10 +5812,8 @@
 - note (2026-11-22, haiku-t-269): done
 
 ### T-270 · brief --task: a promoted entry is listed once
-- status: claimed
+- status: done
 - owner: haiku-t-270
-- claimed: 2026-11-22T12:23+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-048
 - why: R-CTX-2, R-TEAM-4: a lesson promoted to the team must not appear twice in Related.
@@ -5829,7 +5827,11 @@
   3. Run cargo test --lib brief_task::.
 - accept: A promoted lesson appears once in brief --task.
 - verify: cargo test --lib brief_task::
+- verified: 2026-11-22
+- commit: 6265bc2b7e70314df8a219ee9f079b9f5ceab946
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, coordinator): added
+- note (2026-11-22, haiku-t-270): done
 
 ## Questions
 
