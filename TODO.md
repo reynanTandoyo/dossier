@@ -2293,10 +2293,8 @@
 - note (2026-11-21, planner): added
 
 ### T-245 · approve and reopen: the approval rule for how-tos and tools
-- status: claimed
+- status: done
 - owner: haiku-t-245
-- claimed: 2026-11-22T11:14+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-047
 - why: R-LIFE-6.
@@ -2309,8 +2307,12 @@
   2. Run cargo test --test cmd_approve and cargo test --test cmd_reopen.
 - accept: approve and reopen record checksums of how-tos and tools.
 - verify: cargo test --test cmd_approve
+- verified: 2026-11-22
+- commit: e18dcc8
 - reqs: R-LIFE-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-245): done
 
 ### T-246 · retire and restore: the approval rule for how-tos and tools
 - status: done
