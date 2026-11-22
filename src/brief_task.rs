@@ -10,7 +10,7 @@ use crate::store::{self, Item};
 use crate::todo_bridge;
 use serde_json::Value;
 use std::collections::HashSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// The heading over the approved entries whose `task` field names the task.
 const RECORDED: &str = "## Recorded for this task";
@@ -40,8 +40,9 @@ const NEEDS_TODO: &str = "brief --task needs todo";
 /// `task` field names it, the decisions whose task is one of its milestones, the task's file list
 /// (R-FILE-14), the approved dead ends that match it (R-CTX-16), the entries whose code pointers
 /// lie in the files todo names for it (R-CODE-4), then select::best over the remaining approved
-/// entries with the task's machine, analysis and software fields as tags and its title as words.
-/// A decision or lesson printed with its text is followed by its pictures (R-ENTRY-17).
+/// entries and the team's approved lessons and how-tos (R-CTX-2, marked `team:`), with the task's
+/// machine, analysis and software fields as tags and its title as words. A decision or lesson
+/// printed with its text is followed by its pictures (R-ENTRY-17).
 pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
     let data = todo_bridge::json(&ctx.root, &["show", task]).map_err(|error| {
         if error.code == Code::TodoMissing {
@@ -129,19 +130,43 @@ pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
         listed.extend(code.iter().map(|(item, _)| item.entry.id()));
     }
 
-    let pool: Vec<Item> = pool
+    let mut pool: Vec<Item> = pool
         .into_iter()
         .filter(|item| !listed.contains(&item.entry.id()))
         .collect();
+    // The team's entries join after that check: their IDs can be the same as a project's, so
+    // they are told apart by path, not by ID.
+    let team = team_items(ctx);
+    let team_paths: HashSet<PathBuf> = team.iter().map(|item| item.path.clone()).collect();
+    pool.extend(team);
     let related = select::best(&pool, &query, RELATED_LIMIT);
     if !related.is_empty() {
         out.push(RELATED.to_string());
         for item in related {
-            out.push(summary(item));
+            let line = summary(item);
+            if team_paths.contains(&item.path) {
+                out.push(format!("team:{line}"));
+            } else {
+                out.push(line);
+            }
             out.extend(lesson_lines(item));
         }
     }
     Ok(cut(out, limit))
+}
+
+/// The approved lessons and how-tos of the team dossier of the project (R-CTX-2), in the order of
+/// `store::all`. A project with no team dossier gives none; tools are left out.
+fn team_items(ctx: &Ctx) -> Vec<Item> {
+    let Some(team) = &ctx.team else {
+        return Vec::new();
+    };
+    let (items, _warnings) = store::all(team);
+    items
+        .into_iter()
+        .filter(|item| item.entry.status() == Some(Status::Approved))
+        .filter(|item| matches!(item.entry.kind(), Some(Kind::Lesson | Kind::Howto)))
+        .collect()
 }
 
 /// What `brief --task` reads from `todo show <task> --json`. A missing value is empty.
@@ -1105,5 +1130,179 @@ mod tests {
             Some("  picture: images/FND-004/contour-plot.png — Contour, hot spot")
         );
         assert_eq!(picture_line("Some other text"), None);
+    }
+
+    /// A team dossier in `TEAM/DOSSIER` beside the project's folder: kind = "team" and the folders
+    /// of a team. Returns a context of it, for writing its entries; the project context's `team`
+    /// names its path.
+    fn team_of(project: &Ctx) -> Ctx {
+        let root = project.root.join("TEAM");
+        let dossier = root.join("DOSSIER");
+        for folder in ["lessons", "howtos", "tools"] {
+            fs::create_dir_all(dossier.join(folder)).expect("a team folder");
+        }
+        let text = format!("kind = \"team\"\n{}", config::default_text("TEAM"));
+        fs::write(dossier.join("dossier.toml"), text).expect("the team's settings");
+        Ctx {
+            state: dossier.join(".state"),
+            cfg: config::load(&dossier).expect("the team's settings load"),
+            root,
+            dossier,
+            who: None,
+            json: false,
+            dry_run: false,
+            command: "brief".to_string(),
+            team: None,
+            from_document: None,
+            project: None,
+        }
+    }
+
+    #[test]
+    fn related_gives_the_team_lessons_and_how_tos_marked_team() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, mut ctx) = project();
+        let team = team_of(&ctx);
+        ctx.team = Some(team.dossier.clone());
+        // The project's LES-010 and the team's LES-010 have the same ID. Scores: the project's 8
+        // (title and machine), the team lesson's 6 (machine and analysis), the how-to's 5 (title).
+        write_entry(
+            &ctx,
+            Kind::Lesson,
+            "LES-010",
+            "Compressor stall notes",
+            "approved",
+            &[
+                ("machine", "axial compressor"),
+                ("confidence", "experience"),
+            ],
+            &[
+                ("Statement", "Stall came early at low mass flow."),
+                ("Valid for", "Front stages only."),
+            ],
+        );
+        write_entry(
+            &team,
+            Kind::Lesson,
+            "LES-010",
+            "Steady runs overpredict stall margin",
+            "approved",
+            &[
+                ("machine", "axial compressor"),
+                ("analysis", "steady RANS, speedline"),
+                ("confidence", "simulated"),
+            ],
+            &[
+                (
+                    "Statement",
+                    "Steady runs converge where rotating stall is seen.",
+                ),
+                ("Valid for", "Transonic front stages."),
+            ],
+        );
+        write_entry(
+            &team,
+            Kind::Howto,
+            "HOW-001",
+            "Set up speedline runs",
+            "approved",
+            &[("software", "ExampleSolver")],
+            &[
+                ("Purpose", "Runs one point of a curve."),
+                ("Steps", "Set mass flow and wait."),
+            ],
+        );
+        // Left out although each would match: a draft lesson, a retired how-to and a tool.
+        write_entry(
+            &team,
+            Kind::Lesson,
+            "LES-011",
+            "Speedline lesson draft",
+            "draft",
+            &[("machine", "axial compressor")],
+            &[
+                ("Statement", "Never listed."),
+                ("Valid for", "Never listed."),
+            ],
+        );
+        write_entry(
+            &team,
+            Kind::Howto,
+            "HOW-002",
+            "Old speedline setup",
+            "retired",
+            &[("software", "ExampleSolver")],
+            &[("Purpose", "Never listed.")],
+        );
+        write_entry(
+            &team,
+            Kind::Tool,
+            "TOOL-001",
+            "Speedline post-processing script",
+            "approved",
+            &[("machine", "axial compressor")],
+            &[("Purpose", "Never listed.")],
+        );
+        let show = stand_in(dir.path(), "todo-show", &envelope(speedline_task()));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let found = lines(&ctx, "T-132", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        assert_eq!(
+            found.expect("the lines"),
+            vec![
+                "Task T-132 · Speedline of the compressor",
+                "## Related",
+                "LES-010 · lesson · Compressor stall notes",
+                "  Statement: Stall came early at low mass flow.",
+                "  Valid for: Front stages only.",
+                "team:LES-010 · lesson · Steady runs overpredict stall margin",
+                "  Statement: Steady runs converge where rotating stall is seen.",
+                "  Valid for: Transonic front stages.",
+                "team:HOW-001 · howto · Set up speedline runs",
+            ]
+        );
+    }
+
+    #[test]
+    fn a_team_dossier_that_cannot_be_read_adds_no_team_line() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, mut ctx) = project();
+        ctx.team = Some(dir.path().join("NOWHERE").join("DOSSIER"));
+        write_entry(
+            &ctx,
+            Kind::Lesson,
+            "LES-010",
+            "Compressor stall notes",
+            "approved",
+            &[("machine", "axial compressor")],
+            &[
+                ("Statement", "Stall came early."),
+                ("Valid for", "Front stages only."),
+            ],
+        );
+        let show = stand_in(dir.path(), "todo-show", &envelope(speedline_task()));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let found = lines(&ctx, "T-132", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        assert_eq!(
+            found.expect("the lines"),
+            vec![
+                "Task T-132 · Speedline of the compressor",
+                "## Related",
+                "LES-010 · lesson · Compressor stall notes",
+                "  Statement: Stall came early.",
+                "  Valid for: Front stages only.",
+            ]
+        );
     }
 }
