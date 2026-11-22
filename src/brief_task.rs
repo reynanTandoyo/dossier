@@ -1,14 +1,18 @@
 //! The lines of `brief --task`: what a session needs to know about one task.
 
 use crate::blockfile::BlockFile;
+use crate::config;
 use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
 use crate::filelist;
+use crate::glossary::{self, Term};
 use crate::select::{self, Query};
 use crate::store::{self, Item};
+use crate::teamfiles;
 use crate::todo_bridge;
 use serde_json::Value;
+use std::cmp::Reverse;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
@@ -35,14 +39,25 @@ const CODE: &str = "## Code";
 const PICTURES: &str = "Pictures";
 /// What `brief --task` says when todo is not installed (R-CTX-5).
 const NEEDS_TODO: &str = "brief --task needs todo";
+/// The heading over the glossary terms whose term or other spelling appears in the task's title,
+/// fields or notes (R-TERM-2).
+const TERMS: &str = "## Terms";
+/// The most lines of the Terms heading; the last one counts the lines left out (R-TERM-2).
+const TERMS_LINES: usize = 10;
+/// The heading over the last usage records of the task's software and analysis (R-CTX-2).
+const EARLIER_USES: &str = "## Earlier uses";
+/// The most usage records the Earlier uses heading gives (R-CTX-2).
+const USES_LIMIT: usize = 3;
 
-/// The lines of `brief --task`: the task's title and goal lines from todo, the entries whose
-/// `task` field names it, the decisions whose task is one of its milestones, the task's file list
-/// (R-FILE-14), the approved dead ends that match it (R-CTX-16), the entries whose code pointers
-/// lie in the files todo names for it (R-CODE-4), then select::best over the remaining approved
-/// entries and the team's approved lessons and how-tos (R-CTX-2, marked `team:`), with the task's
-/// machine, analysis and software fields as tags and its title as words. A decision or lesson
-/// printed with its text is followed by its pictures (R-ENTRY-17).
+/// The lines of `brief --task`: the task's title and goal lines from todo, the glossary terms that
+/// appear in the task (R-TERM-2, the team's marked `team:`), the entries whose `task` field names
+/// it, the decisions whose task is one of its milestones, the task's file list (R-FILE-14), the
+/// last usage records of its software and analysis in the team's usage index (R-CTX-2), the
+/// approved dead ends that match it (R-CTX-16), the entries whose code pointers lie in the files
+/// todo names for it (R-CODE-4), then select::best over the remaining approved entries and the
+/// team's approved lessons and how-tos (R-CTX-2, marked `team:`), with the task's machine,
+/// analysis and software fields as tags and its title as words. A decision or lesson printed with
+/// its text is followed by its pictures (R-ENTRY-17).
 pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
     let data = todo_bridge::json(&ctx.root, &["show", task]).map_err(|error| {
         if error.code == Code::TodoMissing {
@@ -75,6 +90,7 @@ pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
     listed.extend(decisions.iter().map(|item| item.entry.id()));
 
     let mut out = vec![task_line(task, &about.title)];
+    out.extend(terms_lines(ctx, &about));
     if !recorded.is_empty() {
         out.push(RECORDED.to_string());
         out.extend(recorded.iter().map(|item| summary(item)));
@@ -90,6 +106,7 @@ pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
         }
     }
     out.extend(files_lines(ctx, task));
+    out.extend(uses_lines(ctx, &about));
 
     let query = Query {
         tags: about.tags(),
@@ -178,17 +195,23 @@ struct About {
     milestones: Vec<String>,
     /// The paths of todo's `files` field; None when the data has no such field.
     files: Option<Vec<String>>,
+    /// The text that glossary terms are looked for in (R-TERM-2): the title, the values of the
+    /// fields and the text of the notes.
+    texts: Vec<String>,
 }
 
 impl About {
     fn read(data: &Value) -> About {
+        let title = first_text([data.get("title"), inner(data, "title")]);
+        let texts = task_texts(data, &title);
         About {
-            title: first_text([data.get("title"), inner(data, "title")]),
+            title,
             machine: first_text([inner(data, "machine"), data.get("machine")]),
             analysis: first_text([inner(data, "analysis"), data.get("analysis")]),
             software: first_text([inner(data, "software"), data.get("software")]),
             milestones: milestone_ids(data),
             files: todo_files(data),
+            texts,
         }
     }
 
@@ -196,10 +219,7 @@ impl About {
     fn tags(&self) -> Vec<String> {
         [&self.machine, &self.analysis, &self.software]
             .into_iter()
-            .flat_map(|list| list.split(','))
-            .map(str::trim)
-            .filter(|tag| !tag.is_empty())
-            .map(str::to_string)
+            .flat_map(|list| list_of(list))
             .collect()
     }
 }
@@ -469,6 +489,236 @@ fn cut(lines: Vec<String>, limit: usize) -> Vec<String> {
     let mut kept: Vec<String> = lines.into_iter().take(limit - 1).collect();
     kept.push(format!("{left_out} more left out"));
     kept
+}
+
+/// The Terms heading (R-TERM-2): the terms of the project's glossary and of the team's whose term
+/// or other spelling is in the task's title, fields or notes. The project's come first, each
+/// glossary in its file order; the team's are marked `team:`. A glossary that cannot be read gives
+/// a line that says so, placed before the terms. A team whose settings cannot be read adds nothing.
+/// At most TERMS_LINES lines; no heading when there is nothing to say.
+fn terms_lines(ctx: &Ctx, about: &About) -> Vec<String> {
+    let mut problems: Vec<String> = Vec::new();
+    let mut found: Vec<String> = Vec::new();
+    match glossary_terms(&ctx.dossier, &ctx.cfg.code) {
+        Ok(terms) => found.extend(matching(&terms, &about.texts).into_iter().map(term_line)),
+        Err(error) => problems.push(format!("glossary cannot be read: {}", error.message)),
+    }
+    if let Some(team) = &ctx.team
+        && let Some(code) = team_code(team)
+    {
+        match glossary_terms(team, &code) {
+            Ok(terms) => found.extend(
+                matching(&terms, &about.texts)
+                    .into_iter()
+                    .map(|term| format!("team:{}", term_line(term))),
+            ),
+            Err(error) => problems.push(format!(
+                "the team's glossary cannot be read: {}",
+                error.message
+            )),
+        }
+    }
+    let rows: Vec<String> = problems.into_iter().chain(found).collect();
+    if rows.is_empty() {
+        return Vec::new();
+    }
+    let mut out = vec![TERMS.to_string()];
+    out.extend(cut(rows, TERMS_LINES));
+    out
+}
+
+/// The terms of the glossary of `dossier` in file order (format.md §20). `code` names the file
+/// when it is missing, and a missing file has no terms.
+fn glossary_terms(dossier: &Path, code: &str) -> Result<Vec<Term>> {
+    let (file, _) = glossary::load(dossier, code)?;
+    Ok(glossary::terms(&file))
+}
+
+/// The code of a team dossier, from its settings. None when they cannot be read, so that a team
+/// dossier that cannot be read adds nothing (as its lessons and how-tos do).
+fn team_code(team: &Path) -> Option<String> {
+    config::load(team).ok().map(|cfg| cfg.code)
+}
+
+/// The terms whose term or one of whose other spellings is a run of whole words in one of
+/// `texts`, ignoring case, in the order of `terms`. So "compress" does not match "compressor", and
+/// "Massenstrom" matches the term "mass flow" with that spelling.
+fn matching<'a>(terms: &'a [Term], texts: &[String]) -> Vec<&'a Term> {
+    let texts: Vec<Vec<String>> = texts.iter().map(|text| words_of(text)).collect();
+    terms
+        .iter()
+        .filter(|term| {
+            std::iter::once(term.term.as_str())
+                .chain(term.also.iter().map(String::as_str))
+                .map(words_of)
+                .any(|spelling| texts.iter().any(|words| has_run(words, &spelling)))
+        })
+        .collect()
+}
+
+/// One term as a line, in the form of `glossary`: `<term> (<symbol>, <unit>): <meaning>`, then
+/// `  [also: <spellings>]`. The parts a term does not have are left out.
+fn term_line(term: &Term) -> String {
+    let mut line = term.term.clone();
+    let facts: Vec<&str> = [term.symbol.as_deref(), term.unit.as_deref()]
+        .into_iter()
+        .flatten()
+        .collect();
+    if !facts.is_empty() {
+        line.push_str(&format!(" ({})", facts.join(", ")));
+    }
+    if !term.meaning.is_empty() {
+        line.push_str(&format!(": {}", term.meaning));
+    }
+    if !term.also.is_empty() {
+        line.push_str(&format!("  [also: {}]", term.also.join(", ")));
+    }
+    line
+}
+
+/// The words of `text` in lower case, split at every character that is not a letter or a digit,
+/// in their order: "m-dot" is "m" and "dot".
+fn words_of(text: &str) -> Vec<String> {
+    text.to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|word| !word.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
+/// Whether the words of `needle` follow each other, in order, among `words`. An empty `needle` is
+/// never found.
+fn has_run(words: &[String], needle: &[String]) -> bool {
+    !needle.is_empty() && words.windows(needle.len()).any(|window| window == needle)
+}
+
+/// The text that glossary terms are looked for in (R-TERM-2): the title, each value of the fields
+/// object, and the text of each note. Notes are read from `notes` at the top of the data or under
+/// `fields`, as a list or as one note.
+fn task_texts(data: &Value, title: &str) -> Vec<String> {
+    let mut texts = vec![title.to_string()];
+    if let Some(Value::Object(fields)) = data.get("fields") {
+        texts.extend(fields.values().flat_map(text_values));
+    }
+    let notes = [data.get("notes"), inner(data, "notes")]
+        .into_iter()
+        .flatten()
+        .find(|notes| !notes.is_null());
+    match notes {
+        Some(Value::Array(items)) => texts.extend(items.iter().flat_map(note_texts)),
+        Some(note) => texts.extend(note_texts(note)),
+        None => {}
+    }
+    texts
+}
+
+/// The text of one note: the `text` of a note that is an object, else the note itself.
+fn note_texts(note: &Value) -> Vec<String> {
+    match note {
+        Value::Object(_) => note.get("text").map_or_else(Vec::new, text_values),
+        other => text_values(other),
+    }
+}
+
+/// The text of a value as plain strings: a string, a number or a boolean as its text, and a list as
+/// the text of each of its items. An object and null give none.
+fn text_values(value: &Value) -> Vec<String> {
+    match value {
+        Value::String(text) => vec![text.clone()],
+        Value::Number(_) | Value::Bool(_) => vec![value.to_string()],
+        Value::Array(items) => items.iter().flat_map(text_values).collect(),
+        Value::Null | Value::Object(_) => Vec::new(),
+    }
+}
+
+/// The Earlier uses heading (R-CTX-2): the last USES_LIMIT usage records of the team's usage index
+/// whose software is one of the task's software and whose analysis shares a word with the task's
+/// analysis (any analysis when the task names none), newest date first. Of two records on one
+/// date, the one written later comes first. No heading without a team dossier whose settings can
+/// be read, without software in the task, or without a matching record. A usage index that cannot
+/// be read gives the heading and one line that says so.
+fn uses_lines(ctx: &Ctx, about: &About) -> Vec<String> {
+    let Some(team) = &ctx.team else {
+        return Vec::new();
+    };
+    let Some(code) = team_code(team) else {
+        return Vec::new();
+    };
+    let software = list_of(&about.software);
+    if software.is_empty() {
+        return Vec::new();
+    }
+    let analysis = list_of(&about.analysis);
+    let file = match teamfiles::usage(team, &code) {
+        Ok((file, _)) => file,
+        Err(error) => {
+            return vec![
+                EARLIER_USES.to_string(),
+                format!("the team's usage index cannot be read: {}", error.message),
+            ];
+        }
+    };
+    let value = |key: &str, name: &str| file.field(key, name).unwrap_or_default();
+    // Later blocks first: the sort below is stable, so records of one date keep this order.
+    let mut keys: Vec<String> = file.keys().into_iter().rev().collect();
+    keys.retain(|key| {
+        names_any(&software, &value(key, "software"))
+            && (analysis.is_empty() || names_any(&analysis, &value(key, "analysis")))
+    });
+    keys.sort_by_key(|key| Reverse(value(key, "date")));
+    if keys.is_empty() {
+        return Vec::new();
+    }
+    let mut out = vec![EARLIER_USES.to_string()];
+    out.extend(keys.iter().take(USES_LIMIT).map(|key| use_line(&file, key)));
+    out
+}
+
+/// Whether one of the words of the comma-separated `value` is one of `wanted`, ignoring case.
+fn names_any(wanted: &[String], value: &str) -> bool {
+    list_of(value)
+        .iter()
+        .any(|word| wanted.iter().any(|name| same(word, name)))
+}
+
+/// One usage record as a line: its date, its key, its software and version, its analysis, its
+/// machine, its how-to and its person, joined with ` · `. A part the block does not have is left
+/// out.
+fn use_line(file: &BlockFile, key: &str) -> String {
+    let value = |name: &str| file.field(key, name).unwrap_or_default().trim().to_string();
+    let software = [value("software"), value("version")]
+        .into_iter()
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<String>>()
+        .join(" ");
+    let howto = value("howto");
+    let howto = if howto.is_empty() {
+        String::new()
+    } else {
+        format!("how-to {howto}")
+    };
+    [
+        value("date"),
+        key.to_string(),
+        software,
+        value("analysis"),
+        value("machine"),
+        howto,
+        value("person"),
+    ]
+    .into_iter()
+    .filter(|part| !part.is_empty())
+    .collect::<Vec<String>>()
+    .join(" · ")
+}
+
+/// The values of a comma-separated list, trimmed, without the empty ones.
+fn list_of(list: &str) -> Vec<String> {
+    list.split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+        .collect()
 }
 
 #[cfg(test)]
@@ -1304,5 +1554,204 @@ mod tests {
                 "  Valid for: Front stages only.",
             ]
         );
+    }
+
+    /// Writes glossary.md into `dossier` with `blocks` after its title (format.md §20).
+    fn write_glossary(dossier: &Path, code: &str, blocks: &str) {
+        let text = format!("<!-- dossier-format: 1 -->\n# Glossary of {code}\n\n{blocks}");
+        fs::write(dossier.join("glossary.md"), text).expect("the glossary");
+    }
+
+    /// Writes usage-index.md into the team dossier `dossier` with `blocks` after its title.
+    fn write_usage(dossier: &Path, blocks: &str) {
+        let text = format!("<!-- dossier-format: 1 -->\n# Usage of TEAM\n\n{blocks}");
+        fs::write(dossier.join("usage-index.md"), text).expect("the usage index");
+    }
+
+    #[test]
+    fn terms_gives_the_terms_of_both_glossaries_that_the_task_names_as_whole_words() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, mut ctx) = project();
+        let team = team_of(&ctx);
+        ctx.team = Some(team.dossier.clone());
+        write_glossary(
+            &ctx.dossier,
+            "P-001",
+            "## speedline\n\n- meaning: the curve of pressure ratio against mass flow\n\n\
+             ## mass flow\n\n- meaning: fluid through a section per second\n- symbol: m-dot\n\
+             - unit: kg/s\n- also: Massenstrom, mdot\n\n\
+             ## compress\n\n- meaning: to press a gas into a smaller volume\n",
+        );
+        write_glossary(
+            &team.dossier,
+            "TEAM",
+            "## pressure ratio\n\n- meaning: outlet pressure divided by inlet pressure\n\
+             - also: Druckverhältnis\n\n\
+             ## flow\n\n- meaning: a stream of a fluid\n",
+        );
+        let mut data = speedline_task();
+        data["fields"]["software"] = serde_json::json!("ExampleSolver");
+        data["fields"]["remark"] = serde_json::json!("Massenstrom at the inlet");
+        data["notes"] = serde_json::json!([
+            {"date": "2026-11-21", "agent": "anna-claude", "text": "Check the pressure ratio at the outlet"}
+        ]);
+        let show = stand_in(dir.path(), "todo-show", &envelope(data));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let found = lines(&ctx, "T-132", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        // The title has "Speedline", the German spelling is in a field, the team's term is in a
+        // note. "compress" is not a whole word of "compressor" and "flow" is not in the task.
+        assert_eq!(
+            found.expect("the lines"),
+            vec![
+                "Task T-132 · Speedline of the compressor",
+                "## Terms",
+                "speedline: the curve of pressure ratio against mass flow",
+                "mass flow (m-dot, kg/s): fluid through a section per second  [also: Massenstrom, mdot]",
+                "team:pressure ratio: outlet pressure divided by inlet pressure  [also: Druckverhältnis]",
+            ]
+        );
+    }
+
+    #[test]
+    fn terms_give_at_most_ten_lines_and_count_the_ones_left_out() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, ctx) = project();
+        let blocks: String = (1..=12)
+            .map(|number| format!("## item {number:02}\n\n- meaning: meaning {number:02}\n\n"))
+            .collect();
+        write_glossary(&ctx.dossier, "P-001", &blocks);
+        let names: Vec<String> = (1..=12).map(|number| format!("item {number:02}")).collect();
+        let mut data = speedline_task();
+        data["fields"]["items"] = serde_json::json!(names.join(", "));
+        let show = stand_in(dir.path(), "todo-show", &envelope(data));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let found = lines(&ctx, "T-132", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        // Twelve terms match: nine are kept and the tenth line counts the three left out.
+        let mut expected = vec![
+            "Task T-132 · Speedline of the compressor".to_string(),
+            "## Terms".to_string(),
+        ];
+        expected.extend((1..=9).map(|number| format!("item {number:02}: meaning {number:02}")));
+        expected.push("3 more left out".to_string());
+        assert_eq!(found.expect("the lines"), expected);
+    }
+
+    /// The usage index of the team of the tests (invented), in the order the blocks were written.
+    /// Matching the software ExampleSolver and the analysis steady RANS are blocks 1, 2, 5, 6, 7
+    /// and 8; block 3 has another analysis and block 4 another software. 5 and 6 are on one date.
+    const USAGE_BLOCKS: &str = "## P-001:USE-001\n\n- date: 2026-10-01\n- code: P-001\n- software: ExampleSolver\n- version: 2312\n- analysis: steady RANS\n- machine: axial compressor\n- person: anna\n- history: 2026-10-01T10:00:00+01:00 anna: used\n\n\
+        ## P-002:USE-004\n\n- date: 2026-11-02\n- code: P-002\n- software: ExampleSolver\n- version: 2406\n- analysis: steady RANS, speedline\n- howto: HOW-002\n- person: ben\n- history: 2026-11-02T08:00:00+01:00 ben: used\n\n\
+        ## P-002:USE-005\n\n- date: 2026-11-03\n- code: P-002\n- software: ExampleSolver\n- version: 2406\n- analysis: transient URANS\n- person: ben\n- history: 2026-11-03T08:00:00+01:00 ben: used\n\n\
+        ## P-003:USE-002\n\n- date: 2026-11-10\n- code: P-003\n- software: OtherSolver\n- version: 1.0\n- analysis: steady RANS\n- person: lena\n- history: 2026-11-10T08:00:00+01:00 lena: used\n\n\
+        ## P-001:USE-006\n\n- date: 2026-11-05\n- code: P-001\n- software: examplesolver\n- version: 2406\n- analysis: Steady rans\n- person: anna\n- history: 2026-11-05T08:00:00+01:00 anna: used\n\n\
+        ## P-002:USE-007\n\n- date: 2026-11-05\n- code: P-002\n- software: ExampleSolver\n- version: 2406\n- analysis: steady RANS\n- machine: radial turbine\n- person: ben\n- history: 2026-11-05T09:00:00+01:00 ben: used\n\n\
+        ## P-003:USE-001\n\n- date: 2026-11-20\n- code: P-003\n- software: ExampleSolver\n- version: 2406\n- analysis: steady RANS\n- howto: HOW-002\n- person: anna\n- history: 2026-11-20T08:00:00+01:00 anna: used\n\n\
+        ## P-001:USE-002\n\n- date: 2026-09-01\n- code: P-001\n- software: ExampleSolver\n- version: 2312\n- analysis: steady RANS\n- person: anna\n- history: 2026-09-01T08:00:00+01:00 anna: used\n";
+
+    #[test]
+    fn earlier_uses_give_the_last_three_uses_of_the_software_and_analysis_newest_first() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, mut ctx) = project();
+        let team = team_of(&ctx);
+        ctx.team = Some(team.dossier.clone());
+        write_usage(&team.dossier, USAGE_BLOCKS);
+        let mut data = speedline_task();
+        data["fields"]["software"] = serde_json::json!("ExampleSolver");
+        let show = stand_in(dir.path(), "todo-show", &envelope(data));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let found = lines(&ctx, "T-132", 100);
+
+        // A task that names no software has no earlier uses.
+        let bare = stand_in(dir.path(), "todo-bare", &envelope(speedline_task()));
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::set_var("DOSSIER_TODO", &bare) };
+        let no_software = lines(&ctx, "T-132", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        assert_eq!(
+            found.expect("the lines"),
+            vec![
+                "Task T-132 · Speedline of the compressor",
+                "## Earlier uses",
+                "2026-11-20 · P-003:USE-001 · ExampleSolver 2406 · steady RANS · how-to HOW-002 · anna",
+                "2026-11-05 · P-002:USE-007 · ExampleSolver 2406 · steady RANS · radial turbine · ben",
+                "2026-11-05 · P-001:USE-006 · examplesolver 2406 · Steady rans · anna",
+            ]
+        );
+        assert_eq!(
+            no_software.expect("the lines"),
+            vec!["Task T-132 · Speedline of the compressor"]
+        );
+    }
+
+    #[test]
+    fn a_glossary_or_usage_index_that_cannot_be_read_is_reported_and_the_other_parts_go_on() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, mut ctx) = project();
+        let team = team_of(&ctx);
+        ctx.team = Some(team.dossier.clone());
+        fs::write(
+            ctx.dossier.join("glossary.md"),
+            "<!-- dossier-format: 1 -->\nno heading\n",
+        )
+        .expect("the broken glossary");
+        let usage_path = team.dossier.join("usage-index.md");
+        fs::write(&usage_path, "<!-- dossier-format: 1 -->\nno heading\n")
+            .expect("the broken usage index");
+        let mut data = speedline_task();
+        data["fields"]["software"] = serde_json::json!("ExampleSolver");
+        let show = stand_in(dir.path(), "todo-show", &envelope(data));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let found = lines(&ctx, "T-132", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        let found = found.expect("brief --task goes on");
+        assert_eq!(found.len(), 5, "{found:?}");
+        assert_eq!(found[1], "## Terms");
+        assert_eq!(
+            found[2],
+            "glossary cannot be read: glossary.md: line 2: no heading"
+        );
+        assert_eq!(found[3], "## Earlier uses");
+        assert_eq!(
+            found[4],
+            format!(
+                "the team's usage index cannot be read: {}: line 2: no heading",
+                usage_path.display()
+            )
+        );
+    }
+
+    #[test]
+    fn words_are_split_at_each_character_that_is_not_a_letter_or_a_digit() {
+        assert_eq!(
+            words_of("Mass-Flow, m-dot  kg/s"),
+            ["mass", "flow", "m", "dot", "kg", "s"]
+        );
+        let words = words_of("Massenstrom at the inlet");
+        assert!(has_run(&words, &words_of("at the")));
+        assert!(!has_run(&words, &words_of("inlet at")));
+        assert!(!has_run(&words, &words_of("")));
+        assert!(!has_run(&words_of("compressor"), &words_of("compress")));
     }
 }
