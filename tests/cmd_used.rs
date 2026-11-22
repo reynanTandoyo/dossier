@@ -1,18 +1,22 @@
 //! Runs the built program for `used`: one run is recorded as a usage record (USE-<n>, approved at
 //! once) and its files are attached to the task's file list in the same step: the model with role
 //! `model`, and each output with role `result` and made from `<model>@<checksum>`. An output that is
-//! attached already is described again with a `reattached` line. A bad value writes nothing. Each
-//! test runs in its own temporary project folder with the clock fixed by `common::Project`
+//! attached already is described again with a `reattached` line. A bad value writes nothing. When
+//! the project has a team dossier, the team's usage index gets one anonymous line for the run
+//! (R-USE-3), written after the run and never naming its title, task or files. Each test runs in
+//! its own temporary project folder with the clock fixed by `common::Project`
 //! (2026-11-20T10:00:00+01:00).
 
 mod common;
 
 use common::Project;
 use dossier::blockfile::BlockFile;
+use dossier::config;
 use dossier::entry::{Entry, Kind, Status};
 use dossier::hash::sha256_hex;
 use dossier::journal::Record;
-use predicates::str::contains;
+use predicates::str::{contains, is_empty};
+use std::path::{Path, PathBuf};
 
 /// The fixed clock of `common::Project`, as it appears in history and journal lines.
 const WHEN: &str = "2026-11-20T10:00:00+01:00";
@@ -613,4 +617,312 @@ fn a_changed_model_that_is_attached_already_is_described_again() {
         entry.field("model-checksum"),
         list.field("sim/m.sim", "checksum")
     );
+}
+
+/// The usage index of the team after one run of anna, with no machine or analysis tags: the one
+/// block of P-001:USE-001 and nothing else (format.md §20).
+const ONE_LINE: &str = "<!-- dossier-format: 1 -->\n# Usage of TEAM\n\n## P-001:USE-001\n\n- date: 2026-11-20\n- code: P-001\n- software: ExampleSolver\n- version: 2406\n- person: anna\n- history: 2026-11-20T10:00:00+01:00 anna: used\n\n";
+
+/// The usage index of the team at `team` (its DOSSIER folder), as text. Panics when it is missing.
+fn index_of(team: &Path) -> String {
+    std::fs::read_to_string(team.join("usage-index.md")).expect("the team's usage index")
+}
+
+/// Makes the project name the team dossier at `team` in its `team` setting, with / as separator.
+fn link(project: &Project, team: &Path) {
+    let stored = team.to_string_lossy().replace('\\', "/");
+    config::set_value(
+        &project.root().join("DOSSIER"),
+        "team",
+        &format!("\"{stored}\""),
+    )
+    .expect("the project's team");
+}
+
+/// A team dossier made as anna in a folder of its own (`init --team-dossier --code TEAM`), with
+/// `members` as its members, and the project linked to it. Returns the folder that holds the team
+/// dossier (it keeps the folder alive) and the team's DOSSIER folder.
+fn team_for(project: &Project, members: &[&str]) -> (tempfile::TempDir, PathBuf) {
+    let folder = tempfile::TempDir::new().expect("a temporary folder for the team");
+    project
+        .command("anna", WHEN)
+        .current_dir(folder.path())
+        .args(["init", "--code", "TEAM", "--team-dossier"])
+        .assert()
+        .success();
+    let team = folder.path().join("DOSSIER");
+    let members: Vec<String> = members.iter().map(|member| member.to_string()).collect();
+    config::set_list(&team, "members", &members).expect("the team's members");
+    link(project, &team);
+    (folder, team)
+}
+
+#[test]
+fn a_run_with_a_team_adds_one_anonymous_line_to_the_usage_index() {
+    let project = Project::new();
+    write_files(&project);
+    let (_folder, team) = team_for(&project, &["anna"]);
+
+    project
+        .run(
+            "anna",
+            &[
+                "used",
+                "ExampleSolver",
+                "--version",
+                "2406",
+                "--task",
+                "T-001",
+                "--title",
+                "Speedline point 7",
+                "--model",
+                "sim/m.sim",
+                "--output",
+                "out.csv",
+                "--note",
+                "Second try of the day.",
+            ],
+        )
+        .success()
+        .stdout(contains("USE-001: run recorded"))
+        .stderr(is_empty());
+
+    // The block carries the date, the code, the software, the version and the person; the title,
+    // the task, the model, the outputs and the note are not in it (R-USE-3).
+    assert_eq!(index_of(&team), ONE_LINE);
+    assert_eq!(
+        entry_of(&project, "USE-001").status(),
+        Some(Status::Approved)
+    );
+}
+
+#[test]
+fn the_team_lines_come_in_the_order_of_the_runs() {
+    let project = Project::new();
+    write_files(&project);
+    let (_folder, team) = team_for(&project, &["anna"]);
+    let run = [
+        "used",
+        "ExampleSolver",
+        "--version",
+        "2406",
+        "--task",
+        "T-001",
+    ];
+    project.stdout("anna", &run);
+    project.stdout("anna", &run);
+
+    let file = BlockFile::parse(&index_of(&team)).expect("the usage index parses");
+    assert_eq!(file.keys(), ["P-001:USE-001", "P-001:USE-002"]);
+    assert_eq!(
+        file.history("P-001:USE-002"),
+        vec![format!("{WHEN} anna: used")]
+    );
+}
+
+#[test]
+fn the_machine_and_the_analysis_come_from_the_project_tags() {
+    let project = Project::new();
+    write_files(&project);
+    let settings = project
+        .read("DOSSIER/dossier.toml")
+        .replace("machine = []", "machine = [\"axial compressor\"]")
+        .replace(
+            "analysis = []",
+            "analysis = [\"steady RANS\", \"speedline\"]",
+        );
+    project.write("DOSSIER/dossier.toml", &settings);
+    let (_folder, team) = team_for(&project, &["anna"]);
+
+    project.stdout(
+        "anna",
+        &[
+            "used",
+            "ExampleSolver",
+            "--version",
+            "2406",
+            "--task",
+            "T-001",
+        ],
+    );
+
+    let file = BlockFile::parse(&index_of(&team)).expect("the usage index parses");
+    assert_eq!(
+        file.field("P-001:USE-001", "machine").as_deref(),
+        Some("axial compressor")
+    );
+    assert_eq!(
+        file.field("P-001:USE-001", "analysis").as_deref(),
+        Some("steady RANS, speedline")
+    );
+}
+
+#[test]
+fn a_run_by_an_llm_of_a_member_names_the_person_and_the_llm_in_its_history() {
+    let project = Project::new();
+    write_files(&project);
+    let (_folder, team) = team_for(&project, &["anna"]);
+
+    project.stdout(
+        "anna - claude",
+        &[
+            "used",
+            "ExampleSolver",
+            "--version",
+            "2406",
+            "--task",
+            "T-001",
+        ],
+    );
+
+    let file = BlockFile::parse(&index_of(&team)).expect("the usage index parses");
+    assert_eq!(
+        file.field("P-001:USE-001", "person").as_deref(),
+        Some("anna")
+    );
+    assert_eq!(
+        file.history("P-001:USE-001"),
+        vec![format!("{WHEN} anna via anna - claude: used")]
+    );
+}
+
+#[test]
+fn without_a_team_the_run_gives_no_warning_and_no_index_is_written() {
+    let project = Project::new();
+    write_files(&project);
+
+    project
+        .run(
+            "anna",
+            &[
+                "used",
+                "ExampleSolver",
+                "--version",
+                "2406",
+                "--task",
+                "T-001",
+                "--output",
+                "out.csv",
+            ],
+        )
+        .success()
+        .stdout(contains("USE-001: run recorded"))
+        .stderr(is_empty());
+    assert!(
+        !project
+            .root()
+            .join("DOSSIER")
+            .join("usage-index.md")
+            .exists()
+    );
+}
+
+#[test]
+fn a_team_that_cannot_be_reached_is_a_warning_and_the_run_stays_recorded() {
+    let project = Project::new();
+    write_files(&project);
+    let folder = tempfile::TempDir::new().expect("a temporary folder");
+    link(&project, &folder.path().join("NOT-THERE").join("DOSSIER"));
+
+    project
+        .run(
+            "anna",
+            &[
+                "used",
+                "ExampleSolver",
+                "--version",
+                "2406",
+                "--task",
+                "T-001",
+            ],
+        )
+        .success()
+        .stdout(contains("USE-001: run recorded"))
+        .stderr(contains(
+            "the run is recorded, but not in the team's usage index",
+        ))
+        .stderr(contains("the team dossier cannot be reached"));
+    assert_eq!(
+        entry_of(&project, "USE-001").status(),
+        Some(Status::Approved)
+    );
+}
+
+#[test]
+fn a_writer_who_is_not_a_team_member_is_a_warning_and_the_run_stays_recorded() {
+    let project = Project::new();
+    write_files(&project);
+    let (_folder, team) = team_for(&project, &["anna"]);
+
+    project
+        .run(
+            "ben",
+            &[
+                "used",
+                "ExampleSolver",
+                "--version",
+                "2406",
+                "--task",
+                "T-001",
+            ],
+        )
+        .success()
+        .stdout(contains("USE-001: run recorded"))
+        .stderr(contains("not in the team's usage index"));
+    assert_eq!(
+        entry_of(&project, "USE-001").status(),
+        Some(Status::Approved)
+    );
+    assert!(!team.join("usage-index.md").exists());
+}
+
+#[test]
+fn a_dry_run_writes_nothing_in_the_team() {
+    let project = Project::new();
+    write_files(&project);
+    let (_folder, team) = team_for(&project, &["anna"]);
+
+    project
+        .run(
+            "anna",
+            &[
+                "--dry-run",
+                "used",
+                "ExampleSolver",
+                "--version",
+                "2406",
+                "--task",
+                "T-001",
+            ],
+        )
+        .success()
+        .stdout(contains("USE-NEW: run recorded"))
+        .stderr(contains("dry run: would write"));
+    assert!(!team.join("usage-index.md").exists());
+}
+
+#[test]
+fn a_line_the_index_has_already_is_not_written_twice() {
+    let project = Project::new();
+    write_files(&project);
+    let (_folder, team) = team_for(&project, &["anna"]);
+    let existing = "<!-- dossier-format: 1 -->\n# Usage of TEAM\n\n## P-001:USE-001\n\n- date: 2026-11-02\n- code: P-001\n- software: ExampleSolver\n- version: 2312\n- person: ben\n- history: 2026-11-02T09:00:00+01:00 ben: used\n\n";
+    std::fs::write(team.join("usage-index.md"), existing).expect("the existing index");
+
+    project
+        .run(
+            "anna",
+            &[
+                "used",
+                "ExampleSolver",
+                "--version",
+                "2406",
+                "--task",
+                "T-001",
+            ],
+        )
+        .success()
+        .stdout(contains("USE-001: run recorded"))
+        .stderr(contains("the team's usage index has P-001:USE-001 already"));
+    assert_eq!(index_of(&team), existing);
 }

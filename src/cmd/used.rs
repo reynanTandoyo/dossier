@@ -4,19 +4,24 @@
 //! outputs, the how-to followed and the deviations. In the same transaction the task's file list
 //! (format.md §17) gets the model, with role `model`, when it is not attached yet, and each output,
 //! with role `result` and made from `<model>@<checksum>`. An output that is attached already is
-//! described again and gets a `reattached` history line.
+//! described again and gets a `reattached` history line. Then, when the project has a team
+//! dossier, the team's usage index gets one anonymous line for the run in a transaction of its own
+//! (R-USE-3, `index_in_team`): nothing of the title, the task or the files.
 
 use crate::blockfile::BlockFile;
 use crate::cli::Global;
+use crate::config::Config;
 use crate::create::{self, New};
 use crate::ctx::Ctx;
-use crate::entry::Kind;
+use crate::entry::{Entry, Kind};
 use crate::error::{Code, Error, Result};
 use crate::filelist;
 use crate::names::Who;
 use crate::output::Output;
 use crate::paths;
 use crate::store;
+use crate::teamfiles;
+use crate::time;
 use crate::tx::{self, Change};
 use serde_json::json;
 use std::path::Path;
@@ -43,6 +48,12 @@ const MODEL_ROLE: &str = "model";
 
 /// The role of the files a run wrote (format.md §17).
 const RESULT_ROLE: &str = "result";
+
+/// The file of the team dossier that holds the usage index (format.md §20).
+const USAGE_FILE: &str = "usage-index.md";
+
+/// The item of the usage index in snapshots and the journal (format.md §17).
+const USAGE_ITEM: &str = "USAGE";
 
 /// The arguments of `used`.
 #[derive(clap::Args, Debug)]
@@ -94,14 +105,17 @@ struct Run {
 }
 
 /// Runs `used`: checks the run, then creates the usage record and attaches its files, in one
-/// transaction. The first output line is `<USE-ID>: run recorded`; the data is {"id": "<USE-ID>"}.
+/// transaction. Then the team's usage index gets the run's line (`index_in_team`). The first output
+/// line is `<USE-ID>: run recorded`; the data is {"id": "<USE-ID>"}.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "used")?;
     let who = ctx.writer()?.clone();
     let cwd = std::env::current_dir()?;
     let run = check(&ctx, args, &cwd)?;
 
-    tx::write(&ctx, |tx| {
+    // The record of the run as it was written, kept for the team's usage index.
+    let mut recorded: Option<(Entry, String)> = None;
+    let mut output = tx::write(&ctx, |tx| {
         let dossier = tx.ctx().dossier.clone();
         let root = tx.ctx().root.clone();
         let time = tx.time().to_string();
@@ -155,7 +169,8 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             said_by: None,
             draft: false,
         };
-        let (id, _text) = create::create(tx, &new)?;
+        let (id, file_text) = create::create(tx, &new)?;
+        recorded = Some((Entry::parse(&file_text)?, time.clone()));
 
         // The model gets a block when it is not attached yet; each output gets a block, or is
         // described again when it is attached already.
@@ -215,7 +230,111 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             Output::with(text, json!({"id": id})),
             warnings,
         ))
+    })?;
+    if let Some((entry, time)) = &recorded {
+        for warning in index_in_team(&ctx, &who, entry, time) {
+            output = output.warn(warning);
+        }
+    }
+    Ok(output)
+}
+
+/// Adds the run's line to the team's usage index (R-USE-3, format.md §20) in a transaction of its
+/// own on the team dossier. Nothing when the project has no team dossier. A team that cannot be
+/// reached, a write it refuses and a line that the index has already are warnings: the run stays
+/// recorded. Returns the warnings to add to the output of the command.
+fn index_in_team(ctx: &Ctx, who: &Who, entry: &Entry, time: &str) -> Vec<String> {
+    let Some(stored) = ctx.cfg.team.as_deref() else {
+        return Vec::new();
+    };
+    let outcome = match &ctx.team {
+        Some(_) => ctx
+            .team_ctx()
+            .and_then(|team| write_index(&team, ctx, who, entry, time)),
+        None => Err(Error::new(
+            Code::NoDossier,
+            format!(
+                "{}: the team dossier cannot be reached",
+                ctx.root.join(paths::shown(stored)).display()
+            ),
+        )),
+    };
+    match outcome {
+        Ok(output) => output.warnings,
+        Err(error) => vec![format!(
+            "the run is recorded, but not in the team's usage index: {}",
+            error.message
+        )],
+    }
+}
+
+/// Writes the run's block into the team's usage index, in one transaction on the team dossier: the
+/// block is keyed `<project code>:<USE-ID>` and has the history line `used` (format.md §20). A key
+/// the index has already is refused, since a second block with it would make the index unreadable.
+fn write_index(team: &Ctx, project: &Ctx, who: &Who, entry: &Entry, time: &str) -> Result<Output> {
+    let key = format!("{}:{}", project.cfg.code, entry.id());
+    let fields = index_fields(&project.cfg, who, entry, time);
+    tx::write(team, |tx| {
+        let (mut file, old) = teamfiles::usage(&team.dossier, &team.cfg.code)?;
+        if file.keys().contains(&key) {
+            return Err(Error::new(
+                Code::Exists,
+                format!("the team's usage index has {key} already"),
+            ));
+        }
+        file.add_block(&key, &fields);
+        file.add_history(&key, tx.time(), who, "used", "");
+        tx.put_raw(
+            team.dossier.join(USAGE_FILE),
+            old,
+            file.text().into_bytes(),
+            Change {
+                id: USAGE_ITEM.to_string(),
+                event: "used".to_string(),
+                detail: key.clone(),
+            },
+        );
+        Ok(Output::text(format!(
+            "{key}: added to the team's usage index"
+        )))
     })
+}
+
+/// The fields of the team's line for a run (format.md §20): the date of the run, the project code,
+/// the software and its version, the analysis and the machine (the record's own, else the project's
+/// tags), the how-to followed and the person who ran it. No title, task or file name goes into the
+/// index (R-USE-3).
+fn index_fields(cfg: &Config, who: &Who, entry: &Entry, time: &str) -> Vec<(String, String)> {
+    vec![
+        pair("date", time::date(time)),
+        pair("code", &cfg.code),
+        pair("software", &field_of(entry, "software")),
+        pair("version", &field_of(entry, "version")),
+        pair(
+            "analysis",
+            &field_or_tags(entry, "analysis", &cfg.tags.analysis),
+        ),
+        pair(
+            "machine",
+            &field_or_tags(entry, "machine", &cfg.tags.machine),
+        ),
+        pair("howto", &field_of(entry, "howto")),
+        pair("person", &who.person),
+    ]
+}
+
+/// The value of a field of the record, or the empty text.
+fn field_of(entry: &Entry, key: &str) -> String {
+    entry.field(key).unwrap_or_default()
+}
+
+/// The value of a field of the record when it has one, else the project's tags of that kind,
+/// joined with commas.
+fn field_or_tags(entry: &Entry, key: &str, tags: &[String]) -> String {
+    match entry.field(key) {
+        Some(value) if !value.is_empty() => value,
+        _ => tags.join(", "),
+    }
 }
 
 /// Checks the arguments: the values are one line and not empty, the task is a task ID, the paths
