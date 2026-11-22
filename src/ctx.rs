@@ -22,7 +22,7 @@ const NO_TEAM: &str = "this project has no team dossier; link one with: dossier 
 
 /// The commands that change the dossier. Only they refuse a name that is not in the settings
 /// (R-CFG-4: unknown names are refused for writing); a reading command runs without a name.
-const WRITING: [&str; 31] = [
+const WRITING: [&str; 40] = [
     "add",
     "decide",
     "found",
@@ -54,6 +54,15 @@ const WRITING: [&str; 31] = [
     "received",
     "delivered",
     "map",
+    "confidential",
+    "promote",
+    "close",
+    "howto",
+    "tool",
+    "term",
+    "reviewed",
+    "review-document",
+    "reviewed-document",
 ];
 
 /// The context of one command.
