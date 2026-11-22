@@ -2112,10 +2112,8 @@
 - note (2026-11-22, haiku-t-235): done
 
 ### T-236 · close: sort out a finished project's knowledge
-- status: claimed
+- status: done
 - owner: haiku-t-236
-- claimed: 2026-11-22T12:44+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-045
 - why: R-TEAM-4.
@@ -2132,8 +2130,12 @@
   6. Run cargo test --test cmd_close.
 - accept: At the end of a project every piece of knowledge is promoted, kept or left for later, and the answers are kept.
 - verify: cargo test --test cmd_close
+- verified: 2026-11-22
+- commit: fc625e2b5e1745dfd880810c0716861d5eea5716
 - reqs: R-TEAM-4, D28
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-236): done
 
 ### T-046 · How-tos and the usage index: howto, where-used (software names come from tools, T-047)
 - status: open
