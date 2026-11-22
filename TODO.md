@@ -1764,8 +1764,10 @@
 - note (2026-11-22, haiku-t-222): done
 
 ### T-223 · team: show the team settings and link a project (team use)
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-223
+- claimed: 2026-11-22T11:22+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: R-PLACE-2: a project knows its team dossier.
@@ -1826,8 +1828,10 @@
 - note (2026-11-21, planner): added
 
 ### T-226 · create.rs: --said-by and author accept plain names, and team writes are checked
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-226
+- claimed: 2026-11-22T11:22+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: D34 and R-CONF-2: the check before every team write.
@@ -1951,8 +1955,10 @@
 - note (2026-11-22, haiku-t-230): done
 
 ### T-231 · confidential add and list
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-231
+- claimed: 2026-11-22T11:22+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-044
 - why: R-CONF-1, D32.
@@ -2128,8 +2134,10 @@
 - note (2026-11-21, planner): added
 
 ### T-238 · used: add a line to the team's usage index
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-238
+- claimed: 2026-11-22T11:24+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-046
 - why: R-USE-3.
@@ -2305,10 +2313,8 @@
 - note (2026-11-21, planner): added
 
 ### T-246 · retire and restore: the approval rule for how-tos and tools
-- status: claimed
+- status: done
 - owner: haiku-t-246
-- claimed: 2026-11-22T11:14+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-047
 - why: R-LIFE-6.
@@ -2321,8 +2327,12 @@
   2. Run cargo test --test cmd_retire and cargo test --test cmd_restore.
 - accept: retire and restore handle how-tos and tools like lessons.
 - verify: cargo test --test cmd_retire
+- verified: 2026-11-22
+- commit: 8feb99b
 - reqs: R-LIFE-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-246): done
 
 ### T-048 · Glossary: term add, term, glossary, and search through other spellings
 - status: open
@@ -2402,8 +2412,10 @@
 - note (2026-11-21, planner): added
 
 ### T-250 · search: the project and the team dossier together
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-250
+- claimed: 2026-11-22T11:24+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-048
 - why: R-READ-3.
@@ -2440,8 +2452,10 @@
 - note (2026-11-21, planner): added
 
 ### T-252 · brief --task: team lessons and how-tos
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-252
+- claimed: 2026-11-22T11:24+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-048
 - why: R-CTX-2.
