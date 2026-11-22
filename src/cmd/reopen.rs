@@ -1,8 +1,8 @@
 //! The `reopen` command: takes an entry back one step (R-LIFE-1). An approved or rejected entry
 //! goes back to draft, so it is no longer knowledge until it is approved again. A retired entry
 //! is in force again as approved, and only a person can do that. A draft and a superseded entry
-//! cannot be reopened. A lesson that is approved again gets its checksum recorded (R-LIFE-6), and
-//! a lesson that goes back to draft loses its checksum.
+//! cannot be reopened. A lesson, how-to or tool that is approved again gets its checksum recorded
+//! (R-LIFE-6), and one that goes back to draft loses its checksum.
 
 use crate::approval;
 use crate::cli::Global;
@@ -28,8 +28,8 @@ pub struct Args {
 
 /// Runs `reopen`: in one transaction, an approved or rejected entry becomes a draft, and a
 /// retired entry becomes approved again, with a history line for the change. The output is
-/// `<ID>: reopened (<new status>)`. The checksum of a lesson follows the change once the file is
-/// written, unless this is a dry run.
+/// `<ID>: reopened (<new status>)`. The checksum of a lesson, how-to or tool follows the change
+/// once the file is written, unless this is a dry run.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "reopen")?;
     let who = ctx.writer()?.clone();
@@ -84,7 +84,11 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         if !tx.ctx().dry_run {
             match status {
                 Status::Approved => {
-                    if entry.kind().or_else(|| Kind::of_id(&id)) == Some(Kind::Lesson) {
+                    if entry
+                        .kind()
+                        .or_else(|| Kind::of_id(&id))
+                        .is_some_and(approval::guarded)
+                    {
                         record = Some((id.clone(), text.as_bytes().to_vec()));
                     }
                 }

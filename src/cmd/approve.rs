@@ -6,8 +6,8 @@
 use crate::approval;
 use crate::cli::Global;
 use crate::ctx::Ctx;
+use crate::entry::Status;
 use crate::entry::rules;
-use crate::entry::{Kind, Status};
 use crate::error::{Code, Error, Result};
 use crate::names::Who;
 use crate::output::Output;
@@ -154,7 +154,8 @@ fn review(tx: &mut Tx, item: &Item, who: &Who, tally: &mut Tally) -> Result<()> 
 }
 
 /// Queues the approval of a draft: status, who approved it and when, and the history line. The
-/// checksum of an approved lesson is recorded now, unless this is a dry run (R-LIFE-6).
+/// checksum of an approved lesson, how-to or tool is recorded now, unless this is a dry run
+/// (R-LIFE-6).
 fn approve(tx: &mut Tx, item: &Item, who: &Who) -> Result<()> {
     let time = tx.time().to_string();
     let mut entry = item.entry.clone();
@@ -164,7 +165,7 @@ fn approve(tx: &mut Tx, item: &Item, who: &Who) -> Result<()> {
     entry.add_history(&time, who, "approved", "");
     let id = entry.id();
     let text = entry.text();
-    if entry.kind() == Some(Kind::Lesson) && !tx.ctx().dry_run {
+    if entry.kind().is_some_and(approval::guarded) && !tx.ctx().dry_run {
         approval::record(&tx.ctx().state, &id, text.as_bytes())?;
     }
     tx.put(item.path.clone(), Some(item), text, change(id, "approved"));
