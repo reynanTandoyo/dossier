@@ -5894,8 +5894,10 @@
 - note (2026-11-22, haiku-t-272): done
 
 ### T-273 · list: a how-to not tested with the newest version
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-273
+- claimed: 2026-11-22T13:22+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-050
 - why: R-LIFE-8.
