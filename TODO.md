@@ -1860,10 +1860,8 @@
 - note (2026-11-22, coordinator): commit: e091c7b (the done record names the work-plan commit; batch integration bookkeeping)
 
 ### T-227 · init --with-team: link a new project and register its code
-- status: claimed
+- status: done
 - owner: haiku-t-227
-- claimed: 2026-11-22T11:52+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: R-PLACE-2 and R-PLACE-4: project codes are unique in the team.
@@ -1878,8 +1876,12 @@
   4. Run cargo test --test cmd_init.
 - accept: A new project is linked to its team dossier and its code registered there.
 - verify: cargo test --test cmd_init
+- verified: 2026-11-22
+- commit: ce14fb5e8d630b5cbcb8deef4131640a54118eb6
 - reqs: R-PLACE-2, R-PLACE-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-227): done
 
 ### T-228 · hooks.rs: DOSSIER_AGENT in .claude/settings.local.json
 - status: done
