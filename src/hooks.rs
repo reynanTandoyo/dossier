@@ -12,12 +12,15 @@ pub const GUARD: &str = "dossier guard";
 /// The matcher of the PreToolUse hook: the tools that write a file.
 const EDIT_TOOLS: &str = "Edit|Write|MultiEdit";
 
+/// The variable of the local settings that names the writer of Claude's writes (D34).
+const AGENT_VAR: &str = "DOSSIER_AGENT";
+
 /// .claude/settings.json with a SessionStart hook running BRIEF and a PreToolUse hook (matcher
 /// "Edit|Write|MultiEdit") running GUARD, each added once; other keys kept. Empty text is "{}".
 /// Code::Parse when the text is not a JSON object.
 pub fn installed(existing: &str) -> Result<String> {
     let mut root = settings(existing)?;
-    let hooks = hooks_or_new(&mut root)?;
+    let hooks = object_or_new(&mut root, "hooks")?;
     add_once(hooks, "SessionStart", None, BRIEF)?;
     add_once(hooks, "PreToolUse", Some(EDIT_TOOLS), GUARD)?;
     render(&root)
@@ -60,13 +63,31 @@ pub fn guard(payload: &str) -> Option<String> {
 }
 
 /// .claude/settings.local.json with env.DOSSIER_AGENT set to `agent` (D34), other keys kept.
-pub fn local_installed(_existing: &str, _agent: &str) -> Result<String> {
-    Err(Error::new(Code::NotImplemented, "hooks::local_installed"))
+/// An older DOSSIER_AGENT is replaced. Blank text is "{}"; Code::Parse as in `installed`.
+pub fn local_installed(existing: &str, agent: &str) -> Result<String> {
+    let mut root = settings(existing)?;
+    let env = object_or_new(&mut root, "env")?;
+    env.insert(AGENT_VAR.to_string(), Value::String(agent.to_string()));
+    render(&root)
 }
 
-/// The local settings text with that one key removed.
-pub fn local_uninstalled(_existing: &str) -> Result<String> {
-    Err(Error::new(Code::NotImplemented, "hooks::local_uninstalled"))
+/// The local settings text with that one key removed. An "env" object that the removal left
+/// empty goes too; one that was empty before stays.
+pub fn local_uninstalled(existing: &str) -> Result<String> {
+    let mut root = settings(existing)?;
+    let env_emptied = match root.get_mut("env") {
+        None => false,
+        Some(value) => {
+            let env = object_mut(value, "env")?;
+            let had_keys = !env.is_empty();
+            env.remove(AGENT_VAR);
+            had_keys && env.is_empty()
+        }
+    };
+    if env_emptied {
+        root.remove("env");
+    }
+    render(&root)
 }
 
 /// The text without a leading UTF-8 byte-order mark, which a Windows editor may have saved.
@@ -117,10 +138,13 @@ fn object_mut<'a>(value: &'a mut Value, what: &str) -> Result<&'a mut Map<String
         .ok_or_else(|| shape(what, "an object"))
 }
 
-/// The "hooks" object of the settings, added when it is missing.
-fn hooks_or_new(root: &mut Map<String, Value>) -> Result<&mut Map<String, Value>> {
-    let value = root.entry("hooks").or_insert_with(|| json!({}));
-    object_mut(value, "hooks")
+/// The object at `key` of the settings (such as "hooks" or "env"), added when it is missing.
+fn object_or_new<'a>(
+    root: &'a mut Map<String, Value>,
+    key: &str,
+) -> Result<&'a mut Map<String, Value>> {
+    let value = root.entry(key).or_insert_with(|| json!({}));
+    object_mut(value, key)
 }
 
 /// The array of entries of `event`, added when it is missing.
@@ -430,5 +454,132 @@ mod tests {
         for text in texts {
             assert_eq!(guard(text), None, "{text}");
         }
+    }
+
+    /// Local settings with other keys and other environment variables in them.
+    const LOCAL_OTHER: &str = r#"{
+  "model": "invented-model",
+  "env": {
+    "INVENTED_VARIABLE": "1"
+  }
+}
+"#;
+
+    #[test]
+    fn local_install_into_an_empty_object_sets_the_agent() {
+        let text = local_installed("{}", "tony - claude").unwrap();
+        assert_eq!(
+            parsed(&text),
+            json!({"env": {"DOSSIER_AGENT": "tony - claude"}})
+        );
+        assert!(text.ends_with("}\n") && !text.ends_with("\n\n"), "{text}");
+    }
+
+    #[test]
+    fn local_blank_text_counts_as_an_empty_object() {
+        let empty = local_installed("{}", "tony - claude").unwrap();
+        assert_eq!(local_installed("", "tony - claude").unwrap(), empty);
+        assert_eq!(local_installed(" \n\t", "tony - claude").unwrap(), empty);
+    }
+
+    #[test]
+    fn local_install_keeps_other_keys_and_environment_variables() {
+        let value = parsed(&local_installed(LOCAL_OTHER, "tony - claude").unwrap());
+        assert_eq!(
+            value,
+            json!({
+                "model": "invented-model",
+                "env": {"INVENTED_VARIABLE": "1", "DOSSIER_AGENT": "tony - claude"}
+            })
+        );
+    }
+
+    #[test]
+    fn local_install_replaces_an_older_agent() {
+        let text = r#"{"env": {"DOSSIER_AGENT": "old - claude", "INVENTED_VARIABLE": "1"}}"#;
+        let value = parsed(&local_installed(text, "tony - claude").unwrap());
+        assert_eq!(
+            value,
+            json!({"env": {"DOSSIER_AGENT": "tony - claude", "INVENTED_VARIABLE": "1"}})
+        );
+    }
+
+    #[test]
+    fn local_install_twice_gives_the_same_text() {
+        let once = local_installed(LOCAL_OTHER, "tony - claude").unwrap();
+        assert_eq!(local_installed(&once, "tony - claude").unwrap(), once);
+        let empty_once = local_installed("{}", "tony - claude").unwrap();
+        assert_eq!(
+            local_installed(&empty_once, "tony - claude").unwrap(),
+            empty_once
+        );
+    }
+
+    #[test]
+    fn local_uninstall_after_install_gives_back_the_other_keys() {
+        let installed_text = local_installed(LOCAL_OTHER, "tony - claude").unwrap();
+        let text = local_uninstalled(&installed_text).unwrap();
+        assert_eq!(parsed(&text), parsed(LOCAL_OTHER));
+    }
+
+    #[test]
+    fn local_uninstall_after_install_into_an_empty_object_gives_an_empty_object() {
+        let installed_text = local_installed("{}", "tony - claude").unwrap();
+        assert_eq!(local_uninstalled(&installed_text).unwrap(), "{}\n");
+    }
+
+    #[test]
+    fn local_uninstall_removes_only_the_agent() {
+        let text = r#"{"env": {"DOSSIER_AGENT": "tony - claude", "INVENTED_VARIABLE": "1"}, "model": "invented-model"}"#;
+        assert_eq!(
+            parsed(&local_uninstalled(text).unwrap()),
+            json!({"env": {"INVENTED_VARIABLE": "1"}, "model": "invented-model"})
+        );
+    }
+
+    #[test]
+    fn local_uninstall_keeps_an_env_that_was_empty_before() {
+        let text = r#"{"env": {}}"#;
+        assert_eq!(parsed(&local_uninstalled(text).unwrap()), parsed(text));
+        // Installing made the env non-empty, so uninstalling empties it again and it goes, as
+        // `uninstalled` does with an empty "hooks" object.
+        let round = local_uninstalled(&local_installed(text, "tony - claude").unwrap()).unwrap();
+        assert_eq!(parsed(&round), json!({}));
+    }
+
+    #[test]
+    fn local_refuses_text_that_is_not_a_settings_object() {
+        let texts = [
+            "[]",
+            "42",
+            "not json",
+            r#"{"env": []}"#,
+            r#"{"env": "text"}"#,
+        ];
+        for text in texts {
+            let installed_error = local_installed(text, "tony - claude").unwrap_err();
+            assert_eq!(installed_error.code, Code::Parse, "{text}");
+            assert_eq!(
+                local_uninstalled(text).unwrap_err().code,
+                Code::Parse,
+                "{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn local_byte_order_mark_is_skipped_and_not_written_back() {
+        let mark = "\u{feff}";
+        let plain = local_installed(LOCAL_OTHER, "tony - claude").unwrap();
+        assert_eq!(
+            local_installed(&format!("{mark}{LOCAL_OTHER}"), "tony - claude").unwrap(),
+            plain
+        );
+        assert_eq!(
+            local_uninstalled(&format!("{mark}{plain}")).unwrap(),
+            local_uninstalled(&plain).unwrap()
+        );
+        assert_eq!(local_uninstalled(&format!("{mark}  \n")).unwrap(), "{}\n");
+        assert!(!plain.starts_with(mark));
     }
 }
