@@ -2291,10 +2291,8 @@
 - note (2026-11-22, haiku-t-241): done
 
 ### T-242 · tool update: record a script's checksum again
-- status: claimed
+- status: done
 - owner: haiku-t-242
-- claimed: 2026-11-22T12:44+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-047
 - why: R-USE-11.
@@ -2308,8 +2306,12 @@
   3. Run cargo test --test cmd_tool.
 - accept: A script's new version is recorded on purpose.
 - verify: cargo test --test cmd_tool
+- verified: 2026-11-22
+- commit: f79d5637aa15d7c5703bc13c7c2fd72a466dddba
 - reqs: R-USE-11
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-242): done
 
 ### T-243 · set and edit: the approval rule for how-tos and tools
 - status: done
