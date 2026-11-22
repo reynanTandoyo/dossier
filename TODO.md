@@ -1815,8 +1815,10 @@
 - note (2026-11-22, haiku-t-224): done
 
 ### T-225 · team name add and remove: plain names
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-225
+- claimed: 2026-11-22T12:23+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-043
 - why: D34: plain names.
@@ -2577,10 +2579,8 @@
 - note (2026-11-21, planner): split into T-254, T-255
 
 ### T-254 · status --since last: the team dossier too, grouped by place
-- status: claimed
+- status: done
 - owner: haiku-t-254
-- claimed: 2026-11-22T11:40+01:00
-- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-049
 - why: R-READ-10.
@@ -2594,8 +2594,12 @@
   3. Run cargo test --test cmd_status.
 - accept: status --since last shows what is new in the project and in the team.
 - verify: cargo test --test cmd_status
+- verified: 2026-11-22
+- commit: f6915ea6e2afde6333f37b5344712f6ba1122352
 - reqs: R-READ-10
+- by: Reynan Henry Tandoyo
 - note (2026-11-21, planner): added
+- note (2026-11-22, haiku-t-254): done
 
 ### T-255 · brief: the news line and the team's lessons and how-tos
 - status: done
@@ -2782,8 +2786,10 @@
 - note (2026-11-21, planner): split into T-262, T-263, T-264, T-265, T-266, T-267, T-268
 
 ### T-262 · init --past and --in: a dossier for a finished project
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-262
+- claimed: 2026-11-22T12:23+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-051
 - why: R-IMPORT-1.
@@ -5790,8 +5796,10 @@
 - note (2026-11-22, planner): added
 
 ### T-270 · brief --task: a promoted entry is listed once
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-270
+- claimed: 2026-11-22T12:23+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-048
 - why: R-CTX-2, R-TEAM-4: a lesson promoted to the team must not appear twice in Related.
