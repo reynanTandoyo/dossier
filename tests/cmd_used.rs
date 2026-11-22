@@ -3,13 +3,15 @@
 //! `model`, and each output with role `result` and made from `<model>@<checksum>`. An output that is
 //! attached already is described again with a `reattached` line. A bad value writes nothing. When
 //! the project has a team dossier, the team's usage index gets one anonymous line for the run
-//! (R-USE-3), written after the run and never naming its title, task or files. Each test runs in
-//! its own temporary project folder with the clock fixed by `common::Project`
-//! (2026-11-20T10:00:00+01:00).
+//! (R-USE-3), written after the run and never naming its title, task or files. A deviation that
+//! names a team how-to adds one line to that how-to's Open remarks in the team dossier, after the
+//! confidential check (R-USE-6). Each test runs in its own temporary project folder with the clock
+//! fixed by `common::Project` (2026-11-20T10:00:00+01:00).
 
 mod common;
 
 use common::Project;
+use dossier::approval::{self, Mark};
 use dossier::blockfile::BlockFile;
 use dossier::config;
 use dossier::entry::{Entry, Kind, Status};
@@ -925,4 +927,338 @@ fn a_line_the_index_has_already_is_not_written_twice() {
         .stdout(contains("USE-001: run recorded"))
         .stderr(contains("the team's usage index has P-001:USE-001 already"));
     assert_eq!(index_of(&team), existing);
+}
+
+#[test]
+fn a_dry_run_of_a_remark_writes_nothing_in_the_team_and_renews_no_approval() {
+    let project = Project::new();
+    write_files(&project);
+    let (_folder, team) = team_for(&project, &["anna"]);
+    add_team_how_to(&project);
+    let before = team_how_to_text(&team, "HOW-001");
+    let approvals = std::fs::read_to_string(team.join(".state").join("approved.json"))
+        .expect("the team's approval record");
+
+    project
+        .run(
+            "anna",
+            &[
+                "--dry-run",
+                "used",
+                "ExampleSolver",
+                "--version",
+                "2406",
+                "--task",
+                "T-001",
+                "--howto",
+                "team:HOW-001",
+                "--deviations",
+                "Coarser mesh on the rotor.",
+            ],
+        )
+        .success()
+        .stdout(contains("USE-NEW: run recorded"))
+        .stderr(contains("dry run: would write"));
+
+    assert_eq!(team_how_to_text(&team, "HOW-001"), before);
+    assert_eq!(
+        std::fs::read_to_string(team.join(".state").join("approved.json"))
+            .expect("the team's approval record"),
+        approvals
+    );
+    assert_eq!(usage_files(&project), 0);
+}
+
+/// A confidential term of the project in the team tests (R-CONF-5 and R-CONF-2).
+const TERM: &str = "NT-999";
+
+/// The text of the team's how-to `id`: its file in the team's howtos folder. Panics when there is none.
+fn team_how_to_text(team: &Path, id: &str) -> String {
+    let folder = team.join("howtos");
+    let prefix = format!("{id}-");
+    let file = std::fs::read_dir(&folder)
+        .unwrap_or_else(|error| panic!("reading {}: {error}", folder.display()))
+        .map(|entry| entry.expect("a folder entry").path())
+        .find(|path| {
+            path.file_name()
+                .and_then(|name| name.to_str())
+                .is_some_and(|name| name.starts_with(&prefix))
+        })
+        .unwrap_or_else(|| panic!("no how-to {id} in {}", folder.display()));
+    std::fs::read_to_string(&file)
+        .unwrap_or_else(|error| panic!("reading {}: {error}", file.display()))
+}
+
+/// The team's how-to HOW-001 for ExampleSolver, written by anna with `--team`, so that it is
+/// approved. The project states its confidential term first.
+fn add_team_how_to(project: &Project) {
+    project.stdout("anna", &["confidential", "add", TERM]);
+    project.stdout(
+        "anna",
+        &[
+            "--team",
+            "howto",
+            "--software",
+            "ExampleSolver",
+            "--title",
+            "Speedline point 7",
+            "--section",
+            "Purpose=An invented setup for the speedline point 7.",
+            "--section",
+            "Steps=1. Invented step one.",
+        ],
+    );
+}
+
+/// The `used` arguments of one run of ExampleSolver for T-001 that followed `howto`, then `extra`.
+fn run_following<'a>(howto: &'a str, extra: &[&'a str]) -> Vec<&'a str> {
+    let mut args = vec![
+        "used",
+        "ExampleSolver",
+        "--version",
+        "2406",
+        "--task",
+        "T-001",
+        "--howto",
+        howto,
+    ];
+    args.extend_from_slice(extra);
+    args
+}
+
+#[test]
+fn a_deviation_adds_an_open_remark_to_the_team_how_to_and_the_approval_stays() {
+    let project = Project::new();
+    write_files(&project);
+    let (_folder, team) = team_for(&project, &["anna"]);
+    add_team_how_to(&project);
+    let before = team_how_to_text(&team, "HOW-001");
+
+    project.stdout(
+        "anna",
+        &run_following(
+            "team:HOW-001",
+            &["--deviations", "Coarser mesh on the rotor."],
+        ),
+    );
+
+    let text = team_how_to_text(&team, "HOW-001");
+    let entry = Entry::parse(&text).expect("the how-to parses");
+    assert_eq!(
+        entry.section("Open remarks").as_deref(),
+        Some("- P-001 2026-11-20: Coarser mesh on the rotor.")
+    );
+    assert_eq!(
+        entry.history().last(),
+        Some(&format!("{WHEN} anna: remark — P-001"))
+    );
+    assert_eq!(entry.section("Steps"), Some("1. Invented step one.".into()));
+    assert_ne!(text, before);
+    // The remark is not a hand change: the approval still holds, and show marks nothing.
+    assert!(matches!(
+        approval::mark(&team.join(".state"), "HOW-001", text.as_bytes()),
+        Mark::Unchanged
+    ));
+    let shown = project.stdout("anna", &["show", "team:HOW-001"]);
+    assert!(!shown.contains("[changed after approval]"), "{shown}");
+    // The usage record names the team's how-to, with its place.
+    assert_eq!(
+        entry_of(&project, "USE-001").field("howto").as_deref(),
+        Some("team:HOW-001")
+    );
+}
+
+#[test]
+fn later_deviations_come_after_the_earlier_open_remarks_one_line_each() {
+    let project = Project::new();
+    write_files(&project);
+    let (_folder, team) = team_for(&project, &["anna"]);
+    add_team_how_to(&project);
+
+    project.stdout(
+        "anna",
+        &run_following(
+            "team:HOW-001",
+            &["--deviations", "Coarser mesh on the rotor."],
+        ),
+    );
+    project.stdout(
+        "anna",
+        &run_following(
+            "team:HOW-001",
+            &["--deviations", "Second run:\nstopped early."],
+        ),
+    );
+
+    let text = team_how_to_text(&team, "HOW-001");
+    let entry = Entry::parse(&text).expect("the how-to parses");
+    assert_eq!(
+        entry.section("Open remarks").as_deref(),
+        Some(
+            "- P-001 2026-11-20: Coarser mesh on the rotor.\n- P-001 2026-11-20: Second run: stopped early."
+        )
+    );
+    assert!(matches!(
+        approval::mark(&team.join(".state"), "HOW-001", text.as_bytes()),
+        Mark::Unchanged
+    ));
+}
+
+#[test]
+fn a_deviation_with_a_confidential_term_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    write_files(&project);
+    let (_folder, team) = team_for(&project, &["anna"]);
+    add_team_how_to(&project);
+    let before = team_how_to_text(&team, "HOW-001");
+
+    project
+        .run(
+            "anna",
+            &run_following(
+                "team:HOW-001",
+                &[
+                    "--deviations",
+                    "Ran the NT-999 case.",
+                    "--output",
+                    "out.csv",
+                ],
+            ),
+        )
+        .failure()
+        .code(1)
+        .stderr(contains("confidential terms found: NT-999 (line 1)"));
+
+    // The refusal comes before the record, the attachments and the remark.
+    assert_eq!(usage_files(&project), 0);
+    assert!(journal_of(&project, "USE-001").is_empty());
+    assert!(!project.root().join("DOSSIER/files/T-001.md").exists());
+    assert_eq!(team_how_to_text(&team, "HOW-001"), before);
+}
+
+#[test]
+fn without_deviations_nothing_is_added_to_the_team_how_to() {
+    let project = Project::new();
+    write_files(&project);
+    let (_folder, team) = team_for(&project, &["anna"]);
+    add_team_how_to(&project);
+    let before = team_how_to_text(&team, "HOW-001");
+
+    // A team how-to named with the place in any case, and no deviation.
+    project
+        .run("anna", &run_following("Team:how-001", &[]))
+        .success()
+        .stdout(contains("USE-001: run recorded"))
+        .stderr(is_empty());
+
+    assert_eq!(team_how_to_text(&team, "HOW-001"), before);
+    let entry = entry_of(&project, "USE-001");
+    assert_eq!(entry.field("howto").as_deref(), Some("team:HOW-001"));
+    assert_eq!(entry.section("Deviations"), None);
+}
+
+#[test]
+fn a_plain_id_names_the_team_how_to_when_the_project_has_no_such_entry() {
+    let project = Project::new();
+    write_files(&project);
+    let (_folder, team) = team_for(&project, &["anna"]);
+    add_team_how_to(&project);
+
+    project.stdout(
+        "anna",
+        &run_following("how-001", &["--deviations", "Coarser mesh on the rotor."]),
+    );
+
+    assert_eq!(
+        entry_of(&project, "USE-001").field("howto").as_deref(),
+        Some("team:HOW-001")
+    );
+    let entry = Entry::parse(&team_how_to_text(&team, "HOW-001")).expect("the how-to parses");
+    assert_eq!(
+        entry.section("Open remarks").as_deref(),
+        Some("- P-001 2026-11-20: Coarser mesh on the rotor.")
+    );
+}
+
+#[test]
+fn a_project_entry_with_the_same_id_is_the_one_followed_and_the_team_is_not_changed() {
+    let project = Project::new();
+    write_files(&project);
+    let (_folder, team) = team_for(&project, &["anna"]);
+    add_team_how_to(&project);
+    let before = team_how_to_text(&team, "HOW-001");
+    // The project has its own how-to HOW-001 as well.
+    project.stdout(
+        "anna",
+        &[
+            "howto",
+            "--software",
+            "ExampleSolver",
+            "--title",
+            "Project setup",
+            "--section",
+            "Purpose=An invented project setup.",
+            "--section",
+            "Steps=1. Invented project step.",
+        ],
+    );
+
+    project.stdout(
+        "anna",
+        &run_following("HOW-001", &["--deviations", "Coarser mesh on the rotor."]),
+    );
+
+    assert_eq!(
+        entry_of(&project, "USE-001").field("howto").as_deref(),
+        Some("HOW-001")
+    );
+    assert_eq!(team_how_to_text(&team, "HOW-001"), before);
+}
+
+#[test]
+fn a_team_how_to_needs_a_team_dossier_and_nothing_is_written_without_one() {
+    let project = Project::new();
+    write_files(&project);
+
+    project
+        .run(
+            "anna",
+            &run_following(
+                "team:HOW-001",
+                &["--deviations", "Coarser mesh on the rotor."],
+            ),
+        )
+        .failure()
+        .code(4)
+        .stderr(contains("this project has no team dossier"));
+    assert_eq!(usage_files(&project), 0);
+    assert!(journal_of(&project, "USE-001").is_empty());
+}
+
+#[test]
+fn a_remark_that_the_writer_cannot_make_in_the_team_is_a_warning_and_the_run_stays_recorded() {
+    let project = Project::new();
+    write_files(&project);
+    let (_folder, team) = team_for(&project, &["anna"]);
+    add_team_how_to(&project);
+    let before = team_how_to_text(&team, "HOW-001");
+
+    project
+        .run(
+            "ben",
+            &run_following(
+                "team:HOW-001",
+                &["--deviations", "Coarser mesh on the rotor."],
+            ),
+        )
+        .success()
+        .stdout(contains("USE-001: run recorded"))
+        .stderr(contains(
+            "the run is recorded, but its deviation is not in the how-to's Open remarks",
+        ));
+    assert_eq!(
+        entry_of(&project, "USE-001").status(),
+        Some(Status::Approved)
+    );
+    assert_eq!(team_how_to_text(&team, "HOW-001"), before);
 }

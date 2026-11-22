@@ -6,10 +6,15 @@
 //! with role `result` and made from `<model>@<checksum>`. An output that is attached already is
 //! described again and gets a `reattached` history line. Then, when the project has a team
 //! dossier, the team's usage index gets one anonymous line for the run in a transaction of its own
-//! (R-USE-3, `index_in_team`): nothing of the title, the task or the files.
+//! (R-USE-3, `index_in_team`): nothing of the title, the task or the files. A deviation of a run
+//! that followed a team how-to (`team:<ID>`, or a plain ID that only the team dossier has) also adds
+//! a line to that how-to's Open remarks in the team dossier (R-USE-6, `remark_in_team`), after the
+//! confidential check, which refuses the whole run before anything is written.
 
+use crate::approval::{self, Mark};
 use crate::blockfile::BlockFile;
 use crate::cli::Global;
+use crate::conf;
 use crate::config::Config;
 use crate::create::{self, New};
 use crate::ctx::Ctx;
@@ -54,6 +59,20 @@ const USAGE_FILE: &str = "usage-index.md";
 
 /// The item of the usage index in snapshots and the journal (format.md §17).
 const USAGE_ITEM: &str = "USAGE";
+
+/// The section of a how-to where the deviations reported on it are kept (format.md §22).
+const REMARKS: &str = "Open remarks";
+
+/// The place that `--howto` takes before an ID to name an entry of the team dossier (format.md §23).
+const TEAM_PLACE: &str = "team:";
+
+/// The how-to a run followed, resolved before anything is written.
+struct Followed {
+    /// The `howto` field of the record: the entry's ID, or `team:<ID>` for a team how-to.
+    field: String,
+    /// The ID of the team's how-to, when the run followed one (R-USE-6).
+    team: Option<String>,
+}
 
 /// The arguments of `used`.
 #[derive(clap::Args, Debug)]
@@ -105,13 +124,17 @@ struct Run {
 }
 
 /// Runs `used`: checks the run, then creates the usage record and attaches its files, in one
-/// transaction. Then the team's usage index gets the run's line (`index_in_team`). The first output
-/// line is `<USE-ID>: run recorded`; the data is {"id": "<USE-ID>"}.
+/// transaction. Then the team's usage index gets the run's line (`index_in_team`), and a deviation
+/// of a team how-to goes to its Open remarks (`remark_in_team`). The first output line is
+/// `<USE-ID>: run recorded`; the data is {"id": "<USE-ID>"}.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "used")?;
     let who = ctx.writer()?.clone();
     let cwd = std::env::current_dir()?;
     let run = check(&ctx, args, &cwd)?;
+    let followed = followed_of(&ctx, run.howto.as_deref())?;
+    // The deviation of a team how-to is checked before anything is written (R-USE-6, R-CONF-2).
+    let remark = remark_of(&ctx, &run, followed.as_ref())?;
 
     // The record of the run as it was written, kept for the team's usage index.
     let mut recorded: Option<(Entry, String)> = None;
@@ -134,12 +157,6 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             .model
             .as_ref()
             .map_or_else(String::new, |model| format!("{model}@{checksum}"));
-        let howto = run
-            .howto
-            .as_ref()
-            .map(|id| store::get(&dossier, id).map(|item| item.entry.id()))
-            .transpose()?;
-
         let (mut file, old) = filelist::load(&dossier, &run.task)?;
         let before = attached_keys(&file);
         // Every output is described before an ID is given out, so that a path that does not exist
@@ -154,8 +171,8 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             pair("version", &run.version),
             pair("task", &run.task),
         ];
-        if let Some(id) = &howto {
-            fields.push(pair("howto", id));
+        if let Some(followed) = &followed {
+            fields.push(pair("howto", &followed.field));
         }
         if let Some(model) = &run.model {
             fields.push(pair("model", model));
@@ -233,6 +250,11 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     })?;
     if let Some((entry, time)) = &recorded {
         for warning in index_in_team(&ctx, &who, entry, time) {
+            output = output.warn(warning);
+        }
+    }
+    if let Some((id, line)) = &remark {
+        for warning in remark_in_team(&ctx, id, line) {
             output = output.warn(warning);
         }
     }
@@ -335,6 +357,167 @@ fn field_or_tags(entry: &Entry, key: &str, tags: &[String]) -> String {
         Some(value) if !value.is_empty() => value,
         _ => tags.join(", "),
     }
+}
+
+/// The how-to that `--howto` names, resolved before anything is written. `team:<ID>` (any case)
+/// names a how-to of the team dossier. A plain ID names the project's entry when the project has
+/// one; otherwise it names the team's how-to with that ID, when the team has one. Otherwise the
+/// project's entry must exist (Code::NotFound, as before).
+fn followed_of(ctx: &Ctx, typed: Option<&str>) -> Result<Option<Followed>> {
+    let Some(typed) = typed else {
+        return Ok(None);
+    };
+    if let Some(id) = team_place(typed) {
+        return team_howto(ctx, id).map(Some);
+    }
+    match store::get(&ctx.dossier, typed) {
+        Ok(item) => Ok(Some(Followed {
+            field: item.entry.id(),
+            team: None,
+        })),
+        Err(error) if error.code == Code::NotFound => match team_howto(ctx, typed) {
+            Ok(followed) => Ok(Some(followed)),
+            Err(_) => Err(error),
+        },
+        Err(error) => Err(error),
+    }
+}
+
+/// The team's how-to with `id`, which must be a how-to of the team dossier. Its record field is
+/// `team:<ID>`. Code::NoDossier when the team dossier cannot be reached.
+fn team_howto(ctx: &Ctx, id: &str) -> Result<Followed> {
+    let team = team_dossier(ctx)?;
+    let item = store::get(team, id)?;
+    let id = item.entry.id();
+    if item.entry.kind() != Some(Kind::Howto) {
+        return Err(bad(format!("{id} in the team dossier is not a how-to")));
+    }
+    Ok(Followed {
+        field: format!("{TEAM_PLACE}{id}"),
+        team: Some(id),
+    })
+}
+
+/// The team dossier of the project, for a how-to that is named with `team:` or that only the team
+/// has. Code::NoDossier: the path when the team dossier it names cannot be reached, else how to link
+/// one. A team dossier that is not needed for a plain ID is not an error (see `followed_of`).
+fn team_dossier(ctx: &Ctx) -> Result<&Path> {
+    if let Some(team) = &ctx.team {
+        return Ok(team.as_path());
+    }
+    Err(match &ctx.cfg.team {
+        Some(stored) => Error::new(
+            Code::NoDossier,
+            format!(
+                "{}: the team dossier cannot be reached",
+                ctx.root.join(paths::shown(stored)).display()
+            ),
+        ),
+        None => Error::new(
+            Code::NoDossier,
+            "this project has no team dossier; link one with: dossier team use <path>",
+        ),
+    })
+}
+
+/// The ID after the place `team:` (any case), or None when the ID has no such place.
+fn team_place(typed: &str) -> Option<&str> {
+    let (place, id) = typed.split_at_checked(TEAM_PLACE.len())?;
+    place.eq_ignore_ascii_case(TEAM_PLACE).then_some(id)
+}
+
+/// The deviation of a run as one line, with the ID of the team's how-to it followed (R-USE-6). Only a
+/// run with a deviation that followed a team how-to has one. The line is checked against the
+/// project's confidential terms first (conf::gate and conf::check, R-CONF-2): a refusal refuses the
+/// whole run, and nothing is written.
+fn remark_of(
+    ctx: &Ctx,
+    run: &Run,
+    followed: Option<&Followed>,
+) -> Result<Option<(String, String)>> {
+    let (Some(id), Some(deviation)) = (
+        followed.and_then(|followed| followed.team.as_deref()),
+        run.deviations.as_deref(),
+    ) else {
+        return Ok(None);
+    };
+    let line = one_line(deviation);
+    let terms = conf::gate(&ctx.dossier, &ctx.cfg.code)?;
+    conf::check(&terms, &line)?;
+    Ok(Some((id.to_string(), line)))
+}
+
+/// Adds the deviation `line` to the Open remarks of the team's how-to `id`. A team that cannot be
+/// written, a writer who is not a team member and a write that is refused are warnings: the run
+/// stays recorded. Returns the warnings to add to the output of the command.
+fn remark_in_team(ctx: &Ctx, id: &str, line: &str) -> Vec<String> {
+    match write_remark(ctx, id, line) {
+        Ok(output) => output.warnings,
+        Err(error) => vec![format!(
+            "the run is recorded, but its deviation is not in the how-to's Open remarks: {}",
+            error.message
+        )],
+    }
+}
+
+/// Writes `line` as the last line of the Open remarks of the team's how-to `id`, in a transaction on
+/// the team dossier. A missing section is made last (format.md §22). The history line says `remark`
+/// with the project code as its detail. When the how-to was unchanged since its approval, its
+/// approval record is renewed with the new text, so that the remark is not a hand change.
+fn write_remark(ctx: &Ctx, id: &str, line: &str) -> Result<Output> {
+    let team = ctx.team_ctx()?;
+    let who = team.writer()?.clone();
+    let code = ctx.cfg.code.clone();
+    let mut renewed: Option<(String, String)> = None;
+    let mut output = tx::write(&team, |tx| {
+        let item = store::get(&team.dossier, id)?;
+        let how_to = item.entry.id();
+        let mut entry = item.entry.clone();
+        let remark = format!("- {code} {}: {line}", time::date(tx.time()));
+        let body = match entry.section(REMARKS) {
+            Some(body) if !body.is_empty() => format!("{body}\n{remark}"),
+            _ => remark,
+        };
+        entry.set_section(REMARKS, &body);
+        entry.add_history(tx.time(), &who, "remark", &code);
+        let text = entry.text();
+        if matches!(
+            approval::mark(&team.state, &how_to, &item.raw),
+            Mark::Unchanged
+        ) {
+            renewed = Some((how_to.clone(), text.clone()));
+        }
+        tx.put(
+            item.path.clone(),
+            Some(&item),
+            text,
+            Change {
+                id: how_to.clone(),
+                event: "remark".to_string(),
+                detail: code.clone(),
+            },
+        );
+        Ok(Output::text(format!("{how_to}: remark added")))
+    })?;
+    if let Some((how_to, text)) = renewed
+        && !team.dry_run
+        && let Err(error) = approval::record(&team.state, &how_to, text.as_bytes())
+    {
+        output = output.warn(format!(
+            "the approval record of {how_to} is not renewed: {}",
+            error.message
+        ));
+    }
+    Ok(output)
+}
+
+/// The text as one line: its lines trimmed and joined with a space, blank lines left out.
+fn one_line(text: &str) -> String {
+    text.lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// Checks the arguments: the values are one line and not empty, the task is a task ID, the paths
