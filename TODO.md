@@ -5844,8 +5844,10 @@
 - note (2026-11-22, haiku-t-270): done
 
 ### T-271 · init --dry-run: create nothing
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-t-271
+- claimed: 2026-11-22T12:49+01:00
+- session: 4ec70cb4-7c49-41fb-a6e6-07f59dad766d
 - priority: P2 · difficulty: 1 · type: bug
 - why: R-WRITE: --dry-run never writes; two workers found that plain init --dry-run still creates DOSSIER (only --with-team honours it).
 - summary: init with --dry-run prints what it would create and creates nothing.
