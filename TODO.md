@@ -4073,10 +4073,8 @@
 - note (2026-11-24, haiku-T-382): done
 
 ### T-383 · review-session: the material of a whole session
-- status: claimed
+- status: done
 - owner: haiku-T-383
-- claimed: 2026-11-24T00:16+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-337
 - why: Capture only becomes a habit when the routine steps happen by themselves.
@@ -4092,8 +4090,12 @@
   5. Run cargo test --test cmd_review_session
 - accept: review-session prints the parts of a session where something was decided or a result was discussed, and the drafting rules, cut to a size limit.
 - verify: cargo test --test cmd_review_session
+- verified: 2026-11-24
+- commit: fd90951
 - reqs: R-DRAFT-7, D7, D44
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-383): done
 
 ### T-384 · session convert --claude: make a session file from a Claude Code transcript
 - status: claimed
