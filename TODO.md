@@ -4283,8 +4283,8 @@
 - note (2026-11-23, planner): split into T-341, T-342, T-343, T-344, T-345, T-346, T-347, T-348, T-349, T-350, T-351, T-352, T-353, T-354, T-355
 
 ### T-341 · v0.6 skeleton: stubs for story, export, schema and examples.rs
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P0 · type: milestone
 - milestone: T-058
 - goal: The commands story, export and schema and the module examples.rs exist as stubs that compile.
@@ -4292,8 +4292,10 @@
 - summary: Empty places for the new commands, so that each can be built on its own.
 - accept: The three commands and the examples module exist as stubs that compile.
 - reqs: R-READ-7, R-OUT-6, R-OUT-7, R-OUT-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): split into T-389, T-390, T-391
+- note (2026-11-24, planner): done — story, export and schema exist as commands that answer 'not built yet', with examples.rs as a stub.
 
 ### T-389 · Stub files: story, export and schema
 - status: done
