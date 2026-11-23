@@ -42,6 +42,7 @@ pub mod secret;
 pub mod select;
 pub mod snapshot;
 pub mod store;
+pub mod taken;
 pub mod tar;
 pub mod teamfiles;
 pub mod term;
