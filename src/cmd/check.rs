@@ -1,7 +1,8 @@
 //! The `check` command: reads every entry of the dossier and every block file (values.md, map.md,
 //! exchange.md and files/<task>.md, format.md §17), and reports each problem on its own line as
 //! `<file>:<line>: <ID> <KIND> <message>` (R-CHECK-1, design.md section 5). A block file has no
-//! entry ID, so its ID is `-`. Nothing is changed. A dossier without problems says
+//! entry ID, so its ID is `-`. Nothing is changed unless `--fix` is given (R-CHECK-2, see `fix`).
+//! A dossier without problems says
 //! `DOSSIER: ok (0 problems)`; otherwise the command fails with exit code 1, with or without
 //! `--json`. A SHOULD report, such as a TERM report of an abbreviation that no glossary explains
 //! (R-TERM-3), is a warning: it does not fail the command.
@@ -24,14 +25,21 @@ use crate::paths;
 use crate::secret;
 use crate::store::{self, Item};
 use crate::time;
+use crate::tx::{self, Change};
 use crate::values;
 use chrono::NaiveDate;
+use serde_json::json;
 use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 
 /// The arguments of `check`.
 #[derive(clap::Args, Debug)]
-pub struct Args {}
+pub struct Args {
+    /// Repairs what is safe first: renames each entry file whose name does not match its ID and
+    /// title, then checks again. Needs a name.
+    #[arg(long)]
+    pub fix: bool,
+}
 
 /// The line that says the dossier has no problems.
 const OK: &str = "DOSSIER: ok (0 problems)";
@@ -49,11 +57,49 @@ const RECORD_PREFIXES: [&str; 2] = ["RCV", "DLV"];
 /// The number of entries an abbreviation must appear in for a TERM report (R-TERM-3).
 const MIN_ENTRIES: usize = 3;
 
-/// Runs `check`. No problem: the ok line, with each SHOULD report as a warning. Otherwise
-/// Code::Refused, whose message holds every problem line, sorted by file and line, then the
-/// SHOULD reports as `warning:` lines, then the count line of the problems.
-pub fn run(_args: &Args, g: &Global) -> Result<Output> {
+/// The event of a repaired file name, in the history line and the journal (format.md §6).
+const FIXED: &str = "fixed";
+
+/// The detail of a repaired file name, in the history line and the journal.
+const FILE_NAME: &str = "file name";
+
+/// Runs `check`. With `--fix`, the repairs of `fix` are made first, and the checks run on the
+/// dossier as they leave it; the `fixed:` lines come before the check's own text (in the message
+/// of the error, when problems remain). No problem: the ok line, with each SHOULD report as a
+/// warning. Otherwise Code::Refused, whose message holds every problem line, sorted by file and
+/// line, then the SHOULD reports as `warning:` lines, then the count line of the problems.
+pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "check")?;
+    if !args.fix {
+        return report(&ctx);
+    }
+    let fixed = fix(&ctx)?;
+    match report(&ctx) {
+        Ok(checked) => {
+            let mut warnings = fixed.warnings;
+            warnings.extend(checked.warnings);
+            Ok(Output {
+                text: fixed.text + &checked.text,
+                data: fixed.data,
+                warnings,
+            })
+        }
+        Err(error) => {
+            let mut message = fixed.text;
+            message.extend(
+                fixed
+                    .warnings
+                    .iter()
+                    .map(|warning| format!("warning: {warning}\n")),
+            );
+            message.push_str(&error.message);
+            Err(Error::new(error.code, message))
+        }
+    }
+}
+
+/// The checks of the dossier, as `check` reports them without `--fix`.
+fn report(ctx: &Ctx) -> Result<Output> {
     let (items, warnings) = store::all(&ctx.dossier);
     let known: HashSet<String> = items.iter().map(|item| item.entry.id()).collect();
 
@@ -64,11 +110,11 @@ pub fn run(_args: &Args, g: &Global) -> Result<Output> {
     found.extend(duplicates(&ctx.root, &items));
     let today = time::date(&time::now()).to_string();
     for item in &items {
-        found.extend(entry_problems(&ctx, item, &known, &today));
+        found.extend(entry_problems(ctx, item, &known, &today));
     }
-    found.extend(block_problems(&ctx, &known));
-    found.extend(secret_problems(&ctx, &items)?);
-    let (glossary_problems, mut should) = glossary_check(&ctx, &items);
+    found.extend(block_problems(ctx, &known));
+    found.extend(secret_problems(ctx, &items)?);
+    let (glossary_problems, mut should) = glossary_check(ctx, &items);
     found.extend(glossary_problems);
 
     found.sort();
@@ -86,6 +132,60 @@ pub fn run(_args: &Args, g: &Global) -> Result<Output> {
     );
     lines.push(format!("DOSSIER: {} problems", found.len()));
     Err(Error::new(Code::Refused, lines.join("\n")))
+}
+
+/// The repairs of `check --fix` (R-CHECK-2), made in one transaction. An entry file whose ID is
+/// the ID of no other file is renamed to the name `store::path_for` gives its kind, ID and title,
+/// unless that name exists already; its history gets a `fixed` line and the journal a `fixed`
+/// record. The text is one `fixed: <old> renamed to <new>` line per repair, and nothing on a dry
+/// run, where the warnings of `tx::write` say what would be renamed. The data lists the repairs
+/// as `fixed`. Without a name: Code::Usage.
+fn fix(ctx: &Ctx) -> Result<Output> {
+    let who = ctx.writer()?.clone();
+    let mut renamed: Vec<String> = Vec::new();
+    let output = tx::write(ctx, |tx| {
+        let (items, _) = store::all(&ctx.dossier);
+        let mut count: BTreeMap<String, usize> = BTreeMap::new();
+        for item in &items {
+            *count.entry(item.entry.id()).or_default() += 1;
+        }
+        for item in &items {
+            let entry = &item.entry;
+            let id = entry.id();
+            if count.get(&id) != Some(&1) {
+                continue;
+            }
+            let Some(kind) = entry.kind().or_else(|| Kind::of_id(&id)) else {
+                continue;
+            };
+            let new_path = store::path_for(&ctx.dossier, kind, &id, &entry.title());
+            if new_path == item.path || new_path.exists() {
+                continue;
+            }
+            let mut fixed = entry.clone();
+            fixed.add_history(tx.time(), &who, FIXED, FILE_NAME);
+            let change = Change {
+                id,
+                event: FIXED.to_string(),
+                detail: FILE_NAME.to_string(),
+            };
+            tx.rename(item, new_path.clone(), fixed.text(), change);
+            renamed.push(format!(
+                "{} renamed to {}",
+                relative(&ctx.root, &item.path),
+                relative(&ctx.root, &new_path)
+            ));
+        }
+        Ok(Output::text(""))
+    })?;
+    // A dry run renames nothing: the warnings of `tx::write` say what would be renamed.
+    let done = if ctx.dry_run { Vec::new() } else { renamed };
+    let text: String = done.iter().map(|line| format!("fixed: {line}\n")).collect();
+    Ok(Output {
+        text,
+        data: json!({ "fixed": done }),
+        warnings: output.warnings,
+    })
 }
 
 /// One problem: the file (relative to the project folder, with `/`), the line, the ID of the

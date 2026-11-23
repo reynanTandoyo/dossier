@@ -10,6 +10,10 @@ use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// The title of the finding that `titled_finding` records, so that its file is
+/// FND-001-mass-flow-oscillates.md.
+const TITLE: &str = "Mass flow oscillates";
+
 /// Invented text for a decision, a lesson and a finding.
 const DECISION: &str = "Use the transient runs for the last three points.";
 const REASON: &str = "Steady runs converged where the transient run already showed rotating stall.";
@@ -965,4 +969,169 @@ fn a_password_line_in_a_file_block_gives_secret_with_no_id() {
         )
     );
     assert!(!stderr.contains(CREDENTIAL_VALUE), "{stderr}");
+}
+
+/// Records the finding FND-001 by ben, titled TITLE.
+fn titled_finding(project: &Project) {
+    project.stdout(
+        "ben",
+        &[
+            "found",
+            OBSERVATION,
+            "--evidence",
+            "Runs 12 and 13.",
+            "--title",
+            TITLE,
+        ],
+    );
+}
+
+/// Renames the file of `id` by hand to `name`, in the same folder, and returns the new path.
+fn rename_by_hand(project: &Project, id: &str, name: &str) -> PathBuf {
+    let file = project.entry_file(id);
+    let renamed = file.with_file_name(name);
+    fs::rename(&file, &renamed).expect("the file is renamed");
+    renamed
+}
+
+#[test]
+fn check_fix_renames_a_file_back_to_its_id_and_title() {
+    let project = Project::new();
+    titled_finding(&project);
+    let wrong = rename_by_hand(&project, "FND-001", "FND-001-wrong.md");
+
+    // A plain check reports nothing here (the ID is right) and changes nothing.
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+    assert!(wrong.exists());
+
+    let stdout = project.stdout("anna", &["check", "--fix"]);
+    let right = project.entry_file("FND-001");
+    assert_eq!(
+        stdout,
+        format!(
+            "fixed: {} renamed to {}\n{}",
+            shown(&wrong),
+            shown(&right),
+            OK
+        )
+    );
+    assert!(!wrong.exists());
+    assert_eq!(
+        right.file_name().and_then(|name| name.to_str()),
+        Some("FND-001-mass-flow-oscillates.md")
+    );
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+}
+
+#[test]
+fn check_fix_records_the_repair_in_the_history_and_the_journal() {
+    let project = Project::new();
+    titled_finding(&project);
+    rename_by_hand(&project, "FND-001", "FND-001-wrong.md");
+
+    project.stdout("anna", &["check", "--fix"]);
+
+    let text = text_of(&project, "FND-001");
+    assert!(
+        text.contains("- history: 2026-11-20T10:00:00+01:00 anna: fixed — file name\n"),
+        "{text}"
+    );
+    let records = project.entry_journal();
+    let last = records.last().expect("the repair is in the journal");
+    assert_eq!(last.id, "FND-001");
+    assert_eq!(last.name, "anna");
+    assert_eq!(last.command, "check");
+    assert_eq!(last.event, "fixed");
+    assert_eq!(last.detail, "file name");
+}
+
+#[test]
+fn check_fix_with_a_dry_run_renames_nothing() {
+    let project = Project::new();
+    titled_finding(&project);
+    let wrong = rename_by_hand(&project, "FND-001", "FND-001-wrong.md");
+    let right = project
+        .root()
+        .join("DOSSIER/findings/FND-001-mass-flow-oscillates.md");
+
+    let output = project
+        .run("anna", &["check", "--fix", "--dry-run"])
+        .code(0)
+        .get_output()
+        .clone();
+
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("the standard output is UTF-8"),
+        OK
+    );
+    assert_eq!(
+        String::from_utf8(output.stderr).expect("the standard error is UTF-8"),
+        format!(
+            "warning: dry run: would rename {} to {}\n",
+            shown(&wrong),
+            shown(&right)
+        )
+    );
+    assert!(wrong.exists());
+    assert!(!right.exists());
+}
+
+#[test]
+fn check_fix_without_a_name_is_a_usage_error_and_changes_nothing() {
+    let project = Project::new();
+    titled_finding(&project);
+    let wrong = rename_by_hand(&project, "FND-001", "FND-001-wrong.md");
+
+    let stderr = project
+        .run("", &["check", "--fix"])
+        .code(2)
+        .get_output()
+        .stderr
+        .clone();
+    let stderr = String::from_utf8(stderr).expect("the standard error is UTF-8");
+    assert!(stderr.contains("needs a name"), "{stderr}");
+    assert!(wrong.exists());
+}
+
+#[test]
+fn check_fix_leaves_a_file_alone_when_its_right_name_is_taken() {
+    let project = Project::new();
+    titled_finding(&project);
+    let wrong = rename_by_hand(&project, "FND-001", "FND-001-wrong.md");
+    project.write(
+        "DOSSIER/findings/FND-001-mass-flow-oscillates.md",
+        "<!-- dossier-format: 1 -->\nthis file has no heading\n",
+    );
+
+    let stderr = project
+        .run("anna", &["check", "--fix"])
+        .code(1)
+        .get_output()
+        .stderr
+        .clone();
+    assert_eq!(
+        String::from_utf8(stderr).expect("the standard error is UTF-8"),
+        "error: DOSSIER/findings/FND-001-mass-flow-oscillates.md:2: - PARSE no heading\nDOSSIER: 1 problems\n"
+    );
+    assert!(wrong.exists());
+}
+
+#[test]
+fn check_fix_renames_an_approved_lesson_without_a_changed_mark() {
+    let project = Project::new();
+    learn_by(&project, "anna");
+    let wrong = rename_by_hand(&project, "LES-001", "LES-001-wrong.md");
+
+    let stdout = project.stdout("anna", &["check", "--fix"]);
+    let right = project.entry_file("LES-001");
+    assert_eq!(
+        stdout,
+        format!(
+            "fixed: {} renamed to {}\n{}",
+            shown(&wrong),
+            shown(&right),
+            OK
+        )
+    );
+    assert_eq!(project.stdout("anna", &["check"]), OK);
 }

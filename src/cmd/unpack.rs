@@ -50,7 +50,7 @@ pub fn run(args: &Args, _g: &Global) -> Result<Output> {
         "unpacked {count} files into {}/{FOLDER}",
         args.into.display()
     );
-    match check::run(&check::Args {}, &global) {
+    match check::run(&check::Args { fix: false }, &global) {
         Ok(checked) => {
             let text = format!("{heading}\n{}", checked.text);
             let data = json!({
