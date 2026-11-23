@@ -8237,10 +8237,8 @@
 - note (2026-11-23, haiku-T-363): done
 
 ### T-303 · brief: the open investigations
-- status: claimed
+- status: done
 - owner: haiku-T-303
-- claimed: 2026-11-23T20:00+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-287
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -8255,8 +8253,12 @@
   4. Run cargo test --test cmd_brief
 - accept: A session starts with the open investigations and their last attempt in view.
 - verify: cargo test --test cmd_brief
+- verified: 2026-11-23
+- commit: 58e4632
 - reqs: R-INV-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-303): done
 
 ### T-304 · status: open investigations under Waiting
 - status: claimed
@@ -8387,8 +8389,10 @@
 - note (2026-11-23, haiku-T-364): done
 
 ### T-365 · promote: the sections of the how-to or lesson made from an investigation
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-365
+- claimed: 2026-11-23T20:02+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-308
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
