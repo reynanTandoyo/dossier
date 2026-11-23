@@ -3385,8 +3385,8 @@
 - note (2026-11-23, haiku-T-321): done
 
 ### T-322 · return: check a taken file, end the take, or abandon it
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-322
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-054
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3404,8 +3404,12 @@
   7. Run cargo test --test cmd_return
 - accept: return tells whether a file on the server is still the one that was taken, and ends a take with or without a new version.
 - verify: cargo test --test cmd_return
+- verified: 2026-11-23
+- commit: 5ab975a
 - reqs: R-FILE-2, R-FILE-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-322): done
 
 ### T-323 · files: the taken files, their age, and the log of one file
 - status: open
@@ -3429,8 +3433,10 @@
 - note (2026-11-23, planner): added
 
 ### T-324 · status: the taken files under Working now
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-324
+- claimed: 2026-11-23T21:30+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-054
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
