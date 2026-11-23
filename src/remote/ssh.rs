@@ -22,6 +22,26 @@ pub fn argv(
     terminal: bool,
     timeout: u64,
 ) -> Vec<String> {
+    let env: Vec<(String, String)> = agent
+        .map(|agent| vec![("DOSSIER_AGENT".to_string(), agent.to_string())])
+        .unwrap_or_default();
+    argv_with(server, folder, None, &env, program, args, terminal, timeout)
+}
+
+/// As `argv`, with more: `env` are variables set for the remote command (NAME=<quoted value>, in
+/// order, after `cd`), `sub` is a folder below `folder` (with /) to run in when it exists:
+/// `{ cd <quoted folder/sub> 2>/dev/null || cd <quoted folder>; } && …`.
+#[allow(clippy::too_many_arguments)]
+pub fn argv_with(
+    server: &str,
+    folder: &str,
+    sub: Option<&str>,
+    env: &[(String, String)],
+    program: &str,
+    args: &[String],
+    terminal: bool,
+    timeout: u64,
+) -> Vec<String> {
     let mut list = vec![
         "-o".to_string(),
         "BatchMode=yes".to_string(),
@@ -33,9 +53,16 @@ pub fn argv(
     }
     list.push(server.to_string());
 
-    let mut command = format!("cd {} && ", quote(folder));
-    if let Some(agent) = agent {
-        command.push_str(&format!("DOSSIER_AGENT={} ", quote(agent)));
+    let mut command = match sub {
+        Some(sub) => format!(
+            "{{ cd {} 2>/dev/null || cd {}; }} && ",
+            quote(&format!("{folder}/{sub}")),
+            quote(folder)
+        ),
+        None => format!("cd {} && ", quote(folder)),
+    };
+    for (name, value) in env {
+        command.push_str(&format!("{name}={} ", quote(value)));
     }
     command.push_str(&quote(program));
     for argument in args {
@@ -49,14 +76,46 @@ pub fn argv(
 /// Runs the ssh program with inherited input and output and returns the remote exit code.
 /// ssh itself failing (exit 255, or the program missing): Code::Ssh.
 pub fn run(argv: &[String]) -> Result<u8> {
-    let program = std::env::var_os("DOSSIER_SSH")
-        .filter(|value| !value.is_empty())
-        .unwrap_or_else(|| OsString::from("ssh"));
-    let status = std::process::Command::new(program)
+    let status = std::process::Command::new(ssh_program())
         .args(argv)
         .status()
-        .map_err(|_| Error::new(Code::Ssh, "ssh is not installed or not on PATH"))?;
+        .map_err(|_| not_installed())?;
     outcome(argv, status.code())
+}
+
+/// Runs the ssh program with the same arguments and standard input empty, and returns the exit
+/// code, standard output and standard error. The exit code is passed on as it is, 255 included:
+/// the caller reads standard error to tell an ssh failure from the remote program's. No exit
+/// code, or one that does not fit a u8, is Code::Ssh. Each call makes its own connection (D43).
+pub fn capture(argv: &[String]) -> Result<(u8, String, String)> {
+    let output = std::process::Command::new(ssh_program())
+        .args(argv)
+        .stdin(std::process::Stdio::null())
+        .output()
+        .map_err(|_| not_installed())?;
+    let code = output
+        .status
+        .code()
+        .ok_or_else(|| Error::new(Code::Ssh, "ssh ended without an exit code"))?;
+    let code = u8::try_from(code)
+        .map_err(|_| Error::new(Code::Ssh, format!("ssh ended with exit code {code}")))?;
+    Ok((
+        code,
+        String::from_utf8_lossy(&output.stdout).into_owned(),
+        String::from_utf8_lossy(&output.stderr).into_owned(),
+    ))
+}
+
+/// The ssh program: DOSSIER_SSH when it is set and not empty, else `ssh`.
+fn ssh_program() -> OsString {
+    std::env::var_os("DOSSIER_SSH")
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| OsString::from("ssh"))
+}
+
+/// The error for an ssh program that cannot be started.
+fn not_installed() -> Error {
+    Error::new(Code::Ssh, "ssh is not installed or not on PATH")
 }
 
 /// What the exit code of the ssh program means: 0 to 254 is the remote exit code, 255 is ssh
@@ -308,6 +367,111 @@ mod tests {
         // environment while this one does.
         unsafe { std::env::set_var("DOSSIER_SSH", &missing) };
         let result = run(&sample());
+        // SAFETY: ENV_LOCK is still held here.
+        unsafe {
+            match before {
+                Some(value) => std::env::set_var("DOSSIER_SSH", value),
+                None => std::env::remove_var("DOSSIER_SSH"),
+            }
+        }
+        let error = result.unwrap_err();
+        assert_eq!(error.code, Code::Ssh);
+        assert_eq!(error.message, "ssh is not installed or not on PATH");
+    }
+
+    #[test]
+    fn argv_with_no_sub_folder_and_no_variables_is_argv_without_agent() {
+        let args = words(&["add", "decision"]);
+        assert_eq!(
+            argv_with(
+                "anna@server",
+                "/srv/p",
+                None,
+                &[],
+                "dossier",
+                &args,
+                true,
+                10
+            ),
+            argv("anna@server", "/srv/p", None, "dossier", &args, true, 10)
+        );
+    }
+
+    #[test]
+    fn argv_with_a_sub_folder_and_two_variables() {
+        let env = [
+            ("DOSSIER_AGENT".to_string(), "anna-claude".to_string()),
+            ("DOSSIER_CLIENT_VERSION".to_string(), "0.4.0".to_string()),
+        ];
+        let list = argv_with(
+            "anna@server",
+            "/srv/p",
+            Some("sim/run 1"),
+            &env,
+            "dossier",
+            &words(&["where"]),
+            false,
+            10,
+        );
+        assert_eq!(
+            list,
+            words(&[
+                "-o",
+                "BatchMode=yes",
+                "-o",
+                "ConnectTimeout=10",
+                "anna@server",
+                "{ cd '/srv/p/sim/run 1' 2>/dev/null || cd '/srv/p'; } && DOSSIER_AGENT='anna-claude' DOSSIER_CLIENT_VERSION='0.4.0' 'dossier' 'where'",
+            ])
+        );
+    }
+
+    #[test]
+    fn a_folder_and_a_sub_folder_with_spaces_and_a_quote_are_quoted() {
+        let list = argv_with(
+            "anna@server",
+            "/srv/my project",
+            Some("it's Grüße"),
+            &[],
+            "dossier",
+            &[],
+            false,
+            10,
+        );
+        assert_eq!(
+            list[5],
+            "{ cd '/srv/my project/it'\\''s Grüße' 2>/dev/null || cd '/srv/my project'; } && 'dossier'"
+        );
+    }
+
+    #[test]
+    fn a_variable_value_with_a_space_and_a_quote_is_quoted() {
+        let env = [("DOSSIER_AGENT".to_string(), "anna's claude".to_string())];
+        let list = argv_with(
+            "anna@server",
+            "/srv/p",
+            None,
+            &env,
+            "dossier",
+            &[],
+            false,
+            10,
+        );
+        assert_eq!(
+            list[5],
+            "cd '/srv/p' && DOSSIER_AGENT='anna'\\''s claude' 'dossier'"
+        );
+    }
+
+    #[test]
+    fn a_missing_program_is_an_ssh_error_when_captured() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let missing = std::env::temp_dir().join("dossier-no-such-ssh-program");
+        let before = std::env::var_os("DOSSIER_SSH");
+        // SAFETY: ENV_LOCK is held, so no other test in this process reads or changes the
+        // environment while this one does.
+        unsafe { std::env::set_var("DOSSIER_SSH", &missing) };
+        let result = capture(&sample());
         // SAFETY: ENV_LOCK is still held here.
         unsafe {
             match before {
