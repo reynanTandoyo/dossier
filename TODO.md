@@ -4646,10 +4646,8 @@
 - note (2026-11-23, planner): added
 
 ### T-354 · A one-page guide for team members who only read and approve
-- status: claimed
+- status: done
 - owner: haiku-T-354
-- claimed: 2026-11-23T23:45+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
@@ -4662,8 +4660,12 @@
   3. Run cargo test --test smoke
 - accept: A team member who only reads and approves has one page that explains the four commands they need.
 - verify: cargo test --test smoke
+- verified: 2026-11-23
+- commit: 936d50d
 - reqs: REL-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-354): done
 
 ### T-355 · Release 0.6.0
 - status: open
