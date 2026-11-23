@@ -109,14 +109,15 @@ fn created_and_approved(entry: &Entry) -> String {
 }
 
 /// The marks of an entry, joined with a space, in the order `show` gives them (cmd/show.rs): its
-/// status mark (design.md §5), `[due for review]` (R-LIFE-7), `[imported]` (R-IMPORT-5),
-/// `[changed after approval]` (R-LIFE-6), `[file changed since approval]` (R-USE-11), then
-/// `[rests on <IDs>]` (format.md §14) and `[not tested with <version>]` (R-LIFE-8, from
-/// `show::not_tested_with`). `today` is the day of the run, YYYY-MM-DD. An entry with no mark has
-/// none.
+/// status mark (design.md §5), its state mark when it is an investigation (`state_mark`),
+/// `[due for review]` (R-LIFE-7), `[imported]` (R-IMPORT-5), `[changed after approval]`
+/// (R-LIFE-6), `[file changed since approval]` (R-USE-11), then `[rests on <IDs>]` (format.md §14)
+/// and `[not tested with <version>]` (R-LIFE-8, from `show::not_tested_with`). `today` is the day of
+/// the run, YYYY-MM-DD. An entry with no mark has none.
 fn mark(ctx: &Ctx, item: &Item, today: &str) -> Option<String> {
     let entry = &item.entry;
     let mut marks: Vec<String> = status_mark(entry).into_iter().collect();
+    marks.extend(state_mark(entry));
     if due_for_review(entry, today) {
         marks.push("[due for review]".to_string());
     }
@@ -151,6 +152,19 @@ fn status_mark(entry: &Entry) -> Option<String> {
         Status::Retired => Some("[retired]".to_string()),
         Status::Approved => None,
     }
+}
+
+/// The state mark of an investigation (design.md §15, R-INV-5): `[open]`, `[solved]` or
+/// `[given up]`, from its `state` field in lower case whatever the case written. Another kind, and
+/// a state that is none of the three, give no mark.
+fn state_mark(entry: &Entry) -> Option<String> {
+    if entry.kind() != Some(Kind::Investigation) {
+        return None;
+    }
+    let state = entry.field("state")?.to_ascii_lowercase();
+    ["open", "solved", "given up"]
+        .contains(&state.as_str())
+        .then(|| format!("[{state}]"))
 }
 
 /// Whether the `review` date of the entry (format.md §23) is before `today`, both as YYYY-MM-DD
@@ -266,5 +280,34 @@ mod tests {
         assert_eq!(rests_on_mark(&empty), None);
         let missing = Entry::parse("# DEC-101 · Invented\n").expect("parses");
         assert_eq!(rests_on_mark(&missing), None);
+    }
+
+    #[test]
+    fn state_gives_the_mark_of_an_investigation_and_none_otherwise() {
+        let investigation = |state: &str| {
+            Entry::parse(&format!(
+                "# INV-001 · Invented\n- kind: investigation\n- state: {state}\n"
+            ))
+            .expect("parses")
+        };
+        assert_eq!(
+            state_mark(&investigation("open")).as_deref(),
+            Some("[open]")
+        );
+        assert_eq!(
+            state_mark(&investigation("Solved")).as_deref(),
+            Some("[solved]")
+        );
+        assert_eq!(
+            state_mark(&investigation("given up")).as_deref(),
+            Some("[given up]")
+        );
+        assert_eq!(state_mark(&investigation("stopped")), None);
+        let assumption = Entry::parse("# ASM-001 · Invented\n- kind: assumption\n- state: open\n")
+            .expect("parses");
+        assert_eq!(state_mark(&assumption), None);
+        let missing =
+            Entry::parse("# INV-001 · Invented\n- kind: investigation\n").expect("parses");
+        assert_eq!(state_mark(&missing), None);
     }
 }

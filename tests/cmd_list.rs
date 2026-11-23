@@ -1,6 +1,7 @@
 //! Runs the built program for `list`: approved entries by default, the filters, `--wide` with who
 //! and when, the JSON data, the marks of entries that are not plainly approved (and `not tested
-//! with` on a how-to, as `show` marks it), and a broken
+//! with` on a how-to, as `show` marks it), the state of an investigation (`[open]`, `[solved]` or
+//! `[given up]`) and its `--state` filter, and a broken
 //! entry file that gives a warning while the list still works. Each test runs in its own
 //! temporary project folder (common::Project), with the clock fixed at 2026-11-20T10:00:00+01:00
 //! unless a test gives another time.
@@ -598,5 +599,80 @@ fn a_draft_how_to_gets_the_not_tested_mark_after_the_draft_mark_as_in_show() {
         format!(
             "{id}  howto  [draft] [not tested with 2502] {FLOW_TITLE}  — {FLOW_PURPOSE}  (tested with FlowSim 2410)\nUSE-001  usage  FlowSim 2502 run for T-001\n2 entries\n"
         )
+    );
+}
+
+/// Invented problems and titles of the investigations of the state tests: INV-001 is solved,
+/// INV-002 stays open and INV-003 is given up.
+const PROBLEM_ONE: &str = "The density residual grows from iteration 40 on.";
+const TITLE_ONE: &str = "Residual grows after iteration 40";
+const PROBLEM_TWO: &str = "The mesh export fails on an invented rig.";
+const TITLE_TWO: &str = "Mesh export fails";
+const PROBLEM_THREE: &str = "The invented flow solver stops at a sonic inlet.";
+const TITLE_THREE: &str = "Solver stops at sonic inlet";
+const SOLUTION: &str = "The outlet flux had the wrong sign.";
+const REASON: &str = "out of time";
+
+/// Opens the investigation `id` as anna with `problem` and `title`; its first line is `<id>:
+/// added (open)`.
+fn open_investigation(project: &Project, id: &str, problem: &str, title: &str) {
+    let stdout = project.stdout("anna", &["problem", problem, "--title", title]);
+    assert_eq!(
+        stdout.lines().next(),
+        Some(format!("{id}: added (open)").as_str())
+    );
+}
+
+#[test]
+fn an_open_investigation_is_marked_open_and_a_solved_one_is_marked_solved() {
+    let project = Project::new();
+    open_investigation(&project, "INV-001", PROBLEM_ONE, TITLE_ONE);
+
+    assert_eq!(
+        project.stdout("anna", &["list"]),
+        format!("INV-001  investigation  [open] {TITLE_ONE}\n1 entry\n")
+    );
+
+    assert_eq!(
+        project.stdout("anna", &["solved", "INV-001", SOLUTION]),
+        "INV-001: solved\n"
+    );
+    assert_eq!(
+        project.stdout("anna", &["list"]),
+        format!("INV-001  investigation  [solved] {TITLE_ONE}\n1 entry\n")
+    );
+}
+
+#[test]
+fn state_open_lists_only_the_open_investigation_and_each_kind_of_state_is_marked() {
+    let project = Project::new();
+    open_investigation(&project, "INV-001", PROBLEM_ONE, TITLE_ONE);
+    open_investigation(&project, "INV-002", PROBLEM_TWO, TITLE_TWO);
+    open_investigation(&project, "INV-003", PROBLEM_THREE, TITLE_THREE);
+    assert_eq!(
+        project.stdout("anna", &["solved", "INV-001", SOLUTION]),
+        "INV-001: solved\n"
+    );
+    assert_eq!(
+        project.stdout("anna", &["gave-up", "INV-003", "--reason", REASON]),
+        "INV-003: given up\n"
+    );
+
+    assert_eq!(
+        project.stdout(
+            "anna",
+            &["list", "--kind", "investigation", "--state", "open"]
+        ),
+        format!("INV-002  investigation  [open] {TITLE_TWO}\n1 entry\n")
+    );
+    assert_eq!(
+        project.stdout("anna", &["list", "--kind", "investigation"]),
+        format!(
+            "INV-001  investigation  [solved] {TITLE_ONE}\nINV-002  investigation  [open] {TITLE_TWO}\nINV-003  investigation  [given up] {TITLE_THREE}\n3 entries\n"
+        )
+    );
+    assert_eq!(
+        project.stdout("anna", &["list", "--state", "given up"]),
+        format!("INV-003  investigation  [given up] {TITLE_THREE}\n1 entry\n")
     );
 }
