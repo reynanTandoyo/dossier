@@ -4457,10 +4457,8 @@
 - note (2026-11-24, haiku-T-344): done
 
 ### T-345 · search --similar: entries that share the most with one entry
-- status: claimed
+- status: done
 - owner: haiku-T-345
-- claimed: 2026-11-24T00:42+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
@@ -4475,8 +4473,12 @@
   4. Run cargo test --test cmd_search
 - accept: search --similar lists the entries that share the most tags and title words with a given entry.
 - verify: cargo test --test cmd_search
+- verified: 2026-11-24
+- commit: d730aba
 - reqs: R-READ-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-345): done
 
 ### T-346 · brief --budget: another line limit for one call
 - status: done
