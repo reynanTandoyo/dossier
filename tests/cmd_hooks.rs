@@ -69,6 +69,9 @@ fn install_without_yes_says_what_would_change_and_writes_nothing() {
         .stdout(contains(
             "+ PreToolUse (Edit|Write|MultiEdit): dossier guard",
         ))
+        .stdout(contains(
+            "+ PostToolUse (Bash|PowerShell): dossier after",
+        ))
         .stdout(contains("+ env DOSSIER_AGENT: anna - claude"));
     assert!(!exists(&project, ".claude"));
     assert!(hook_records(&project).is_empty());
@@ -92,6 +95,10 @@ fn install_with_yes_writes_the_hooks_and_the_agent_of_claude() {
             "PreToolUse": [{
                 "matcher": "Edit|Write|MultiEdit",
                 "hooks": [{"type": "command", "command": "dossier guard"}]
+            }],
+            "PostToolUse": [{
+                "matcher": "Bash|PowerShell",
+                "hooks": [{"type": "command", "command": "dossier after", "timeout": 30}]
             }]
         }})
     );
@@ -278,7 +285,8 @@ fn a_dry_run_with_yes_writes_nothing() {
         .stdout(contains(
             "dry run: would write .claude/settings.json and .claude/settings.local.json",
         ))
-        .stdout(contains("+ SessionStart: dossier brief"));
+        .stdout(contains("+ SessionStart: dossier brief"))
+        .stdout(contains("+ PostToolUse (Bash|PowerShell): dossier after"));
     assert!(!exists(&project, ".claude"));
     assert!(hook_records(&project).is_empty());
 }
@@ -295,6 +303,7 @@ fn json_output_gives_the_hook_lines_as_data_and_writes_nothing() {
         .stdout(contains("\"files\":["))
         .stdout(contains("\"added\":["))
         .stdout(contains("\"SessionStart: dossier brief\""))
+        .stdout(contains("\"PostToolUse (Bash|PowerShell): dossier after\""))
         .stdout(contains("\"env DOSSIER_AGENT: anna - claude\""));
     assert!(!exists(&project, ".claude"));
 }

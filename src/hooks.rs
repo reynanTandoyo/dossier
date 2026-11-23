@@ -9,24 +9,42 @@ pub const BRIEF: &str = "dossier brief";
 /// The command of the PreToolUse hook: it blocks an edit inside a dossier folder.
 pub const GUARD: &str = "dossier guard";
 
+/// The command of the PostToolUse hook: after a `todo` command it prints what the dossier has for
+/// that moment (R-AGENT-5).
+pub const AFTER: &str = "dossier after";
+
 /// The matcher of the PreToolUse hook: the tools that write a file.
 const EDIT_TOOLS: &str = "Edit|Write|MultiEdit";
+
+/// The matcher of the PostToolUse hook: the tools that run a shell command.
+const SHELL_TOOLS: &str = "Bash|PowerShell";
+
+/// Seconds Claude Code waits for `dossier after` (a server that does not answer takes 10).
+const AFTER_TIMEOUT: u64 = 30;
 
 /// The variable of the local settings that names the writer of Claude's writes (D34).
 const AGENT_VAR: &str = "DOSSIER_AGENT";
 
-/// .claude/settings.json with a SessionStart hook running BRIEF and a PreToolUse hook (matcher
-/// "Edit|Write|MultiEdit") running GUARD, each added once; other keys kept. Empty text is "{}".
+/// .claude/settings.json with a SessionStart hook running BRIEF, a PreToolUse hook (matcher
+/// "Edit|Write|MultiEdit") running GUARD and a PostToolUse hook (matcher "Bash|PowerShell") running
+/// AFTER with its timeout, each added once; other keys kept. Empty text is "{}".
 /// Code::Parse when the text is not a JSON object.
 pub fn installed(existing: &str) -> Result<String> {
     let mut root = settings(existing)?;
     let hooks = object_or_new(&mut root, "hooks")?;
-    add_once(hooks, "SessionStart", None, BRIEF)?;
-    add_once(hooks, "PreToolUse", Some(EDIT_TOOLS), GUARD)?;
+    add_once(hooks, "SessionStart", None, BRIEF, None)?;
+    add_once(hooks, "PreToolUse", Some(EDIT_TOOLS), GUARD, None)?;
+    add_once(
+        hooks,
+        "PostToolUse",
+        Some(SHELL_TOOLS),
+        AFTER,
+        Some(AFTER_TIMEOUT),
+    )?;
     render(&root)
 }
 
-/// The settings text with exactly the two entries of `installed` removed; other keys kept. An
+/// The settings text with exactly the three entries of `installed` removed; other keys kept. An
 /// array or object that the removal left empty goes too; one that was empty before stays.
 pub fn uninstalled(existing: &str) -> Result<String> {
     let mut root = settings(existing)?;
@@ -60,6 +78,113 @@ pub fn guard(payload: &str) -> Option<String> {
     Some(format!(
         "{path} is inside DOSSIER: change entries with the dossier commands, for example dossier set or dossier edit"
     ))
+}
+
+/// A `todo` command that the hook after shell commands reacts to, with its task ID in upper case.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TodoEvent {
+    Claimed(String),
+    Done(String),
+    Stuck(String),
+}
+
+/// The todo event of a Claude Code PostToolUse payload of a shell tool; None for anything else.
+/// The first event of the command text counts; a simple command with `--dry-run`, `--help` or
+/// `-h` is no event.
+pub fn todo_event(payload: &str) -> Option<TodoEvent> {
+    let value: Value = serde_json::from_str(without_mark(payload)).ok()?;
+    let command = value.get("tool_input")?.get("command")?.as_str()?;
+    command_parts(command).find_map(|part| {
+        let words: Vec<&str> = part.split_whitespace().map(unquote).collect();
+        if words.iter().any(|word| NO_EVENT_FLAGS.contains(word)) {
+            return None;
+        }
+        part_event(&words, &value)
+    })
+}
+
+/// {"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":<text>}} as one line.
+pub fn context(text: &str) -> String {
+    json!({"hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": text}})
+        .to_string()
+}
+
+/// The words of a simple command that make it no event.
+const NO_EVENT_FLAGS: [&str; 3] = ["--dry-run", "--help", "-h"];
+
+/// The simple commands of a command text: the text cut at `&&`, `||`, `;`, `|` and line breaks.
+fn command_parts(command: &str) -> impl Iterator<Item = &str> {
+    command
+        .split([';', '|', '\n', '\r'])
+        .flat_map(|part| part.split("&&"))
+}
+
+/// The word without one pair of surrounding double or single quotes.
+fn unquote(word: &str) -> &str {
+    ['"', '\'']
+        .into_iter()
+        .find_map(|quote| word.strip_prefix(quote)?.strip_suffix(quote))
+        .unwrap_or(word)
+}
+
+/// The event of one simple command, given as its words with the quotes removed; None when it runs
+/// no todo command with an event. `payload` is the whole PostToolUse payload.
+fn part_event(words: &[&str], payload: &Value) -> Option<TodoEvent> {
+    let arguments = todo_arguments(words)?;
+    let (verb, rest) = arguments.split_first()?;
+    match *verb {
+        "done" => task_id(rest.first()?).map(TodoEvent::Done),
+        "stuck" => task_id(rest.first()?).map(TodoEvent::Stuck),
+        "claim" => task_id(rest.first()?).map(TodoEvent::Claimed),
+        "next" if rest.contains(&"--claim") => {
+            let stdout = payload.get("tool_response")?.get("stdout")?.as_str()?;
+            stdout
+                .split_whitespace()
+                .find_map(task_id)
+                .map(TodoEvent::Claimed)
+        }
+        _ => None,
+    }
+}
+
+/// The words after `todo`, or after `dossier todo`, in a simple command; None when it runs no todo.
+fn todo_arguments<'a, 'b>(words: &'a [&'b str]) -> Option<&'a [&'b str]> {
+    let start = words.iter().enumerate().find_map(|(index, word)| {
+        if is_program(word, "todo") {
+            return Some(index + 1);
+        }
+        let dossier_todo = is_program(word, "dossier")
+            && words
+                .get(index + 1)
+                .is_some_and(|next| is_program(next, "todo"));
+        dossier_todo.then_some(index + 2)
+    })?;
+    words.get(start..)
+}
+
+/// Whether a word names the program `name`: the text after the last `/` or `\`, without a trailing
+/// `.exe`, equals `name` in any case.
+fn is_program(word: &str, name: &str) -> bool {
+    let file = word.rsplit(['/', '\\']).next().unwrap_or(word);
+    without_exe(file).eq_ignore_ascii_case(name)
+}
+
+/// The text without a trailing `.exe` in any case.
+fn without_exe(file: &str) -> &str {
+    match file.len().checked_sub(4) {
+        Some(at) if file.is_char_boundary(at) && file[at..].eq_ignore_ascii_case(".exe") => {
+            &file[..at]
+        }
+        _ => file,
+    }
+}
+
+/// The task ID that `word` is, in upper case: ASCII letters, `-` and ASCII digits, with at least
+/// one letter or digit. None for any other word.
+fn task_id(word: &str) -> Option<String> {
+    let shaped = word.chars().all(|c| c.is_ascii_alphanumeric() || c == '-');
+    let has_text = word.chars().any(|c| c.is_ascii_alphanumeric());
+    (shaped && has_text).then(|| word.to_ascii_uppercase())
 }
 
 /// .claude/settings.local.json with env.DOSSIER_AGENT set to `agent` (D34), other keys kept.
@@ -155,18 +280,23 @@ fn array_mut<'a>(hooks: &'a mut Map<String, Value>, event: &str) -> Result<&'a m
         .ok_or_else(|| shape(&format!("hooks.{event}"), "an array"))
 }
 
-/// Adds an entry running `command` to the entries of `event`, unless one of them runs it already.
+/// Adds an entry running `command` (with `timeout` seconds when there is one) to the entries of
+/// `event`, unless one of them runs it already.
 fn add_once(
     hooks: &mut Map<String, Value>,
     event: &str,
     matcher: Option<&str>,
     command: &str,
+    timeout: Option<u64>,
 ) -> Result<()> {
     let entries = array_mut(hooks, event)?;
     if entries.iter().any(|entry| runs(entry, command)) {
         return Ok(());
     }
-    let hook = json!({"type": "command", "command": command});
+    let hook = match timeout {
+        Some(seconds) => json!({"type": "command", "command": command, "timeout": seconds}),
+        None => json!({"type": "command", "command": command}),
+    };
     let entry = match matcher {
         Some(matcher) => json!({"matcher": matcher, "hooks": [hook]}),
         None => json!({"hooks": [hook]}),
@@ -188,9 +318,9 @@ fn command_of(hook: &Value) -> Option<&str> {
     hook.get("command").and_then(Value::as_str)
 }
 
-/// Whether a hook object runs BRIEF or GUARD.
+/// Whether a hook object runs BRIEF, GUARD or AFTER.
 fn is_dossier(hook: &Value) -> bool {
-    matches!(command_of(hook), Some(BRIEF | GUARD))
+    matches!(command_of(hook), Some(BRIEF | GUARD | AFTER))
 }
 
 /// Takes the dossier hooks out of `entry`. Returns false when that leaves the entry with no hooks
@@ -253,7 +383,7 @@ mod tests {
     }
 
     #[test]
-    fn installs_both_hooks_into_an_empty_object() {
+    fn installs_three_hooks_into_an_empty_object() {
         let text = installed("{}").unwrap();
         assert_eq!(
             parsed(&text),
@@ -265,10 +395,28 @@ mod tests {
                     "PreToolUse": [{
                         "matcher": "Edit|Write|MultiEdit",
                         "hooks": [{"type": "command", "command": "dossier guard"}]
+                    }],
+                    "PostToolUse": [{
+                        "matcher": "Bash|PowerShell",
+                        "hooks": [{
+                            "type": "command",
+                            "command": "dossier after",
+                            "timeout": 30
+                        }]
                     }]
                 }
             })
         );
+    }
+
+    #[test]
+    fn the_after_hook_has_the_shell_matcher_and_a_timeout() {
+        let value = parsed(&installed(OTHER).unwrap());
+        let after = &value["hooks"]["PostToolUse"];
+        assert_eq!(after.as_array().unwrap().len(), 1, "{value}");
+        assert_eq!(after[0]["matcher"], "Bash|PowerShell");
+        assert_eq!(after[0]["hooks"][0]["command"], AFTER);
+        assert_eq!(after[0]["hooks"][0]["timeout"], AFTER_TIMEOUT);
     }
 
     #[test]
@@ -326,6 +474,25 @@ mod tests {
     #[test]
     fn uninstalling_after_installing_into_an_empty_object_gives_an_empty_object() {
         assert_eq!(uninstalled(&installed("{}").unwrap()).unwrap(), "{}\n");
+    }
+
+    #[test]
+    fn uninstalling_removes_the_after_hook_and_keeps_its_neighbours() {
+        let text = r#"{"hooks": {
+  "PostToolUse": [
+    {"matcher": "Bash|PowerShell", "hooks": [
+      {"type": "command", "command": "dossier after", "timeout": 30},
+      {"type": "command", "command": "echo shell"}
+    ]}
+  ]
+}}"#;
+        assert_eq!(
+            parsed(&uninstalled(text).unwrap()),
+            json!({"hooks": {"PostToolUse": [{
+                "matcher": "Bash|PowerShell",
+                "hooks": [{"type": "command", "command": "echo shell"}]
+            }]}})
+        );
     }
 
     #[test]
@@ -454,6 +621,169 @@ mod tests {
         for text in texts {
             assert_eq!(guard(text), None, "{text}");
         }
+    }
+
+    /// A PostToolUse payload of the Bash tool that ran `command` and printed `stdout`.
+    fn shell(command: &str, stdout: &str) -> String {
+        json!({
+            "tool_name": "Bash",
+            "tool_input": {"command": command},
+            "tool_response": {"stdout": stdout}
+        })
+        .to_string()
+    }
+
+    /// The todo event of `command` when the shell printed nothing.
+    fn event_of(command: &str) -> Option<TodoEvent> {
+        todo_event(&shell(command, ""))
+    }
+
+    #[test]
+    fn todo_done_gives_done_with_the_id_in_upper_case() {
+        assert_eq!(
+            event_of("todo done T-012 --commit HEAD --agent a"),
+            Some(TodoEvent::Done("T-012".to_string()))
+        );
+        assert_eq!(
+            event_of("todo done t-12"),
+            Some(TodoEvent::Done("T-12".to_string()))
+        );
+    }
+
+    #[test]
+    fn a_chained_stuck_command_gives_stuck() {
+        assert_eq!(
+            event_of(r#"cd /x && todo stuck t-7 --note "no data""#),
+            Some(TodoEvent::Stuck("T-7".to_string()))
+        );
+    }
+
+    #[test]
+    fn todo_claim_gives_claimed() {
+        assert_eq!(
+            event_of("todo claim T-3"),
+            Some(TodoEvent::Claimed("T-3".to_string()))
+        );
+    }
+
+    #[test]
+    fn dossier_todo_gives_the_same_event() {
+        assert_eq!(
+            event_of("dossier todo done T-9"),
+            Some(TodoEvent::Done("T-9".to_string()))
+        );
+    }
+
+    #[test]
+    fn a_program_with_a_path_and_exe_counts_as_todo() {
+        assert_eq!(
+            event_of(r"C:\tools\todo.exe done T-1"),
+            Some(TodoEvent::Done("T-1".to_string()))
+        );
+        assert_eq!(
+            event_of("/usr/local/bin/Todo done T-1"),
+            Some(TodoEvent::Done("T-1".to_string()))
+        );
+    }
+
+    #[test]
+    fn a_quoted_word_loses_one_pair_of_quotes() {
+        assert_eq!(
+            event_of(r#"todo done "T-5""#),
+            Some(TodoEvent::Done("T-5".to_string()))
+        );
+        assert_eq!(
+            event_of("'todo' claim 'T-6'"),
+            Some(TodoEvent::Claimed("T-6".to_string()))
+        );
+    }
+
+    #[test]
+    fn next_with_claim_takes_the_first_task_id_of_the_output() {
+        let payload = shell(
+            "todo next --claim --brief --agent a",
+            "T-053 · P2 · claimed · a · Title\n",
+        );
+        assert_eq!(
+            todo_event(&payload),
+            Some(TodoEvent::Claimed("T-053".to_string()))
+        );
+    }
+
+    #[test]
+    fn next_with_claim_and_no_task_id_in_the_output_gives_none() {
+        assert_eq!(event_of("todo next --claim --brief --agent a"), None);
+        let no_output = json!({"tool_input": {"command": "todo next --claim"}});
+        assert_eq!(todo_event(&no_output.to_string()), None);
+    }
+
+    #[test]
+    fn commands_that_are_no_event_give_none() {
+        let commands = [
+            "todo next --brief",
+            "todo done T-1 --dry-run",
+            "todo stuck T-1 --help",
+            "todo claim T-1 -h",
+            "todo list",
+            "echo todo done",
+            r#"git commit -m "todo done T-1""#,
+            "dossier brief",
+        ];
+        for command in commands {
+            assert_eq!(event_of(command), None, "{command}");
+        }
+    }
+
+    #[test]
+    fn payloads_that_are_no_shell_command_give_none() {
+        let payloads = [
+            "",
+            "not json",
+            "[]",
+            "\"todo done T-1\"",
+            "{}",
+            r#"{"tool_input": {}}"#,
+            r#"{"tool_input": {"command": 3}}"#,
+        ];
+        for payload in payloads {
+            assert_eq!(todo_event(payload), None, "{payload}");
+        }
+    }
+
+    #[test]
+    fn the_first_event_of_the_command_text_counts() {
+        assert_eq!(
+            event_of("todo list && todo done T-2"),
+            Some(TodoEvent::Done("T-2".to_string()))
+        );
+        assert_eq!(
+            event_of("todo done T-1 --dry-run; todo claim T-2"),
+            Some(TodoEvent::Claimed("T-2".to_string()))
+        );
+        assert_eq!(
+            event_of("todo claim T-3 | tee log\ntodo done T-4"),
+            Some(TodoEvent::Claimed("T-3".to_string()))
+        );
+    }
+
+    #[test]
+    fn a_byte_order_mark_is_skipped() {
+        let payload = format!("\u{feff}{}", shell("todo claim T-3", ""));
+        assert_eq!(
+            todo_event(&payload),
+            Some(TodoEvent::Claimed("T-3".to_string()))
+        );
+    }
+
+    #[test]
+    fn context_is_one_line_that_parses_back_to_the_text() {
+        let text = "first line\nsecond \"line\" · ä";
+        let line = context(text);
+        assert!(!line.contains('\n'), "{line}");
+        let value: Value = serde_json::from_str(&line).unwrap();
+        assert_eq!(value["hookSpecificOutput"]["hookEventName"], "PostToolUse");
+        assert_eq!(value["hookSpecificOutput"]["additionalContext"], text);
+        assert_eq!(value.as_object().unwrap().len(), 1, "{line}");
     }
 
     /// Local settings with other keys and other environment variables in them.

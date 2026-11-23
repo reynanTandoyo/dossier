@@ -358,7 +358,7 @@ its history.
 
 #### Claude Code hooks and skill
 
-Two Claude Code settings help. One starts each session with the brief. The other stops Claude from
+Three Claude Code hooks help. One starts each session with the brief. Another stops Claude from
 editing the dossier by hand. Run these two commands in the project folder. Without `--yes`, each
 one only says what it would change:
 
@@ -369,6 +369,7 @@ dossier skill install --yes
 
 ```
 hooks installed in .claude/settings.json
++ PostToolUse (Bash|PowerShell): dossier after
 + PreToolUse (Edit|Write|MultiEdit): dossier guard
 + SessionStart: dossier brief
 .claude/skills/dossier/SKILL.md: skill written
@@ -376,8 +377,10 @@ hooks installed in .claude/settings.json
 
 The `SessionStart` hook runs `dossier brief` when a session starts. The `PreToolUse` hook runs
 `dossier guard` before an edit. An edit to a file inside a `DOSSIER` folder is blocked, and the
-message says to use the dossier commands. The skill file tells Claude how to use the commands.
-`dossier hooks uninstall --yes` removes the two hooks.
+message says to use the dossier commands. The `PostToolUse` hook runs `dossier after` after a shell
+command. After a task is claimed, finished or given back with `todo`, the hook shows the agent the
+task's brief, the review material, or a reminder. The skill file tells Claude how to use the
+commands. `dossier hooks uninstall --yes` removes the three hooks.
 
 ### What version 0.3 adds
 
@@ -477,6 +480,7 @@ dossier hooks install --yes
 
 ```
 hooks installed in .claude/settings.json and DOSSIER_AGENT set in .claude/settings.local.json
++ PostToolUse (Bash|PowerShell): dossier after
 + PreToolUse (Edit|Write|MultiEdit): dossier guard
 + SessionStart: dossier brief
 + env DOSSIER_AGENT: anna - claude
