@@ -3005,8 +3005,8 @@
 - note (2026-11-23, planner): Owner, 2026-11-23 (D45): moved from phase 4 to phase 5; it is released as 0.5.0 (T-328), after 0.4.0.
 
 ### T-053 · Remote mode: connection reuse and connection check
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P2 · type: milestone
 - milestone: T-052
 - goal: R-REMOTE-8 holds, and the two phase-1 gaps are closed: PC and server compare versions (R-XOS-9), and a path typed below the connected folder means the same path on the server (R-XOS-3). R-REMOTE-7 (keeping a connection open) is not built, by the owner's decision D43.
@@ -3015,9 +3015,11 @@
 - depends: T-051
 - accept: R-REMOTE-1 to R-REMOTE-3 and R-REMOTE-5 to R-REMOTE-8 hold, with the tests of TEST-8.
 - reqs: R-REMOTE-1 to R-REMOTE-3, R-REMOTE-5 to R-REMOTE-8, D9, TEST-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-20, planner): Forwarding, connect and the project register moved to phase 1 (T-060). Left here: R-REMOTE-7 and R-REMOTE-8.
 - note (2026-11-23, planner): split into T-311, T-312, T-313, T-314, T-315, T-316
+- note (2026-11-23, planner): done — From a PC, every command checks the versions and runs in the matching subfolder, and connect --check tests the connection, dossier and todo on the server.
 
 ### T-311 · ssh.rs: variables and a subfolder for the remote command, and captured output
 - status: done
@@ -3141,8 +3143,8 @@
 - note (2026-11-23, haiku-T-315): done
 
 ### T-316 · README: connect --check, versions and subfolders
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-316
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-053
 - why: Team members work on Windows PCs while the one copy of the dossier is on the Linux server.
@@ -3156,8 +3158,12 @@
   3. Run cargo test --test smoke (the README is not compiled; this only confirms nothing else changed).
 - accept: The README explains the connection check, the version comparison and subfolders, and says plainly how a command reaches the server.
 - verify: cargo test --test smoke
+- verified: 2026-11-23
+- commit: b730828
 - reqs: R-REMOTE-8, REL-2, D43
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-316): done
 
 ### T-054 · Large files: take, return, and the copy in remote mode; release 0.5.0
 - status: open
