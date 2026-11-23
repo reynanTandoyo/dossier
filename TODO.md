@@ -3569,10 +3569,8 @@
 - note (2026-11-23, planner): split into T-374, T-375
 
 ### T-374 · forward.rs: hand take and return to transfer
-- status: claimed
+- status: done
 - owner: haiku-T-374
-- claimed: 2026-11-23T22:53+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-326
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3587,8 +3585,12 @@
   4. Run cargo test --lib remote::forward::
 - accept: forward.rs sends take and return --done of a connected folder through transfer, and refuses them without a connected folder.
 - verify: cargo test --lib remote::forward::
+- verified: 2026-11-23
+- commit: c6144fb
 - reqs: R-REMOTE-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-374): done
 
 ### T-375 · Test: take and return from a connected folder with stand-ins for ssh and scp
 - status: open
