@@ -1101,6 +1101,11 @@ lessons, how-tos and tools that can be reused in other projects, without custome
 anything is written from a project to the team dossier, it is checked against the project's
 confidential terms; see [Confidential terms](#confidential-terms).
 
+Text that looks like a credential is refused as well. A write is refused when it adds a line with a
+private key, an access token, or a password after `password:` or `=`. The message names the change
+and the line, never the value. A person at a terminal can add `--allow-credential-like` when it is a
+false alarm. `dossier check` finds such a line that was added by hand.
+
 ## Building from source
 
 You need Rust 1.89 or newer. In the project folder, in PowerShell or in a Linux shell, run:

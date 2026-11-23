@@ -25,5 +25,6 @@
 - Never confirm or refute an assumption, never accept or decline a proposal: a person does that.
 - When your person says a name or term is confidential, record it at once: `dossier confidential add "<term>"`.
 - Never write a confidential term into the team dossier; propose team knowledge with `dossier promote <ID>`.
+- Never write a password, key or token into an entry; write where it is kept. The dossier refuses text that looks like one.
 - Exit code `1`: a rule refused the change; read the message and do not repeat the command unchanged.
 - Exit code `3`: busy; run the same command again.
