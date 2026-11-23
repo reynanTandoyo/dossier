@@ -24,6 +24,10 @@ const TERMINAL_COMMANDS: [&str; 12] = [
     "value", "close", "reviewed",
 ];
 
+/// The option that lets a person at a terminal write text that looks like a credential (R-CONF-7).
+/// A command with it asks ssh for a terminal too.
+const ALLOW_CREDENTIAL: &str = "--allow-credential-like";
+
 /// The time limit of the connection in seconds (R-REMOTE-11).
 const TIMEOUT_SECONDS: u64 = 10;
 
@@ -84,7 +88,8 @@ pub fn maybe(args: &[String]) -> Option<u8> {
             forwarded.remove(at);
         }
     }
-    let terminal = TERMINAL_COMMANDS.contains(&command) && term::is_terminal();
+    let terminal = (TERMINAL_COMMANDS.contains(&command) || allows_credential(&forwarded))
+        && term::is_terminal();
     let agent = agent_name(&forwarded);
     let argv = ssh::argv(
         &target.server,
@@ -175,6 +180,12 @@ fn non_empty_variable(name: &str) -> Option<String> {
     std::env::var_os(name)
         .map(|value| value.to_string_lossy().into_owned())
         .filter(|value| !value.is_empty())
+}
+
+/// Whether `--allow-credential-like` is among the arguments, anywhere, as the program reads it
+/// (tx.rs).
+fn allows_credential(args: &[String]) -> bool {
+    args.iter().any(|arg| arg == ALLOW_CREDENTIAL)
 }
 
 /// The server and folder of the pointer file in the current folder or above.
@@ -430,5 +441,36 @@ mod tests {
             maybe_with(&args_file, &["dossier", "list"]),
             (Some(5), String::new())
         );
+    }
+
+    #[test]
+    fn allow_credential_like_is_found_anywhere_in_the_arguments() {
+        let args =
+            |list: &[&str]| -> Vec<String> { list.iter().map(|word| word.to_string()).collect() };
+        // The option after the command word, before it, and with other options around it.
+        assert!(allows_credential(&args(&[
+            "accept",
+            "--allow-credential-like",
+            "FND-001"
+        ])));
+        assert!(allows_credential(&args(&[
+            "--agent",
+            "anna-claude",
+            "--allow-credential-like",
+            "list"
+        ])));
+        assert!(allows_credential(&args(&["--allow-credential-like"])));
+        // Other options, and a longer word that starts the same way, do not count.
+        assert!(!allows_credential(&args(&["accept", "FND-001"])));
+        assert!(!allows_credential(&args(&[
+            "--allow-network-drive",
+            "list"
+        ])));
+        assert!(!allows_credential(&args(&["--allow-credential", "list"])));
+        assert!(!allows_credential(&args(&[
+            "--allow-credential-like-x",
+            "list"
+        ])));
+        assert!(!allows_credential(&args(&[])));
     }
 }
