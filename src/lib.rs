@@ -17,6 +17,7 @@ pub mod conf;
 pub mod config;
 pub mod create;
 pub mod ctx;
+pub mod digest;
 pub mod entry;
 pub mod error;
 pub mod exchange;

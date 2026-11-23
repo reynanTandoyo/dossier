@@ -29,9 +29,10 @@ const IGNORED_LINES: [&[u8]; 5] = [
 /// The file in the state folder that holds the checksums.
 const FILE: &str = "approved.json";
 
-/// Lessons, how-tos and tools: an LLM writes them as drafts, approval records their checksum.
+/// Lessons, how-tos, tools and digests: an LLM writes them as drafts, approval records their
+/// checksum.
 pub fn guarded(kind: Kind) -> bool {
-    matches!(kind, Kind::Lesson | Kind::Howto | Kind::Tool)
+    matches!(kind, Kind::Lesson | Kind::Howto | Kind::Tool | Kind::Digest)
 }
 
 /// Records the checksum of an approved entry. A broken `approved.json` is refused, not replaced.
@@ -368,12 +369,13 @@ mod tests {
     }
 
     #[test]
-    fn lessons_howtos_and_tools_are_guarded_and_the_other_kinds_are_not() {
+    fn lessons_howtos_tools_and_digests_are_guarded_and_the_other_kinds_are_not() {
         for kind in Kind::all() {
-            let expected = matches!(kind, Kind::Lesson | Kind::Howto | Kind::Tool);
+            let expected = matches!(kind, Kind::Lesson | Kind::Howto | Kind::Tool | Kind::Digest);
             assert_eq!(guarded(kind), expected, "{}", kind.name());
         }
         assert!(guarded(Kind::Howto));
+        assert!(guarded(Kind::Digest));
         assert!(!guarded(Kind::Usage));
     }
 }
