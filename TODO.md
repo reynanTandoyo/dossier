@@ -8962,7 +8962,8 @@
 - steps:
   1. src/hooks.rs, review_installed: the SessionEnd hook object it writes gains `"shell": "bash"` next to `"type": "command"` and `"command"`, with a comment: the command is quoted for a POSIX shell, and Claude Code runs a hook on Windows in Git Bash, or in PowerShell when Git Bash is not installed, unless `shell` says which (code.claude.com/docs/en/hooks). A SessionEnd dossier hook that is replaced in place gets the field too. The other hooks (brief, guard, after) stay as they are: their commands have no quotes.
   2. src/hooks.rs, unit tests: the installed SessionEnd hook has `"shell": "bash"`; replacing an existing one keeps exactly one hook with the field; the SessionStart hook still has no `shell` field.
-  3. Run cargo test --lib hooks::
+  3. src/hooks.rs, review_installed: a command that is empty or only spaces is refused with Code::BadValue `the review command must not be empty` before anything is changed; unit test for it.
+  4. Run cargo test --lib hooks::
 - accept: The SessionEnd hook that hooks install writes says shell: bash; the other hooks are unchanged.
 - verify: cargo test --lib hooks::
 - reqs: R-DRAFT-9
