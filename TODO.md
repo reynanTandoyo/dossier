@@ -8501,13 +8501,14 @@
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
-  1. Cargo.toml: version = "0.4.0"; run cargo build so that Cargo.lock follows.
-  2. README.md: set the status line at the top to `**Status: v0.4 (phase 4)**`; add `### What version 0.4 adds` after the 0.3.1 section (investigations: problem, tried, solved and gave-up; their state in list, show and search; the open investigations in brief and status; brief --task; history <task>; review-task; promote of a solved investigation); rename `### Not in version 0.3.1` to `### Not in version 0.4` and remove its phase 4 line (what is left: phases 5 and 6).
+  1. Cargo.toml: version = "0.4.0"; run cargo build so that Cargo.lock follows (only the version line of the dossier package may change).
+  2. README.md: set the status line at the top to `**Status: v0.4 (phase 4)**`. A `### What version 0.4 adds` section already exists (written by T-310) after `### Not in version 0.3.1`: move it, unchanged, directly after the `### What version 0.3.1 adds` section, and complete it where it is missing something from this list: problem, tried, solved and gave-up; their state in list, show and search; the open investigations in brief and status; brief --task; history <task>; review-task; promote of a solved investigation with --as. Keep it short. Then rename `### Not in version 0.3.1` to `### Not in version 0.4` and remove its phase 4 line (what is left: phases 5 and 6). There must be exactly one `### What version 0.4 adds` heading.
   3. Run cargo fmt --all -- --check, cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features; all three must pass. Do not tag and do not push: the owner does that.
 - accept: Version 0.4.0 builds, passes every check, and the README says what it adds.
 - verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
 - reqs: REL-1, REL-2
 - note (2026-11-23, planner): added
+- note (2026-11-23, planner): T-310 already wrote the 0.4 README section; the steps now move and complete it.
 
 ### T-403 · tried: a text that holds a part separator keeps reading back the same
 - status: claimed
