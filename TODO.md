@@ -4340,10 +4340,8 @@
 - note (2026-11-24, haiku-T-390): done
 
 ### T-391 · Register story, export and schema
-- status: claimed
+- status: done
 - owner: haiku-T-391
-- claimed: 2026-11-24T00:24+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-341
 - why: Smaller comforts that are worth having once the daily use is settled.
@@ -4358,10 +4356,14 @@
   4. Run cargo build and cargo test --test smoke
 - accept: The three commands are part of the program and the overview, and the command list can be read by other modules.
 - verify: cargo build && cargo test --test smoke
+- verified: 2026-11-24
+- commit: 0e4ff1d
 - reqs: R-READ-7, R-OUT-6, R-OUT-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): Added tests/cmd_agents.rs: its help overview test lists every command (found in T-359).
 - note (2026-11-23, planner): src/cmd/mod.rs moved to T-390, so this task stays at 3 files (level 1).
+- note (2026-11-24, haiku-T-391): done
 
 ### T-342 · story: the decisions in the order they were made
 - status: open
