@@ -4665,7 +4665,8 @@
   1. src/cmd/help.rs: `help <topic>` accepts, besides `agents`, every name of COMMANDS: it prints `<name>: <description>`, then `Examples (PowerShell):` with two lines and `Example (Linux shell):` with one, from examples::of(name); a command without examples prints only the first line. An unknown topic stays Code::Usage. JSON data {command, description, examples}.
   2. src/examples.rs: `of` returns three real, runnable command lines (two PowerShell, one Linux shell) for these commands: init, where, add, decide, found, learn, assume, propose, accept, decline, confirm, refute, cleared, set, retitle, link, edit, show, list, search, history, diff, restore, log, brief, status. Use invented data only (project P-017, tasks like T-042, an axial compressor; no real names). A PowerShell example with quotes inside a text uses single quotes around it; the Linux one may use --stdin with a here-document where a text has quotes.
   3. tests/cmd_help.rs (new): `help decide` prints the description and three example lines that start with `dossier decide`; `help nosuch` is exit 2; a unit test in examples.rs checks that every command of the group has three non-empty examples that start with `dossier <name>`.
-  4. Run cargo test --test cmd_help and cargo test --lib examples::
+  4. src/cmd/help.rs: the doc comment of COMMANDS still names only design.md sections 5, 9 and 12; make it say that the list holds every command of all phases, in the order of the help overview.
+  5. Run cargo test --test cmd_help and cargo test --lib examples::
 - accept: help <command> shows what a command does with two PowerShell examples and one for a Linux shell, for the first group of commands.
 - verify: cargo test --test cmd_help && cargo test --lib examples::
 - reqs: R-OUT-5
