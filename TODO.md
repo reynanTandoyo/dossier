@@ -8511,10 +8511,8 @@
 - note (2026-11-23, planner): T-310 already wrote the 0.4 README section; the steps now move and complete it.
 
 ### T-403 · tried: a text that holds a part separator keeps reading back the same
-- status: claimed
+- status: done
 - owner: haiku-T-403
-- claimed: 2026-11-23T20:11+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-287
 - why: An attempt text with ' — result: ' in it would read back split into the wrong parts (format.md section 28).
@@ -8530,9 +8528,13 @@
   5. Run cargo test --test cmd_tried and cargo test --lib cmd::tried::
 - accept: A text, --did or --result that holds a separator form is written with an en dash, every other em dash is kept, and the attempt reads back with the same parts.
 - verify: cargo test --test cmd_tried && cargo test --lib cmd::tried::
+- verified: 2026-11-23
+- commit: 3ede950
 - reqs: R-INV-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): Owner, 2026-11-23: replace, do not refuse; only the four separator forms, so plain em dashes stay.
+- note (2026-11-23, haiku-T-403): done
 
 ## Questions
 
