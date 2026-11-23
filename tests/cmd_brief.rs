@@ -11,8 +11,8 @@
 //! (R-LIFE-6, R-LIFE-7, R-CTX-4). The last part adds the open investigations under their heading,
 //! after the open assumptions, with their number of attempts and the last attempt (R-INV-5), and
 //! their place in the order in which the line limit cuts. The digest part adds the approved digests
-//! in force under `## Digests`, the decisions and findings they sum up left out, the count line
-//! after them, and the rule that a digest line is never cut (R-CTX-15).
+//! in force under `## Digests`, the decisions and findings they sum up left out, one count line per
+//! digest after them, and the rule that a digest line is never cut (R-CTX-15).
 
 mod common;
 
@@ -2214,7 +2214,7 @@ fn a_digest_prints_its_summary_in_place_of_the_decisions_and_findings_of_its_tas
     // The decision and the two findings of T-010 and T-011 are summed up; the finding of T-012 is
     // not in the digest and stays.
     assert!(
-        lines.contains(&"3 entries are summed up in digests: dossier list --task T-010"),
+        lines.contains(&"3 entries of T-010 are summed up in DIG-001: dossier show DIG-001"),
         "{text}"
     );
     assert!(!text.contains("DEC-001"), "{text}");
@@ -2354,7 +2354,7 @@ fn with_500_decisions_of_which_480_are_summed_up_the_brief_keeps_its_limit() {
     let lines: Vec<&str> = text.lines().collect();
     assert!(lines.len() <= 60, "{} lines:\n{text}", lines.len());
     assert!(
-        lines.contains(&"480 entries are summed up in digests: dossier list --task T-010"),
+        lines.contains(&"480 entries of T-010 are summed up in DIG-001: dossier show DIG-001"),
         "{text}"
     );
     assert!(
@@ -2399,6 +2399,96 @@ fn a_digest_line_is_never_cut_to_fit_the_limit() {
 }
 
 #[test]
+fn two_digests_of_two_milestones_each_get_a_line_naming_its_milestone_and_digest() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Run the first speedline plan.",
+                "--reason",
+                "It was the first plan.",
+                "--title",
+                "First plan",
+                "--task",
+                "T-010",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "found",
+                "The steady run stalled at the lowest mass flow.",
+                "--title",
+                "Steady run stalls at low flow",
+                "--task",
+                "T-011",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Run the second speedline plan.",
+                "--reason",
+                "It was the second plan.",
+                "--title",
+                "Second plan",
+                "--task",
+                "T-020",
+            ],
+        )
+        .success();
+    write_digest(
+        &project,
+        "DIG-001",
+        "approved",
+        "T-010",
+        "T-010, T-011",
+        "Decided: run the first plan.",
+    );
+    write_digest(
+        &project,
+        "DIG-002",
+        "approved",
+        "T-020",
+        "T-020",
+        "Decided: run the second plan.",
+    );
+    // A digest whose tasks have no entries sums up nothing, so it gets no line.
+    write_digest(
+        &project,
+        "DIG-003",
+        "approved",
+        "T-030",
+        "T-030",
+        "Decided: nothing yet.",
+    );
+
+    let text = brief(&project, &[], None);
+
+    let lines: Vec<&str> = text.lines().collect();
+    assert!(
+        lines.contains(&"2 entries of T-010 are summed up in DIG-001: dossier show DIG-001"),
+        "{text}"
+    );
+    assert!(
+        lines.contains(&"1 entry of T-020 is summed up in DIG-002: dossier show DIG-002"),
+        "{text}"
+    );
+    assert!(!text.contains("in DIG-003"), "{text}");
+    assert!(!text.contains("dossier list --task"), "{text}");
+    for left_out in ["DEC-001", "FND-001", "DEC-002"] {
+        assert!(!text.contains(left_out), "{left_out} is summed up: {text}");
+    }
+}
+
+#[test]
 fn the_json_data_names_the_digests_and_the_entries_they_sum_up() {
     let project = Project::new();
     project
@@ -2427,7 +2517,7 @@ fn the_json_data_names_the_digests_and_the_entries_they_sum_up() {
 
     let text = brief(&project, &[], None);
     assert!(
-        text.contains("1 entry is summed up in digests: dossier list --task T-010"),
+        text.contains("1 entry of T-010 is summed up in DIG-001: dossier show DIG-001"),
         "{text}"
     );
 

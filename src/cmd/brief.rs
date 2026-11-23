@@ -25,8 +25,10 @@
 //!
 //! The approved digests in force (R-CTX-15) come after the key values, under `## Digests`: each
 //! one's heading and its Summary, indented. The decisions and findings that a digest sums up are
-//! left out and counted in the line after the digests. Open assumptions and decisions that stand
-//! (`standing: yes`) are never left out, and a digest line is never cut to fit the limit.
+//! left out and counted after the digests, one line per digest that sums up any:
+//! `<n> entries of <milestone> are summed up in <DIG-ID>: dossier show <DIG-ID>` (design.md section
+//! 18). Open assumptions and decisions that stand (`standing: yes`) are never left out, and a digest
+//! line is never cut to fit the limit.
 
 use crate::approval::{self, Mark};
 use crate::attempts;
@@ -197,11 +199,10 @@ struct Brief {
     values: Vec<Line>,
     /// The approved digests in force, newest first (R-CTX-15). Their lines are never cut.
     digests: Vec<Digest>,
-    /// The number of decisions and findings the digests in force sum up (R-CTX-15). They are not
+    /// The digests in force that sum up at least one decision or finding, in the order of
+    /// `digests` (R-CTX-15). Each is named by its line after the digests; the entries are not
     /// printed singly.
-    summed_up: usize,
-    /// The task of the first entry the digests sum up, named by the line after the digests.
-    summed_task: Option<String>,
+    summed: Vec<Summed>,
     /// The decisions in force (approved, or with `--on` in force on the day), newest first, without
     /// those a digest sums up.
     decisions: Vec<Decision>,
@@ -337,8 +338,7 @@ impl Brief {
                 .iter()
                 .map(|digest| digest_of(digest, &ctx.state))
                 .collect(),
-            summed_up: summed.len(),
-            summed_task: summed.first().and_then(|item| item.entry.field("task")),
+            summed: summed_per_digest(&digests, &summed),
             decisions: decisions
                 .into_iter()
                 .map(|item| decision_of(item, &ctx.state, &wrong))
@@ -391,14 +391,11 @@ impl Brief {
         }
     }
 
-    /// The lines of the digests in force: each digest's heading and summary, then the line that
-    /// says how many entries the digests sum up and where to see them, when there are any.
+    /// The lines of the digests in force: each digest's heading and summary, then one line per
+    /// digest that sums up entries, saying how many and where to see them.
     fn digest_lines(&self) -> Vec<String> {
         let mut lines: Vec<String> = self.digests.iter().flat_map(Digest::lines).collect();
-        if self.summed_up > 0 {
-            let task = self.summed_task.as_deref().unwrap_or("-");
-            lines.push(summed_text(self.summed_up, task));
-        }
+        lines.extend(self.summed.iter().map(summed_text));
         lines
     }
 
@@ -494,7 +491,7 @@ impl Brief {
     /// team line, the last open investigation, the last proposal, the last line that rests on a
     /// wrong assumption, the last value, the whole map, the oldest decision, the last open
     /// assumption. Returns false when nothing is left to cut. Each step stops at the first list
-    /// that had something, so only one thing is cut per call. The digests in force and the line
+    /// that had something, so only one thing is cut per call. The digests in force and the lines
     /// about them are not on the list: they are never cut (R-CTX-15).
     fn cut_one(&mut self) -> bool {
         if self.lessons.pop().is_some() || self.findings.pop().is_some() {
@@ -531,7 +528,7 @@ impl Brief {
             "map": self.map,
             "values": ids(&self.values),
             "digests": self.digests.iter().map(|digest| digest.id.as_str()).collect::<Vec<_>>(),
-            "summed_up": self.summed_up,
+            "summed_up": self.summed.iter().map(|summed| summed.count).sum::<usize>(),
             "decisions": self.decisions.iter().map(|decision| decision.id.as_str()).collect::<Vec<_>>(),
             "assumptions": ids(&self.assumptions),
             "investigations": ids(&self.investigations),
@@ -555,6 +552,17 @@ impl Decision {
         }
         lines
     }
+}
+
+/// One digest in force and the number of decisions and findings it sums up that the brief left out
+/// (R-CTX-15). Its line after the digests names the milestone and the digest.
+struct Summed {
+    /// The ID of the digest.
+    digest: String,
+    /// The milestone the digest names, as its heading shows it.
+    milestone: String,
+    /// The number of entries it covers.
+    count: usize,
 }
 
 /// One digest in force (R-CTX-15) as printed: its heading `<DIG-ID> · <milestone> · <title>` with
@@ -600,11 +608,7 @@ fn split_covered<'a>(items: Vec<&'a Item>, digests: &[&Item]) -> (Vec<&'a Item>,
 /// leaves the title out.
 fn digest_of(item: &Item, state: &Path) -> Digest {
     let entry = &item.entry;
-    let milestone = entry
-        .field("milestone")
-        .filter(|milestone| !milestone.is_empty())
-        .unwrap_or_else(|| "-".to_string());
-    let mut parts = vec![entry.id(), milestone];
+    let mut parts = vec![entry.id(), milestone_of(entry)];
     let title = entry.title();
     if !title.is_empty() {
         parts.push(title);
@@ -616,6 +620,38 @@ fn digest_of(item: &Item, state: &Path) -> Digest {
             .section("Summary")
             .map_or_else(Vec::new, |summary| indented(&summary)),
     }
+}
+
+/// The milestone of a digest as its lines show it: its `milestone` field, or `-` when it has none.
+fn milestone_of(entry: &Entry) -> String {
+    entry
+        .field("milestone")
+        .filter(|milestone| !milestone.is_empty())
+        .unwrap_or_else(|| "-".to_string())
+}
+
+/// The digests in force that sum up at least one of `summed` (the decisions and findings the
+/// digests cover, as `split_covered` gives them), in the order of `digests`, each with the number of
+/// those it covers. An entry counts for the digest that covers it (`digest::covering`).
+fn summed_per_digest(digests: &[&Item], summed: &[&Item]) -> Vec<Summed> {
+    digests
+        .iter()
+        .filter_map(|digest| {
+            let id = digest.entry.id();
+            let count = summed
+                .iter()
+                .filter(|item| {
+                    digest::covering(digests, &item.entry)
+                        .is_some_and(|covering| covering.entry.id() == id)
+                })
+                .count();
+            (count > 0).then(|| Summed {
+                digest: id,
+                milestone: milestone_of(&digest.entry),
+                count,
+            })
+        })
+        .collect()
 }
 
 /// The decisions waiting for a decider (status `proposed`), in the order of `store::all`, each as
@@ -1063,15 +1099,16 @@ fn left_out_text(n: usize, one: &str, many: &str, command: &str) -> String {
     }
 }
 
-/// `1 entry is summed up in digests: dossier list --task <task>`, or `<n> entries are summed up in
-/// digests: dossier list --task <task>`.
-fn summed_text(n: usize, task: &str) -> String {
-    let what = if n == 1 {
-        "1 entry is".to_string()
+/// `1 entry of <milestone> is summed up in <DIG-ID>: dossier show <DIG-ID>`, or `<n> entries of
+/// <milestone> are summed up in <DIG-ID>: dossier show <DIG-ID>` (design.md section 18).
+fn summed_text(summed: &Summed) -> String {
+    let (count, milestone, id) = (summed.count, &summed.milestone, &summed.digest);
+    let what = if count == 1 {
+        format!("1 entry of {milestone} is")
     } else {
-        format!("{n} entries are")
+        format!("{count} entries of {milestone} are")
     };
-    format!("{what} summed up in digests: dossier list --task {task}")
+    format!("{what} summed up in {id}: dossier show {id}")
 }
 
 /// A warning of `store::all` (`<path>: <message>`) with its path shown relative to the project
