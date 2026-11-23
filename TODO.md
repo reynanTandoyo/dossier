@@ -7936,8 +7936,8 @@
 - note (2026-11-23, haiku-T-296): done
 
 ### T-297 · Investigations skeleton: command stubs for problem, tried, solved and gave-up
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P0 · type: milestone
 - milestone: T-287
 - goal: The commands problem, tried, solved and gave-up exist as stubs, are listed in the overview and count as writing commands.
@@ -7946,8 +7946,10 @@
 - depends: T-295
 - accept: The four commands exist, are listed in the overview and answer that they are not built yet.
 - reqs: R-INV-2, R-INV-3, R-INV-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): split into T-357, T-358, T-359, T-360
+- note (2026-11-23, planner): done — problem, tried, solved and gave-up exist as commands that answer 'not built yet'.
 
 ### T-357 · Stub files: problem and tried
 - status: done
