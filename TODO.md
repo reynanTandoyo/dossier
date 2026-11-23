@@ -3658,13 +3658,14 @@
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
-  1. Cargo.toml: version = "0.5.0"; run cargo build so that Cargo.lock follows.
-  2. README.md: set the status line at the top to `**Status: v0.5 (phase 5)**`; add `### What version 0.5 adds` after the 0.4 section (connection check, versions, subfolders, connection reuse, take and return, the taken files in files and status); rename `### Not in version 0.4` to `### Not in version 0.5` and remove its phase 5 line (what is left: phase 6).
+  1. Cargo.toml: version = "0.5.0"; run cargo build so that Cargo.lock follows (only the version line of the dossier package may change).
+  2. README.md: set the status line at the top to `**Status: v0.5 (phase 5)**`; add `### What version 0.5 adds` directly after the `### What version 0.4 adds` section: a short summary with links to the sections that already describe it, `## Remote mode: from a Windows PC`, `### Check the connection` and `### Large files: take and return`: connect --check; the PC's versions compared with the server's; commands typed in a subfolder of a connected folder run in the same subfolder on the server; one ssh connection per command (D43, there is no connection reuse); take and return of large files, also from a PC, where a take never overwrites a local file (D46) and a copy goes through a part file; the taken files in files and status. Keep it short; do not repeat the long sections. Then rename `### Not in version 0.4` to `### Not in version 0.5` and remove its phase 5 line (what is left: phase 6).
   3. Run cargo fmt --all -- --check, cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features; all three must pass. Do not tag and do not push: the owner does that.
 - accept: Version 0.5.0 builds, passes every check, and the README says what it adds.
 - verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
 - reqs: REL-1, REL-2
 - note (2026-11-23, planner): added
+- note (2026-11-23, planner): Steps updated: no connection reuse (D43); the 0.5 summary links the sections T-316 and T-327 wrote.
 
 ### T-055 · Growing projects: the context stays small and routine steps run by themselves
 - status: open
