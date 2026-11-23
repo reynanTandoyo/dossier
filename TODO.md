@@ -4598,10 +4598,8 @@
 - note (2026-11-23, planner): split into T-395, T-396, T-397
 
 ### T-395 · check --fix: rename files whose name does not match
-- status: claimed
+- status: done
 - owner: haiku-T-395
-- claimed: 2026-11-24T00:47+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-348
 - why: Smaller comforts that are worth having once the daily use is settled.
@@ -4617,9 +4615,13 @@
   5. Run cargo test --test cmd_check
 - accept: check --fix gives every entry file the name that its ID and title ask for.
 - verify: cargo test --test cmd_check
+- verified: 2026-11-24
+- commit: e341509
 - reqs: R-CHECK-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): src/cmd/unpack.rs builds check::Args, so adding --fix needs fix: false there (found before the phase started).
+- note (2026-11-24, haiku-T-395): done
 
 ### T-396 · check --fix: add a missing format line
 - status: open
