@@ -3878,10 +3878,8 @@
 - note (2026-11-23, haiku-T-332): done
 
 ### T-333 · brief: a digest in place of the entries it covers
-- status: claimed
+- status: done
 - owner: haiku-T-333
-- claimed: 2026-11-24T00:06+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-056
 - why: The context an LLM gets must stay small as a project grows (D22).
@@ -3896,8 +3894,12 @@
   4. Run cargo test --test cmd_brief
 - accept: Once a milestone has an approved digest, the session brief shows the digest instead of that milestone's single decisions and findings.
 - verify: cargo test --test cmd_brief
+- verified: 2026-11-24
+- commit: 9c8c7b8
 - reqs: R-CTX-15, TEST-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-333): done
 
 ### T-334 · status: a digest in place of the entries it covers
 - status: claimed
