@@ -7800,10 +7800,8 @@
 - note (2026-11-23, haiku-T-290): done
 
 ### T-291 · check: report text that looks like a credential (SECRET)
-- status: claimed
+- status: done
 - owner: haiku-T-291
-- claimed: 2026-11-23T18:46+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-285
 - why: Dossiers are committed to git, where a credential stays in the history (D40).
@@ -7818,8 +7816,12 @@
   4. Run cargo test --test cmd_check
 - accept: check finds a credential that was added by hand and stays quiet about a line a person allowed.
 - verify: cargo test --test cmd_check
+- verified: 2026-11-23
+- commit: 451c0fe
 - reqs: R-CONF-7, R-CHECK-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, planner): added
+- note (2026-11-23, haiku-T-291): done
 
 ### T-292 · Agent rules and README: never write a credential into the dossier
 - status: done
