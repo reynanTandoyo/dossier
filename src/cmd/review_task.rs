@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 const SOLUTION: &str = "Solution";
 
 /// The drafting rules of R-DRAFT-2, in the order of the requirement, and the rule of R-INV-8.
-const RULES: [&str; 11] = [
+pub const RULES: [&str; 11] = [
     "Propose a lesson only for something that would change how a later project is done.",
     "Propose none when nothing was learned.",
     "State the conditions.",

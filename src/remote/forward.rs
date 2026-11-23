@@ -15,8 +15,18 @@ const VALUE_OPTIONS: [&str; 3] = ["--dossier", "--agent", "--project"];
 
 /// The commands that stay on the PC: `connect` and `projects` manage the PC's files, `help`
 /// prints the text of the program on the PC, and `hooks`, `guard` and `skill` work with the
-/// Claude Code on the PC.
-const LOCAL_COMMANDS: [&str; 6] = ["connect", "projects", "help", "hooks", "guard", "skill"];
+/// Claude Code on the PC. `review-session` and `session` read a file of this machine, which the
+/// server could not read.
+const LOCAL_COMMANDS: [&str; 8] = [
+    "connect",
+    "projects",
+    "help",
+    "hooks",
+    "guard",
+    "skill",
+    "review-session",
+    "session",
+];
 
 /// The commands that ask ssh for a terminal when the PC has one (R-REMOTE-3): the approvals and
 /// changes of a person, and the decisions of a decider.
