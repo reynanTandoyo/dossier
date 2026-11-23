@@ -25,6 +25,8 @@ pub struct Filter {
     #[arg(long)]
     task: Option<String>,
     #[arg(long)]
+    state: Option<String>,
+    #[arg(long)]
     since: Option<String>,
     /// The day, YYYY-MM-DD: the entries that were in force on it (R-LIFE-9)
     #[arg(long)]
@@ -94,7 +96,7 @@ impl Filter {
         })
     }
 
-    /// `--author`, `--task` and `--since`.
+    /// `--author`, `--task`, `--state` and `--since`.
     fn fields_hold(&self, entry: &Entry) -> bool {
         self.author
             .as_deref()
@@ -103,6 +105,10 @@ impl Filter {
                 .task
                 .as_deref()
                 .is_none_or(|value| field_is(entry, "task", value.trim()))
+            && self
+                .state
+                .as_deref()
+                .is_none_or(|value| field_is(entry, "state", value.trim()))
             && since_holds(self.since.as_deref(), entry)
     }
 
@@ -512,6 +518,97 @@ mod tests {
         assert_eq!(ids(&task, &items), ["DEC-001", "FND-001", "LES-001"]);
     }
 
+    /// Three investigations with invented content, in ID order: INV-001 open, INV-002 given up,
+    /// INV-003 solved. All are approved, as an investigation is at once.
+    fn investigation_sample() -> Vec<Item> {
+        vec![
+            item(
+                Kind::Investigation,
+                "INV-001",
+                &[
+                    ("status", "approved"),
+                    ("created", "2026-11-16T09:00:00+01:00"),
+                    ("state", "open"),
+                    ("task", "T-042"),
+                ],
+            ),
+            item(
+                Kind::Investigation,
+                "INV-002",
+                &[
+                    ("status", "approved"),
+                    ("created", "2026-11-17T09:00:00+01:00"),
+                    ("state", "given up"),
+                    (
+                        "given-up-reason",
+                        "the invented solver build was not available",
+                    ),
+                    ("task", "T-042"),
+                ],
+            ),
+            item(
+                Kind::Investigation,
+                "INV-003",
+                &[
+                    ("status", "approved"),
+                    ("created", "2026-11-18T09:00:00+01:00"),
+                    ("state", "solved"),
+                    ("task", "T-050"),
+                ],
+            ),
+        ]
+    }
+
+    #[test]
+    fn state_compares_the_whole_field_ignoring_case_and_spaces() {
+        let items = investigation_sample();
+        let state = |text: &str| Filter {
+            state: Some(text.to_string()),
+            all: true,
+            ..Default::default()
+        };
+        assert_eq!(ids(&state("open"), &items), ["INV-001"]);
+        assert_eq!(ids(&state("  OPEN "), &items), ["INV-001"]);
+        assert_eq!(ids(&state("given up"), &items), ["INV-002"]);
+        assert_eq!(ids(&state("Given Up"), &items), ["INV-002"]);
+        assert_eq!(ids(&state("solved"), &items), ["INV-003"]);
+        // Part of a value is not the value.
+        assert!(ids(&state("given"), &items).is_empty());
+        assert!(ids(&state("up"), &items).is_empty());
+    }
+
+    #[test]
+    fn state_keeps_the_status_rule_and_the_other_options() {
+        let items = investigation_sample();
+        // Without --all the approved investigations still match: --state only narrows.
+        let open = Filter {
+            state: Some("open".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(ids(&open, &items), ["INV-001"]);
+        let open_in_task = Filter {
+            state: Some("open".to_string()),
+            task: Some("T-050".to_string()),
+            all: true,
+            ..Default::default()
+        };
+        assert!(ids(&open_in_task, &items).is_empty());
+    }
+
+    #[test]
+    fn without_state_the_investigations_match_as_before() {
+        let items = investigation_sample();
+        let all = Filter {
+            all: true,
+            ..Default::default()
+        };
+        assert_eq!(ids(&all, &items), ["INV-001", "INV-002", "INV-003"]);
+        assert_eq!(
+            ids(&Filter::default(), &items),
+            ["INV-001", "INV-002", "INV-003"]
+        );
+    }
+
     #[test]
     fn since_keeps_the_entries_created_on_or_after_the_date() {
         let items = sample();
@@ -669,6 +766,8 @@ mod tests {
             "anna",
             "--task",
             "T-042",
+            "--state",
+            "open",
             "--since",
             "2026-11-01",
             "--on",
@@ -690,6 +789,7 @@ mod tests {
         assert_eq!(cli.filter.tag.as_deref(), Some("mesh"));
         assert_eq!(cli.filter.author.as_deref(), Some("anna"));
         assert_eq!(cli.filter.task.as_deref(), Some("T-042"));
+        assert_eq!(cli.filter.state.as_deref(), Some("open"));
         assert_eq!(cli.filter.since.as_deref(), Some("2026-11-01"));
         assert_eq!(cli.filter.on.as_deref(), Some("2026-11-22"));
         assert_eq!(cli.filter.conditions, ["state=open", "note=a=b"]);
