@@ -7777,10 +7777,8 @@
 - note (2026-11-23, haiku-T-289): done
 
 ### T-290 · forward.rs: --allow-credential-like asks ssh for a terminal
-- status: claimed
+- status: done
 - owner: haiku-T-290
-- claimed: 2026-11-23T18:46+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-285
 - why: Dossiers are committed to git, where a credential stays in the history (D40).
@@ -7794,8 +7792,12 @@
   3. Run cargo test --lib remote::forward::
 - accept: A command typed on the PC with --allow-credential-like gets a terminal on the server, so the person there is asked.
 - verify: cargo test --lib remote::forward::
+- verified: 2026-11-23
+- commit: 78b77ab
 - reqs: R-CONF-7, R-REMOTE-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, planner): added
+- note (2026-11-23, haiku-T-290): done
 
 ### T-291 · check: report text that looks like a credential (SECRET)
 - status: claimed
