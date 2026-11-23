@@ -8261,10 +8261,8 @@
 - note (2026-11-23, haiku-T-303): done
 
 ### T-304 · status: open investigations under Waiting
-- status: claimed
+- status: done
 - owner: haiku-T-304
-- claimed: 2026-11-23T20:01+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-287
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -8279,8 +8277,12 @@
   4. Run cargo test --test cmd_status
 - accept: status shows the open investigations among what is waiting.
 - verify: cargo test --test cmd_status
+- verified: 2026-11-23
+- commit: a9ae835
 - reqs: R-INV-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-304): done
 
 ### T-305 · brief --task: the investigations of the task and similar ones
 - status: claimed
@@ -8330,8 +8332,10 @@
 - note (2026-11-23, haiku-T-306): done
 
 ### T-307 · review-task: investigations as material, and one more drafting rule
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-307
+- claimed: 2026-11-23T20:10+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-287
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
