@@ -7711,8 +7711,8 @@
 - note (2026-11-23, planner): Owner, 2026-11-23 (D45): released alone as 0.3.1; T-401 prepares the release.
 
 ### T-285 · Refuse text that looks like a credential on every write, and report it in check
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P2 · type: milestone
 - milestone: T-284
 - goal: R-CONF-7 holds: no write stores a line that looks like a credential, a person at a terminal can allow a false alarm, and check finds one added by hand.
@@ -7720,8 +7720,10 @@
 - summary: Every command that writes text refuses a private key, an access token or a password, and names the line without printing the value. A person at a terminal can override a false alarm.
 - accept: R-CONF-7 holds.
 - reqs: R-CONF-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, planner): added
 - note (2026-11-22, planner): split into T-288, T-289, T-290, T-291, T-292
+- note (2026-11-23, planner): done — Every write refuses text that looks like a credential, a person at a terminal can allow a false alarm, and check reports one added by hand.
 
 ### T-288 · secret.rs: find text that looks like a credential
 - status: done
