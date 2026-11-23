@@ -3193,8 +3193,10 @@
 - note (2026-11-23, planner): split into T-366, T-367, T-368, T-369, T-370
 
 ### T-366 · Stub files: take and return
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-366
+- claimed: 2026-11-23T21:03+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-318
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3212,8 +3214,10 @@
 - note (2026-11-23, planner): added
 
 ### T-367 · Stub module: taken.rs
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-367
+- claimed: 2026-11-23T21:03+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-318
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3230,8 +3234,10 @@
 - note (2026-11-23, planner): added
 
 ### T-368 · Stub module: remote/transfer.rs
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-368
+- claimed: 2026-11-23T21:03+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-318
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3270,8 +3276,8 @@
 - note (2026-11-23, planner): src/cmd/mod.rs moved to T-366, so this task stays at 3 files (level 1).
 
 ### T-370 · ctx.rs: take and return are writing commands
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-370
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-318
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3283,8 +3289,12 @@
   2. Run cargo test --lib ctx::
 - accept: take and return refuse a name that is not in the settings.
 - verify: cargo test --lib ctx::
+- verified: 2026-11-23
+- commit: 01e6ab2
 - reqs: R-CFG-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-370): done
 
 ### T-319 · config.rs: take_days
 - status: open
