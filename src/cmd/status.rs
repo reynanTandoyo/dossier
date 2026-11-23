@@ -34,7 +34,7 @@ use crate::journal::{self, Record};
 use crate::names::{self, Who};
 use crate::output::Output;
 use crate::store::{self, Item};
-use crate::{attempts, exchange, filelist, mapfile, time, todo_bridge, values};
+use crate::{attempts, exchange, filelist, mapfile, taken, time, todo_bridge, values};
 use chrono::{DateTime, FixedOffset, NaiveDate};
 use clap::Parser;
 use serde_json::{Value, json};
@@ -280,10 +280,11 @@ fn in_scope(item: &Item, milestone: Option<&str>) -> bool {
 }
 
 /// The screen without `--since`: the project and its tags, the map (not with a day), the key
-/// values, the tasks, who works on what and what waits (from todo's list, and the open
-/// investigations), the decisions in force, the open assumptions, what rests on a wrong
-/// assumption, the newest findings, what is unsettled, the last exchange, and what is next. With a
-/// day (`--on`) the decisions, findings, key values and exchange are those of that day.
+/// values, the tasks, who works on what (the claimed tasks and the taken files) and what waits
+/// (from todo's list, and the open investigations), the decisions in force, the open assumptions,
+/// what rests on a wrong assumption, the newest findings, what is unsettled, the last exchange, and
+/// what is next. With a day (`--on`) the decisions, findings, key values and exchange are those of
+/// that day; the taken files are as of now.
 fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<&Day>) -> Screen {
     let mut warnings = Vec::new();
     let mut sections = vec![Section::plain(vec![project_line(ctx)])];
@@ -337,12 +338,28 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
         .take(NEXT_TASKS)
         .collect();
 
-    if !claimed.is_empty() {
-        let lines = claimed
-            .iter()
-            .map(|task| format!("{} · {} ({})", task.id, task.title, task.owner))
-            .collect();
-        sections.push(Section::list("## Working now", lines, "none", "todo list"));
+    let taken_files = taken_part(ctx, milestone, &live, &mut warnings);
+    let taken_now: &[taken::Take] = taken_files.as_deref().unwrap_or(&[]);
+    let mut working_lines: Vec<String> = claimed
+        .iter()
+        .map(|task| format!("{} · {} ({})", task.id, task.title, task.owner))
+        .collect();
+    working_lines.extend(taken_now.iter().map(taken_line));
+    if !working_lines.is_empty() {
+        // The hint of a cut part names the sources of its lines that are there.
+        let mut sources = Vec::new();
+        if !claimed.is_empty() {
+            sources.push("todo list");
+        }
+        if !taken_now.is_empty() {
+            sources.push("dossier files --taken");
+        }
+        sections.push(Section::list(
+            "## Working now",
+            working_lines,
+            "none",
+            &sources.join(" and "),
+        ));
     }
     let scope: Vec<&Item> = all
         .iter()
@@ -460,6 +477,15 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
     } else {
         Value::Null
     };
+    let taken_data = match &taken_files {
+        Some(takes) => json!(
+            takes
+                .iter()
+                .map(|take| json!({"path": take.path, "person": take.person, "task": take.task}))
+                .collect::<Vec<Value>>()
+        ),
+        None => Value::Null,
+    };
     let mut waiting_ids = task_ids(&blocked);
     waiting_ids.extend(task_ids(&questions));
     let waiting = if live.list.is_some() || live.questions.is_some() {
@@ -481,6 +507,7 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
         "on": day.map(|day| day.date.as_str()),
         "tasks": tasks,
         "working": working,
+        "taken": taken_data,
         "waiting": waiting,
         "next": next_ids,
         "map": map_data,
@@ -687,6 +714,56 @@ fn listed(data: &Value) -> Vec<Listed> {
 /// The IDs of tasks, in their order.
 fn task_ids(tasks: &[&Listed]) -> Vec<String> {
     tasks.iter().map(|task| task.id.clone()).collect()
+}
+
+/// The files taken now (taken.md, R-FILE-1), in file order; with a milestone only the files whose
+/// task is in it (`task_in_milestone`). None when taken.md cannot be read: then a warning says so
+/// and the part is left out.
+fn taken_part(
+    ctx: &Ctx,
+    milestone: Option<&str>,
+    live: &Live,
+    warnings: &mut Vec<String>,
+) -> Option<Vec<taken::Take>> {
+    match taken::load(&ctx.dossier, &ctx.cfg.code) {
+        Ok((file, _)) => Some(
+            taken::all(&file)
+                .into_iter()
+                .filter(|take| task_in_milestone(&take.task, milestone, live))
+                .collect(),
+        ),
+        Err(error) => {
+            warnings.push(error.message);
+            None
+        }
+    }
+}
+
+/// Whether a task is in the milestone asked for, and every task is when none is asked for
+/// (R-CTX-11). The milestone's own ID counts, and so do the tasks of todo's list for that
+/// milestone, the same tasks as the claimed lines of the screen. Without that list (todo missing
+/// or failing) only the ID counts.
+fn task_in_milestone(task: &str, milestone: Option<&str>, live: &Live) -> bool {
+    milestone.is_none_or(|wanted| {
+        task.eq_ignore_ascii_case(wanted)
+            || live
+                .list
+                .iter()
+                .flatten()
+                .any(|listed| listed.id.eq_ignore_ascii_case(task))
+    })
+}
+
+/// One file taken now in the Working now part: `<path> · taken by <person> for <task> since
+/// <date>`.
+fn taken_line(take: &taken::Take) -> String {
+    format!(
+        "{} · taken by {} for {} since {}",
+        take.path,
+        take.person,
+        take.task,
+        time::date(&take.time),
+    )
 }
 
 /// One milestone of the Tasks part: `<id> · <title> · <done>/<total> done`.

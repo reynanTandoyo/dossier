@@ -9,6 +9,7 @@
 mod common;
 
 use common::Project;
+use dossier::blockfile::BlockFile;
 use predicates::str::contains;
 use serde_json::{Value, json};
 
@@ -1980,6 +1981,153 @@ fn a_cut_waiting_part_names_the_investigation_list_when_only_investigations_are_
          ## Unsettled\n\
          nothing waiting\n"
     );
+}
+
+/// Takes a file of invented contents as `person` for `task`, at the fixed clock of the project.
+fn take_file(project: &Project, person: &str, path: &str, task: &str) {
+    project.write(path, "invented simulation data\n");
+    project
+        .run(person, &["take", path, "--task", task])
+        .success();
+}
+
+#[test]
+fn a_taken_file_is_listed_under_working_now_also_without_todo() {
+    let project = Project::new();
+    take_file(&project, "anna", "runs/case-a.dat", "T-130");
+    assert_eq!(
+        project.stdout("anna", &["status"]),
+        "Project P-001\n\
+         tasks: todo is not installed\n\
+         ## Working now\n\
+         runs/case-a.dat · taken by anna for T-130 since 2026-11-20\n\
+         ## Decisions in force\n\
+         none\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         nothing waiting\n"
+    );
+}
+
+#[test]
+fn a_taken_file_is_listed_after_the_claimed_tasks() {
+    let project = Project::new();
+    with_todo(&project, LIST, 0);
+    take_file(&project, "anna", "runs/case-a.dat", "T-130");
+    assert_eq!(
+        project.stdout("anna", &["status"]),
+        "Project P-001\n\
+         ## Tasks\n\
+         T-130 · Context work · 2/5 done\n\
+         open 3, claimed 1, blocked 1, done 2\n\
+         ## Working now\n\
+         T-201 · Cut the speedline runs (ben-codex)\n\
+         runs/case-a.dat · taken by anna for T-130 since 2026-11-20\n\
+         ## Waiting\n\
+         T-202 · Get the mesh from the customer (blocked)\n\
+         Q-001 · Is the wall function valid here? (question)\n\
+         ## Decisions in force\n\
+         none\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         nothing waiting\n\
+         ## Next\n\
+         T-209 · Tidy the old notes\n\
+         T-203 · Write the status tests\n\
+         T-204 · Write the milestone tests\n\
+         T-205 · Write the cut tests\n\
+         T-206 · Write the JSON tests\n"
+    );
+}
+
+#[test]
+fn milestone_lists_only_the_taken_files_whose_task_is_in_it() {
+    let project = Project::new();
+    with_todo(&project, LIST, 0);
+    take_file(&project, "anna", "runs/case-a.dat", "T-201");
+    take_file(&project, "ben", "runs/case-b.dat", "T-209");
+    assert_eq!(
+        project.stdout("anna", &["status", "--milestone", "T-130"]),
+        "Project P-001\n\
+         ## Tasks\n\
+         T-130 · Context work · 2/5 done\n\
+         ## Working now\n\
+         T-201 · Cut the speedline runs (ben-codex)\n\
+         runs/case-a.dat · taken by anna for T-201 since 2026-11-20\n\
+         ## Waiting\n\
+         T-202 · Get the mesh from the customer (blocked)\n\
+         Q-001 · Is the wall function valid here? (question)\n\
+         ## Decisions in force\n\
+         none\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         nothing waiting\n\
+         ## Next\n\
+         T-203 · Write the status tests\n\
+         T-204 · Write the milestone tests\n\
+         T-205 · Write the cut tests\n\
+         T-206 · Write the JSON tests\n\
+         T-207 · Review the status code\n"
+    );
+}
+
+#[test]
+fn a_returned_file_leaves_working_now() {
+    let project = Project::new();
+    take_file(&project, "anna", "runs/case-a.dat", "T-130");
+    assert!(
+        project.stdout("anna", &["status"]).contains(
+            "## Working now\nruns/case-a.dat · taken by anna for T-130 since 2026-11-20\n"
+        )
+    );
+    // `return --done` ends the take by removing the `taken` field of the block (format.md §30);
+    // it is not built yet, so the field is removed here the way it would be.
+    let mut file = BlockFile::parse(&project.read("DOSSIER/taken.md")).expect("the file parses");
+    file.set_field("runs/case-a.dat", "taken", "");
+    project.write("DOSSIER/taken.md", &file.text());
+    assert_eq!(
+        project.stdout("anna", &["status"]),
+        "Project P-001\n\
+         tasks: todo is not installed\n\
+         ## Decisions in force\n\
+         none\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         nothing waiting\n"
+    );
+}
+
+#[test]
+fn json_gives_each_taken_file_with_its_person_and_task() {
+    let project = Project::new();
+    take_file(&project, "anna", "runs/case-a.dat", "T-130");
+    take_file(&project, "ben", "runs/case-b.dat", "T-209");
+    assert_eq!(
+        status_json(&project)["data"]["taken"],
+        json!([
+            {"path": "runs/case-a.dat", "person": "anna", "task": "T-130"},
+            {"path": "runs/case-b.dat", "person": "ben", "task": "T-209"},
+        ])
+    );
+}
+
+#[test]
+fn a_taken_file_that_cannot_be_read_is_a_warning_and_the_rest_of_the_screen_shows() {
+    let project = Project::new();
+    std::fs::write(project.root().join("DOSSIER/taken.md"), [0xff, 0xfe, b'#'])
+        .expect("writes the file");
+    project
+        .command("anna", NOW)
+        .arg("status")
+        .assert()
+        .success()
+        .stderr(contains("warning: taken.md"))
+        .stdout(contains("## Unsettled\nnothing waiting\n"));
+    assert_eq!(status_json(&project)["data"]["taken"], Value::Null);
 }
 
 /// `status --json` as anna, parsed.
