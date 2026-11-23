@@ -1280,8 +1280,10 @@ pub const RULES: [&str; 5];
 | `decide` | also `--standing` | the field `standing: yes` |
 
 `brief` and `status` print, for each digest in force, `<DIG-ID> · <milestone> · <title>` and its
-Summary lines indented, in place of the decisions and findings it covers, and one line `<n>
-entries are summed up in digests: dossier list --task <task>`.
+Summary lines indented, in place of the decisions and findings it covers, and for each digest one
+line `<n> entries of <milestone> are summed up in <DIG-ID>: dossier show <DIG-ID>` (`1 entry of …
+is summed up …` for one); `show` names the milestone and the tasks the digest covers. (A single
+`--task` pointer cannot name a milestone of several tasks; changed after T-333.)
 
 ## 19. Session review (R-DRAFT-7, R-DRAFT-9, D44)
 
