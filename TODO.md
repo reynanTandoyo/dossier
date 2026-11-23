@@ -8097,8 +8097,8 @@
 - note (2026-11-23, haiku-T-299): done
 
 ### T-300 · solved and gave-up: close an investigation
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-300
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-287
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -8115,8 +8115,12 @@
   6. Run cargo test --test cmd_solved
 - accept: An investigation is closed as solved with what solved it, or as given up with the reason.
 - verify: cargo test --test cmd_solved
+- verified: 2026-11-23
+- commit: 2b4c9e0
 - reqs: R-INV-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-300): done
 
 ### T-301 · filter.rs: --state
 - status: done
@@ -8274,8 +8278,10 @@
 - note (2026-11-23, planner): added
 
 ### T-306 · history <task>: the attempts carried out as that task
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-306
+- claimed: 2026-11-23T19:39+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-287
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
