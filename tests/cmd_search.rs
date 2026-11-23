@@ -814,3 +814,72 @@ fn a_team_entry_due_for_review_is_marked_after_its_team_prefix() {
         1 match\n",
         );
 }
+
+/// The problem of the investigations that the state-mark tests open with `problem`.
+const PROBLEM: &str = "The density residual grows from iteration 40 on.";
+
+#[test]
+fn an_investigation_is_marked_open_and_then_solved() {
+    let project = Project::new();
+    project.run("anna", &["problem", PROBLEM]).success();
+
+    let open = "INV-001  [open] The density residual grows from iteration 40 on.  — \
+        # INV-001 · The density residual grows from iteration 40 on.\n\
+        1 match\n";
+    assert_eq!(project.stdout("", &["search", "residual"]), open);
+
+    project
+        .run(
+            "anna",
+            &["solved", "INV-001", "The outlet flux had the wrong sign"],
+        )
+        .success();
+
+    let solved = "INV-001  [solved] The density residual grows from iteration 40 on.  — \
+        # INV-001 · The density residual grows from iteration 40 on.\n\
+        1 match\n";
+    assert_eq!(project.stdout("", &["search", "residual"]), solved);
+}
+
+#[test]
+fn an_investigation_given_up_is_marked_given_up() {
+    let project = Project::new();
+    project.run("anna", &["problem", PROBLEM]).success();
+    project
+        .run(
+            "anna",
+            &[
+                "gave-up",
+                "INV-001",
+                "--reason",
+                "The rig is booked for another test.",
+            ],
+        )
+        .success();
+
+    let given_up = "INV-001  [given up] The density residual grows from iteration 40 on.  — \
+        # INV-001 · The density residual grows from iteration 40 on.\n\
+        1 match\n";
+    assert_eq!(project.stdout("", &["search", "residual"]), given_up);
+}
+
+#[test]
+fn an_assumption_with_its_own_state_gets_no_investigation_mark() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "assume",
+                "Seal leakage is negligible",
+                "--reason",
+                "The bearing housing is sealed",
+            ],
+        )
+        .success();
+
+    assert_eq!(
+        project.stdout("", &["search", "leakage"]),
+        "ASM-001  Seal leakage is negligible  — # ASM-001 · Seal leakage is negligible\n1 match\n"
+    );
+}

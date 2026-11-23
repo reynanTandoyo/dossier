@@ -242,11 +242,12 @@ fn created(entry: &Entry) -> Option<DateTime<FixedOffset>> {
 }
 
 /// The mark of an entry in search (R-READ-1): its marks in the order `show` gives them
-/// (cmd/show.rs), joined with a space. `today` is the day of the run, YYYY-MM-DD. No mark when none
-/// applies.
+/// (cmd/show.rs), joined with a space, the state of an investigation right after the status.
+/// `today` is the day of the run, YYYY-MM-DD. No mark when none applies.
 fn mark(ctx: &Ctx, item: &Item, today: &str) -> Option<String> {
     let entry = &item.entry;
     let mut marks: Vec<String> = status_mark(entry).into_iter().collect();
+    marks.extend(state_mark(entry));
     if due_for_review(entry, today) {
         marks.push("[due for review]".to_string());
     }
@@ -280,6 +281,17 @@ fn status_mark(entry: &Entry) -> Option<String> {
         Status::Retired => Some("[retired]".to_string()),
         Status::Approved => None,
     }
+}
+
+/// The state mark of an investigation (R-INV-5, format.md §28): `[open]`, `[solved]` or
+/// `[given up]`, from its `state` field in lower case. None for another kind of entry, even one
+/// with a `state` field such as an assumption, and None when the field names no known state.
+fn state_mark(entry: &Entry) -> Option<String> {
+    if entry.kind() != Some(Kind::Investigation) {
+        return None;
+    }
+    let state = entry.field("state")?.to_lowercase();
+    matches!(state.as_str(), "open" | "solved" | "given up").then(|| format!("[{state}]"))
 }
 
 /// Whether the `review` date of the entry (format.md §23) is before `today`, both as YYYY-MM-DD
