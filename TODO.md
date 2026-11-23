@@ -7702,13 +7702,15 @@
 - note (2026-11-23, planner): added
 
 ### T-284 · Credentials are never stored in a dossier
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P2 · type: milestone
 - goal: No write to a project dossier or the team dossier stores a private key, an access token or a password; check finds one that was added by hand; version 0.3.1 is ready to tag. Requirements: docs/requirements.md R-CONF-7, decisions D40 and D45. Released alone as 0.3.1, before phase 4, because it protects dossiers that are already in use.
 - summary: A password, key or access token can't be written into a dossier, where it would stay in the git history.
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, planner): added
 - note (2026-11-23, planner): Owner, 2026-11-23 (D45): released alone as 0.3.1; T-401 prepares the release.
+- note (2026-11-23, planner): done — Version 0.3.1 refuses text that looks like a credential on every write and reports one added by hand in check.
 
 ### T-285 · Refuse text that looks like a credential on every write, and report it in check
 - status: done
@@ -8356,8 +8358,8 @@
 - note (2026-11-23, planner): added
 
 ### T-401 · Release 0.3.1
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-401
 - priority: P1 · difficulty: 1 · type: chore
 - milestone: T-284
 - why: Dossiers are committed to git (D36), where a credential stays in the history (D40); the check should reach the dossiers in use without waiting for a larger release (D45).
@@ -8371,8 +8373,12 @@
   3. Run cargo fmt --all -- --check, cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features; all three must pass. Do not tag and do not push: the owner does that.
 - accept: Version 0.3.1 builds, passes every check, and the README says what it adds.
 - verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
+- verified: 2026-11-23
+- commit: b725916
 - reqs: REL-1, REL-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-401): done
 
 ### T-402 · Release 0.4.0
 - status: open
