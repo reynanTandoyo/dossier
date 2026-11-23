@@ -87,7 +87,10 @@ pub fn maybe(
 /// each file it names is copied down to the same path below `base`. A failed copy ends with exit 5
 /// and says that the take is recorded, so running the same command again copies again.
 fn take(args: &[String], base: &Path, pointer: &Pointer, agent: Option<&str>) -> u8 {
-    let ssh_argv = take_argv(args, pointer, agent);
+    let sub = std::env::current_dir()
+        .ok()
+        .and_then(|current| crate::remote::forward::sub_folder(&current, base));
+    let ssh_argv = take_argv(args, sub.as_deref(), pointer, agent);
     let (code, stdout, stderr) = match ssh::capture(&ssh_argv) {
         Ok(captured) => captured,
         Err(error) => return fail(&error),
@@ -112,20 +115,23 @@ fn take(args: &[String], base: &Path, pointer: &Pointer, agent: Option<&str>) ->
     }
 }
 
-/// The ssh arguments that run `dossier take <args> --json` in the connected folder, with
-/// DOSSIER_AGENT when an agent name is given.
-fn take_argv(args: &[String], pointer: &Pointer, agent: Option<&str>) -> Vec<String> {
-    let env: Vec<(String, String)> = agent
-        .map(|name| ("DOSSIER_AGENT".to_string(), name.to_string()))
-        .into_iter()
-        .collect();
+/// The ssh arguments that run `dossier take <args> --json` in the connected folder, in the
+/// subfolder `sub` when it exists, with the variables of every forwarded command: DOSSIER_AGENT when
+/// an agent name is given, and the PC's versions (§16).
+fn take_argv(
+    args: &[String],
+    sub: Option<&str>,
+    pointer: &Pointer,
+    agent: Option<&str>,
+) -> Vec<String> {
+    let env = crate::remote::forward::remote_variables("dossier", agent);
     let mut words = vec!["take".to_string()];
     words.extend(args.iter().cloned());
     words.push("--json".to_string());
     ssh::argv_with(
         &pointer.server,
         &pointer.folder,
-        None,
+        sub,
         &env,
         "dossier",
         &words,
@@ -389,22 +395,37 @@ mod tests {
 
     #[test]
     fn take_argv_runs_take_with_json_in_the_folder_with_the_agent() {
+        let version = env!("CARGO_PKG_VERSION");
         let argv = take_argv(
             &words(&["sim/a.sim", "--task", "T-1"]),
+            None,
             &pointer(),
             Some("anna-claude"),
         );
-        assert_eq!(
-            argv.last().map(String::as_str),
-            Some(
-                "cd '/projects/p1' && DOSSIER_AGENT='anna-claude' 'dossier' 'take' 'sim/a.sim' '--task' 'T-1' '--json'"
-            )
+        let expected = format!(
+            "cd '/projects/p1' && DOSSIER_AGENT='anna-claude' DOSSIER_CLIENT_VERSION='{version}' DOSSIER_CLIENT_FORMAT='1' 'dossier' 'take' 'sim/a.sim' '--task' 'T-1' '--json'"
         );
-        let without = take_argv(&words(&["a.sim", "--task", "T-1"]), &pointer(), None);
-        assert_eq!(
-            without.last().map(String::as_str),
-            Some("cd '/projects/p1' && 'dossier' 'take' 'a.sim' '--task' 'T-1' '--json'")
+        assert_eq!(argv.last(), Some(&expected));
+
+        let without = take_argv(&words(&["a.sim", "--task", "T-1"]), None, &pointer(), None);
+        let expected = format!(
+            "cd '/projects/p1' && DOSSIER_CLIENT_VERSION='{version}' DOSSIER_CLIENT_FORMAT='1' 'dossier' 'take' 'a.sim' '--task' 'T-1' '--json'"
         );
+        assert_eq!(without.last(), Some(&expected));
+
+        // A subfolder of the connected folder: the command runs there when it exists, else in the
+        // connected folder (argv_with), so `a.sim` means sim/a.sim on the server.
+        let in_sub = take_argv(
+            &words(&["a.sim", "--task", "T-1"]),
+            Some("sim"),
+            &pointer(),
+            None,
+        );
+        let expected = format!(
+            "{{ cd '/projects/p1/sim' 2>/dev/null || cd '/projects/p1'; }} && DOSSIER_CLIENT_VERSION='{version}' DOSSIER_CLIENT_FORMAT='1' 'dossier' 'take' 'a.sim' '--task' 'T-1' '--json'"
+        );
+        assert_eq!(in_sub.last(), Some(&expected));
+        assert_ne!(in_sub.last(), without.last());
     }
 
     #[test]

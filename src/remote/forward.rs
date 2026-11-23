@@ -184,7 +184,7 @@ fn agent_name(args: &[String]) -> Option<String> {
 /// The variables set for the command on the server: DOSSIER_AGENT when a name is known, and for
 /// `dossier` (not `todo`) the program version and format of the PC (R-XOS-9), which the server
 /// compares before it runs the command.
-fn remote_variables(program: &str, agent: Option<&str>) -> Vec<(String, String)> {
+pub(crate) fn remote_variables(program: &str, agent: Option<&str>) -> Vec<(String, String)> {
     let mut env = Vec::new();
     if let Some(agent) = agent {
         env.push(("DOSSIER_AGENT".to_string(), agent.to_string()));
@@ -229,7 +229,7 @@ fn pointer_target() -> Option<Target> {
 
 /// The folder `current` below `pointer_folder`, its parts joined with `/`. None when they are
 /// the same folder, or when a part of the path is not text.
-fn sub_folder(current: &Path, pointer_folder: &Path) -> Option<String> {
+pub(crate) fn sub_folder(current: &Path, pointer_folder: &Path) -> Option<String> {
     let parts = current
         .strip_prefix(pointer_folder)
         .ok()?
