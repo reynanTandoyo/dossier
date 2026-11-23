@@ -8625,10 +8625,8 @@
 - note (2026-11-23, haiku-T-403): done
 
 ### T-405 · transfer.rs: scp in SFTP mode with an unquoted, glob-escaped remote path
-- status: claimed
+- status: done
 - owner: haiku-T-405
-- claimed: 2026-11-23T22:10+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-325
 - why: scp has used the SFTP protocol by default since OpenSSH 9.0; a shell-quoted remote path is then not found, and an unescaped * copies other files too (tested 2026-11-23).
@@ -8643,8 +8641,12 @@
   4. Run cargo test --lib remote::transfer::
 - accept: argv starts with -s, and remote_path gives the path unquoted with \ * ? [ ] escaped by a backslash.
 - verify: cargo test --lib remote::transfer::
+- verified: 2026-11-23
+- commit: 412a5de
 - reqs: R-REMOTE-4, R-XOS-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-405): done
 
 ## Questions
 
