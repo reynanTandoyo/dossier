@@ -3180,8 +3180,8 @@
 - note (2026-11-23, planner): split into T-318, T-319, T-320, T-321, T-322, T-323, T-324, T-325, T-326, T-327, T-328
 
 ### T-318 · v0.5 skeleton: stubs for take, return, taken.rs and remote/transfer.rs
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P0 · type: milestone
 - milestone: T-054
 - goal: The commands take and return and the modules taken.rs and remote/transfer.rs exist as stubs that compile.
@@ -3189,8 +3189,10 @@
 - summary: Empty places for the new commands and modules, so that each can be built on its own.
 - accept: The two commands and the two modules exist as stubs that compile, and the overview lists take and return.
 - reqs: R-FILE-1, R-FILE-2, R-FILE-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): split into T-366, T-367, T-368, T-369, T-370
+- note (2026-11-23, planner): done — take and return exist as commands that answer 'not built yet', with taken.rs and remote/transfer.rs as stubs.
 
 ### T-366 · Stub files: take and return
 - status: done
