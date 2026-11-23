@@ -8,6 +8,8 @@
 //! created first, then by ID (the team's entries sorted in with the project's). Drafts and other
 //! statuses follow the filter rules, so a draft is found only with `--drafts` (R-DRAFT-6) and is
 //! marked. Each result carries the marks `show` gives (cmd/show.rs), in the same order.
+//! With `--similar <ID>` no words are needed: the entries that share the most tags and title words
+//! with that entry are listed instead, under the same filter rules (R-READ-9, `similar`).
 
 use crate::approval::{self, Mark};
 use crate::cli::Global;
@@ -18,6 +20,8 @@ use crate::filesum;
 use crate::filter::Filter;
 use crate::glossary::{self, Term};
 use crate::output::Output;
+use crate::paths;
+use crate::select::{self, Query};
 use crate::store::{self, Item};
 use crate::time;
 use chrono::{DateTime, FixedOffset, NaiveDate};
@@ -35,12 +39,20 @@ const TEAM: &str = "team";
 /// The line that separates the whole entries printed with `--full`.
 const SEPARATOR: &str = "---";
 
+/// The most entries that `search --similar` lists (R-READ-9).
+const SIMILAR_LIMIT: usize = 10;
+
 /// The arguments of `search`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
-    /// The words to find; an entry must contain all of them, ignoring case
-    #[arg(required = true)]
+    /// The words to find; an entry must contain all of them, ignoring case. Not needed with
+    /// `--similar`
+    #[arg(required_unless_present = "similar")]
     pub words: Vec<String>,
+    /// Lists the entries that share the most tags and title words with this one, instead of
+    /// finding words; any case, with or without a place prefix (R-READ-9)
+    #[arg(long, value_name = "ID")]
+    pub similar: Option<String>,
     /// Prints each whole entry instead of one line per entry
     #[arg(long)]
     pub full: bool,
@@ -53,7 +65,8 @@ struct Hit {
     item: Item,
     /// `project` for the project's own entries, `team` for those of its team dossier.
     place: &'static str,
-    /// 0: every word is in the title; 1: a word is in a tag field; 2: the rest.
+    /// 0: every word is in the title; 1: a word is in a tag field; 2: the rest. Not used by
+    /// `--similar`, which keeps the order of `select::best`.
     group: u8,
     created: Option<DateTime<FixedOffset>>,
     mark: Option<String>,
@@ -66,6 +79,15 @@ struct Hit {
 /// The entries of the project come first, then those of its team dossier when the project has one
 /// (R-READ-3).
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
+    if let Some(id) = args.similar.as_deref() {
+        if !args.words.is_empty() {
+            return Err(Error::new(
+                Code::Usage,
+                "search takes words or --similar, not both",
+            ));
+        }
+        return similar(id, args, g);
+    }
     let typed = search_words(&args.words)?;
     let ctx = Ctx::load(g, "search")?;
     let team = if ctx.team.is_some() {
@@ -104,17 +126,113 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         )
     });
 
-    let mut text = if args.full {
-        full_text(&hits)
+    Ok(render(&hits, args.full, warnings))
+}
+
+/// Runs `search --similar <ID>` (R-READ-9): lists the entries of the project and of its team that
+/// pass the filter and share the most tags and title words with the entry, the entry itself left
+/// out, at most `SIMILAR_LIMIT`, highest score first (select::best). The entry is read from the team dossier when
+/// its ID has the place `team:`. The matched line of each result is its title.
+fn similar(id: &str, args: &Args, g: &Global) -> Result<Output> {
+    let ctx = Ctx::load(g, "search")?;
+    let team = if ctx.team.is_some() || team_id(id).is_some() {
+        Some(team_of(&ctx)?)
     } else {
-        result_lines(&hits)
+        None
+    };
+    let (home, target_id) = match (team_id(id), team.as_ref()) {
+        (Some(rest), Some(team_ctx)) => (team_ctx, rest),
+        _ => (&ctx, id),
+    };
+    let target = store::get(&home.dossier, target_id)?;
+    let query = Query {
+        tags: TAG_FIELDS
+            .iter()
+            .flat_map(|key| target.entry.list(key))
+            .collect(),
+        words: select::words(&target.entry.title()),
+    };
+
+    let places: Vec<&Ctx> = std::iter::once(&ctx).chain(team.as_ref()).collect();
+    let mut warnings = Vec::new();
+    let mut items: Vec<Item> = Vec::new();
+    // The place of each item in `items`, at the same index.
+    let mut homes: Vec<&Ctx> = Vec::new();
+    for place in places {
+        let (found, problems) = store::all(&place.dossier);
+        warnings.extend(problems);
+        for item in found {
+            if item.path != target.path && args.filter.matches(&item) {
+                items.push(item);
+                homes.push(place);
+            }
+        }
+    }
+
+    let now = time::now();
+    let today = time::date(&now);
+    let hits: Vec<Hit> = select::best(&items, &query, SIMILAR_LIMIT)
+        .into_iter()
+        .filter_map(|picked| {
+            // `best` returns references into `items`, so the index of each one is its position.
+            let index = items
+                .iter()
+                .position(|candidate| std::ptr::eq(candidate, picked))?;
+            let place = *homes.get(index)?;
+            let item = Item {
+                path: picked.path.clone(),
+                raw: picked.raw.clone(),
+                entry: picked.entry.clone(),
+            };
+            Some(Hit {
+                place: place_of(place),
+                group: 0,
+                created: created(&item.entry),
+                mark: mark(place, &item, today),
+                line: item.entry.title(),
+                item,
+            })
+        })
+        .collect();
+    Ok(render(&hits, args.full, warnings))
+}
+
+/// The output of a search: the results as lines or, with `full`, as whole entries, then the count
+/// line; the data of each result; and the warnings of the reads.
+fn render(hits: &[Hit], full: bool, warnings: Vec<String>) -> Output {
+    let mut text = if full {
+        full_text(hits)
+    } else {
+        result_lines(hits)
     };
     text.push_str(&count_line(hits.len()));
     let data = Value::Array(hits.iter().map(result_data).collect());
-    let output = Output::with(text, data);
-    Ok(warnings
+    warnings
         .into_iter()
-        .fold(output, |out, warning| out.warn(warning)))
+        .fold(Output::with(text, data), |out, warning| out.warn(warning))
+}
+
+/// The ID after the place `team:` (any case), or None when the ID has no such place (R-ID-2).
+fn team_id(id: &str) -> Option<&str> {
+    let (place, rest) = id.split_once(':')?;
+    place.eq_ignore_ascii_case(TEAM).then_some(rest)
+}
+
+/// The team dossier of the project as a context, for an ID with the place `team:` (R-ID-2). It
+/// names the path when the project names a team dossier that cannot be reached (R-PLACE-8).
+fn team_of(ctx: &Ctx) -> Result<Ctx> {
+    if ctx.team.is_none()
+        && let Some(stored) = &ctx.cfg.team
+    {
+        return Err(Error::new(
+            Code::NoDossier,
+            format!(
+                "{}: the team dossier cannot be reached",
+                ctx.root.join(paths::shown(stored)).display()
+            ),
+        ));
+    }
+    ctx.team_ctx()
 }
 
 /// The words to find, trimmed and in lower case. A blank word would match every entry, so blank

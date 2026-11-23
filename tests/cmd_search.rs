@@ -883,3 +883,214 @@ fn an_assumption_with_its_own_state_gets_no_investigation_mark() {
         "ASM-001  Seal leakage is negligible  — # ASM-001 · Seal leakage is negligible\n1 match\n"
     );
 }
+
+/// Runs `learn` as anna in the project, with an invented statement, the fixed evidence and the
+/// `extra` options (tags). The title is the statement.
+fn learn(project: &Project, statement: &str, extra: &[&str]) {
+    let mut args = vec![
+        "learn",
+        statement,
+        "--valid-for",
+        "Invented test rig",
+        "--evidence",
+        "Invented log",
+        "--confidence",
+        "measured",
+    ];
+    args.extend_from_slice(extra);
+    project.run("anna", &args).success();
+}
+
+/// Runs `learn` as anna in the team's folder, as `learn` in `learn_in_team` does, with the `extra`
+/// options added.
+fn learn_in_team_with(
+    team: &tempfile::TempDir,
+    project: &Project,
+    statement: &str,
+    extra: &[&str],
+) {
+    let mut args = vec![
+        "learn",
+        statement,
+        "--valid-for",
+        "Invented test rig",
+        "--evidence",
+        "Invented log",
+        "--confidence",
+        "measured",
+    ];
+    args.extend_from_slice(extra);
+    project
+        .command("anna", NOW)
+        .current_dir(team.path())
+        .args(&args)
+        .assert()
+        .success();
+}
+
+#[test]
+fn similar_lists_the_entries_that_share_a_tag_or_a_title_word_and_not_the_entry_itself() {
+    let project = Project::new();
+    // LES-001 is the entry; LES-002 shares its machine and the title word `runs`; LES-003 shares
+    // nothing with it.
+    learn(
+        &project,
+        "Steady runs overpredict stall margin",
+        &["--machine", "axial compressor", "--analysis", "steady RANS"],
+    );
+    learn(
+        &project,
+        "Transient runs at high speed",
+        &["--machine", "axial compressor"],
+    );
+    learn(
+        &project,
+        "Fan blade flutter is damped at low speed",
+        &[
+            "--machine",
+            "radial turbine",
+            "--analysis",
+            "modal analysis",
+        ],
+    );
+
+    let stdout = project.stdout("", &["search", "--similar", "LES-001"]);
+    assert_eq!(
+        stdout,
+        "LES-002  Transient runs at high speed  — Transient runs at high speed\n1 match\n"
+    );
+
+    let json = project.stdout("", &["--json", "search", "--similar", "LES-001"]);
+    let value: serde_json::Value = serde_json::from_str(&json).expect("one JSON line");
+    assert_eq!(value["schema"], "dossier.search.v1");
+    assert_eq!(value["ok"], true);
+    let expected = serde_json::json!([
+        {
+            "id": "LES-002",
+            "title": "Transient runs at high speed",
+            "status": "approved",
+            "line": "Transient runs at high speed",
+            "place": "project",
+        },
+    ]);
+    assert_eq!(value["data"], expected);
+}
+
+#[test]
+fn similar_orders_by_the_points_shared_and_not_by_age() {
+    let project = Project::new();
+    learn(
+        &project,
+        "Steady runs overpredict stall margin",
+        &["--machine", "axial compressor", "--analysis", "steady RANS"],
+    );
+    // Oldest: a title word and a tag, 9 points.
+    learn(
+        &project,
+        "Transient runs at high speed",
+        &["--machine", "axial compressor"],
+    );
+    // Newer: a title word only, 6 points (the title and the observation both hold it).
+    project
+        .run_at("anna", LATER, &["found", "Stall seen in rig"])
+        .success();
+    // Newest: a tag only, 3 points.
+    project
+        .run_at(
+            "anna",
+            "2026-11-21T11:00:00+01:00",
+            &["found", "Mixing plane check", "--analysis", "steady RANS"],
+        )
+        .success();
+
+    let stdout = project.stdout("", &["search", "--similar", "LES-001"]);
+    assert_eq!(
+        result_ids(&stdout),
+        ["LES-002", "FND-001", "FND-002"],
+        "{stdout}"
+    );
+    assert!(stdout.ends_with("3 matches\n"), "{stdout}");
+}
+
+#[test]
+fn similar_lists_at_most_ten_entries() {
+    let project = Project::new();
+    learn(&project, "Steady runs overpredict stall margin", &[]);
+    for _ in 0..12 {
+        project
+            .run("anna", &["found", "Stall margin reading"])
+            .success();
+    }
+
+    let stdout = project.stdout("", &["search", "--similar", "LES-001"]);
+    assert_eq!(result_ids(&stdout).len(), 10, "{stdout}");
+    assert!(stdout.ends_with("10 matches\n"), "{stdout}");
+}
+
+#[test]
+fn similar_applies_the_filter_so_a_draft_is_listed_only_with_drafts() {
+    let project = Project::new();
+    learn(&project, "Steady runs overpredict stall margin", &[]);
+    project
+        .run("anna", &["found", "Stall margin read by hand", "--later"])
+        .success();
+
+    project
+        .run("", &["search", "--similar", "LES-001"])
+        .success()
+        .stdout("0 matches\n");
+    assert_eq!(
+        project.stdout("", &["search", "--similar", "LES-001", "--drafts"]),
+        "FND-001  [draft] Stall margin read by hand  — Stall margin read by hand\n1 match\n"
+    );
+}
+
+#[test]
+fn similar_reads_the_team_dossier_and_leaves_out_only_the_entry_itself() {
+    let project = Project::new();
+    let team = linked_team(&project);
+    learn(
+        &project,
+        "Steady runs overpredict stall margin",
+        &["--machine", "axial compressor"],
+    );
+    // The team's LES-001 has the same title and tag. It is another entry, so it is listed.
+    learn_in_team_with(
+        &team,
+        &project,
+        "Steady runs overpredict stall margin",
+        &["--machine", "axial compressor"],
+    );
+
+    let stdout = project.stdout("", &["search", "--similar", "LES-001"]);
+    assert_eq!(result_ids(&stdout), ["team:LES-001"], "{stdout}");
+
+    // With the place `team:`, the team's LES-001 is the entry; the project's is listed instead.
+    let stdout = project.stdout("", &["search", "--similar", "team:LES-001"]);
+    assert_eq!(result_ids(&stdout), ["LES-001"], "{stdout}");
+}
+
+#[test]
+fn similar_with_words_is_a_usage_error_and_no_words_without_similar_is_too() {
+    let project = Project::new();
+    learn(&project, "Steady runs overpredict stall margin", &[]);
+
+    project
+        .run("", &["search", "stall", "--similar", "LES-001"])
+        .code(2)
+        .stderr(contains("not both"));
+    project.run("", &["search"]).code(2);
+}
+
+#[test]
+fn an_unknown_similar_id_is_not_found() {
+    let project = Project::new();
+    project
+        .run("", &["search", "--similar", "LES-404"])
+        .code(1)
+        .stderr(contains("no entry LES-404"));
+    // A team entry in a project with no team dossier: the team cannot be reached.
+    project
+        .run("", &["search", "--similar", "team:LES-001"])
+        .code(4);
+}
