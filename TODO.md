@@ -3318,7 +3318,7 @@
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
 - summary: A setting for when a file that was taken and not returned is marked as old.
 - depends: T-318
-- files: src/config.rs
+- files: src/config.rs, src/filelist.rs, src/names.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
   1. Config gains `pub take_days: i64`; LimitsFile gains `take_days` with the default 14; `parse` copies it like draft_days. A value below 1 is Code::Config naming the file and the key, as the other limits do.
@@ -3328,6 +3328,8 @@
 - verify: cargo test --lib config::
 - reqs: R-FILE-7, R-CFG-2
 - note (2026-11-23, planner): added
+- note (2026-11-23, planner): forced set (owner was haiku-T-319)
+- note (2026-11-23, planner): src/filelist.rs and src/names.rs build a Config in their tests and need take_days: 14 there; added to the files. The below-1 check is new for take_days and stays.
 
 ### T-320 · taken.rs: the file of taken files
 - status: done
@@ -3354,8 +3356,10 @@
 - note (2026-11-23, haiku-T-320): done
 
 ### T-321 · take: record who took a file
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-321
+- claimed: 2026-11-23T21:20+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-054
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
