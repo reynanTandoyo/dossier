@@ -122,9 +122,9 @@ impl Project {
 
     /// The prepared program, not yet run, so that a test can add variables such as
     /// DOSSIER_ANSWERS or EDITOR. Run in the project folder, with DOSSIER_NOW set to `now`,
-    /// DOSSIER_REGISTER and the stand-ins of DOSSIER_TODO and DOSSIER_SSH, DOSSIER_AGENT set
-    /// to `agent`, and DOSSIER_AGENT, USERNAME and USER removed when it is empty; TODO_AGENT is
-    /// always removed. `run_at` is `command(agent, now).args(args).assert()`.
+    /// DOSSIER_REGISTER and the stand-ins of DOSSIER_TODO, DOSSIER_SSH and DOSSIER_SCP,
+    /// DOSSIER_AGENT set to `agent`, and DOSSIER_AGENT, USERNAME and USER removed when it is
+    /// empty; TODO_AGENT is always removed. `run_at` is `command(agent, now).args(args).assert()`.
     pub fn command(&self, agent: &str, now: &str) -> assert_cmd::Command {
         let mut command =
             assert_cmd::Command::cargo_bin("dossier").expect("the dossier program is built");
@@ -137,6 +137,7 @@ impl Project {
             )
             .env("DOSSIER_TODO", self.stand_in("todo"))
             .env("DOSSIER_SSH", self.stand_in("ssh"))
+            .env("DOSSIER_SCP", self.stand_in("scp"))
             .env_remove("TODO_AGENT")
             // A test run inside an ssh session must not look like remote mode (R-REMOTE-12).
             .env_remove("SSH_CONNECTION");
@@ -152,8 +153,8 @@ impl Project {
         command
     }
 
-    /// Where DOSSIER_TODO and DOSSIER_SSH point for `program`: <project>/.test/<program>, with
-    /// .cmd on Windows. Nothing is there until a test writes it (see `write_stand_in`).
+    /// Where DOSSIER_TODO, DOSSIER_SSH and DOSSIER_SCP point for `program`:
+    /// <project>/.test/<program>, with .cmd on Windows. Nothing is there until a test writes it (see `write_stand_in`).
     pub fn stand_in(&self, program: &str) -> PathBuf {
         let folder = self.root().join(".test");
         if cfg!(windows) {
