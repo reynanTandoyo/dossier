@@ -1203,7 +1203,12 @@ pub fn argv(source: &str, target: &str, timeout: u64) -> Vec<String>;
 /// as written, and quotes would become part of the name. Each `\`, `*`, `?`, `[` and `]` gets a
 /// backslash in front, so that the SFTP glob matches only this file (tested against OpenSSH 10.2,
 /// 2026-11-23: a quoted path is not found, and an unescaped `a*b.sim` also copies `axxb.sim`).
+/// For the source of a download (`take`).
 pub fn remote_path(server: &str, folder: &str, stored: &str) -> String;
+/// "<server>:<folder/stored>" for the target of an upload (`return --done`): unquoted and not
+/// escaped, because SFTP does not glob a target and a backslash would become part of the name
+/// (tested 2026-11-23).
+pub fn remote_target(server: &str, folder: &str, stored: &str) -> String;
 /// Called by forward::maybe for `take` and `return` when the folder is connected; Some(exit code).
 pub fn maybe(command: &str, args: &[String], base: &Path, pointer: &Pointer, agent: Option<&str>)
     -> Option<u8>;
@@ -1220,12 +1225,20 @@ marks a taken file `[taken by <person>]`; `status` lists the taken files under `
 `take` warns about names that cannot exist on Windows and names that differ only in case
 (R-XOS-5).
 
-In a connected folder (`transfer::maybe`): `take` runs `dossier take … --json` on the server; on
-exit 0 it copies each file with scp from the server into the same relative path below the
-connected folder. A failed copy ends with exit 5 and says that the take is recorded and that the
-same `take` command copies again. `return --done` runs `return … --check` on the server and stops
-when it fails; copies each file to `<name>.dossier-part` on the server and moves it over the file
-with `mv -f` through ssh; then runs `return … --done`. A failed copy leaves the take as it was.
+In a connected folder (`transfer::maybe`): every command it runs on the server carries the
+variables and the subfolder of every forwarded command (§16: `forward::remote_variables`,
+`forward::sub_folder` of the current folder below the connected one), so a path typed in a
+subfolder means the same file on both sides. `take` runs `dossier take … --json` on the server;
+on exit 0 it copies each file with scp from the server into the same relative path below the
+connected folder, first to `<name>.dossier-part` beside it, renamed over the name only when the
+copy is complete. A local file that already exists is never overwritten (D46): the line says the
+local copy was kept, and that deleting it and running the same `take` copies the server's
+version. A failed copy ends with exit 5, leaves no part file, and says that the take is recorded
+and that the same `take` command copies again. `return --done` runs `return … --check` on the
+server and stops when it fails; copies each file (the current folder joined with the path as
+typed) to `remote_target(<folder>/<sub>/<path>.dossier-part)` and moves it over the file with
+`mv -f` through ssh, in the subfolder; then runs `return … --done`. A failed copy leaves the take
+as it was.
 `--check` and `--abandon` alone are forwarded like any other command. With `--project` and no
 connected folder, `take` and `return --done` are Code::Usage.
 

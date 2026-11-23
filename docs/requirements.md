@@ -1,6 +1,6 @@
 # dossier — requirements
 
-Draft 9, 2026-11-23 (owner's decisions: D28 to D45). Four points are still open (§12); everything else is decided (§3) until the
+Draft 10, 2026-11-23 (owner's decisions: D28 to D46). Four points are still open (§12); everything else is decided (§3) until the
 owner says otherwise.
 
 Each requirement has a priority, which says how important it is. When it is built is decided
@@ -135,6 +135,7 @@ an LLM starts with the right context.
 | D43 | A command from a PC makes its own ssh connection; nothing is kept open in the background. Reading through the network share with a file browser or an editor stays possible at any time (R-XOS-1). R-REMOTE-7 is not built. (Owner, 2026-11-23.) | The ssh program of Windows cannot share a connection, and a helper process on every PC would be more to install and to go wrong than the wait it saves. |
 | D44 | The session review reads a session file in `dossier`'s own format, which has a version number like the entry format. A transcript of Claude Code is first converted to it; only that converter knows Claude Code's format. (Owner, 2026-11-23.) | Claude Code's transcript format is internal and changes between releases. With an own format the review works for every LLM, and a change at Claude Code touches one converter. |
 | D45 | The order of the releases after 0.3: refusing credentials (R-CONF-7) is released alone as 0.3.1; investigations (D41, D42) become phase 4 (v0.4); working from the PC moves to phase 5 (v0.5) and growing projects to phase 6 (v0.6). (Owner, 2026-11-23.) | The credential check protects every dossier already in use, so it does not wait for a larger release. |
+| D46 | `take` from a PC never overwrites a local file that already exists: it keeps the local copy and says that deleting it and running the same `take` copies the server's version. A copy goes to `<name>.dossier-part` first and is renamed only when complete, so a failed copy leaves no half file. (Owner, 2026-11-23.) | A repeated `take` by mistake must not wipe local edits, and a retry after a failed copy still works. |
 
 ---
 

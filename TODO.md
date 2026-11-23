@@ -3501,8 +3501,8 @@
 - note (2026-11-23, planner): Its remote_path shell-quoted the path, which SFTP-mode scp reads literally; fixed by T-405 (found with a real sshd in WSL).
 
 ### T-372 · transfer.rs: take from a PC
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-372
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-325
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3520,8 +3520,12 @@
   7. Run cargo test --lib remote::transfer::
 - accept: take from a connected folder records the take on the server first and copies each file afterwards; a failed copy says to run the command again.
 - verify: cargo test --lib remote::transfer::
+- verified: 2026-11-23
+- commit: d57cc79
 - reqs: R-REMOTE-4, R-FILE-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-372): done
 
 ### T-373 · transfer.rs: return --done from a PC
 - status: open
@@ -3530,19 +3534,21 @@
 - milestone: T-325
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
 - summary: Returning a simulation file from the PC can't overwrite a colleague's version and can't leave half a file.
-- depends: T-372
+- depends: T-372, T-407
 - files: src/remote/transfer.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
-  1. In `maybe`: when command is `return` and args contain `--done`, call a private `give_back(args, base, pointer, agent) -> u8` and return Some of it.
-  2. A private helper `remote(pointer, agent, program, args) -> Result<(u8, String, String)>`: ssh::capture of ssh::argv_with(server, folder, None, env with DOSSIER_AGENT when given, program, args, false, 10). After each call print the captured standard output to standard output and standard error to standard error.
-  3. give_back, in this order: (a) remote("dossier", ["return", files…, "--check"]); not 0: return its exit code. (b) each local file (base joined with the path as typed) must exist, else print `error: <path> is not in this folder` and return 1. (c) for each file: scp with argv(the local path, remote_path(server, folder, `<path>.dossier-part`), 10), then remote("mv", ["-f", "--", `<path>.dossier-part`, `<path>`]); a failure of either prints `error: could not copy <path> to the server; the take is unchanged, run the same command again` and returns 5. (d) remote("dossier", ["return", files…, "--done"]) and return its exit code. The files are files_of(args).
-  4. Unit test: maybe returns Some for `return a.sim --done` (with DOSSIER_SSH pointing at a file that does not exist, hold crate::ENV_LOCK, expect Some(5)).
-  5. Run cargo test --lib remote::transfer::
+  1. src/remote/transfer.rs: add `pub fn remote_target(server: &str, folder: &str, stored: &str) -> String` with the doc comment of docs/design.md section 17: `format!("{server}:{folder}/{stored}")`, unquoted and not escaped. Unit test: `remote_target("anna@server", "/srv/p", "it's [2]*.sim.dossier-part")` is `"anna@server:/srv/p/it's [2]*.sim.dossier-part"`.
+  2. In `maybe`: when command is `return` and args contain `--done`, call a private `give_back(args, base, pointer, agent) -> u8` and return Some of it.
+  3. A private helper `remote(pointer, sub: Option<&str>, agent, program, args) -> Result<(u8, String, String)>`: ssh::capture of ssh::argv_with(server, folder, sub, crate::remote::forward::remote_variables(program, agent), program, args, false, TIMEOUT_SECONDS). After each call print the captured standard output to standard output and standard error to standard error.
+  4. give_back: first `let sub = std::env::current_dir().ok().and_then(|current| crate::remote::forward::sub_folder(&current, base));` and the files = files_of(args). Then in this order: (a) remote(pointer, sub, agent, "dossier", ["return", files…, "--check"]); not 0: return its exit code. (b) each local file (the current folder joined with the path as typed) must exist, else print `error: <path> is not in this folder` and return 1. (c) for each file: the stored path is `<sub>/<path>` (just `<path>` without sub, `\` turned into `/`); scp with argv(the local path, remote_target(server, folder, `<stored>.dossier-part`), TIMEOUT_SECONDS), then remote(pointer, sub, agent, "mv", ["-f", "--", `<path>.dossier-part`, `<path>`]); a failure of either prints `error: could not copy <path> to the server; the take is unchanged, run the same command again` and returns 5. (d) remote(pointer, sub, agent, "dossier", ["return", files…, "--done"]) and return its exit code.
+  5. Unit test: maybe returns Some for `return a.sim --done` (with DOSSIER_SSH pointing at a file that does not exist, hold crate::ENV_LOCK, expect Some(5)).
+  6. Run cargo test --lib remote::transfer::
 - accept: return --done from a connected folder checks on the server first, copies the file up under a temporary name, moves it into place, and only then ends the take.
 - verify: cargo test --lib remote::transfer::
 - reqs: R-REMOTE-4, R-FILE-2, R-FILE-3
 - note (2026-11-23, planner): added
+- note (2026-11-23, planner): Steps rewritten: the commands run in the subfolder with the version variables, and the upload target is remote_target (not escaped; SFTP does not glob a target, tested 2026-11-23).
 
 ### T-326 · forward.rs: take and return in a connected folder go through transfer
 - status: open
@@ -3589,12 +3595,13 @@
 - files: tests/remote_transfer.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
-  1. Create tests/remote_transfer.rs using tests/common. Write stand-ins with Project::write_stand_in: `scp` appends its arguments to scp-calls.txt and exits 0 (model: the ssh stand-in of tests/cmd_projects.rs). `ssh` appends its arguments to ssh-calls.txt, prints one fixed line and exits 0 (model: tests/cmd_review_task.rs prints a JSON envelope); the line is {"schema":"dossier.take.v1","ok":true,"data":{"task":"T-1","files":[{"path":"sim/a.sim"}]},"warnings":[]}.
-  2. Connect the project folder: `dossier connect --code P-001 anna@server:/projects/p1`, and create the local file sim/a.sim.
-  3. Test take: `dossier take sim/a.sim --task T-1` exits 0; ssh-calls.txt has one line containing `take`; scp-calls.txt has one line whose source contains `anna@server:` and `/projects/p1/sim/a.sim` and whose target ends with `a.sim`.
-  4. Test failed copy: with an scp stand-in that exits 1, the same command exits 5 and standard error contains `run the same command again`.
-  5. Test return: `dossier return sim/a.sim --done` with the ssh stand-in exiting 1 exits 1 and scp-calls.txt does not exist; `dossier return sim/a.sim --check` calls ssh once and scp never.
-  6. Run cargo test --test remote_transfer on this system; the stand-ins must have a Windows text and a Unix text.
+  1. Create tests/remote_transfer.rs using tests/common. Write stand-ins with Project::write_stand_in: `scp` appends its arguments to scp-calls.txt, writes the text `copied` to its last argument (the target; for a download it is a local path ending in `.dossier-part`) and exits 0 (model: the ssh stand-in of tests/cmd_projects.rs). `ssh` appends its arguments to ssh-calls.txt, prints one fixed line and exits 0 (model: tests/cmd_review_task.rs prints a JSON envelope); the line is {"schema":"dossier.take.v1","ok":true,"data":{"task":"T-1","files":[{"path":"sim/a.sim"}]},"warnings":[]}.
+  2. Connect the project folder: `dossier connect --code P-001 anna@server:/projects/p1`. Do not create sim/a.sim locally.
+  3. Test take: `dossier take sim/a.sim --task T-1` exits 0; ssh-calls.txt has one line containing `take` and `DOSSIER_CLIENT_VERSION`; scp-calls.txt has one line that contains `-s`, whose source contains `anna@server:` and `/projects/p1/sim/a.sim` and whose target ends with `a.sim.dossier-part`; afterwards sim/a.sim exists with the text `copied` and no `.dossier-part` file is left.
+  4. Test a kept local file (D46): create sim/a.sim with the text `mine`, run the same take: it exits 0, standard output contains `kept your local copy`, scp-calls.txt does not exist, and sim/a.sim still reads `mine`.
+  5. Test failed copy: with an scp stand-in that exits 1 and writes nothing, the take exits 5, standard error contains `run the same command again`, and neither sim/a.sim nor sim/a.sim.dossier-part exists.
+  6. Test return: `dossier return sim/a.sim --done` with the ssh stand-in exiting 1 exits 1 and scp-calls.txt does not exist; `dossier return sim/a.sim --check` calls ssh once and scp never.
+  7. Run cargo test --test remote_transfer on this system; the stand-ins must have a Windows text and a Unix text.
 - accept: The order of the steps of take and return from a PC is pinned by a test that needs no real server.
 - verify: cargo test --test remote_transfer
 - reqs: R-REMOTE-4, TEST-8
@@ -3611,7 +3618,7 @@
 - files: README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
-  1. Add a section `### Large files: take and return` under `## Remote mode: from a Windows PC`: the three steps (take, work locally, return --done), what a refused take looks like, `return --check`, `--abandon`, `--force`, `files --taken` and `files --log`, and what to do when a copy failed (run the same command again). State plainly that dossier never stores the files: it records who has them and checks before they come back.
+  1. Add a section `### Large files: take and return` under `## Remote mode: from a Windows PC`: the three steps (take, work locally, return --done), what a refused take looks like, `return --check`, `--abandon`, `--force`, `files --taken` and `files --log`, and what to do when a copy failed (run the same command again). State plainly that dossier never stores the files: it records who has them and checks before they come back. Say that a take never overwrites a file that is already in the folder (D46): it keeps the local copy and says so; delete the local file and run the same take to get the server's version.
   2. README.md, in the large-files part: one sentence that take and return from a PC need scp from OpenSSH 8.7 or newer (it is run with -s, the SFTP protocol); Windows 11 has it, and an older scp stops with an unknown-option error. Check the version with `ssh -V`.
   3. Run cargo test --test smoke
 - accept: The README explains how to take a simulation file to a PC and return it safely.
@@ -8647,6 +8654,48 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, haiku-T-405): done
+
+### T-406 · transfer.rs: take from a PC sends the versions and the subfolder
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-325
+- why: Every forwarded command carries the PC's versions and the subfolder (design.md section 16); without them the server skips its version check and a path typed in a subfolder means another file.
+- summary: A take typed in a subfolder of a connected folder takes the right file, and the server checks the versions as for any other command.
+- depends: T-372
+- files: src/remote/forward.rs, src/remote/transfer.rs
+- read: docs/design.md
+- steps:
+  1. src/remote/forward.rs: `fn remote_variables` and `fn sub_folder` become `pub(crate) fn`; nothing else in forward.rs changes.
+  2. src/remote/transfer.rs: take_argv gains a parameter `sub: Option<&str>` after `args`: `fn take_argv(args: &[String], sub: Option<&str>, pointer: &Pointer, agent: Option<&str>) -> Vec<String>`. Its env becomes `crate::remote::forward::remote_variables("dossier", agent)` (DOSSIER_AGENT when given, then the two version variables), and it passes `sub` as the third argument of ssh::argv_with in place of None.
+  3. src/remote/transfer.rs, in `take`: compute `let sub = std::env::current_dir().ok().and_then(|current| crate::remote::forward::sub_folder(&current, base));` and pass `sub.as_deref()` to take_argv.
+  4. src/remote/transfer.rs, the test take_argv_runs_take_with_json_in_the_folder_with_the_agent: call take_argv with None for sub and expect the command with `DOSSIER_AGENT='anna-claude' DOSSIER_CLIENT_VERSION='<version>' DOSSIER_CLIENT_FORMAT='1'` (take the version from env!("CARGO_PKG_VERSION") and build the expected string with format!); add one case with sub Some("sim") whose command differs from the one without sub and contains `sim` (look at the sub tests of src/remote/ssh.rs for the exact form argv_with gives a sub folder, and assert that exact string).
+  5. Run cargo test --lib remote::transfer:: and cargo test --lib remote::forward::
+- accept: take from a PC runs on the server with DOSSIER_CLIENT_VERSION, DOSSIER_CLIENT_FORMAT and the subfolder of the current folder.
+- verify: cargo test --lib remote::transfer:: && cargo test --lib remote::forward::
+- reqs: R-REMOTE-4, R-XOS-9
+- note (2026-11-23, planner): added
+
+### T-407 · transfer.rs: take copies through a part file and keeps a local file
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-325
+- why: A repeated take must not wipe local edits, and a failed copy must not leave a half file (D46).
+- summary: Taking a file again never overwrites the copy on the PC, and an interrupted copy leaves nothing half-written behind.
+- depends: T-406
+- files: src/remote/transfer.rs
+- read: docs/design.md, docs/requirements.md
+- steps:
+  1. src/remote/transfer.rs: add `fn part_path(local: &Path) -> PathBuf`: the same path with `.dossier-part` appended to the file name (`sim/a.sim` gives `sim/a.sim.dossier-part`), built with OsString so that non-ASCII names stay as they are.
+  2. src/remote/transfer.rs, copy_down returns `Result<bool>`: true when it copied, false when it kept the local file. First, when `local` already exists (`local.exists()`), return Ok(false) without running scp (D46). Otherwise create the folders as now, remove a part file left from before (ignore a NotFound error), run scp with the target `part_path(&local)` in place of `local`, and on success `std::fs::rename(part, local)`; a failed rename is the same Code::Ssh error as a failed copy. On a failed scp, remove the part file (ignore errors) and return the existing error.
+  3. src/remote/transfer.rs, copy_all returns `Result<Vec<(String, bool)>>` (path, copied), and `take` prints for each: `<path>: taken and copied` when copied, else `<path>: taken; kept your local copy (delete it and run the same take again to copy the server's version)`.
+  4. src/remote/transfer.rs, unit tests: part_path of `sim/a.sim` and of `Größe 1.sim`; copy_down with a local file that already exists (in a temporary folder) returns Ok(false) and the file keeps its content, with DOSSIER_SCP set to a program that does not exist so that a run of scp would fail (hold crate::ENV_LOCK and restore DOSSIER_SCP afterwards, as the other tests of this file do).
+  5. Run cargo test --lib remote::transfer::
+- accept: A local file that exists is kept and named in the output; a copy lands under its name only when complete.
+- verify: cargo test --lib remote::transfer::
+- reqs: R-FILE-2, R-REMOTE-4
+- note (2026-11-23, planner): added
 
 ## Questions
 
