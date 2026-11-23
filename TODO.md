@@ -3786,10 +3786,8 @@
 - note (2026-11-24, haiku-T-376): done
 
 ### T-377 · digest: in the help overview and among the writing commands
-- status: claimed
+- status: done
 - owner: haiku-T-377
-- claimed: 2026-11-24T00:11+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: chore
 - milestone: T-331
 - why: The context an LLM gets must stay small as a project grows (D22).
@@ -3804,9 +3802,13 @@
   4. Run cargo test --lib ctx:: and cargo test --test smoke
 - accept: The overview lists digest, and it follows the name rule of writing commands.
 - verify: cargo test --lib ctx:: && cargo test --test smoke
+- verified: 2026-11-24
+- commit: 6ef109f
 - reqs: R-CTX-14
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): Added tests/cmd_agents.rs: its help overview test lists every command (found in T-359).
+- note (2026-11-24, haiku-T-377): done
 
 ### T-378 · digest <milestone>: the material for the summary
 - status: claimed
