@@ -3260,8 +3260,8 @@
 - note (2026-11-23, haiku-T-368): done
 
 ### T-369 · Register take and return
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-369
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-318
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3276,10 +3276,14 @@
   4. Run cargo build and cargo test --test smoke; `dossier take` must answer `take is not built yet` with exit 2.
 - accept: take and return are part of the program and the overview.
 - verify: cargo build && cargo test --test smoke
+- verified: 2026-11-23
+- commit: cd04af1
 - reqs: R-FILE-1, R-FILE-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): Added tests/cmd_agents.rs: its help overview test lists every command (found in T-359).
 - note (2026-11-23, planner): src/cmd/mod.rs moved to T-366, so this task stays at 3 files (level 1).
+- note (2026-11-23, haiku-T-369): done
 
 ### T-370 · ctx.rs: take and return are writing commands
 - status: done
