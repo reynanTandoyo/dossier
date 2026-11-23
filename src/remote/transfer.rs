@@ -381,6 +381,18 @@ fn give_back(args: &[String], base: &Path, pointer: &Pointer, agent: Option<&str
     0
 }
 
+/// The arguments of the upload in `return --done`: argv without -p. scp -p from Windows sends the
+/// mode 0666 (Windows has no Unix modes), which would make the returned file writable for everyone
+/// on the server; without -p the server gives the new file its usual mode. Downloads keep -p.
+fn upload_argv(source: &str, target: &str) -> Vec<String> {
+    let mut args = argv(source, target, TIMEOUT_SECONDS);
+    // -p is an option, so it comes before the source and the target: the first one is the flag.
+    if let Some(index) = args.iter().position(|arg| arg == "-p") {
+        args.remove(index);
+    }
+    args
+}
+
 /// Uploads one local file to `<sub>/<name>.dossier-part` on the server, beside the file it will
 /// replace: scp, run in the connected folder. The file on the server does not change. True when
 /// the upload succeeds.
@@ -397,7 +409,7 @@ fn upload_part(local: &Path, name: &str, sub: Option<&str>, pointer: &Pointer) -
     let source = local.to_string_lossy().into_owned();
     matches!(
         std::process::Command::new(program())
-            .args(argv(&source, &target, TIMEOUT_SECONDS))
+            .args(upload_argv(&source, &target))
             .status(),
         Ok(status) if status.success()
     )
@@ -532,6 +544,23 @@ mod tests {
                 "a.sim",
             ])
         );
+    }
+
+    #[test]
+    fn upload_argv_forces_sftp_and_leaves_out_p_while_argv_keeps_it() {
+        assert_eq!(
+            upload_argv("a.sim", "anna@server:/srv/my project/a.sim.dossier-part"),
+            words(&[
+                "-s",
+                "-o",
+                "BatchMode=yes",
+                "-o",
+                "ConnectTimeout=10",
+                "a.sim",
+                "anna@server:/srv/my project/a.sim.dossier-part",
+            ])
+        );
+        assert!(argv("anna@server:/srv/a.sim", "a.sim", 10).contains(&"-p".to_string()));
     }
 
     #[test]
