@@ -8889,3 +8889,9 @@
 - owner: —
 - type: idea
 - note (2026-11-23, planner): added
+
+### T-413 · R-DRAFT-4 (MUST) gap: approve asks approve, reject or skip, but not 'edit first' (open the draft in the editor like dossier edit, then show it again and ask once more). Found in T-354; docs/guide-for-readers.md describes the three answers that exist and must gain the fourth when it is built.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-23, planner): added
