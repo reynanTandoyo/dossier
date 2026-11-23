@@ -3624,8 +3624,8 @@
 - note (2026-11-23, haiku-T-375): done
 
 ### T-327 · README: large files
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-327
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-054
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3639,8 +3639,12 @@
   3. Run cargo test --test smoke
 - accept: The README explains how to take a simulation file to a PC and return it safely.
 - verify: cargo test --test smoke
+- verified: 2026-11-23
+- commit: dd513cd
 - reqs: R-FILE-1 to R-FILE-5, REL-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-327): done
 
 ### T-328 · Release 0.5.0
 - status: open
@@ -3649,7 +3653,7 @@
 - milestone: T-054
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
 - summary: The version number and the README are ready for the owner to tag release 0.5.0.
-- depends: T-402, T-327, T-324, T-316
+- depends: T-402, T-327, T-324, T-316, T-410
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -8770,6 +8774,25 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, haiku-T-409): done
+
+### T-410 · transfer.rs: return --done does not copy the PC's file mode to the server
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-054
+- why: scp -p from Windows sends mode 0666, so a returned file became writable for everyone on the server (found in the end-to-end check, 2026-11-23).
+- summary: A file returned from a Windows PC gets the server's usual permissions instead of being writable for everyone.
+- depends: T-375
+- files: src/remote/transfer.rs
+- read: docs/design.md
+- steps:
+  1. src/remote/transfer.rs, upload_part: build the scp arguments with argv(...) as now, then remove the "-p" element before running scp, with a comment: scp -p from Windows sends the mode 0666 (Windows has no Unix modes), which would make the returned file writable for everyone on the server; without -p the server gives the new file its usual mode. Downloads (copy_down) keep -p.
+  2. src/remote/transfer.rs, unit test: a private `fn upload_argv(source: &str, target: &str) -> Vec<String>` used by upload_part, tested to start with `-s` and to contain no `-p`, while argv(...) still contains `-p`.
+  3. Run cargo test --lib remote::transfer::
+- accept: An upload runs scp without -p; a download keeps -p.
+- verify: cargo test --lib remote::transfer::
+- reqs: R-REMOTE-4
+- note (2026-11-23, planner): added
 
 ## Questions
 

@@ -1197,7 +1197,8 @@ pub fn log(file: &BlockFile, path: &str) -> Vec<String>;
 pub fn program() -> std::ffi::OsString;
 /// The arguments of scp: -s -o BatchMode=yes -o ConnectTimeout=<n> -p, then source and target.
 /// -s forces the SFTP protocol (OpenSSH 8.7 or newer; the default from 9.0 on), so that the remote
-/// path is read the same way by every scp.
+/// path is read the same way by every scp. An upload (`return --done`) leaves out -p: from Windows
+/// it would send the mode 0666 and make the returned file writable for everyone (T-410).
 pub fn argv(source: &str, target: &str, timeout: u64) -> Vec<String>;
 /// "<server>:<folder/stored>" for scp, not shell-quoted: in SFTP mode the path reaches the server
 /// as written, and quotes would become part of the name. Each `\`, `*`, `?`, `[` and `]` gets a
