@@ -12,7 +12,9 @@
 //! after the open assumptions, with their number of attempts and the last attempt (R-INV-5), and
 //! their place in the order in which the line limit cuts. The digest part adds the approved digests
 //! in force under `## Digests`, the decisions and findings they sum up left out, one count line per
-//! digest after them, and the rule that a digest line is never cut (R-CTX-15).
+//! digest after them, and the rule that a digest line is never cut (R-CTX-15). The last part adds
+//! `--budget <lines>`, the line limit of one call for the project brief and for `--task`, at least
+//! 5 lines (R-CTX-6).
 
 mod common;
 
@@ -2534,4 +2536,167 @@ fn the_json_data_names_the_digests_and_the_entries_they_sum_up() {
         serde_json::json!([]),
         "{text}"
     );
+}
+
+/// Decides `count` invented decisions as anna, numbered from 1, each with a title, a decision and
+/// a reason.
+fn decide_numbered(project: &Project, count: usize) {
+    for number in 1..=count {
+        let decision = format!("Decision number {number} of the invented project.");
+        let reason = format!("Reason number {number} of the invented project.");
+        let title = format!("Decision {number}");
+        project
+            .run(
+                "anna",
+                &[
+                    "decide",
+                    decision.as_str(),
+                    "--reason",
+                    reason.as_str(),
+                    "--title",
+                    title.as_str(),
+                ],
+            )
+            .success();
+    }
+}
+
+#[test]
+fn budget_limits_the_project_brief_for_one_call_and_says_what_is_left_out() {
+    let project = Project::new();
+    decide_numbered(&project, 30);
+
+    let text = brief(&project, &["--budget", "10"], None);
+
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 10, "{text}");
+    assert_eq!(lines.first(), Some(&"Project P-001"), "{text}");
+    assert_eq!(lines.get(1), Some(&"## Decisions in force"), "{text}");
+    assert_eq!(
+        lines.last(),
+        Some(&"23 entries left out: dossier list"),
+        "{text}"
+    );
+    // 1 project line, 1 heading, 7 decisions (the newest) and the left-out line make 10.
+    assert!(
+        lines.contains(&"DEC-030 · Decision 30 (anna, 2026-11-20)"),
+        "{text}"
+    );
+    assert!(
+        lines.contains(&"DEC-024 · Decision 24 (anna, 2026-11-20)"),
+        "{text}"
+    );
+    assert!(!text.contains("DEC-023 ·"), "{text}");
+}
+
+#[test]
+fn budget_of_200_prints_every_decision_in_full_where_the_default_would_shorten_them() {
+    let project = Project::new();
+    decide_numbered(&project, 30);
+
+    let text = brief(&project, &["--budget", "200"], None);
+
+    let lines: Vec<&str> = text.lines().collect();
+    // 1 project line, 1 heading, and for each decision its title line and its two body lines.
+    assert_eq!(lines.len(), 2 + 30 * 3, "{text}");
+    assert!(
+        lines.contains(&"  Decision number 1 of the invented project."),
+        "{text}"
+    );
+    assert!(
+        lines.contains(&"  Reason number 1 of the invented project."),
+        "{text}"
+    );
+    assert!(!text.contains("left out"), "{text}");
+
+    // The default limit of 60 lines shortens the oldest decisions to their title lines.
+    let default = brief(&project, &[], None);
+    assert!(
+        !default.contains("  Reason number 1 of the invented project."),
+        "{default}"
+    );
+    assert!(
+        default.contains("  Reason number 30 of the invented project."),
+        "{default}"
+    );
+}
+
+#[test]
+fn budget_limits_brief_task_for_one_call_and_its_first_line_stays() {
+    let project = Project::new();
+    for number in 1..=12 {
+        let decision = format!("Decision number {number} for the invented task.");
+        let reason = format!("Reason number {number} for the invented task.");
+        let title = format!("Task decision {number}");
+        project
+            .run(
+                "anna",
+                &[
+                    "decide",
+                    decision.as_str(),
+                    "--reason",
+                    reason.as_str(),
+                    "--task",
+                    "T-001",
+                    "--title",
+                    title.as_str(),
+                ],
+            )
+            .success();
+    }
+    let data = serde_json::json!({"id": "T-001", "title": "Speedline check", "status": "open"});
+    let envelope = serde_json::json!({
+        "schema": "todo.show.v1",
+        "ok": true,
+        "data": data,
+        "warnings": []
+    })
+    .to_string();
+    project.write_stand_in(
+        "todo",
+        &format!("@echo off\r\necho {envelope}\r\n"),
+        &format!("#!/bin/sh\nprintf '%s\\n' '{envelope}'\n"),
+    );
+
+    let default = brief(&project, &["--task", "T-001"], None);
+    assert!(default.lines().count() > 8, "{default}");
+
+    let text = brief(&project, &["--task", "T-001", "--budget", "8"], None);
+
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 8, "{text}");
+    assert_eq!(
+        lines.first(),
+        Some(&"Task T-001 · Speedline check"),
+        "{text}"
+    );
+    assert!(
+        lines
+            .last()
+            .is_some_and(|line| line.ends_with("more left out")),
+        "{text}"
+    );
+}
+
+#[test]
+fn a_budget_below_five_lines_is_a_usage_error_and_five_is_allowed() {
+    let project = Project::new();
+
+    project
+        .command("anna", NOW)
+        .args(["brief", "--budget", "4"])
+        .assert()
+        .failure()
+        .code(2)
+        .stderr(contains("--budget needs at least 5 lines, not 4"));
+    project
+        .command("anna", NOW)
+        .args(["brief", "--budget", "2", "--json"])
+        .assert()
+        .failure()
+        .code(2)
+        .stdout(contains("\"code\":\"USAGE\""));
+
+    let text = brief(&project, &["--budget", "5"], None);
+    assert!(text.lines().count() <= 5, "{text}");
 }

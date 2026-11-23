@@ -1,7 +1,7 @@
 //! The `brief` command: what an LLM should know at the start of a session in this project
 //! (R-CTX-1), or with `--task` what matters for one task (R-CTX-2, see `brief_task`). Only
-//! approved entries are printed (R-CTX-4). The output stays within `brief_lines` lines and is
-//! the same on every run. Nothing is changed.
+//! approved entries are printed (R-CTX-4). The output stays within `brief_lines` lines, or within
+//! the `--budget` lines of one call (R-CTX-6), and is the same on every run. Nothing is changed.
 //!
 //! The project brief also prints the map of the code (R-CODE-1), the key values (R-VALUE-4), the
 //! decisions proposed and waiting for a decider (R-CTX-16), and what rests on a wrong assumption
@@ -62,6 +62,9 @@ pub struct Args {
     /// The day, YYYY-MM-DD: what was in force on that day instead of now (R-LIFE-9)
     #[arg(long, value_name = "date", conflicts_with = "task")]
     pub on: Option<String>,
+    /// The most lines this call prints, at least 5, instead of `brief_lines` (R-CTX-6)
+    #[arg(long, value_name = "lines")]
+    pub budget: Option<usize>,
 }
 
 /// The headings of the project brief, in the order they are printed.
@@ -92,37 +95,51 @@ const REFUTED: &str = "refuted";
 /// The variable that is set when the command was started through ssh (R-REMOTE-12).
 const SSH_VARIABLE: &str = "SSH_CONNECTION";
 
-/// Runs `brief`: the context of the project, or with `--task` the context of one task. The
-/// warnings of reading the dossier are passed on.
+/// The fewest lines `--budget` accepts (R-CTX-6).
+const MIN_BUDGET: usize = 5;
+
+/// Runs `brief`: the context of the project, or with `--task` the context of one task. The line
+/// limit is `--budget` when it is given, else `brief_lines`. The warnings of reading the dossier
+/// are passed on.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
+    if let Some(lines) = args.budget
+        && lines < MIN_BUDGET
+    {
+        return Err(Error::new(
+            Code::Usage,
+            format!("--budget needs at least {MIN_BUDGET} lines, not {lines}"),
+        ));
+    }
     let ctx = Ctx::load(g, "brief")?;
+    let limit = args.budget.unwrap_or(ctx.cfg.brief_lines);
     let remote = std::env::var(SSH_VARIABLE).is_ok_and(|value| !value.is_empty());
     match &args.task {
-        Some(task) => for_task(&ctx, task, remote),
+        Some(task) => for_task(&ctx, task, remote, limit),
         None => {
             let day = args.on.as_deref().map(day_option).transpose()?;
-            for_project(&ctx, remote, day.as_deref())
+            for_project(&ctx, remote, day.as_deref(), limit)
         }
     }
 }
 
 /// `brief --task`: the lines of `brief_task`, after the server line when the command came
-/// through ssh. The server line counts in `brief_lines`.
-fn for_task(ctx: &Ctx, task: &str, remote: bool) -> Result<Output> {
+/// through ssh. The server line counts in `limit`.
+fn for_task(ctx: &Ctx, task: &str, remote: bool, limit: usize) -> Result<Output> {
     let mut lines = Vec::new();
     if remote {
         lines.push(server_line(ctx));
     }
-    let limit = ctx.cfg.brief_lines.saturating_sub(lines.len());
-    lines.extend(brief_task::lines(ctx, task, limit)?);
+    let room = limit.saturating_sub(lines.len());
+    lines.extend(brief_task::lines(ctx, task, room)?);
     let data = json!({"code": ctx.cfg.code, "task": task, "lines": lines});
     Ok(Output::with(lines.join("\n"), data))
 }
 
-/// `brief` for the project, fitted to `brief_lines`, for the day `day` when it is given. The
-/// warnings of reading the dossier are passed on with their paths shown relative to the project
-/// folder. A map or values file that cannot be read gives a warning and is left out.
-fn for_project(ctx: &Ctx, remote: bool, day: Option<&str>) -> Result<Output> {
+/// `brief` for the project, fitted to `limit` lines (`brief_lines`, or `--budget`), for the day
+/// `day` when it is given. The warnings of reading the dossier are passed on with their paths shown
+/// relative to the project folder. A map or values file that cannot be read gives a warning and is
+/// left out.
+fn for_project(ctx: &Ctx, remote: bool, day: Option<&str>, limit: usize) -> Result<Output> {
     let (items, warnings) = store::all(&ctx.dossier);
     let mut problems = Vec::new();
     let map_section = match mapfile::load(&ctx.dossier, &ctx.cfg.code) {
@@ -171,7 +188,6 @@ fn for_project(ctx: &Ctx, remote: bool, day: Option<&str>) -> Result<Output> {
     brief.news = news;
     // The news line is the last line, so it takes one of the lines the limit allows.
     let news_line = brief.news.as_ref().and_then(News::line);
-    let limit = ctx.cfg.brief_lines;
     let mut lines = brief.fit(if news_line.is_some() {
         limit.saturating_sub(1)
     } else {
