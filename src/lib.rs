@@ -20,6 +20,7 @@ pub mod ctx;
 pub mod digest;
 pub mod entry;
 pub mod error;
+pub mod examples;
 pub mod exchange;
 pub mod filelist;
 pub mod filesum;
