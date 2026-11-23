@@ -7756,8 +7756,10 @@
 - note (2026-11-22, planner): split into T-293, T-294
 
 ### T-293 · hooks.rs: the hook after shell commands, and reading a todo command from its payload
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-293
+- claimed: 2026-11-23T23:53+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-283
 - why: A rule that an agent must remember is followed only some of the time; a hook runs every time (D39).
