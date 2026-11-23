@@ -16,6 +16,10 @@
 //! day (R-LIFE-9), and leaves the map out. The tasks and the unsettled part (drafts, proposals,
 //! open assumptions, marks) are as of now: a past day has no record of what waited on it.
 //!
+//! The digests in force (digest.rs, R-CTX-15) are listed under `## Digests`, before the decisions,
+//! one line each with the number of entries it sums up. The decisions and findings a digest covers
+//! are left out of the screen; with `--milestone` only the digest of that milestone is listed.
+//!
 //! The decisions, findings, open assumptions and entries that rest on a wrong assumption carry
 //! `[due for review]` when their review date has passed (R-LIFE-7). The unsettled part counts the
 //! approved lessons, how-tos and tools changed by hand after their approval (approval::guarded,
@@ -34,7 +38,7 @@ use crate::journal::{self, Record};
 use crate::names::{self, Who};
 use crate::output::Output;
 use crate::store::{self, Item};
-use crate::{attempts, exchange, filelist, mapfile, taken, time, todo_bridge, values};
+use crate::{attempts, digest, exchange, filelist, mapfile, taken, time, todo_bridge, values};
 use chrono::{DateTime, FixedOffset, NaiveDate};
 use clap::Parser;
 use serde_json::{Value, json};
@@ -283,8 +287,9 @@ fn in_scope(item: &Item, milestone: Option<&str>) -> bool {
 /// values, the tasks, who works on what (the claimed tasks and the taken files) and what waits
 /// (from todo's list, and the open investigations), the decisions in force, the open assumptions,
 /// what rests on a wrong assumption, the newest findings, what is unsettled, the last exchange, and
-/// what is next. With a day (`--on`) the decisions, findings, key values and exchange are those of
-/// that day; the taken files are as of now.
+/// what is next. The digests in force come before the decisions, and the decisions and findings a
+/// digest covers are left out (R-CTX-15). With a day (`--on`) the decisions, findings, key values
+/// and exchange are those of that day; the taken files are as of now.
 fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<&Day>) -> Screen {
     let mut warnings = Vec::new();
     let mut sections = vec![Section::plain(vec![project_line(ctx)])];
@@ -397,9 +402,14 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
         ));
     }
 
-    let decisions = in_force(&scope, Kind::Decision, day);
+    let digests = digests_in_force(all, milestone, day);
+    let decisions: Vec<&Item> = in_force(&scope, Kind::Decision, day)
+        .into_iter()
+        .filter(|item| digest::covering(&digests, &item.entry).is_none())
+        .collect();
     let findings: Vec<&Item> = in_force(&scope, Kind::Finding, day)
         .into_iter()
+        .filter(|item| digest::covering(&digests, &item.entry).is_none())
         .take(FINDINGS)
         .collect();
     let mut counts = count_unsettled(&scope, &ctx.state);
@@ -420,6 +430,15 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
     counts.resting = resting.len();
     let (received, delivered) = last_exchange(ctx, day, &mut warnings);
 
+    let digest_part = digest_lines(&digests, &scope, day);
+    if !digest_part.is_empty() {
+        sections.push(Section::list(
+            "## Digests",
+            digest_part,
+            "none",
+            "dossier list --kind digest",
+        ));
+    }
     sections.push(Section::list(
         "## Decisions in force",
         decisions.iter().copied().map(entry_line).collect(),
@@ -512,6 +531,7 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
         "next": next_ids,
         "map": map_data,
         "values": values_data,
+        "digests": ids(&digests),
         "decisions": ids(&decisions),
         "open_assumptions": ids(&open_assumptions),
         "investigations": ids(&open_investigations),
@@ -794,20 +814,22 @@ fn number(value: Option<&Value>) -> String {
         .map_or_else(|| "?".to_string(), |number| number.to_string())
 }
 
-/// The entries of `kind` in `scope` in force: the approved ones, or with a day the ones that `--on`
-/// keeps on it (the filter rule of R-LIFE-9). Newest first: by when they took effect, then by
-/// number.
+/// Whether an entry is in effect: approved, or with a day the ones that `--on` keeps on it (the
+/// filter rule of R-LIFE-9).
+fn in_effect(item: &Item, day: Option<&Day>) -> bool {
+    match day {
+        Some(day) => day.filter.matches(item),
+        None => item.entry.status() == Some(Status::Approved),
+    }
+}
+
+/// The entries of `kind` in `scope` in force (`in_effect`). Newest first: by when they took effect,
+/// then by number.
 fn in_force<'a>(scope: &[&'a Item], kind: Kind, day: Option<&Day>) -> Vec<&'a Item> {
     let mut found: Vec<&Item> = scope
         .iter()
         .copied()
-        .filter(|item| {
-            item.entry.kind() == Some(kind)
-                && match day {
-                    Some(day) => day.filter.matches(item),
-                    None => item.entry.status() == Some(Status::Approved),
-                }
-        })
+        .filter(|item| item.entry.kind() == Some(kind) && in_effect(item, day))
         .collect();
     found.sort_by(|a, b| {
         took_effect(b)
@@ -879,6 +901,56 @@ fn due_mark(entry: &Entry) -> &'static str {
     } else {
         ""
     }
+}
+
+/// The digests in force (digest::in_force; on the day with `--on`). With `--milestone` only the
+/// digest whose `milestone` is that milestone (R-CTX-15, R-CTX-11).
+fn digests_in_force<'a>(
+    all: &'a [Item],
+    milestone: Option<&str>,
+    day: Option<&Day>,
+) -> Vec<&'a Item> {
+    digest::in_force(all, day.map(|day| day.date.as_str()))
+        .into_iter()
+        .filter(|item| {
+            milestone.is_none_or(|wanted| {
+                item.entry
+                    .field("milestone")
+                    .is_some_and(|value| value.eq_ignore_ascii_case(wanted))
+            })
+        })
+        .collect()
+}
+
+/// The Digests part (R-CTX-15): for each digest in force its line
+/// `<DIG-ID> · <milestone> · <title>`, then, when it sums up n > 0 of the entries in effect in
+/// `scope`, the line `<n> entries are summed up in digests: dossier show <DIG-ID>`. An entry counts
+/// for the digest that covers it (digest::covering, the newest that lists its task).
+fn digest_lines(digests: &[&Item], scope: &[&Item], day: Option<&Day>) -> Vec<String> {
+    let mut lines = Vec::new();
+    for digest_item in digests {
+        let id = digest_item.entry.id();
+        lines.push(format!(
+            "{id} · {} · {}",
+            digest_item.entry.field("milestone").unwrap_or_default(),
+            digest_item.entry.title()
+        ));
+        let summed = scope
+            .iter()
+            .filter(|item| in_effect(item, day))
+            .filter(|item| {
+                digest::covering(digests, &item.entry)
+                    .is_some_and(|covering| covering.entry.id() == id)
+            })
+            .count();
+        if summed > 0 {
+            lines.push(format!(
+                "{} summed up in digests: dossier show {id}",
+                counted(summed, "entry is", "entries are")
+            ));
+        }
+    }
+    lines
 }
 
 /// Whether an entry is an approved investigation whose `state` is `open` (format.md §28): the open

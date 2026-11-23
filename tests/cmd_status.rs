@@ -2135,3 +2135,192 @@ fn status_json(project: &Project) -> Value {
     let stdout = project.stdout("anna", &["status", "--json"]);
     serde_json::from_str(stdout.trim()).expect("one JSON object")
 }
+
+/// A decision of anna for `task` (invented text); `standing` adds `standing: yes`, which keeps it
+/// out of any digest (format.md §32).
+fn decision_for(project: &Project, title: &str, task: &str, standing: bool) {
+    let mut args = vec![
+        "add",
+        "decision",
+        "--title",
+        title,
+        "--section",
+        "Decision=Invented decision text.",
+        "--section",
+        "Reason=Invented reason.",
+        "--task",
+        task,
+    ];
+    if standing {
+        args.extend(["--field", "standing=yes"]);
+    }
+    project.stdout("anna", &args);
+}
+
+/// A digest of `agent` for `milestone` whose `tasks` field is `tasks` (invented Summary).
+fn digest_for(project: &Project, agent: &str, title: &str, milestone: &str, tasks: &str) {
+    let milestone_field = format!("milestone={milestone}");
+    let tasks_field = format!("tasks={tasks}");
+    project.stdout(
+        agent,
+        &[
+            "add",
+            "digest",
+            "--title",
+            title,
+            "--field",
+            &milestone_field,
+            "--field",
+            &tasks_field,
+            "--section",
+            "Summary=Invented summary of the milestone.",
+        ],
+    );
+}
+
+#[test]
+fn a_digest_in_force_replaces_the_decisions_and_findings_it_covers_and_a_standing_decision_stays() {
+    let project = Project::new();
+    decision_for(
+        &project,
+        "Use transient runs for the speedline",
+        "T-056",
+        false,
+    );
+    decision_for(&project, "Keep the inlet at the rig values", "T-056", true);
+    project.stdout(
+        "anna",
+        &[
+            "found",
+            "The speedline is flat at the last point",
+            "--task",
+            "T-057",
+        ],
+    );
+    project.stdout("anna", &["found", "The mesh has no inlet layer"]);
+    digest_for(
+        &project,
+        "anna",
+        "Milestone T-056 digests",
+        "T-056",
+        "T-056, T-057",
+    );
+
+    assert_eq!(
+        project.stdout("anna", &["status"]),
+        "Project P-001\n\
+         tasks: todo is not installed\n\
+         ## Digests\n\
+         DIG-001 · T-056 · Milestone T-056 digests\n\
+         2 entries are summed up in digests: dossier show DIG-001\n\
+         ## Decisions in force\n\
+         DEC-002 · Keep the inlet at the rig values (anna, 2026-11-20)\n\
+         ## Newest findings\n\
+         FND-002 · The mesh has no inlet layer (anna, 2026-11-20)\n\
+         ## Unsettled\n\
+         nothing waiting\n"
+    );
+    let data = status_data(&project, &[]);
+    assert_eq!(data["digests"], json!(["DIG-001"]));
+    assert_eq!(data["decisions"], json!(["DEC-002"]));
+    assert_eq!(data["findings"], json!(["FND-002"]));
+}
+
+#[test]
+fn milestone_lists_only_the_digest_of_that_milestone() {
+    let project = Project::new();
+    decision_for(
+        &project,
+        "Use the coarse mesh for the screening",
+        "T-040",
+        false,
+    );
+    decision_for(
+        &project,
+        "Use transient runs for the speedline",
+        "T-056",
+        false,
+    );
+    digest_for(
+        &project,
+        "anna",
+        "Milestone T-040 digests",
+        "T-040",
+        "T-040",
+    );
+    digest_for(
+        &project,
+        "anna",
+        "Milestone T-056 digests",
+        "T-056",
+        "T-056, T-057",
+    );
+
+    assert_eq!(
+        project.stdout("anna", &["status"]),
+        "Project P-001\n\
+         tasks: todo is not installed\n\
+         ## Digests\n\
+         DIG-002 · T-056 · Milestone T-056 digests\n\
+         1 entry is summed up in digests: dossier show DIG-002\n\
+         DIG-001 · T-040 · Milestone T-040 digests\n\
+         1 entry is summed up in digests: dossier show DIG-001\n\
+         ## Decisions in force\n\
+         none\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         nothing waiting\n"
+    );
+    assert_eq!(
+        project.stdout("anna", &["status", "--milestone", "t-056"]),
+        "Project P-001\n\
+         tasks: todo is not installed\n\
+         ## Digests\n\
+         DIG-002 · T-056 · Milestone T-056 digests\n\
+         1 entry is summed up in digests: dossier show DIG-002\n\
+         ## Decisions in force\n\
+         none\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         nothing waiting\n"
+    );
+    assert_eq!(
+        status_data(&project, &["--milestone", "T-056"])["digests"],
+        json!(["DIG-002"])
+    );
+}
+
+#[test]
+fn a_draft_digest_is_not_listed_and_covers_nothing() {
+    let project = Project::new();
+    decision_for(
+        &project,
+        "Use transient runs for the speedline",
+        "T-056",
+        false,
+    );
+    digest_for(
+        &project,
+        "ben-codex",
+        "Milestone T-056 digests",
+        "T-056",
+        "T-056",
+    );
+
+    assert_eq!(
+        project.stdout("anna", &["status"]),
+        "Project P-001\n\
+         tasks: todo is not installed\n\
+         ## Decisions in force\n\
+         DEC-001 · Use transient runs for the speedline (anna, 2026-11-20)\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         1 draft waiting\n"
+    );
+    let data = status_data(&project, &[]);
+    assert_eq!(data["digests"], json!([]));
+    assert_eq!(data["decisions"], json!(["DEC-001"]));
+}
