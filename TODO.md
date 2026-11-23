@@ -8986,10 +8986,8 @@
 - note (2026-11-24, haiku-T-417): done
 
 ### T-418 · status: the summed-up line names the digest's milestone
-- status: claimed
+- status: done
 - owner: haiku-T-418
-- claimed: 2026-11-24T00:25+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-056
 - why: brief and status must print the same summed-up line (design.md section 18, changed after T-333).
@@ -9003,8 +9001,12 @@
   3. Run cargo test --test cmd_status
 - accept: status prints the same summed-up line as brief.
 - verify: cargo test --test cmd_status
+- verified: 2026-11-24
+- commit: eb9cf78
 - reqs: R-CTX-14
+- by: Reynan Henry Tandoyo
 - note (2026-11-24, planner): added
+- note (2026-11-24, haiku-T-418): done
 
 ## Questions
 
