@@ -8920,8 +8920,10 @@
 ### T-413 · approve: the answer 'edit first'
 - status: open
 - owner: —
+- priority: P1
 - difficulty: 1
 - type: feature
+- milestone: T-058
 - why: R-DRAFT-4 (MUST) names four answers; approve offered three, so a reader could not correct a draft before approving it (found in T-354).
 - summary: During approve a person can open a draft in the editor, correct it, and then approve, reject or skip it.
 - files: src/cmd/approve.rs, src/cmd/edit.rs, tests/cmd_approve.rs
