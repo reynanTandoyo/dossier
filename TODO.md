@@ -3786,8 +3786,10 @@
 - note (2026-11-24, haiku-T-376): done
 
 ### T-377 · digest: in the help overview and among the writing commands
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-377
+- claimed: 2026-11-24T00:11+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: chore
 - milestone: T-331
 - why: The context an LLM gets must stay small as a project grows (D22).
