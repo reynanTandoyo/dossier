@@ -4720,7 +4720,7 @@
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
 - summary: The version number and the README are ready for the owner to tag release 0.6.0.
-- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417
+- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417, T-418
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -8953,6 +8953,25 @@
   3. Run cargo test --test cmd_brief
 - accept: brief prints one summed-up line per digest with its milestone and DIG-ID and the command dossier show <DIG-ID>.
 - verify: cargo test --test cmd_brief
+- reqs: R-CTX-14
+- note (2026-11-24, planner): added
+
+### T-418 · status: the summed-up line names the digest's milestone
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-056
+- why: brief and status must print the same summed-up line (design.md section 18, changed after T-333).
+- summary: status says, like brief, which milestone each digest sums up.
+- depends: T-334
+- files: src/cmd/status.rs, tests/cmd_status.rs
+- read: docs/design.md
+- steps:
+  1. src/cmd/status.rs: the per-digest count line (now `<n> entries are summed up in digests: dossier show <DIG-ID>`) becomes the line of docs/design.md section 18: `<n> entries of <milestone> are summed up in <DIG-ID>: dossier show <DIG-ID>`, or `1 entry of <milestone> is summed up in <DIG-ID>: dossier show <DIG-ID>`, with <milestone> the digest's `milestone` field. Nothing else changes; update the doc comment.
+  2. tests/cmd_status.rs: the tests that expect the old line expect the new one.
+  3. Run cargo test --test cmd_status
+- accept: status prints the same summed-up line as brief.
+- verify: cargo test --test cmd_status
 - reqs: R-CTX-14
 - note (2026-11-24, planner): added
 
