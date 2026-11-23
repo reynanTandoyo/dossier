@@ -924,15 +924,17 @@ fn digests_in_force<'a>(
 
 /// The Digests part (R-CTX-15): for each digest in force its line
 /// `<DIG-ID> · <milestone> · <title>`, then, when it sums up n > 0 of the entries in effect in
-/// `scope`, the line `<n> entries are summed up in digests: dossier show <DIG-ID>`. An entry counts
-/// for the digest that covers it (digest::covering, the newest that lists its task).
+/// `scope`, the line `<n> entries of <milestone> are summed up in <DIG-ID>: dossier show <DIG-ID>`
+/// (`1 entry of … is summed up …` for one; design.md section 18). `<milestone>` is the digest's
+/// `milestone` field. An entry counts for the digest that covers it (digest::covering, the newest
+/// that lists its task).
 fn digest_lines(digests: &[&Item], scope: &[&Item], day: Option<&Day>) -> Vec<String> {
     let mut lines = Vec::new();
     for digest_item in digests {
         let id = digest_item.entry.id();
+        let milestone = digest_item.entry.field("milestone").unwrap_or_default();
         lines.push(format!(
-            "{id} · {} · {}",
-            digest_item.entry.field("milestone").unwrap_or_default(),
+            "{id} · {milestone} · {}",
             digest_item.entry.title()
         ));
         let summed = scope
@@ -944,9 +946,10 @@ fn digest_lines(digests: &[&Item], scope: &[&Item], day: Option<&Day>) -> Vec<St
             })
             .count();
         if summed > 0 {
+            let verb = if summed == 1 { "is" } else { "are" };
             lines.push(format!(
-                "{} summed up in digests: dossier show {id}",
-                counted(summed, "entry is", "entries are")
+                "{} of {milestone} {verb} summed up in {id}: dossier show {id}",
+                counted(summed, "entry", "entries")
             ));
         }
     }

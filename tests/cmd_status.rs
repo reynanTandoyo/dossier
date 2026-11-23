@@ -2212,7 +2212,7 @@ fn a_digest_in_force_replaces_the_decisions_and_findings_it_covers_and_a_standin
          tasks: todo is not installed\n\
          ## Digests\n\
          DIG-001 · T-056 · Milestone T-056 digests\n\
-         2 entries are summed up in digests: dossier show DIG-001\n\
+         2 entries of T-056 are summed up in DIG-001: dossier show DIG-001\n\
          ## Decisions in force\n\
          DEC-002 · Keep the inlet at the rig values (anna, 2026-11-20)\n\
          ## Newest findings\n\
@@ -2262,9 +2262,9 @@ fn milestone_lists_only_the_digest_of_that_milestone() {
          tasks: todo is not installed\n\
          ## Digests\n\
          DIG-002 · T-056 · Milestone T-056 digests\n\
-         1 entry is summed up in digests: dossier show DIG-002\n\
+         1 entry of T-056 is summed up in DIG-002: dossier show DIG-002\n\
          DIG-001 · T-040 · Milestone T-040 digests\n\
-         1 entry is summed up in digests: dossier show DIG-001\n\
+         1 entry of T-040 is summed up in DIG-001: dossier show DIG-001\n\
          ## Decisions in force\n\
          none\n\
          ## Newest findings\n\
@@ -2278,7 +2278,7 @@ fn milestone_lists_only_the_digest_of_that_milestone() {
          tasks: todo is not installed\n\
          ## Digests\n\
          DIG-002 · T-056 · Milestone T-056 digests\n\
-         1 entry is summed up in digests: dossier show DIG-002\n\
+         1 entry of T-056 is summed up in DIG-002: dossier show DIG-002\n\
          ## Decisions in force\n\
          none\n\
          ## Newest findings\n\
