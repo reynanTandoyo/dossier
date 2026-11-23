@@ -7879,8 +7879,8 @@
 - note (2026-11-23, planner): The note above about replacing belongs to the task on attempt texts with a separator form, added below T-287; it was written here by a planner mistake.
 
 ### T-287 · Investigations: problem, tried, solved, gave-up, and their place in show, brief, status and search
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P2 · type: milestone
 - milestone: T-286
 - goal: R-INV-1 to R-INV-10 hold: a problem, its attempts in order and its solution are recorded in ten seconds per attempt, shown at session start and before similar tasks, and promoted to the team as a how-to or lesson.
@@ -7888,9 +7888,11 @@
 - summary: A new kind of entry holds a problem, each attempt with its hypothesis, result and verdict, and the solution. Open ones are shown at session start; solved ones are shown to whoever starts a similar task.
 - accept: R-INV-1 to R-INV-10 hold.
 - reqs: R-INV-1, R-INV-2, R-INV-3, R-INV-4, R-INV-5, R-INV-6, R-INV-7, R-INV-8, R-INV-9, R-INV-10
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, planner): added
 - note (2026-11-22, planner): Split when its turn comes: needs the form of an attempt in docs/format.md and a design in docs/design.md first. R-INV-9 (the hook part) needs T-283; the rest depends on nothing open.
 - note (2026-11-23, planner): split into T-295, T-296, T-297, T-298, T-299, T-300, T-301, T-302, T-303, T-304, T-305, T-306, T-307, T-308, T-309, T-310
+- note (2026-11-23, planner): done — Investigations are recorded with problem, tried, solved and gave-up, and appear in list, show, search, brief, status, history, review-task and promote.
 
 ### T-295 · Entry kinds: the investigation (INV)
 - status: done
