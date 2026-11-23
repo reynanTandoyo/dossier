@@ -4431,10 +4431,8 @@
 - note (2026-11-24, haiku-T-343): done
 
 ### T-344 · schema: a machine-readable description of the commands
-- status: claimed
+- status: done
 - owner: haiku-T-344
-- claimed: 2026-11-24T00:36+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
@@ -4449,8 +4447,12 @@
   4. Run cargo test --test cmd_schema
 - accept: schema prints every command, the JSON envelope, the exit codes and the error codes as data.
 - verify: cargo test --test cmd_schema
+- verified: 2026-11-24
+- commit: 51e617e
 - reqs: R-OUT-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-344): done
 
 ### T-345 · search --similar: entries that share the most with one entry
 - status: claimed
