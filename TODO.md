@@ -8810,7 +8810,7 @@
 - read: src/secret.rs
 - steps:
   1. src/secret.rs, in the tests module: add `const AWS_BODY: &str = "Q7WXYZ3JKLMN2PQR";` next to `const BODY`, with a comment: the AWS-shaped test values are built at run time, so that the source holds no literal that secret scanners report as a leaked key.
-  2. src/secret.rs, the five lines of the AWS test (now `kinds("AKIAQ7WXYZ3JKLMN2PQR")` and the four after it): build each value with format! from the prefix and AWS_BODY and keep exactly the same text as before: `format!("AKIA{AWS_BODY}")`, `format!("ASIA{AWS_BODY}")`, `format!("AKIA{AWS_BODY}S")`, `format!("AKIA{}", &AWS_BODY[..15])`, `format!("AKIA{}", AWS_BODY.to_lowercase())`. The expected results stay as they are.
+  2. src/secret.rs, the five lines of the AWS test (the AWS test, five lines): build each value with format! from the prefix and AWS_BODY and keep exactly the same text as before: `format!("AKIA{AWS_BODY}")`, `format!("ASIA{AWS_BODY}")`, `format!("AKIA{AWS_BODY}S")`, `format!("AKIA{}", &AWS_BODY[..15])`, `format!("AKIA{}", AWS_BODY.to_lowercase())`. The expected results stay as they are.
   3. Check that no other line of the repository (outside target/) matches the pattern `(AKIA|ASIA)[A-Za-z0-9]{12,}` any more, for example with git grep -E.
   4. Run cargo test --lib secret::
 - accept: The tests check the same texts as before, and git grep finds no AKIA or ASIA key-shaped literal.
