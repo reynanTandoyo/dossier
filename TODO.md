@@ -4585,8 +4585,10 @@
 - note (2026-11-23, planner): split into T-395, T-396, T-397
 
 ### T-395 · check --fix: rename files whose name does not match
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-395
+- claimed: 2026-11-24T00:47+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-348
 - why: Smaller comforts that are worth having once the daily use is settled.
