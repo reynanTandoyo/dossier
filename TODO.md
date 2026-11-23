@@ -8639,3 +8639,10 @@
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): answer — Owner, 2026-11-23 (D44): dossier gets its own session file format with a version number (format.md section 34). review-session reads that; a Claude Code transcript is converted first, and only the converter (src/claude.rs) knows Claude Code's format. T-336, T-337, T-339 and T-340 were changed accordingly.
 
+## Ideas
+
+### T-404 · take.rs and return_cmd.rs both hold stored_path and ensure_file (copied in T-322 under the three-file limit); move them to one place, for example taken.rs.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-23, planner): added
