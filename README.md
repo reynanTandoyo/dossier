@@ -813,6 +813,19 @@ These come in later phases. See [`docs/requirements.md`](docs/requirements.md), 
 - **Phase 5 (v0.5):** copying large simulation files to a PC and back.
 - **Phase 6 (v0.6):** milestone digests, session review, hooks after `todo` commands, and export.
 
+### What version 0.4 adds
+
+#### Investigations: trial and error
+
+An attempt is a line in the investigation, not a task. A solved one is promoted with `promote <ID> --as howto`.
+
+```sh
+dossier problem "The density residual grows from iteration 40 on and the run stops with a negative pressure" --task T-012
+dossier tried INV-003 "The flux at the outlet has the wrong sign" --worked --did "corrected the sign in the outlet flux" --result "converges in 900 iterations"
+dossier solved INV-003 "The outlet flux had the wrong sign" --attempt 3
+dossier show INV-003
+```
+
 ## What it needs
 
 - [`todo`](https://github.com/reynanTandoyo/todo) 0.8 or newer. `todo` keeps the tasks of a

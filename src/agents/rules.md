@@ -12,6 +12,8 @@
 - Take every number from `dossier values`, never from memory.
 - When your person is not a decider, suggest with `dossier propose`; a decider accepts it.
 - Record what you observe with `dossier found "<observation>"`, and what was tried and failed with `dossier found "<what was tried>" --dead-end`.
+- When something fails and you start looking for the cause, open an investigation: `dossier problem "<what goes wrong>" --task <id>`, or continue the open one; read its attempts first (`dossier show <ID>`).
+- Record one line for each hypothesis, also the failed ones, not one for each compile or run: `dossier tried <ID> "<hypothesis>" --failed|--worked|--unclear --result "<what happened>"`; close with `dossier solved <ID> "<what solved it>"`.
 - Attach the files a task reads and writes with `dossier attach <task> <path> --role <role>`.
 - Record a simulation run with `dossier used <software> --version <v> --task <task> --model <file> --output <path>`.
 - Record what you had to assume with `dossier assume "<assumption>" --reason "<why>"`.
