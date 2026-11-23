@@ -4380,10 +4380,8 @@
 - note (2026-11-24, haiku-T-391): done
 
 ### T-342 · story: the decisions in the order they were made
-- status: claimed
+- status: done
 - owner: haiku-T-342
-- claimed: 2026-11-24T00:32+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
@@ -4398,8 +4396,12 @@
   4. Run cargo test --test cmd_story
 - accept: story answers why the project was done this way: every decision in order, with its reason and its task.
 - verify: cargo test --test cmd_story
+- verified: 2026-11-24
+- commit: 23ee2d2
 - reqs: R-READ-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-342): done
 
 ### T-343 · export: the project's knowledge as one Markdown document
 - status: claimed
