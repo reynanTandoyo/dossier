@@ -999,6 +999,10 @@ dossier todo show T-042
 Team members work from their Windows PCs. The project stays on the server. A PC sends each command
 to the server through ssh, and the output comes back as if the command had run locally.
 
+Each command makes its own ssh connection. Nothing runs in the background on the PC, and a command
+typically takes a second or so. The project folder can be read at any time through the network
+share, with a file browser or an editor; only writing goes through the commands.
+
 ### Sign in with a key, once
 
 `dossier` runs ssh without asking any questions. So sign-in must work with a key, and without a
@@ -1028,6 +1032,32 @@ The program reads the project code from the server, and writes a small pointer f
 From then on, every `dossier` command in that folder, or in a folder below it, runs on the server.
 If the server cannot give the code, add it with `--code P-001`.
 
+### Check the connection
+
+```powershell
+dossier connect --check
+```
+
+Run it in the connected folder, or in a folder below it. It tests the connection and prints four
+lines:
+
+```
+ssh: ok
+dossier on the server: 0.4.0
+todo on the server: 0.8.0
+dossier folder: ok (P-001)
+```
+
+It fails in three cases, and each failure ends with a message:
+
+- The server cannot be reached, or ssh cannot sign in: exit code `5`. Sign in once by hand, as
+  described in [When the server cannot be reached](#when-the-server-cannot-be-reached).
+- `dossier` or `todo` is not installed on the server, or not on its PATH: exit code `5`.
+- The project folder on the server has no dossier: exit code `4`. Run `dossier init` there.
+
+A dossier version on the server that differs from the PC's, or a server that answers for another
+project code, is a warning in the output.
+
 ### Use the commands as if local
 
 ```powershell
@@ -1039,6 +1069,15 @@ dossier todo show T-042
 ```
 
 PowerShell changes `$name` inside double quotes. Put text that contains `$` in single quotes.
+
+A command typed in a folder below the connected folder runs in the same folder below the project
+on the server, if that folder exists there. Otherwise it runs in the project folder. With the
+folders of the example above, `dossier brief` typed in `C:\Projects\P-001\sim\run 1` runs in
+`/projects/P-001/sim/run 1` on the server.
+
+The PC and the server compare their versions with every command. A different format version is
+refused, and the message says which side to update. A different program version with the same
+format is printed as a warning, and the command still runs.
 
 ### Other projects
 
