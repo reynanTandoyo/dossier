@@ -13,6 +13,10 @@ pub const GUARD: &str = "dossier guard";
 /// that moment (R-AGENT-5).
 pub const AFTER: &str = "dossier after";
 
+/// The start of the command of the SessionEnd hook: it runs the team's review command when a
+/// session ends (R-DRAFT-9). The full command is this text, `--run` and the quoted review command.
+pub const SESSION_END: &str = "dossier session-end";
+
 /// The matcher of the PreToolUse hook: the tools that write a file.
 const EDIT_TOOLS: &str = "Edit|Write|MultiEdit";
 
@@ -44,8 +48,9 @@ pub fn installed(existing: &str) -> Result<String> {
     render(&root)
 }
 
-/// The settings text with exactly the three entries of `installed` removed; other keys kept. An
-/// array or object that the removal left empty goes too; one that was empty before stays.
+/// The settings text with exactly the entries of `installed` and of `review_installed` removed;
+/// other keys kept. An array or object that the removal left empty goes too; one that was empty
+/// before stays.
 pub fn uninstalled(existing: &str) -> Result<String> {
     let mut root = settings(existing)?;
     let hooks_emptied = match root.get_mut("hooks") {
@@ -60,6 +65,18 @@ pub fn uninstalled(existing: &str) -> Result<String> {
     if hooks_emptied {
         root.remove("hooks");
     }
+    render(&root)
+}
+
+/// .claude/settings.json with a SessionEnd hook running `dossier session-end --run <command>`, the
+/// command quoted for a POSIX shell (a single quote is written as '\''). The hook is added once; a
+/// SessionEnd hook that runs SESSION_END already takes the new command in its place, and only one
+/// such hook is kept. Other keys and hooks are kept. Code::Parse as in `installed`.
+pub fn review_installed(existing: &str, command: &str) -> Result<String> {
+    let mut root = settings(existing)?;
+    let hooks = object_or_new(&mut root, "hooks")?;
+    let run = format!("{SESSION_END} --run {}", shell_quoted(command));
+    set_session_end(array_mut(hooks, "SessionEnd")?, &run);
     render(&root)
 }
 
@@ -305,6 +322,42 @@ fn add_once(
     Ok(())
 }
 
+/// Gives the SessionEnd entries the hook that runs `run`. The first hook that runs SESSION_END
+/// takes `run` as its command, in its place; any other such hook is removed, and an entry the
+/// removal leaves without hooks goes too. With no such hook, an entry running `run` is added at
+/// the end.
+fn set_session_end(entries: &mut Vec<Value>, run: &str) {
+    let mut found = false;
+    entries.retain_mut(|entry| {
+        let Some(hooks) = entry.get_mut("hooks").and_then(Value::as_array_mut) else {
+            return true;
+        };
+        let before = hooks.len();
+        hooks.retain_mut(|hook| {
+            if !is_session_end(hook) {
+                return true;
+            }
+            if found {
+                return false;
+            }
+            found = true;
+            if let Some(object) = hook.as_object_mut() {
+                object.insert("command".to_string(), Value::String(run.to_string()));
+            }
+            true
+        });
+        before == 0 || !hooks.is_empty()
+    });
+    if !found {
+        entries.push(json!({"hooks": [{"type": "command", "command": run}]}));
+    }
+}
+
+/// `text` as one word for a POSIX shell: in single quotes, each single quote written as '\''.
+fn shell_quoted(text: &str) -> String {
+    format!("'{}'", text.replace('\'', r"'\''"))
+}
+
 /// Whether `entry` has a hook that runs `command`.
 fn runs(entry: &Value, command: &str) -> bool {
     entry
@@ -318,9 +371,14 @@ fn command_of(hook: &Value) -> Option<&str> {
     hook.get("command").and_then(Value::as_str)
 }
 
-/// Whether a hook object runs BRIEF, GUARD or AFTER.
+/// Whether a hook object runs a command that starts with SESSION_END.
+fn is_session_end(hook: &Value) -> bool {
+    command_of(hook).is_some_and(|command| command.starts_with(SESSION_END))
+}
+
+/// Whether a hook object runs BRIEF, GUARD or AFTER, or a command that starts with SESSION_END.
 fn is_dossier(hook: &Value) -> bool {
-    matches!(command_of(hook), Some(BRIEF | GUARD | AFTER))
+    matches!(command_of(hook), Some(BRIEF | GUARD | AFTER)) || is_session_end(hook)
 }
 
 /// Takes the dossier hooks out of `entry`. Returns false when that leaves the entry with no hooks
@@ -911,5 +969,190 @@ mod tests {
         );
         assert_eq!(local_uninstalled(&format!("{mark}  \n")).unwrap(), "{}\n");
         assert!(!plain.starts_with(mark));
+    }
+
+    /// A settings text with other keys and a SessionEnd hook of the team's own in it.
+    const SESSION_END_OTHER: &str = r#"{
+  "model": "invented-model",
+  "hooks": {
+    "SessionEnd": [
+      {"hooks": [{"type": "command", "command": "echo end"}]}
+    ]
+  }
+}
+"#;
+
+    #[test]
+    fn review_installs_one_session_end_hook_into_an_empty_object() {
+        let text = review_installed("{}", "echo done").unwrap();
+        assert_eq!(
+            parsed(&text),
+            json!({"hooks": {"SessionEnd": [
+                {"hooks": [{"type": "command", "command": "dossier session-end --run 'echo done'"}]}
+            ]}})
+        );
+        assert!(text.ends_with("}\n") && !text.ends_with("\n\n"), "{text}");
+    }
+
+    #[test]
+    fn review_treats_blank_text_as_an_empty_object() {
+        let empty = review_installed("{}", "echo done").unwrap();
+        assert_eq!(review_installed("", "echo done").unwrap(), empty);
+        assert_eq!(review_installed(" \n\t", "echo done").unwrap(), empty);
+        let marked = format!("\u{feff}{SESSION_END_OTHER}");
+        assert_eq!(
+            review_installed(&marked, "echo done").unwrap(),
+            review_installed(SESSION_END_OTHER, "echo done").unwrap()
+        );
+    }
+
+    #[test]
+    fn review_quotes_a_single_quote_in_the_command() {
+        let value = parsed(&review_installed("{}", "echo it's done").unwrap());
+        assert_eq!(
+            value["hooks"]["SessionEnd"][0]["hooks"][0]["command"],
+            r"dossier session-end --run 'echo it'\''s done'"
+        );
+    }
+
+    #[test]
+    fn review_keeps_other_keys_and_hooks() {
+        let original = parsed(SESSION_END_OTHER);
+        let value = parsed(&review_installed(SESSION_END_OTHER, "echo done").unwrap());
+        assert_eq!(value["model"], "invented-model");
+        assert_eq!(
+            value["hooks"]["SessionEnd"][0],
+            original["hooks"]["SessionEnd"][0]
+        );
+        let text = review_installed(OTHER, "echo done").unwrap();
+        assert_eq!(
+            parsed(&text)["hooks"]["Stop"],
+            parsed(OTHER)["hooks"]["Stop"]
+        );
+        assert_eq!(
+            parsed(&text)["hooks"]["SessionStart"],
+            parsed(OTHER)["hooks"]["SessionStart"]
+        );
+    }
+
+    #[test]
+    fn review_twice_with_the_same_command_gives_the_same_text_with_one_entry() {
+        let empty_once = review_installed("{}", "echo done").unwrap();
+        assert_eq!(
+            review_installed(&empty_once, "echo done").unwrap(),
+            empty_once
+        );
+        let once = review_installed(SESSION_END_OTHER, "echo done").unwrap();
+        assert_eq!(review_installed(&once, "echo done").unwrap(), once);
+        let value = parsed(&once);
+        assert_eq!(
+            value["hooks"]["SessionEnd"].as_array().unwrap().len(),
+            2,
+            "{value}"
+        );
+    }
+
+    #[test]
+    fn review_with_another_command_replaces_the_old_one_in_place() {
+        let first = review_installed(SESSION_END_OTHER, "echo old").unwrap();
+        let second = review_installed(&first, "echo new").unwrap();
+        let value = parsed(&second);
+        let session_end = value["hooks"]["SessionEnd"].as_array().unwrap();
+        assert_eq!(session_end.len(), 2, "{value}");
+        assert_eq!(
+            session_end[0],
+            json!({"hooks": [{"type": "command", "command": "echo end"}]})
+        );
+        let review = json!({"hooks": [{
+            "type": "command",
+            "command": "dossier session-end --run 'echo new'"
+        }]});
+        assert_eq!(session_end[1], review);
+        assert_eq!(
+            second,
+            review_installed(SESSION_END_OTHER, "echo new").unwrap()
+        );
+    }
+
+    #[test]
+    fn review_replaces_the_hook_inside_its_entry_and_keeps_its_neighbours() {
+        let text = r#"{"hooks": {"SessionEnd": [
+  {"hooks": [
+    {"type": "command", "command": "echo end"},
+    {"type": "command", "command": "dossier session-end --run 'old'"}
+  ]}
+]}}"#;
+        assert_eq!(
+            parsed(&review_installed(text, "new").unwrap()),
+            json!({"hooks": {"SessionEnd": [{"hooks": [
+                {"type": "command", "command": "echo end"},
+                {"type": "command", "command": "dossier session-end --run 'new'"}
+            ]}]}})
+        );
+    }
+
+    #[test]
+    fn review_keeps_one_session_end_hook_when_there_are_several() {
+        let text = r#"{"hooks": {"SessionEnd": [
+  {"hooks": [{"type": "command", "command": "dossier session-end --run 'old'"}]},
+  {"hooks": [{"type": "command", "command": "echo end"}]},
+  {"hooks": [{"type": "command", "command": "dossier session-end --run 'older'"}]}
+]}}"#;
+        assert_eq!(
+            parsed(&review_installed(text, "new").unwrap()),
+            json!({"hooks": {"SessionEnd": [
+                {"hooks": [{"type": "command", "command": "dossier session-end --run 'new'"}]},
+                {"hooks": [{"type": "command", "command": "echo end"}]}
+            ]}})
+        );
+    }
+
+    #[test]
+    fn review_refuses_text_that_is_not_a_settings_object() {
+        let texts = [
+            "[]",
+            "not json",
+            r#"{"hooks": []}"#,
+            r#"{"hooks": {"SessionEnd": {}}}"#,
+            r#"{"hooks": {"SessionEnd": "text"}}"#,
+        ];
+        for text in texts {
+            assert_eq!(
+                review_installed(text, "echo done").unwrap_err().code,
+                Code::Parse,
+                "{text}"
+            );
+        }
+    }
+
+    #[test]
+    fn uninstalling_removes_only_the_session_review_hook() {
+        let text = r#"{"hooks": {"SessionEnd": [
+  {"hooks": [{"type": "command", "command": "echo end"}]},
+  {"hooks": [{"type": "command", "command": "dossier session-end --run 'echo done'"}]}
+]}}"#;
+        assert_eq!(
+            parsed(&uninstalled(text).unwrap()),
+            json!({"hooks": {"SessionEnd": [
+                {"hooks": [{"type": "command", "command": "echo end"}]}
+            ]}})
+        );
+    }
+
+    #[test]
+    fn uninstalling_after_the_review_gives_back_the_other_entries() {
+        let both = review_installed(&installed(OTHER).unwrap(), "echo done").unwrap();
+        assert_eq!(parsed(&uninstalled(&both).unwrap()), parsed(OTHER));
+        let review_only = review_installed(SESSION_END_OTHER, "echo done").unwrap();
+        assert_eq!(
+            parsed(&uninstalled(&review_only).unwrap()),
+            parsed(SESSION_END_OTHER)
+        );
+    }
+
+    #[test]
+    fn uninstalling_after_the_review_into_an_empty_object_gives_an_empty_object() {
+        let text = review_installed("{}", "echo done").unwrap();
+        assert_eq!(uninstalled(&text).unwrap(), "{}\n");
     }
 }
