@@ -3020,10 +3020,8 @@
 - note (2026-11-23, planner): split into T-311, T-312, T-313, T-314, T-315, T-316
 
 ### T-311 · ssh.rs: variables and a subfolder for the remote command, and captured output
-- status: claimed
+- status: done
 - owner: haiku-T-311
-- claimed: 2026-11-23T20:40+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-053
 - why: Team members work on Windows PCs while the one copy of the dossier is on the Linux server.
@@ -3038,8 +3036,12 @@
   5. Run cargo test --lib remote::ssh:: and cargo test --test cmd_projects --test cmd_todo
 - accept: The ssh command can carry variables and a subfolder, and its output can be captured.
 - verify: cargo test --lib remote::ssh:: && cargo test --test cmd_projects
+- verified: 2026-11-23
+- commit: 04c0cb4
 - reqs: R-XOS-3, R-XOS-9, D43
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-311): done
 
 ### T-312 · remote/version.rs: compare the versions of PC and server
 - status: done
@@ -3085,8 +3087,10 @@
 - note (2026-11-23, planner): added
 
 ### T-314 · cli.rs: refuse a PC with another format, warn about another version
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-314
+- claimed: 2026-11-23T20:47+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-053
 - why: Team members work on Windows PCs while the one copy of the dossier is on the Linux server.
