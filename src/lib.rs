@@ -7,6 +7,7 @@ pub mod affects;
 pub mod agents;
 pub mod approval;
 pub mod atomic;
+pub mod attempts;
 pub mod blockfile;
 pub mod brief_task;
 pub mod cli;
