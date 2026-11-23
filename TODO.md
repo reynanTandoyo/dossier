@@ -3358,10 +3358,8 @@
 - note (2026-11-23, haiku-T-320): done
 
 ### T-321 · take: record who took a file
-- status: claimed
+- status: done
 - owner: haiku-T-321
-- claimed: 2026-11-23T21:20+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-054
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3379,8 +3377,12 @@
   7. Run cargo test --test cmd_take
 - accept: A file is recorded as taken with who, for which task, when, and its size, time and checksum; a second person is refused.
 - verify: cargo test --test cmd_take
+- verified: 2026-11-23
+- commit: a6b68a8
 - reqs: R-FILE-1, R-XOS-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-321): done
 
 ### T-322 · return: check a taken file, end the take, or abandon it
 - status: open
