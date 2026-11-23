@@ -606,7 +606,9 @@ The `Attempts` section holds one line per attempt, in the order they were record
 `<n>` counts from 1 and is never reused or changed. `<verdict>` is `failed`, `worked` or
 `unclear`. `<who>` is written as in history lines (`anna` or `anna via anna - claude`). The parts
 are separated by space, em dash (U+2014), space, and come in this order; a part that was not
-given is left out. Each text is one line. When reading, the last ` (` of the line starts the time
+given is left out. Each text is one line. Inside a text, `tried` writes an en dash (U+2013) in
+place of the em dash of a separator form (` — did: `, ` — result: `, ` — run: `, ` — task: `),
+so that the line reads back the same; every other em dash is kept as written. When reading, the last ` (` of the line starts the time
 and who; a line of the section that does not have this form is kept as written and is no attempt.
 
 ```markdown

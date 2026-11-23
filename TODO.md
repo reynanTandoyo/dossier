@@ -7869,8 +7869,21 @@
 - priority: P2 · type: milestone
 - goal: A person or an LLM records a problem, each attempt to solve it with its hypothesis and result, and what solved it, in ten seconds per attempt; the next person or LLM on a similar task sees what was tried and what worked. Attempts are lines in the dossier, not tasks; dossier never creates a task. Requirements: docs/requirements.md section 5.11h (R-INV-1 to 10), section 11 Phase 4 (v0.4), decisions D41, D42 and D45; version 0.4.0 is ready to tag.
 - summary: Hypotheses, experiments and their results are tracked, so that nobody tests again what already failed and the way to the solution can be reused.
+- depends: T-299
+- files: src/cmd/tried.rs, tests/cmd_tried.rs
+- read: docs/format.md, src/attempts.rs
+- steps:
+  1. src/cmd/tried.rs: add a private fn `unseparated(text: &str) -> String` that replaces each of the four separator forms of src/attempts.rs (`" — did: "`, `" — result: "`, `" — run: "`, `" — task: "`, with the em dash U+2014) by the same text with an en dash U+2013 (`" – did: "` and so on). Every other character, including a plain `" — "`, stays as it is.
+  2. src/cmd/tried.rs, in `run`: apply `unseparated` to the attempt text (after check_line, before it goes into Attempt) and to `did` and `result` (after optional_line). Do not apply it to `run` and `task`.
+  3. Unit tests at the end of src/cmd/tried.rs for `unseparated`: `"CFL 5 — result: diverges"` becomes `"CFL 5 – result: diverges"`; `"CFL 5 — still diverges"` is unchanged; a text with two separator forms has both replaced.
+  4. tests/cmd_tried.rs: `tried INV-001 "CFL 5 — result: diverges" --failed` writes an attempt line that contains `CFL 5 – result: diverges` and no ` — result: `; `tried INV-001 "CFL 5 — still diverges" --failed --result "same — did: nothing"` keeps `CFL 5 — still diverges` as written and writes `same – did: nothing` as the result.
+  5. Run cargo test --test cmd_tried and cargo test --lib cmd::tried::
+- accept: A text, --did or --result that holds a separator form is written with an en dash, every other em dash is kept, and the attempt reads back with the same parts.
+- verify: cargo test --test cmd_tried && cargo test --lib cmd::tried::
+- reqs: R-INV-2
 - note (2026-11-22, planner): added
 - note (2026-11-23, planner): Owner, 2026-11-23 (D45): this is now phase 4, release 0.4.0 (T-402). T-309 moved to T-283, because it needs the hook of T-294, which comes in 0.6.
+- note (2026-11-23, planner): Owner, 2026-11-23: replace, do not refuse; only the four separator forms, so plain em dashes stay.
 
 ### T-287 · Investigations: problem, tried, solved, gave-up, and their place in show, brief, status and search
 - status: open
@@ -8447,7 +8460,7 @@
 - milestone: T-286
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
 - summary: The version number and the README are ready for the owner to tag release 0.4.0.
-- depends: T-401, T-303, T-304, T-305, T-306, T-307, T-310, T-361, T-362, T-363, T-365
+- depends: T-401, T-303, T-304, T-305, T-306, T-307, T-310, T-361, T-362, T-363, T-365, error
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
