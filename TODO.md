@@ -7936,10 +7936,8 @@
 - note (2026-11-23, planner): split into T-357, T-358, T-359, T-360
 
 ### T-357 · Stub files: problem and tried
-- status: claimed
+- status: done
 - owner: haiku-T-357
-- claimed: 2026-11-23T19:12+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-297
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -7952,8 +7950,12 @@
   3. Run cargo build (it must still pass).
 - accept: The two stub files exist and are formatted.
 - verify: rustfmt --check --edition 2024 src/cmd/problem.rs src/cmd/tried.rs && cargo build
+- verified: 2026-11-23
+- commit: ae39ee2
 - reqs: R-INV-2, R-INV-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-357): done
 
 ### T-358 · Stub files: solved and gave-up
 - status: claimed
