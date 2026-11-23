@@ -1089,6 +1089,67 @@ dossier --project P-001 brief
 `projects` lists the projects that this PC is connected to. `--project` runs a command for one of
 them, from any folder.
 
+### Large files: take and return
+
+A simulation file can be gigabytes. The server keeps the project's one copy. A person takes the
+file, works on the copy on the PC, and returns it:
+
+```powershell
+cd C:\Projects\P-001
+dossier take sim/run1.sim --task T-042
+dossier return sim/run1.sim --done
+```
+
+Between the two commands, open `sim\run1.sim` in the folder on the PC, with the program you use for
+it. `take` records on the server who has the file, for which task and since when, and then copies
+the file to the PC. `return --done` checks that the server's file is still the one that was taken,
+copies the PC's file to the server, and records the new version. dossier never stores the files
+itself: it records who has them, and it checks before they come back.
+
+Take and return from a PC need scp from OpenSSH 8.7 or newer, because dossier runs it with `-s` (the
+SFTP protocol). Windows 11 has it; an older scp stops with an unknown-option error. Check the
+version with `ssh -V`.
+
+A file that another person holds is refused. Nothing is copied, and the exit code is `1`:
+
+```
+error: sim/run1.sim is taken by anna for T-042 since 2026-11-22T10:15:00+01:00; ask them, or add --force
+```
+
+`--force` takes the file anyway, and the history of the file then says `taken by force`. Use it only
+when the person who holds the file cannot be asked. `return --done --force` and
+`return --abandon --force` end another person's take in the same way.
+
+The other commands:
+
+- `dossier return sim/run1.sim --check` tells whether the server's file is still the one that was
+  taken. It prints `unchanged: 1 file` and exits with `0`. Otherwise it exits with `1`, names the
+  file and what changed (size, time or content), and changes nothing.
+- `dossier return sim/run1.sim --abandon` ends the take without a new version, for example when the
+  local copy is not wanted back. The server's file is not touched, and the local copy stays where it
+  is.
+- `dossier files --taken` lists the files taken now, with the person, the task and since when. A
+  take older than 14 days is marked.
+- `dossier files --log sim/run1.sim` lists the history of one file: every take, return and abandon.
+
+`take` never overwrites a file that is already in the folder. If the PC has the file, `take` keeps
+the local copy and says so:
+
+```
+sim/run1.sim: taken; kept your local copy (delete it and run the same take again to copy the server's version)
+```
+
+To get the server's version, delete the local file and run the same `take` again. A copy first goes
+to a `<name>.dossier-part` file beside the target, and is renamed only when it is complete, so an
+interrupted copy leaves no half file.
+
+A copy can fail, for example when the connection breaks. The command then ends with exit code `5`,
+and its message says what to do. Most often the answer is to run the same command again: a failed
+`take` is already recorded, so the same `take` copies the file again, and a `return` that failed
+before the server's file was replaced leaves the take unchanged, so the same `return` works again.
+When the message names another command, run that one instead. The server's file has then already
+been replaced, and the same `return` would refuse it.
+
 ### When the server cannot be reached
 
 If ssh cannot sign in, or the server does not answer, the command stops with exit code `5`:
