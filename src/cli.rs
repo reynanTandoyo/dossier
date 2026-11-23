@@ -129,6 +129,9 @@ pub enum Command {
     ReviewSession(cmd::review_session::Args),
     Session(cmd::session::Args),
     Digest(cmd::digest::Args),
+    Story(cmd::story::Args),
+    Export(cmd::export::Args),
+    Schema(cmd::schema::Args),
 }
 
 /// On Linux, files and folders this program creates are writable by the group (R-XOS-8): the
@@ -293,6 +296,9 @@ pub fn main_exit() -> u8 {
         ),
         Command::Session(a) => ("session", gated(&check, || cmd::session::run(a, g))),
         Command::Digest(a) => ("digest", gated(&check, || cmd::digest::run(a, g))),
+        Command::Story(a) => ("story", gated(&check, || cmd::story::run(a, g))),
+        Command::Export(a) => ("export", gated(&check, || cmd::export::run(a, g))),
+        Command::Schema(a) => ("schema", gated(&check, || cmd::schema::run(a, g))),
     };
     crate::output::emit(name, g.json, &result)
 }

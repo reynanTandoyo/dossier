@@ -287,6 +287,9 @@ fn help_without_a_topic_lists_every_command_in_order() {
             "review-session",
             "session",
             "digest",
+            "story",
+            "export",
+            "schema",
         ]
     );
     let first = format!("  {:<12}  Creates the dossier folder here\n", "init");
