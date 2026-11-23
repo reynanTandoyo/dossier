@@ -5,9 +5,10 @@
 //! they arrive unchanged (R-REMOTE-2); the exit code and the output come back unchanged.
 
 use crate::error::Result;
-use crate::remote::{pointer, register, ssh};
+use crate::remote::{pointer, register, ssh, version};
 use crate::term;
 use std::io::Write;
+use std::path::Path;
 
 /// The global options that take their value as the next argument.
 const VALUE_OPTIONS: [&str; 3] = ["--dossier", "--agent", "--project"];
@@ -34,10 +35,14 @@ const TIMEOUT_SECONDS: u64 = 10;
 /// The exit code when the command could not be run on the server.
 const FORWARD_FAILED: u8 = 5;
 
-/// Where a command runs: the server and the folder of the project on it.
+/// Where a command runs: the server and the folder of the project on it, and the folder below it
+/// that the command runs in when it exists.
 struct Target {
     server: String,
     folder: String,
+    /// The current folder below the folder of the pointer file, written with `/` (R-XOS-3).
+    /// None for the folder itself and for `--project`.
+    sub: Option<String>,
 }
 
 /// What `--project` says about a command.
@@ -90,11 +95,12 @@ pub fn maybe(args: &[String]) -> Option<u8> {
     }
     let terminal = (TERMINAL_COMMANDS.contains(&command) || allows_credential(&forwarded))
         && term::is_terminal();
-    let agent = agent_name(&forwarded);
-    let argv = ssh::argv(
+    let env = remote_variables(program, agent_name(&forwarded).as_deref());
+    let argv = ssh::argv_with(
         &target.server,
         &target.folder,
-        agent.as_deref(),
+        target.sub.as_deref(),
+        &env,
         program,
         &forwarded,
         terminal,
@@ -175,6 +181,27 @@ fn agent_name(args: &[String]) -> Option<String> {
         .or_else(|| non_empty_variable("TODO_AGENT"))
 }
 
+/// The variables set for the command on the server: DOSSIER_AGENT when a name is known, and for
+/// `dossier` (not `todo`) the program version and format of the PC (R-XOS-9), which the server
+/// compares before it runs the command.
+fn remote_variables(program: &str, agent: Option<&str>) -> Vec<(String, String)> {
+    let mut env = Vec::new();
+    if let Some(agent) = agent {
+        env.push(("DOSSIER_AGENT".to_string(), agent.to_string()));
+    }
+    if program == "dossier" {
+        env.push((
+            version::CLIENT_VERSION.to_string(),
+            env!("CARGO_PKG_VERSION").to_string(),
+        ));
+        env.push((
+            version::CLIENT_FORMAT.to_string(),
+            version::FORMAT.to_string(),
+        ));
+    }
+    env
+}
+
 /// The value of an environment variable, when it is set and not empty.
 fn non_empty_variable(name: &str) -> Option<String> {
     std::env::var_os(name)
@@ -188,14 +215,32 @@ fn allows_credential(args: &[String]) -> bool {
     args.iter().any(|arg| arg == ALLOW_CREDENTIAL)
 }
 
-/// The server and folder of the pointer file in the current folder or above.
+/// The server and folder of the pointer file in the current folder or above, and the current
+/// folder below the pointer's folder.
 fn pointer_target() -> Option<Target> {
     let folder = std::env::current_dir().ok()?;
-    let (_, pointer) = pointer::find(&folder)?;
+    let (pointer_folder, pointer) = pointer::find(&folder)?;
     Some(Target {
         server: pointer.server,
         folder: pointer.folder,
+        sub: sub_folder(&folder, &pointer_folder),
     })
+}
+
+/// The folder `current` below `pointer_folder`, its parts joined with `/`. None when they are
+/// the same folder, or when a part of the path is not text.
+fn sub_folder(current: &Path, pointer_folder: &Path) -> Option<String> {
+    let parts = current
+        .strip_prefix(pointer_folder)
+        .ok()?
+        .components()
+        .map(|part| part.as_os_str().to_str())
+        .collect::<Option<Vec<&str>>>()?;
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join("/"))
+    }
 }
 
 /// The server and folder of the project `code` in the register (codes ignore case). Ok(None)
@@ -207,6 +252,7 @@ fn project_target(code: &str) -> Result<Option<Target>> {
         .map(|project| Target {
             server: project.server,
             folder: project.folder,
+            sub: None,
         }))
 }
 
@@ -348,7 +394,10 @@ mod tests {
         assert!(written.contains("BatchMode=yes"), "{written}");
         assert!(written.contains("anna@sim01"), "{written}");
         assert!(
-            written.contains("cd '/srv/P-001' && 'dossier' 'list'"),
+            written.contains(&format!(
+                "cd '/srv/P-001' && DOSSIER_CLIENT_VERSION='{}' DOSSIER_CLIENT_FORMAT='1' 'dossier' 'list'",
+                env!("CARGO_PKG_VERSION")
+            )),
             "{written}"
         );
 
@@ -413,14 +462,15 @@ mod tests {
         assert_eq!(code, Some(7));
         assert!(written.contains("ben@sim02"), "{written}");
         assert!(
-            written.contains("cd '/work/P-002' && 'dossier' 'list'"),
+            written.contains("cd '/work/P-002' && DOSSIER_CLIENT_VERSION="),
             "{written}"
         );
+        assert!(written.contains("'dossier' 'list'"), "{written}");
         assert!(!written.contains("--project"), "{written}");
         let (code, written) = maybe_with(&args_file, &["dossier", "list", "--project=p-002"]);
         assert_eq!(code, Some(7));
         assert!(
-            written.contains("cd '/work/P-002' && 'dossier' 'list'"),
+            written.contains("cd '/work/P-002' && DOSSIER_CLIENT_VERSION="),
             "{written}"
         );
 
@@ -472,5 +522,49 @@ mod tests {
             "list"
         ])));
         assert!(!allows_credential(&args(&[])));
+    }
+
+    #[test]
+    fn sub_folder_is_the_current_folder_below_the_pointer_folder_with_slashes() {
+        let pointer = Path::new("/srv/work/p1");
+        assert_eq!(sub_folder(pointer, pointer), None);
+        assert_eq!(
+            sub_folder(&pointer.join("sim").join("run 1"), pointer),
+            Some("sim/run 1".to_string())
+        );
+        assert_eq!(
+            sub_folder(&pointer.join("Größe").join("x"), pointer),
+            Some("Größe/x".to_string())
+        );
+        // A folder that is not below the pointer's folder gives no sub folder.
+        assert_eq!(sub_folder(Path::new("/elsewhere"), pointer), None);
+    }
+
+    #[test]
+    fn remote_variables_are_the_agent_and_the_versions_for_dossier_only() {
+        let agent = remote_variables("dossier", Some("anna-claude"));
+        assert_eq!(
+            agent,
+            vec![
+                ("DOSSIER_AGENT".to_string(), "anna-claude".to_string()),
+                (
+                    "DOSSIER_CLIENT_VERSION".to_string(),
+                    env!("CARGO_PKG_VERSION").to_string()
+                ),
+                ("DOSSIER_CLIENT_FORMAT".to_string(), "1".to_string()),
+            ]
+        );
+        assert_eq!(
+            remote_variables("dossier", None)
+                .iter()
+                .map(|(name, _)| name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["DOSSIER_CLIENT_VERSION", "DOSSIER_CLIENT_FORMAT"]
+        );
+        assert!(remote_variables("todo", None).is_empty());
+        assert_eq!(
+            remote_variables("todo", Some("anna-claude")),
+            vec![("DOSSIER_AGENT".to_string(), "anna-claude".to_string())]
+        );
     }
 }
