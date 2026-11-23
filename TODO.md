@@ -3595,7 +3595,7 @@
 - milestone: T-326
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
 - summary: A test proves that files are only copied when the server agreed.
-- depends: T-374
+- depends: T-374, T-409
 - files: tests/remote_transfer.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -8710,8 +8710,8 @@
 - note (2026-11-23, haiku-T-407): done
 
 ### T-408 · transfer.rs: return --done uploads every file before it replaces any
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-408
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-325
 - why: A rerun after a partly finished return --done is refused by --check, because a file already moved counts as changed; uploading all first keeps a failed copy retryable.
@@ -8728,7 +8728,31 @@
   6. Run cargo test --lib remote::transfer::
 - accept: A failed upload leaves the server's files as taken and the same command works again; a failure after the first move names the command that finishes the return on the server.
 - verify: cargo test --lib remote::transfer::
+- verified: 2026-11-23
+- commit: 0693af3
 - reqs: R-FILE-3, R-REMOTE-4
+- by: Reynan Henry Tandoyo
+- note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-408): done
+
+### T-409 · transfer.rs: after a failed move, finish only the moved files on the server
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-325
+- why: After a move fails on one file, finishing every file on the server would record the old, unmoved version of the later files as returned.
+- summary: If moving files into place fails partway, the message says exactly which files to finish on the server and which to return again from the PC, with names that can be pasted.
+- depends: T-408
+- files: src/remote/transfer.rs
+- read: docs/design.md
+- steps:
+  1. src/remote/transfer.rs, finish_on_server: quote each file with crate::remote::ssh::quote when it holds a space or another character the shell treats specially (simplest: quote every file whose quoted form differs from the plain one), so that the printed command can be pasted into a shell.
+  2. src/remote/transfer.rs, give_back step (d): count the files that move_into_place moved. When the move of file k fails, print the finish message for the moved files only (files before k), and add: `then run here again: dossier return <the files from k on> --done` (quoted the same way); their files on the server are untouched, so that command passes its --check. When no file was moved yet (k is the first), print the ordinary failed-copy message `could not copy <path> to the server; the take is unchanged, run the same command again`. Return 5 in each case. When (e) `return … --done` fails, keep the message for all files.
+  3. src/remote/transfer.rs, unit tests for finish_on_server: a file with a space comes out quoted (`'run 1.sim'`), a plain file stays plain; and a test of a private `fn rest_message(files: &[String]) -> String` that builds the `then run here again` line.
+  4. Run cargo test --lib remote::transfer::
+- accept: A failed move names the moved files for the server and the rest for a rerun from the PC, each name quoted when it needs it.
+- verify: cargo test --lib remote::transfer::
+- reqs: R-FILE-3
 - note (2026-11-23, planner): added
 
 ## Questions
