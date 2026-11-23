@@ -4102,10 +4102,8 @@
 - note (2026-11-24, haiku-T-383): done
 
 ### T-384 · session convert --claude: make a session file from a Claude Code transcript
-- status: claimed
+- status: done
 - owner: haiku-T-384
-- claimed: 2026-11-24T00:17+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-337
 - why: Capture only becomes a habit when the routine steps happen by themselves.
@@ -4121,8 +4119,12 @@
   5. Run cargo test --test cmd_session
 - accept: A Claude Code transcript is converted to dossier's own session file, and a transcript that can't be read gives a warning and an empty session.
 - verify: cargo test --test cmd_session
+- verified: 2026-11-24
+- commit: 744c635
 - reqs: R-DRAFT-7, D44
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-384): done
 
 ### T-338 · hooks.rs: the SessionEnd hook for the session review
 - status: done
