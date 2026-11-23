@@ -8444,10 +8444,8 @@
 - note (2026-11-23, planner): added
 
 ### T-310 · Agent rules and README: investigations
-- status: claimed
+- status: done
 - owner: haiku-T-310
-- claimed: 2026-11-23T20:10+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-287
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -8462,8 +8460,12 @@
   4. Run cargo test --lib agents:: and cargo test --test cmd_agents --test cmd_skill; update an expected text where a test compares the whole rules text.
 - accept: The agent rules tell an LLM when to open an investigation and how to record attempts, and the README explains the commands.
 - verify: cargo test --lib agents:: && cargo test --test cmd_agents --test cmd_skill
+- verified: 2026-11-23
+- commit: 44a7c43
 - reqs: R-INV-10, R-AGENT-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-310): done
 
 ### T-401 · Release 0.3.1
 - status: done
