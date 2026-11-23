@@ -2996,13 +2996,15 @@
 - note (2026-11-22, haiku-t-268): done
 
 ### T-052 · Working from the PC: the dossier is used from Windows as if it were local
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P2 · type: milestone
 - goal: A folder on a PC is connected to a project on the server; every dossier and todo command runs there through ssh; large simulation files are taken, worked on locally and returned without overwriting a colleague's version. Requirements: docs/requirements.md section 11, Phase 5 (v0.5; phase 4 before D45). Each task here is split when the phase starts.
 - summary: Team members use the dossier from their Windows PCs as if it were local, and large files are copied out and back safely.
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-23, planner): Owner, 2026-11-23 (D45): moved from phase 4 to phase 5; it is released as 0.5.0 (T-328), after 0.4.0.
+- note (2026-11-23, planner): done — From a Windows PC every command runs on the server with versions and subfolder checked, and large files are taken and returned safely; version 0.5.0.
 
 ### T-053 · Remote mode: connection reuse and connection check
 - status: done
@@ -3166,8 +3168,8 @@
 - note (2026-11-23, haiku-T-316): done
 
 ### T-054 · Large files: take, return, and the copy in remote mode; release 0.5.0
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P2 · type: milestone
 - milestone: T-052
 - goal: R-FILE-1 to R-FILE-7 and R-REMOTE-4 hold: a large file is taken, worked on locally and returned without overwriting a colleague's version, also from a PC; version 0.5.0 is ready to tag.
@@ -3176,9 +3178,11 @@
 - depends: T-053
 - accept: R-FILE-1 to R-FILE-7 and R-REMOTE-4 hold, with the tests of TEST-7; the manual test plan of TEST-10 was run on the real server; version 0.5.0 is released.
 - reqs: R-FILE-1 to R-FILE-7, R-REMOTE-4, D15, TEST-7, TEST-10
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-23, planner): split into T-318, T-319, T-320, T-321, T-322, T-323, T-324, T-325, T-326, T-327, T-328
 - note (2026-11-23, planner): For TEST-10: a file returned from a PC gets the umask of the server's sftp-server (often 0644). If colleagues must replace each other's files, run sftp-server with a group umask (Subsystem sftp ... -u 002) or use folder ACLs. Checked end to end on 2026-11-23 against OpenSSH 10.2 in WSL: take, retake (kept), return --done from a subfolder, paths with spaces.
+- note (2026-11-23, planner): done — take and return work on the server and from a PC; released as 0.5.0 without the manual server test, which is the idea for TEST-10 (D47).
 
 ### T-318 · v0.5 skeleton: stubs for take, return, taken.rs and remote/transfer.rs
 - status: done
@@ -8857,6 +8861,12 @@
 ## Ideas
 
 ### T-404 · take.rs and return_cmd.rs both hold stored_path and ensure_file (copied in T-322 under the three-file limit); move them to one place, for example taken.rs.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-23, planner): added
+
+### T-412 · TEST-10 (D47): before take and return are used on real work, run the manual test on the real server: write refused on the network share; connect --check and approve from PowerShell; take, take again (kept), edit, return --check and --done of a file over 1 GB with a space in its path, checksums compared on both sides; two people: refused take, take --force, the first person's return --done refused; an interrupted copy leaves no half file and the same take copies again; the returned file's permissions let colleagues write (sftp-server umask, see the note on T-054). Plan: docs/requirements.md TEST-10. Promote to a task when large files go into use.
 - status: open
 - owner: —
 - type: idea

@@ -1,6 +1,6 @@
 # dossier — requirements
 
-Draft 10, 2026-11-23 (owner's decisions: D28 to D46). Four points are still open (§12); everything else is decided (§3) until the
+Draft 11, 2026-11-23 (owner's decisions: D28 to D47). Four points are still open (§12); everything else is decided (§3) until the
 owner says otherwise.
 
 Each requirement has a priority, which says how important it is. When it is built is decided
@@ -136,6 +136,7 @@ an LLM starts with the right context.
 | D44 | The session review reads a session file in `dossier`'s own format, which has a version number like the entry format. A transcript of Claude Code is first converted to it; only that converter knows Claude Code's format. (Owner, 2026-11-23.) | Claude Code's transcript format is internal and changes between releases. With an own format the review works for every LLM, and a change at Claude Code touches one converter. |
 | D45 | The order of the releases after 0.3: refusing credentials (R-CONF-7) is released alone as 0.3.1; investigations (D41, D42) become phase 4 (v0.4); working from the PC moves to phase 5 (v0.5) and growing projects to phase 6 (v0.6). (Owner, 2026-11-23.) | The credential check protects every dossier already in use, so it does not wait for a larger release. |
 | D46 | `take` from a PC never overwrites a local file that already exists: it keeps the local copy and says that deleting it and running the same `take` copies the server's version. A copy goes to `<name>.dossier-part` first and is renamed only when complete, so a failed copy leaves no half file. (Owner, 2026-11-23.) | A repeated `take` by mistake must not wipe local edits, and a retry after a failed copy still works. |
+| D47 | 0.5.0 is released without the manual test on the real server (TEST-10). It is run before `take` and `return` are used on real work. (Owner, 2026-11-23.) | The team does not use the large-file feature yet; the automatic tests, and an end-to-end run with real ssh and scp against a test server in WSL, pass. |
 
 ---
 
@@ -1216,8 +1217,10 @@ On a PC, in a connected folder: `.dossier-connect`, holding the server and the p
   case-colliding names are refused or warned about; on Linux, a file made by one user of the
   group can be changed by another; a version mismatch between PC and server is refused.
 - **TEST-10 SHOULD** One manual test plan on the real server: lock behaviour when a Windows PC
-  reaches the folder through the network share (O-1), ssh connection reuse, and `approve` through
-  ssh from PowerShell.
+  reaches the folder through the network share (O-1), `connect --check` and `approve` through ssh
+  from PowerShell, and `take` and `return` of a large file from a PC, by one person and by two
+  (the refused and the forced take), including an interrupted copy. (ssh connection reuse is not
+  built, D43.) Run before `take` and `return` are used on real work (D47).
 
 ---
 
