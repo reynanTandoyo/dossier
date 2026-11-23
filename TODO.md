@@ -3723,8 +3723,10 @@
 - note (2026-11-23, haiku-T-329): done
 
 ### T-330 · digest.rs: which digest covers which entry
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-330
+- claimed: 2026-11-23T23:54+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-056
 - why: The context an LLM gets must stay small as a project grows (D22).
@@ -3978,8 +3980,10 @@
 - note (2026-11-23, planner): split into T-380, T-381, T-382, T-383, T-384
 
 ### T-380 · Stub files: review-session and session
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-380
+- claimed: 2026-11-23T23:54+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-337
 - why: Capture only becomes a habit when the routine steps happen by themselves.
