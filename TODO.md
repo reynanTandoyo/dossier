@@ -3067,10 +3067,8 @@
 - note (2026-11-23, haiku-T-312): done
 
 ### T-313 · forward.rs: send the versions and the subfolder with every command
-- status: claimed
+- status: done
 - owner: haiku-T-313
-- claimed: 2026-11-23T20:48+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-053
 - why: Team members work on Windows PCs while the one copy of the dossier is on the Linux server.
@@ -3085,8 +3083,12 @@
   4. Run cargo test --test remote_forward and cargo test --lib remote::forward::
 - accept: Every command sent from a PC tells the server its version and runs in the same folder below the project as on the PC.
 - verify: cargo test --test remote_forward
+- verified: 2026-11-23
+- commit: f58af55
 - reqs: R-XOS-3, R-XOS-9, R-REMOTE-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-313): done
 
 ### T-314 · cli.rs: refuse a PC with another format, warn about another version
 - status: done
