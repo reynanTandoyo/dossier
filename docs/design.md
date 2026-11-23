@@ -1241,7 +1241,10 @@ with `mv -f` through ssh, in the subfolder; then runs `return … --done`. A fai
 server's files and the take as they were, so the same command works again. After the first move
 the server's file has changed and a rerun's `--check` would refuse it, so a failure there names
 the command that finishes the return on the server (`dossier return <files> --done` in the
-folder), which records the new checksums without that check (T-408).
+folder), which records the new checksums without that check (T-408). When a move fails partway,
+that command names only the files already moved, and a second line says to run
+`dossier return <the rest> --done` again from the PC, whose server files are still untouched;
+names that hold anything but letters, digits and `- _ . /` are quoted (T-409).
 `--check` and `--abandon` alone are forwarded like any other command. With `--project` and no
 connected folder, `take` and `return --done` are Code::Usage.
 
