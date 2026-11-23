@@ -7868,15 +7868,17 @@
 - note (2026-11-23, haiku-T-292): done
 
 ### T-286 · Trial and error is recorded: a problem, the attempts in order, what solved it
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P2 · type: milestone
 - goal: A person or an LLM records a problem, each attempt to solve it with its hypothesis and result, and what solved it, in ten seconds per attempt; the next person or LLM on a similar task sees what was tried and what worked. Attempts are lines in the dossier, not tasks; dossier never creates a task. Requirements: docs/requirements.md section 5.11h (R-INV-1 to 10), section 11 Phase 4 (v0.4), decisions D41, D42 and D45; version 0.4.0 is ready to tag.
 - summary: Hypotheses, experiments and their results are tracked, so that nobody tests again what already failed and the way to the solution can be reused.
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, planner): added
 - note (2026-11-23, planner): Owner, 2026-11-23 (D45): this is now phase 4, release 0.4.0 (T-402). T-309 moved to T-283, because it needs the hook of T-294, which comes in 0.6.
 - note (2026-11-23, planner): Owner, 2026-11-23: replace, do not refuse; only the four separator forms, so plain em dashes stay.
 - note (2026-11-23, planner): The note above about replacing belongs to the task on attempt texts with a separator form, added below T-287; it was written here by a planner mistake.
+- note (2026-11-23, planner): done — Version 0.4.0 records trial and error as investigations: a problem, the attempts in order, and what solved it.
 
 ### T-287 · Investigations: problem, tried, solved, gave-up, and their place in show, brief, status and search
 - status: done
@@ -8493,8 +8495,8 @@
 - note (2026-11-23, haiku-T-401): done
 
 ### T-402 · Release 0.4.0
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-402
 - priority: P1 · difficulty: 1 · type: chore
 - milestone: T-286
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -8508,9 +8510,13 @@
   3. Run cargo fmt --all -- --check, cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features; all three must pass. Do not tag and do not push: the owner does that.
 - accept: Version 0.4.0 builds, passes every check, and the README says what it adds.
 - verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
+- verified: 2026-11-23
+- commit: 527d147
 - reqs: REL-1, REL-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): T-310 already wrote the 0.4 README section; the steps now move and complete it.
+- note (2026-11-23, haiku-T-402): done
 
 ### T-403 · tried: a text that holds a part separator keeps reading back the same
 - status: done
