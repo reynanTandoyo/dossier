@@ -8954,3 +8954,9 @@
 - verify: cargo test --test cmd_approve
 - reqs: R-DRAFT-4
 - note (2026-11-23, planner): added
+
+### T-415 · src/digest.rs copies the date rule and the newest-first sort of filter.rs and cmd/brief.rs (T-330, three-file limit); share them in one place.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-24, planner): added
