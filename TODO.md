@@ -8043,8 +8043,8 @@
 - note (2026-11-23, haiku-T-360): done
 
 ### T-298 · problem: open an investigation
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-298
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-287
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -8062,8 +8062,12 @@
   7. Run cargo test --test cmd_problem
 - accept: problem writes an approved investigation with state open and shows similar ones.
 - verify: cargo test --test cmd_problem
+- verified: 2026-11-23
+- commit: d80a13e
 - reqs: R-INV-1, R-INV-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-298): done
 
 ### T-299 · tried: add one attempt to an investigation
 - status: open
