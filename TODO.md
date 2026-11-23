@@ -7875,8 +7875,8 @@
 - note (2026-11-23, planner): split into T-295, T-296, T-297, T-298, T-299, T-300, T-301, T-302, T-303, T-304, T-305, T-306, T-307, T-308, T-309, T-310
 
 ### T-295 · Entry kinds: the investigation (INV)
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-295
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-287
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -7891,8 +7891,12 @@
   5. Run cargo test --lib entry:: and cargo build (other files must still compile; where the compiler asks for a match arm for Investigation, add the arm that treats it like a finding).
 - accept: The program knows the investigation as a kind of entry with its folder, sections and states.
 - verify: cargo test --lib entry::
+- verified: 2026-11-23
+- commit: 5b17b4b
 - reqs: R-INV-1, D41
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-295): done
 
 ### T-296 · attempts.rs: the attempt lines of an investigation
 - status: open
