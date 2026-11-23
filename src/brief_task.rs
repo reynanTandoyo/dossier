@@ -1,5 +1,6 @@
 //! The lines of `brief --task`: what a session needs to know about one task.
 
+use crate::attempts;
 use crate::blockfile::BlockFile;
 use crate::config;
 use crate::ctx::Ctx;
@@ -16,7 +17,8 @@ use std::cmp::Reverse;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-/// The heading over the approved entries whose `task` field names the task.
+/// The heading over the approved entries whose `task` field names the task. The investigations of
+/// the task have their own heading, INVESTIGATIONS.
 const RECORDED: &str = "## Recorded for this task";
 /// The heading over the approved decisions of the task's milestones.
 const MILESTONES: &str = "## Decisions of its milestones";
@@ -48,13 +50,23 @@ const TERMS_LINES: usize = 10;
 const EARLIER_USES: &str = "## Earlier uses";
 /// The most usage records the Earlier uses heading gives (R-CTX-2).
 const USES_LIMIT: usize = 3;
+/// The heading over the investigations of the task and the most similar ones (design.md §15,
+/// R-INV-5).
+const INVESTIGATIONS: &str = "## Investigations";
+/// The most lines under the Investigations heading, which makes the part fifteen lines at most.
+const INVESTIGATIONS_LINES: usize = 14;
+/// The most other investigations `select::best` chooses for the Investigations heading.
+const INVESTIGATIONS_LIMIT: usize = 5;
+/// The section of an investigation that holds its solution (format.md §28).
+const SOLUTION: &str = "Solution";
 
 /// The lines of `brief --task`: the task's title and goal lines from todo, the glossary terms that
 /// appear in the task (R-TERM-2, the team's marked `team:`), the entries whose `task` field names
 /// it, the decisions whose task is one of its milestones, the task's file list (R-FILE-14), the
 /// last usage records of its software and analysis in the team's usage index (R-CTX-2), the
-/// approved dead ends that match it (R-CTX-16), the entries whose code pointers lie in the files
-/// todo names for it (R-CODE-4), then select::best over the remaining approved entries and the
+/// approved dead ends that match it (R-CTX-16), the investigations of the task and the most similar
+/// ones (design.md §15), the entries whose code pointers lie in the files todo names for it
+/// (R-CODE-4), then select::best over the remaining approved entries and the
 /// team's approved lessons and how-tos (R-CTX-2, marked `team:`), except a copy of a project entry
 /// that is listed (R-TEAM-4), with the task's machine, analysis and software fields as tags and
 /// its title as words. A decision or lesson printed with its text is followed by its pictures
@@ -74,8 +86,13 @@ pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
         .filter(|item| item.entry.status() == Some(Status::Approved))
         .collect();
 
-    // An entry is listed once, under the first heading that takes it.
-    let recorded: Vec<&Item> = approved.iter().filter(|item| task_is(item, task)).collect();
+    // An entry is listed once, under the first heading that takes it. The investigations of the
+    // task wait for their own heading, after the dead ends.
+    let recorded: Vec<&Item> = approved
+        .iter()
+        .filter(|item| item.entry.kind() != Some(Kind::Investigation))
+        .filter(|item| task_is(item, task))
+        .collect();
     let mut listed: HashSet<String> = recorded.iter().map(|item| item.entry.id()).collect();
     let decisions: Vec<&Item> = approved
         .iter()
@@ -106,6 +123,10 @@ pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
             out.extend(picture_lines(item));
         }
     }
+    // The investigations leave the pool here: they have their own heading, after the dead ends.
+    let (investigations, approved): (Vec<Item>, Vec<Item>) = approved
+        .into_iter()
+        .partition(|item| item.entry.kind() == Some(Kind::Investigation));
     out.extend(files_lines(ctx, task));
     out.extend(uses_lines(ctx, &about));
 
@@ -131,6 +152,11 @@ pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
             .into_iter()
             .filter(|item| !listed.contains(&item.entry.id())),
     );
+
+    let (investigation_rows, left_out) =
+        investigation_lines(investigations, task, &query, &mut listed);
+    out.extend(investigation_rows);
+    pool.extend(left_out);
 
     if let Some(paths) = &about.files {
         let code: Vec<(&Item, Vec<String>)> = pool
@@ -462,6 +488,136 @@ fn is_dead_end(item: &Item) -> bool {
             .entry
             .field("outcome")
             .is_some_and(|outcome| same(&outcome, "dead end"))
+}
+
+/// The Investigations heading (design.md §15, R-INV-5): the approved investigations whose `task` is
+/// the task, in file order, then the up to INVESTIGATIONS_LIMIT others that select::best chooses for
+/// the task's query. An investigation of the task that is open is its title line with `[open]` and
+/// one indented line per attempt; any other is one line (`one_line`). At most INVESTIGATIONS_LINES
+/// lines under the heading, cut as `cut` cuts. The IDs of the investigations with a line kept go to
+/// `listed`. Returns the lines (none, with no heading, when no investigation is shown) and the
+/// investigations not shown, which the caller may still choose for Related.
+fn investigation_lines(
+    items: Vec<Item>,
+    task: &str,
+    query: &Query,
+    listed: &mut HashSet<String>,
+) -> (Vec<String>, Vec<Item>) {
+    let (own, others): (Vec<Item>, Vec<Item>) =
+        items.into_iter().partition(|item| task_is(item, task));
+    // The lines of each investigation to show, the task's first.
+    let mut shown: Vec<(String, PathBuf, Vec<String>)> = own
+        .iter()
+        .map(|item| (item.entry.id(), item.path.clone(), own_lines(item)))
+        .collect();
+    shown.extend(
+        select::best(&others, query, INVESTIGATIONS_LIMIT)
+            .into_iter()
+            .map(|item| (item.entry.id(), item.path.clone(), vec![one_line(item)])),
+    );
+    // cut keeps all the lines, or the first INVESTIGATIONS_LINES - 1 of them. An investigation is
+    // shown when its first line is kept.
+    let total: usize = shown.iter().map(|(_, _, lines)| lines.len()).sum();
+    let kept = if total > INVESTIGATIONS_LINES {
+        INVESTIGATIONS_LINES - 1
+    } else {
+        total
+    };
+    let mut start = 0;
+    let mut shown_paths: HashSet<PathBuf> = HashSet::new();
+    let mut rows: Vec<String> = Vec::new();
+    for (id, path, lines) in shown {
+        if start < kept {
+            listed.insert(id);
+            shown_paths.insert(path);
+        }
+        start += lines.len();
+        rows.extend(lines);
+    }
+    let not_shown: Vec<Item> = own
+        .into_iter()
+        .chain(others)
+        .filter(|item| !shown_paths.contains(&item.path))
+        .collect();
+    if rows.is_empty() {
+        return (Vec::new(), not_shown);
+    }
+    let mut out = vec![INVESTIGATIONS.to_string()];
+    out.extend(cut(rows, INVESTIGATIONS_LINES));
+    (out, not_shown)
+}
+
+/// The lines of an investigation of the task (design.md §15): an open one is its title with
+/// `[open]`, then one line per attempt indented by two spaces; a closed one is its one line.
+fn own_lines(item: &Item) -> Vec<String> {
+    if is_closed(&item.entry) {
+        return vec![one_line(item)];
+    }
+    let mut lines = vec![format!("{} [open]", named(item))];
+    lines.extend(
+        attempts::of(&item.entry)
+            .iter()
+            .map(|attempt| format!("  {}", attempts::summary(attempt))),
+    );
+    lines
+}
+
+/// An investigation as one line (design.md §15): `<ID> · <title> — solved: <first line of its
+/// Solution>`, `— given up: <its reason>` or `— open, <n> attempts`, then `(<n> failed)`, where n
+/// counts the attempts whose verdict is failed.
+fn one_line(item: &Item) -> String {
+    let entry = &item.entry;
+    let tries = attempts::of(entry);
+    let failed = tries
+        .iter()
+        .filter(|attempt| attempt.verdict == "failed")
+        .count();
+    let state = match state_of(entry).as_str() {
+        "solved" => {
+            let solution = entry.section(SOLUTION).unwrap_or_default();
+            with_text("solved", solution.lines().next().unwrap_or_default())
+        }
+        "given up" => with_text(
+            "given up",
+            &entry.field("given-up-reason").unwrap_or_default(),
+        ),
+        _ => format!("open, {} attempts", tries.len()),
+    };
+    format!("{} — {state} ({failed} failed)", named(item))
+}
+
+/// The `state` field in lower case, without its surrounding spaces; empty when there is none.
+fn state_of(entry: &Entry) -> String {
+    entry
+        .field("state")
+        .unwrap_or_default()
+        .trim()
+        .to_lowercase()
+}
+
+/// Whether the investigation is solved or given up. Any other state, and none, counts as open.
+fn is_closed(entry: &Entry) -> bool {
+    matches!(state_of(entry).as_str(), "solved" | "given up")
+}
+
+/// `<ID> · <title>`, or the ID alone when the entry has no title.
+fn named(item: &Item) -> String {
+    let title = item.entry.title();
+    if title.is_empty() {
+        item.entry.id()
+    } else {
+        format!("{} · {title}", item.entry.id())
+    }
+}
+
+/// `<head>: <text>`, or the head alone when the text is empty.
+fn with_text(head: &str, text: &str) -> String {
+    let text = text.trim();
+    if text.is_empty() {
+        head.to_string()
+    } else {
+        format!("{head}: {text}")
+    }
 }
 
 /// The code pointers of the entry that lie in one of `paths` (R-CODE-4). A pointer is `path` or
@@ -1940,5 +2096,256 @@ mod tests {
         assert!(!has_run(&words, &words_of("inlet at")));
         assert!(!has_run(&words, &words_of("")));
         assert!(!has_run(&words_of("compressor"), &words_of("compress")));
+    }
+
+    #[test]
+    fn investigations_give_the_open_and_closed_ones_of_the_task_and_the_similar_ones() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, ctx) = project();
+        write_entry(
+            &ctx,
+            Kind::Investigation,
+            "INV-001",
+            "Residual blows up after 40 iterations",
+            "approved",
+            &[("state", "open"), ("task", "T-132")],
+            &[
+                (
+                    "Problem",
+                    "The density residual grows from iteration 40 on.",
+                ),
+                (
+                    "Attempts",
+                    "1. [failed] The CFL number is too high — did: CFL 5 to 1 — result: diverges at iteration 180 (2026-12-03T09:30:00+01:00 anna)\n2. [unclear] The mesh is too coarse at the leading edge (2026-12-03T10:15:00+01:00 anna)",
+                ),
+            ],
+        );
+        write_entry(
+            &ctx,
+            Kind::Investigation,
+            "INV-002",
+            "Speedline transient stalls at the outlet",
+            "approved",
+            &[("state", "solved"), ("task", "T-050")],
+            &[
+                ("Problem", "The transient run stalls at low mass flow."),
+                (
+                    "Attempts",
+                    "1. [failed] Coarser time step (2026-12-02T09:00:00+01:00 ben)\n2. [failed] Halved the time step (2026-12-02T10:00:00+01:00 ben)\n3. [worked] Corrected the outlet flux sign (2026-12-02T11:00:00+01:00 ben)",
+                ),
+                (
+                    "Solution",
+                    "The outlet flux had the wrong sign.\n\nAttempts: 3",
+                ),
+            ],
+        );
+        // Shares nothing with T-132: no word of the title and no tag.
+        write_entry(
+            &ctx,
+            Kind::Investigation,
+            "INV-003",
+            "Mesh independence reached",
+            "approved",
+            &[
+                ("state", "open"),
+                ("task", "T-200"),
+                ("machine", "radial turbine"),
+            ],
+            &[("Problem", "Grid counts were compared.")],
+        );
+        write_entry(
+            &ctx,
+            Kind::Investigation,
+            "INV-004",
+            "Speedline on the rig stopped",
+            "approved",
+            &[
+                ("state", "given up"),
+                ("task", "T-132"),
+                ("given-up-reason", "The rig was not available"),
+            ],
+            &[
+                ("Problem", "The runs stopped halfway."),
+                (
+                    "Attempts",
+                    "1. [failed] Ran on the second rig (2026-12-04T09:00:00+01:00 anna)",
+                ),
+            ],
+        );
+        // A draft is never listed.
+        write_entry(
+            &ctx,
+            Kind::Investigation,
+            "INV-005",
+            "Speedline draft of the task",
+            "draft",
+            &[("state", "open"), ("task", "T-132")],
+            &[("Problem", "Never listed.")],
+        );
+        let show = stand_in(dir.path(), "todo-show", &envelope(speedline_task()));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let found = lines(&ctx, "T-132", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        // The open one of the task with its attempts, then the given-up one of the task, then the
+        // solved one of another task, whose title shares "speedline". Under no heading but this
+        // one: the investigations of the task are not repeated under Recorded, and INV-003 is left
+        // over, scores nothing and is not listed.
+        assert_eq!(
+            found.expect("the lines"),
+            vec![
+                "Task T-132 · Speedline of the compressor",
+                "## Investigations",
+                "INV-001 · Residual blows up after 40 iterations [open]",
+                "  1. failed: The CFL number is too high — diverges at iteration 180",
+                "  2. unclear: The mesh is too coarse at the leading edge",
+                "INV-004 · Speedline on the rig stopped — given up: The rig was not available (1 failed)",
+                "INV-002 · Speedline transient stalls at the outlet — solved: The outlet flux had the wrong sign. (2 failed)",
+            ]
+        );
+    }
+
+    #[test]
+    fn an_open_investigation_of_another_task_is_one_line_with_its_count() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, ctx) = project();
+        write_entry(
+            &ctx,
+            Kind::Investigation,
+            "INV-005",
+            "Speedline check on the rig",
+            "approved",
+            &[("state", "open"), ("task", "T-050")],
+            &[
+                ("Problem", "The check is still open."),
+                (
+                    "Attempts",
+                    "1. [failed] Checked the inlet (2026-12-02T09:00:00+01:00 ben)\n2. [unclear] Checked the outlet (2026-12-02T10:00:00+01:00 ben)",
+                ),
+            ],
+        );
+        let show = stand_in(dir.path(), "todo-show", &envelope(speedline_task()));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let found = lines(&ctx, "T-132", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        assert_eq!(
+            found.expect("the lines"),
+            vec![
+                "Task T-132 · Speedline of the compressor",
+                "## Investigations",
+                "INV-005 · Speedline check on the rig — open, 2 attempts (1 failed)",
+            ]
+        );
+    }
+
+    #[test]
+    fn the_investigations_part_gives_at_most_fifteen_lines() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, ctx) = project();
+        let attempts: String = (1..=30)
+            .map(|number| {
+                format!("{number}. [failed] Try number {number} (2026-12-03T09:30:00+01:00 anna)")
+            })
+            .collect::<Vec<String>>()
+            .join("\n");
+        write_entry(
+            &ctx,
+            Kind::Investigation,
+            "INV-001",
+            "Residual blows up after 40 iterations",
+            "approved",
+            &[("state", "open"), ("task", "T-132")],
+            &[
+                ("Problem", "The density residual grows."),
+                ("Attempts", attempts.as_str()),
+            ],
+        );
+        let show = stand_in(dir.path(), "todo-show", &envelope(speedline_task()));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let found = lines(&ctx, "T-132", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        // The task line, the heading, then fourteen lines: the title, twelve attempts and the count
+        // of the eighteen attempts left out.
+        let mut expected = vec![
+            "Task T-132 · Speedline of the compressor".to_string(),
+            "## Investigations".to_string(),
+            "INV-001 · Residual blows up after 40 iterations [open]".to_string(),
+        ];
+        expected.extend((1..=12).map(|number| format!("  {number}. failed: Try number {number}")));
+        expected.push("18 more left out".to_string());
+        assert_eq!(found.expect("the lines"), expected);
+    }
+
+    #[test]
+    fn an_investigation_the_cut_leaves_out_can_still_be_related() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, ctx) = project();
+        let attempts: String = (1..=30)
+            .map(|number| {
+                format!("{number}. [failed] Try number {number} (2026-12-03T09:30:00+01:00 anna)")
+            })
+            .collect::<Vec<String>>()
+            .join("\n");
+        write_entry(
+            &ctx,
+            Kind::Investigation,
+            "INV-001",
+            "Residual blows up after 40 iterations",
+            "approved",
+            &[("state", "open"), ("task", "T-132")],
+            &[
+                ("Problem", "The density residual grows."),
+                ("Attempts", attempts.as_str()),
+            ],
+        );
+        write_entry(
+            &ctx,
+            Kind::Investigation,
+            "INV-002",
+            "Speedline transient stalls at the outlet",
+            "approved",
+            &[("state", "solved"), ("task", "T-050")],
+            &[
+                ("Problem", "The transient run stalls."),
+                ("Solution", "The outlet flux had the wrong sign."),
+            ],
+        );
+        let show = stand_in(dir.path(), "todo-show", &envelope(speedline_task()));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let found = lines(&ctx, "T-132", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        // INV-002 is the thirty-second line of the part, so it is cut and not shown there. Its
+        // line is counted with the others left out, and it goes to Related, which takes the
+        // investigations that no line under the heading shows.
+        let mut expected = vec![
+            "Task T-132 · Speedline of the compressor".to_string(),
+            "## Investigations".to_string(),
+            "INV-001 · Residual blows up after 40 iterations [open]".to_string(),
+        ];
+        expected.extend((1..=12).map(|number| format!("  {number}. failed: Try number {number}")));
+        expected.push("19 more left out".to_string());
+        expected.push("## Related".to_string());
+        expected
+            .push("INV-002 · investigation · Speedline transient stalls at the outlet".to_string());
+        assert_eq!(found.expect("the lines"), expected);
     }
 }
