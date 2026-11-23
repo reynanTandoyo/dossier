@@ -17,15 +17,17 @@ use crate::exchange;
 use crate::filelist;
 use crate::filesum;
 use crate::glossary::{self, Term};
+use crate::hash;
 use crate::mapfile;
 use crate::output::Output;
 use crate::paths;
+use crate::secret;
 use crate::store::{self, Item};
 use crate::time;
 use crate::values;
 use chrono::NaiveDate;
 use std::collections::{BTreeMap, HashSet};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// The arguments of `check`.
 #[derive(clap::Args, Debug)]
@@ -65,6 +67,7 @@ pub fn run(_args: &Args, g: &Global) -> Result<Output> {
         found.extend(entry_problems(&ctx, item, &known, &today));
     }
     found.extend(block_problems(&ctx, &known));
+    found.extend(secret_problems(&ctx, &items)?);
     let (glossary_problems, mut should) = glossary_check(&ctx, &items);
     found.extend(glossary_problems);
 
@@ -451,6 +454,76 @@ fn block_links(root: &Path, path: &Path, file: &BlockFile, known: &HashSet<Strin
         }
     }
     found
+}
+
+/// The SECRET problems (R-CONF-7, format.md §27): every line that looks like a credential, in an
+/// entry file and in every other `.md` file directly in the dossier folder or in its `files` folder
+/// (the block files, for instance). The state folder is not searched. A line whose hash is allowed
+/// is no problem, and the line text is never printed. A file that is not UTF-8 is not read here: a
+/// block file that is not UTF-8 is already a PARSE problem.
+fn secret_problems(ctx: &Ctx, items: &[Item]) -> Result<Vec<Found>> {
+    let allowed = secret::allowed(&ctx.state)?;
+    let mut found = Vec::new();
+    for item in items {
+        if let Ok(text) = std::str::from_utf8(&item.raw) {
+            found.extend(secret_found(
+                &ctx.root,
+                &item.path,
+                &item.entry.id(),
+                text,
+                &allowed,
+            ));
+        }
+    }
+    let files = ctx.dossier.join("files");
+    for path in md_files(&ctx.dossier).into_iter().chain(md_files(&files)) {
+        if let Ok(text) = std::fs::read_to_string(&path) {
+            found.extend(secret_found(&ctx.root, &path, "-", &text, &allowed));
+        }
+    }
+    Ok(found)
+}
+
+/// The SECRET problems of one file: each hit of `secret::find` whose hash is not allowed, on its
+/// line, with the kind of the credential and how a person may allow it. `id` is the entry's ID,
+/// or `-` for a block file.
+fn secret_found(root: &Path, path: &Path, id: &str, text: &str, allowed: &[String]) -> Vec<Found> {
+    let file = relative(root, path);
+    secret::find(text)
+        .into_iter()
+        .filter(|hit| !allowed.contains(&hash::sha256_hex(hit.text.as_bytes())))
+        .map(|hit| {
+            Found::new(
+                &file,
+                hit.line,
+                id,
+                "SECRET",
+                format!(
+                    "looks like a credential ({}); remove it, or a person allows it with --allow-credential-like on the command that writes it",
+                    hit.kind
+                ),
+            )
+        })
+        .collect()
+}
+
+/// The `.md` files directly inside `folder`, in name order. A folder that cannot be read has none.
+fn md_files(folder: &Path) -> Vec<PathBuf> {
+    let Ok(listing) = std::fs::read_dir(folder) else {
+        return Vec::new();
+    };
+    let mut paths: Vec<PathBuf> = listing
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| {
+            path.is_file()
+                && path
+                    .file_name()
+                    .is_some_and(|name| name.to_string_lossy().ends_with(".md"))
+        })
+        .collect();
+    paths.sort();
+    paths
 }
 
 /// The trimmed value of a field line `- <name>: <value>` (format.md §3), None for any other line.

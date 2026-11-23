@@ -903,3 +903,66 @@ fn state_none(project: &Project) {
         "<!-- dossier-format: 1 -->\n# Confidential terms of P-001\n\n## (no confidential terms)\n\n- stated: 2026-11-02T09:00:00+01:00 by anna\n",
     );
 }
+
+/// An invented password line that `check` reports without its value.
+const CREDENTIAL_LINE: &str = "password: hunter2secret";
+
+/// The value of CREDENTIAL_LINE. `check` must never print it.
+const CREDENTIAL_VALUE: &str = "hunter2secret";
+
+/// The end of a SECRET line for a password line (format.md §27, design.md section 13).
+const SECRET_MESSAGE: &str = "looks like a credential (password); remove it, or a person allows it with --allow-credential-like on the command that writes it";
+
+#[test]
+fn a_password_line_added_by_hand_to_an_entry_gives_secret_without_its_value() {
+    let project = Project::new();
+    decide(&project);
+    let changed = format!("{}{CREDENTIAL_LINE}\n", text_of(&project, "DEC-001"));
+    write_entry(&project, "DEC-001", &changed);
+
+    let line = line_of(&changed, CREDENTIAL_LINE);
+    let stderr = problems(&project);
+    assert_eq!(
+        stderr,
+        format!(
+            "error: {}:{line}: DEC-001 SECRET {SECRET_MESSAGE}\nDOSSIER: 1 problems\n",
+            shown(&project.entry_file("DEC-001"))
+        )
+    );
+    assert!(!stderr.contains(CREDENTIAL_VALUE), "{stderr}");
+}
+
+#[test]
+fn a_password_line_that_a_person_allowed_is_not_reported() {
+    let project = Project::new();
+    project
+        .command("anna", NOW)
+        .env("DOSSIER_ANSWERS", "")
+        .args(["found", CREDENTIAL_LINE, "--allow-credential-like"])
+        .assert()
+        .success();
+    decide(&project);
+    let changed = format!("{}{CREDENTIAL_LINE}\n", text_of(&project, "DEC-001"));
+    write_entry(&project, "DEC-001", &changed);
+
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+}
+
+#[test]
+fn a_password_line_in_a_file_block_gives_secret_with_no_id() {
+    let project = Project::new();
+    let text = format!(
+        "<!-- dossier-format: 1 -->\n# Files of T-001\n\n## results/run1.csv\n\n- role: result\n- type: file\n{CREDENTIAL_LINE}\n- history: 2026-11-20T10:00:00+01:00 ben: attached\n"
+    );
+    project.write("DOSSIER/files/T-001.md", &text);
+
+    let line = line_of(&text, CREDENTIAL_LINE);
+    let stderr = problems(&project);
+    assert_eq!(
+        stderr,
+        format!(
+            "error: DOSSIER/files/T-001.md:{line}: - SECRET {SECRET_MESSAGE}\nDOSSIER: 1 problems\n"
+        )
+    );
+    assert!(!stderr.contains(CREDENTIAL_VALUE), "{stderr}");
+}
