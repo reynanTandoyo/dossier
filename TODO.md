@@ -8152,8 +8152,8 @@
 - note (2026-11-23, haiku-T-301): done
 
 ### T-302 · list, show and search: mark the state of an investigation
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - milestone: T-287
 - goal: list, show and search mark every investigation as open, solved or given up.
@@ -8162,8 +8162,10 @@
 - depends: T-300, T-301
 - accept: Wherever an investigation is listed, the reader sees whether it is open, solved or given up.
 - reqs: R-INV-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): split into T-361, T-362, T-363
+- note (2026-11-23, planner): done — list, show and search mark an investigation as open, solved or given up.
 
 ### T-361 · list: mark the state of an investigation
 - status: done
