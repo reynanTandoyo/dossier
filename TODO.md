@@ -8334,10 +8334,8 @@
 - note (2026-11-23, haiku-T-306): done
 
 ### T-307 · review-task: investigations as material, and one more drafting rule
-- status: claimed
+- status: done
 - owner: haiku-T-307
-- claimed: 2026-11-23T20:10+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-287
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -8352,8 +8350,12 @@
   4. Run cargo test --test cmd_review_task
 - accept: When a task is reviewed, its investigations are part of the material and the rules point to them.
 - verify: cargo test --test cmd_review_task
+- verified: 2026-11-23
+- commit: caabbff
 - reqs: R-INV-8, R-DRAFT-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-307): done
 
 ### T-308 · promote: a solved investigation becomes a how-to or lesson draft for the team
 - status: done
