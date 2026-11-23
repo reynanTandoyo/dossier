@@ -1,7 +1,9 @@
 //! Runs the built program for `history`: an entry's history lines and snapshots (text and JSON),
-//! the entries of a task in time order (text and JSON), a task with nothing recorded, an unknown
-//! ID as exit 1, and a broken file shown as a warning with its path relative to the project.
-//! Each test runs in its own project folder, with the clock fixed by `common::Project`.
+//! the entries of a task in time order (text and JSON), the attempts of investigations that name a
+//! task among those entries (an investigation by its own task, each attempt by the task that
+//! carried it), a task with nothing recorded, an unknown ID as exit 1, and a broken file shown as
+//! a warning with its path relative to the project. Each test runs in its own project folder, with
+//! the clock fixed by `common::Project`.
 
 mod common;
 
@@ -218,9 +220,9 @@ fn json_gives_the_entries_of_a_task_in_time_order() {
         json!({
             "task": "T-042",
             "entries": [
-                {"id": "DEC-001", "title": DECISION_TITLE, "author": "anna", "created": CREATED},
-                {"id": "ASM-001", "title": ASSUMPTION_TITLE, "author": "ben", "created": ASSUMPTION_TIME},
-                {"id": "FND-002", "title": FINDING_TITLE, "author": "anna", "created": FINDING_TIME},
+                {"id": "DEC-001", "title": DECISION_TITLE, "author": "anna", "created": CREATED, "attempt": null},
+                {"id": "ASM-001", "title": ASSUMPTION_TITLE, "author": "ben", "created": ASSUMPTION_TIME, "attempt": null},
+                {"id": "FND-002", "title": FINDING_TITLE, "author": "anna", "created": FINDING_TIME, "attempt": null},
             ],
         })
     );
@@ -267,4 +269,189 @@ fn a_broken_file_is_a_warning_with_its_path_shown_from_the_project_folder() {
         .stderr(contains(
             "warning: DOSSIER/decisions/DEC-009-broken.md: line 2: no heading",
         ));
+}
+
+/// The problem and the times of the investigation INV-001 that `attempts_project` opens.
+const PROBLEM: &str = "The density residual grows from iteration 40 on.";
+const PROBLEM_TITLE: &str = "Residual blows up after 40 iterations";
+const PROBLEM_TIME: &str = "2026-11-20T10:01:00+01:00";
+/// The attempts of INV-001 and the times they are recorded at.
+const CFL_ATTEMPT: &str = "The CFL number is too high";
+const CFL_TIME: &str = "2026-11-20T10:05:00+01:00";
+const RESTART_ATTEMPT: &str = "Restarted from the converged solution";
+const RESTART_TIME: &str = "2026-11-20T10:20:00+01:00";
+const INLET_ATTEMPT: &str = "The inlet profile is uniform";
+const INLET_TIME: &str = "2026-11-20T10:30:00+01:00";
+const UNTASKED_ATTEMPT: &str = "Looked at the logs";
+const UNTASKED_TIME: &str = "2026-11-20T10:40:00+01:00";
+/// The time of FND-001, a finding of T-045 recorded between the first two attempts.
+const EARLY_FINDING_TIME: &str = "2026-11-20T10:10:00+01:00";
+
+/// A project with DEC-001 for T-045 (created at CREATED) and INV-001 opened for T-012. INV-001 has
+/// four attempts: the first is carried out as T-045, the second as T-045 by ben-codex (the task
+/// written in lower case), the third as T-046, the fourth with no task. FND-001 belongs to T-045
+/// and is recorded between the first two attempts.
+fn attempts_project() -> Project {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                DECISION,
+                "--reason",
+                REASON,
+                "--title",
+                DECISION_TITLE,
+                "--task",
+                "T-045",
+            ],
+        )
+        .success();
+    project
+        .run_at(
+            "anna",
+            PROBLEM_TIME,
+            &[
+                "problem",
+                PROBLEM,
+                "--title",
+                PROBLEM_TITLE,
+                "--task",
+                "T-012",
+            ],
+        )
+        .success();
+    project
+        .run_at(
+            "anna",
+            CFL_TIME,
+            &[
+                "tried",
+                "INV-001",
+                CFL_ATTEMPT,
+                "--failed",
+                "--task",
+                "T-045",
+            ],
+        )
+        .success();
+    project
+        .run_at(
+            "anna",
+            EARLY_FINDING_TIME,
+            &[
+                "found",
+                FINDING,
+                "--title",
+                FINDING_TITLE,
+                "--task",
+                "T-045",
+            ],
+        )
+        .success();
+    project
+        .run_at(
+            "ben-codex",
+            RESTART_TIME,
+            &[
+                "tried",
+                "INV-001",
+                RESTART_ATTEMPT,
+                "--worked",
+                "--task",
+                "t-045",
+            ],
+        )
+        .success();
+    project
+        .run_at(
+            "anna",
+            INLET_TIME,
+            &[
+                "tried",
+                "INV-001",
+                INLET_ATTEMPT,
+                "--unclear",
+                "--task",
+                "T-046",
+            ],
+        )
+        .success();
+    project
+        .run_at(
+            "anna",
+            UNTASKED_TIME,
+            &["tried", "INV-001", UNTASKED_ATTEMPT, "--failed"],
+        )
+        .success();
+    project
+}
+
+#[test]
+fn an_attempt_is_listed_for_the_task_that_carried_it_among_the_entries_in_time_order() {
+    let project = attempts_project();
+
+    // The task is given in lower case too: it is compared ignoring case.
+    let expected = format!(
+        "{CREATED}  anna  DEC-001  {DECISION_TITLE}\n\
+         {CFL_TIME}  anna  INV-001 attempt 1  {CFL_ATTEMPT}\n\
+         {EARLY_FINDING_TIME}  anna  FND-001  {FINDING_TITLE}\n\
+         {RESTART_TIME}  ben via ben-codex  INV-001 attempt 2  {RESTART_ATTEMPT}\n"
+    );
+    for task in ["T-045", "t-045"] {
+        assert_eq!(project.stdout("", &["history", task]), expected, "{task}");
+    }
+}
+
+#[test]
+fn an_investigation_is_listed_for_its_own_task_and_not_for_the_task_of_its_attempts() {
+    let project = attempts_project();
+
+    assert_eq!(
+        project.stdout("", &["history", "T-012"]),
+        format!("{PROBLEM_TIME}  anna  INV-001  {PROBLEM_TITLE}\n")
+    );
+    assert_eq!(
+        project.stdout("", &["history", "T-046"]),
+        format!("{INLET_TIME}  anna  INV-001 attempt 3  {INLET_ATTEMPT}\n")
+    );
+}
+
+#[test]
+fn an_attempt_with_no_task_is_listed_for_no_task() {
+    let project = attempts_project();
+
+    assert_eq!(
+        project.stdout("", &["history", "T-999"]),
+        "nothing recorded for T-999\n"
+    );
+    assert!(
+        !project
+            .stdout("", &["history", "T-045"])
+            .contains(UNTASKED_ATTEMPT)
+    );
+}
+
+#[test]
+fn json_gives_attempt_null_for_an_entry_and_the_number_for_an_attempt() {
+    let project = attempts_project();
+
+    let stdout = project.stdout("", &["history", "T-045", "--json"]);
+    let envelope: Value = serde_json::from_str(stdout.trim()).expect("one line of JSON");
+
+    assert_eq!(envelope["schema"], "dossier.history.v1");
+    assert_eq!(envelope["ok"], true);
+    assert_eq!(
+        envelope["data"],
+        json!({
+            "task": "T-045",
+            "entries": [
+                {"id": "DEC-001", "title": DECISION_TITLE, "author": "anna", "created": CREATED, "attempt": null},
+                {"id": "INV-001", "title": CFL_ATTEMPT, "author": "anna", "created": CFL_TIME, "attempt": 1},
+                {"id": "FND-001", "title": FINDING_TITLE, "author": "anna", "created": EARLY_FINDING_TIME, "attempt": null},
+                {"id": "INV-001", "title": RESTART_ATTEMPT, "author": "ben via ben-codex", "created": RESTART_TIME, "attempt": 2},
+            ],
+        })
+    );
 }

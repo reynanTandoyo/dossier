@@ -1,8 +1,9 @@
 //! The `history` command: what happened to an entry, or to a task, in time order (R-READ-6,
-//! R-HIST-2). An entry ID gives the entry's history lines, then its snapshots, one per earlier
-//! version. Anything else is a task: one line per entry whose `task` field names it, oldest
-//! first. Nothing is changed.
+//! R-HIST-2, R-INV-6). An entry ID gives the entry's history lines, then its snapshots, one per
+//! earlier version. Anything else is a task: one line per entry whose `task` field names it, and
+//! one per attempt of an investigation whose `task` names it, oldest first. Nothing is changed.
 
+use crate::attempts::{self, Attempt};
 use crate::cli::Global;
 use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind};
@@ -20,6 +21,14 @@ pub struct Args {
     /// An entry ID, such as DEC-012 (any case, with or without a place prefix), or a task, such
     /// as T-042
     pub target: String,
+}
+
+/// One row of a task's history: the line the text output shows, the object the JSON output shows
+/// and the instant the row is sorted by.
+struct Row {
+    instant: Option<DateTime<FixedOffset>>,
+    line: String,
+    data: Value,
 }
 
 /// Runs `history`. A target that `Kind::of_id` takes for an entry ID gives that entry's history
@@ -90,60 +99,113 @@ fn snap_data(snap: &Snap) -> Value {
     })
 }
 
-/// The entries whose `task` field names `task`, ignoring case, oldest first. One line each:
-/// `<created>  <author>  <ID>  <title>`. The data is the task and one object per entry.
+/// The rows of a task, oldest first: the entries whose `task` field names it, and the attempts of
+/// the investigations whose attempt `task` names it. An investigation's own row is one of the
+/// entry rows; each of its attempts that names the task is a row of its own. The rows are sorted
+/// together by the instant each one names; a row without a usable time goes last. The sort is
+/// stable, so rows at the same instant keep the order of `store::all` (entries by ID), with the
+/// attempts after the entries. The text has one line per row; the data is the task and one
+/// object per row.
 fn task_history(task: &str, items: &[Item]) -> Output {
-    let mut chosen: Vec<&Item> = items
+    let mut rows: Vec<Row> = items
         .iter()
         .filter(|item| names_task(&item.entry, task))
+        .map(|item| entry_row(&item.entry))
         .collect();
-    // Oldest first by the instant the created time names, so that different offsets compare
-    // right; an entry without a usable created time goes last. The sort is stable, so entries
-    // created at the same instant keep the ID order of `store::all`.
-    chosen.sort_by_key(|item| {
-        let created = created_instant(&item.entry);
-        (created.is_none(), created)
-    });
+    rows.extend(
+        items
+            .iter()
+            .flat_map(|item| attempt_rows(&item.entry, task)),
+    );
+    rows.sort_by_key(|row| (row.instant.is_none(), row.instant));
 
-    let text = if chosen.is_empty() {
+    let text = if rows.is_empty() {
         format!("nothing recorded for {task}")
     } else {
-        chosen
-            .iter()
-            .map(|item| task_line(&item.entry))
-            .collect::<Vec<String>>()
+        rows.iter()
+            .map(|row| row.line.as_str())
+            .collect::<Vec<&str>>()
             .join("\n")
     };
-    let entries: Vec<Value> = chosen
-        .iter()
-        .map(|item| {
-            json!({
-                "id": item.entry.id(),
-                "title": item.entry.title(),
-                "author": item.entry.field("author"),
-                "created": item.entry.field("created"),
-            })
-        })
-        .collect();
+    let entries: Vec<Value> = rows.into_iter().map(|row| row.data).collect();
     Output::with(text, json!({"task": task, "entries": entries}))
+}
+
+/// The row of an entry: `<created>  <author>  <ID>  <title>`. Its JSON object has `attempt` null.
+fn entry_row(entry: &Entry) -> Row {
+    Row {
+        instant: created_instant(entry),
+        line: task_line(entry),
+        data: json!({
+            "id": entry.id(),
+            "title": entry.title(),
+            "author": entry.field("author"),
+            "created": entry.field("created"),
+            "attempt": null,
+        }),
+    }
+}
+
+/// The rows of the attempts of an investigation that name `task`, ignoring case, in the order
+/// they were recorded. An entry that is not an investigation has no attempts.
+fn attempt_rows(entry: &Entry, task: &str) -> Vec<Row> {
+    let id = entry.id();
+    attempts::of(entry)
+        .into_iter()
+        .filter(|attempt| {
+            attempt
+                .task
+                .as_deref()
+                .is_some_and(|named| same_task(named, task))
+        })
+        .map(|attempt| attempt_row(&id, &attempt))
+        .collect()
+}
+
+/// The row of one attempt: `<time>  <who>  <ID> attempt <n>  <text>`. Its JSON object gives the
+/// investigation's ID, the text of the attempt as the title, who and when as author and created,
+/// and the number of the attempt.
+fn attempt_row(id: &str, attempt: &Attempt) -> Row {
+    Row {
+        instant: instant_of(&attempt.time),
+        line: format!(
+            "{}  {}  {} attempt {}  {}",
+            attempt.time, attempt.who, id, attempt.n, attempt.text
+        ),
+        data: json!({
+            "id": id,
+            "title": attempt.text,
+            "author": attempt.who,
+            "created": attempt.time,
+            "attempt": attempt.n,
+        }),
+    }
 }
 
 /// Whether the entry's `task` field names `task`, ignoring case (as the filter does).
 fn names_task(entry: &Entry, task: &str) -> bool {
     entry
         .field("task")
-        .is_some_and(|value| value.trim().to_lowercase() == task.to_lowercase())
+        .is_some_and(|named| same_task(&named, task))
+}
+
+/// Whether `named` is `task`, ignoring case and the spaces around `named`.
+fn same_task(named: &str, task: &str) -> bool {
+    named.trim().to_lowercase() == task.to_lowercase()
 }
 
 /// The instant of an entry's created time (format.md §7), when it has one that parses.
 fn created_instant(entry: &Entry) -> Option<DateTime<FixedOffset>> {
-    entry
-        .field("created")
-        .and_then(|stamp| DateTime::parse_from_rfc3339(&stamp).ok())
+    entry.field("created").and_then(|stamp| instant_of(&stamp))
 }
 
-/// One task line: `<created>  <author>  <ID>  <title>`, with `-` for a missing created time or
-/// author.
+/// The instant a time stamp (format.md §7) names, when it parses. Different offsets compare right.
+fn instant_of(stamp: &str) -> Option<DateTime<FixedOffset>> {
+    DateTime::parse_from_rfc3339(stamp).ok()
+}
+
+/// One task line of an entry: `<created>  <author>  <ID>  <title>`, with `-` for a missing created
+/// time or author.
 fn task_line(entry: &Entry) -> String {
     format!(
         "{}  {}  {}  {}",
