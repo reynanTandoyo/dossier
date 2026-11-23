@@ -49,9 +49,15 @@ pub fn remote_path(server: &str, folder: &str, stored: &str) -> String {
     format!("{server}:{escaped}")
 }
 
+/// "<server>:<folder/stored>" for the target of an upload (`return --done`): unquoted and not
+/// escaped, because SFTP does not glob a target and a backslash would become part of the name
+/// (tested 2026-11-23).
+pub fn remote_target(server: &str, folder: &str, stored: &str) -> String {
+    format!("{server}:{folder}/{stored}")
+}
+
 /// The file arguments of `return`: the words that do not start with `-` and are not the word
-/// after --task or --agent. Used by `return --done` (T-373), not yet called.
-#[allow(dead_code)]
+/// after --task or --agent.
 fn files_of(args: &[String]) -> Vec<String> {
     let mut files = Vec::new();
     let mut value_next = false;
@@ -67,8 +73,8 @@ fn files_of(args: &[String]) -> Vec<String> {
     files
 }
 
-/// Called by forward::maybe for `take` and `return` when the folder is connected; Some(exit code).
-/// Only `take` is handled so far; every other command returns None.
+/// Called by forward::maybe for `take` and for `return --done` when the folder is connected;
+/// Some(exit code). Every other command returns None.
 pub fn maybe(
     command: &str,
     args: &[String],
@@ -78,6 +84,8 @@ pub fn maybe(
 ) -> Option<u8> {
     if command == "take" {
         Some(take(args, base, pointer, agent))
+    } else if command == "return" && args.iter().any(|arg| arg == "--done") {
+        Some(give_back(args, base, pointer, agent))
     } else {
         None
     }
@@ -291,6 +299,126 @@ fn copy_down(path: &str, base: &Path, pointer: &Pointer) -> Result<bool> {
     Ok(true)
 }
 
+/// `return --done` in a connected folder. The server first checks that every file is still as taken
+/// (`return … --check`) and stops when one is not. Then each file (the current folder joined with
+/// the path as typed) is copied up and moved over the file on the server; a failed copy ends with
+/// exit 5 and leaves the take as it was. Last, the server records the return (`return … --done`).
+fn give_back(args: &[String], base: &Path, pointer: &Pointer, agent: Option<&str>) -> u8 {
+    let current = match std::env::current_dir() {
+        Ok(current) => current,
+        Err(error) => {
+            return fail(&Error::new(
+                Code::Io,
+                format!("cannot read the current folder: {error}"),
+            ));
+        }
+    };
+    let sub = crate::remote::forward::sub_folder(&current, base);
+    let files = files_of(args);
+
+    let mut check = vec!["return".to_string()];
+    check.extend(files.iter().cloned());
+    check.push("--check".to_string());
+    let code = server_result(remote(pointer, sub.as_deref(), agent, "dossier", &check));
+    if code != 0 {
+        return code;
+    }
+
+    for path in &files {
+        if !current.join(path).exists() {
+            report(&format!("{path} is not in this folder"));
+            return 1;
+        }
+    }
+
+    for path in &files {
+        let name = path.replace('\\', "/");
+        if !copy_up(&current.join(path), &name, sub.as_deref(), pointer, agent) {
+            return fail(&Error::new(
+                Code::Ssh,
+                format!(
+                    "could not copy {path} to the server; the take is unchanged, run the same command again"
+                ),
+            ));
+        }
+    }
+
+    let mut done = vec!["return".to_string()];
+    done.extend(files.iter().cloned());
+    done.push("--done".to_string());
+    server_result(remote(pointer, sub.as_deref(), agent, "dossier", &done))
+}
+
+/// Copies one local file up to `<sub>/<name>` on the server: scp to `<name>.dossier-part` beside it,
+/// then `mv -f` over the file, both run in `sub` below the connected folder. True when both succeed.
+fn copy_up(
+    local: &Path,
+    name: &str,
+    sub: Option<&str>,
+    pointer: &Pointer,
+    agent: Option<&str>,
+) -> bool {
+    let stored = match sub {
+        Some(sub) => format!("{sub}/{name}"),
+        None => name.to_string(),
+    };
+    let target = remote_target(
+        &pointer.server,
+        &pointer.folder,
+        &format!("{stored}.dossier-part"),
+    );
+    let source = local.to_string_lossy().into_owned();
+    let copied = matches!(
+        std::process::Command::new(program())
+            .args(argv(&source, &target, TIMEOUT_SECONDS))
+            .status(),
+        Ok(status) if status.success()
+    );
+    let part = format!("{name}.dossier-part");
+    let mv = ["-f", "--", part.as_str(), name].map(str::to_string);
+    copied && matches!(remote(pointer, sub, agent, "mv", &mv), Ok((0, _, _)))
+}
+
+/// Runs `program args` on the server, in `sub` below the connected folder when it exists, with the
+/// variables of the forwarded commands. Its standard output and standard error are printed as they
+/// are; returns the exit code with both outputs.
+fn remote(
+    pointer: &Pointer,
+    sub: Option<&str>,
+    agent: Option<&str>,
+    program: &str,
+    args: &[String],
+) -> Result<(u8, String, String)> {
+    let env = crate::remote::forward::remote_variables(program, agent);
+    let ssh_argv = ssh::argv_with(
+        &pointer.server,
+        &pointer.folder,
+        sub,
+        &env,
+        program,
+        args,
+        false,
+        TIMEOUT_SECONDS,
+    );
+    let (code, stdout, stderr) = ssh::capture(&ssh_argv)?;
+    let _ = write!(std::io::stdout(), "{stdout}");
+    let _ = write!(std::io::stderr(), "{stderr}");
+    Ok((code, stdout, stderr))
+}
+
+/// The exit code of a command run on the server. ssh's own failure (255) is reported as Code::Ssh,
+/// as in `take`; any other failure to run ssh is reported as it is.
+fn server_result(outcome: Result<(u8, String, String)>) -> u8 {
+    match outcome {
+        Ok((255, stdout, stderr)) => fail(&Error::new(
+            Code::Ssh,
+            failure_message(&stdout, &stderr, 255),
+        )),
+        Ok((code, _, _)) => code,
+        Err(error) => fail(&error),
+    }
+}
+
 /// Prints the error and returns its exit code.
 fn fail(error: &Error) -> u8 {
     report(&error.message);
@@ -340,6 +468,14 @@ mod tests {
         assert_eq!(
             remote_path("anna@server", "/srv/p", "it's Grüße [2]*?.sim"),
             "anna@server:/srv/p/it's Grüße \\[2\\]\\*\\?.sim"
+        );
+    }
+
+    #[test]
+    fn remote_target_is_not_quoted_and_not_escaped() {
+        assert_eq!(
+            remote_target("anna@server", "/srv/p", "it's [2]*.sim.dossier-part"),
+            "anna@server:/srv/p/it's [2]*.sim.dossier-part"
         );
     }
 
@@ -431,6 +567,31 @@ mod tests {
         let code = maybe(
             "take",
             &words(&["sim/a.sim", "--task", "T-1"]),
+            base.path(),
+            &pointer(),
+            Some("anna-claude"),
+        );
+        // SAFETY: ENV_LOCK is still held here.
+        unsafe {
+            match before {
+                Some(value) => std::env::set_var("DOSSIER_SSH", value),
+                None => std::env::remove_var("DOSSIER_SSH"),
+            }
+        }
+        assert_eq!(code, Some(5));
+    }
+
+    #[test]
+    fn maybe_answers_return_done_with_exit_5_when_ssh_cannot_be_started() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let base = tempfile::tempdir().unwrap();
+        let before = std::env::var_os("DOSSIER_SSH");
+        // SAFETY: ENV_LOCK is held, so no other test in this process reads or changes the
+        // environment while this one does.
+        unsafe { std::env::set_var("DOSSIER_SSH", base.path().join("no-ssh-here")) };
+        let code = maybe(
+            "return",
+            &words(&["sim/a.sim", "--done"]),
             base.path(),
             &pointer(),
             Some("anna-claude"),
