@@ -1,20 +1,25 @@
 //! The `review-task` command: prints the material for drafting lessons about one task (R-DRAFT-1,
-//! R-DRAFT-2): the task as `todo show` gives it, the entries recorded for the task, and the
-//! drafting rules with the two commands that write a draft or a dead end. dossier never calls a
-//! model (D7): the LLM in the session drafts from this text. Nothing is changed.
+//! R-DRAFT-2, R-INV-8): the task as `todo show` gives it, the entries recorded for the task (an
+//! investigation with its attempts and its solution), and the drafting rules with the two commands
+//! that write a draft or a dead end. dossier never calls a model (D7): the LLM in the session
+//! drafts from this text. Nothing is changed.
 
 use crate::approval::{self, Mark};
+use crate::attempts;
 use crate::cli::Global;
 use crate::ctx::Ctx;
-use crate::entry::{Kind, Status};
+use crate::entry::{Entry, Kind, Status};
 use crate::error::Result;
 use crate::output::Output;
 use crate::store::{self, Item};
 use crate::todo_bridge;
 use serde_json::{Value, json};
 
-/// The drafting rules of R-DRAFT-2, in the order of the requirement.
-const RULES: [&str; 10] = [
+/// The section that holds the solution of an investigation (format.md §28).
+const SOLUTION: &str = "Solution";
+
+/// The drafting rules of R-DRAFT-2, in the order of the requirement, and the rule of R-INV-8.
+const RULES: [&str; 11] = [
     "Propose a lesson only for something that would change how a later project is done.",
     "Propose none when nothing was learned.",
     "State the conditions.",
@@ -25,6 +30,7 @@ const RULES: [&str; 10] = [
     "Check for an existing entry first.",
     "Record what was tried and did not work as a dead end, because that is what gets repeated.",
     "Record what had to be assumed.",
+    "A solved investigation with failed attempts is a candidate for a how-to or a lesson.",
 ];
 
 /// The arguments of `review-task`.
@@ -55,7 +61,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     if recorded.is_empty() {
         lines.push("none".to_string());
     } else {
-        lines.extend(recorded.iter().map(|item| entry_line(&ctx, item)));
+        lines.extend(recorded.iter().flat_map(|item| entry_lines(&ctx, item)));
     }
     lines.extend([String::new(), "## Drafting rules".to_string()]);
     lines.extend(
@@ -224,6 +230,32 @@ fn entry_line(ctx: &Ctx, item: &Item) -> String {
     parts.extend(marks(ctx, item));
     parts.push(entry.title());
     parts.join(" · ")
+}
+
+/// The lines of one recorded entry: its line (`entry_line`). An investigation is followed by one
+/// line per attempt, indented by two spaces (`attempts::summary`), and then by a line
+/// `  solution: <first line of its Solution section>` when it has one.
+fn entry_lines(ctx: &Ctx, item: &Item) -> Vec<String> {
+    let mut lines = vec![entry_line(ctx, item)];
+    if item.entry.kind() == Some(Kind::Investigation) {
+        lines.extend(
+            attempts::of(&item.entry)
+                .iter()
+                .map(|attempt| format!("  {}", attempts::summary(attempt))),
+        );
+        if let Some(solution) = solution_line(&item.entry) {
+            lines.push(format!("  solution: {solution}"));
+        }
+    }
+    lines
+}
+
+/// The first line of the Solution section, trimmed. None when the entry has no Solution section
+/// or the section is empty.
+fn solution_line(entry: &Entry) -> Option<String> {
+    let body = entry.section(SOLUTION)?;
+    let first = body.lines().next()?.trim();
+    (!first.is_empty()).then(|| first.to_string())
 }
 
 /// The data of one entry for `--json`: ID, kind, status, marks and title.

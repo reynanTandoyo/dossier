@@ -1,6 +1,7 @@
 //! Runs the built program for `review-task`: the task as `todo show` gives it, the entries
-//! recorded for the task, the drafting rules, and nothing changed on disk. Each test runs in its
-//! own temporary project folder, with the clock fixed at 2026-11-20T10:00:00+01:00.
+//! recorded for the task (a solved investigation with its attempts and its solution), the drafting
+//! rules, and nothing changed on disk. Each test runs in its own temporary project folder, with the
+//! clock fixed at 2026-11-20T10:00:00+01:00.
 
 mod common;
 
@@ -97,8 +98,73 @@ fn review_task_prints_the_task_its_entries_and_the_drafting_rules() {
             "1. Propose a lesson only for something that would change how a later project is done.",
         ))
         .stdout(contains("10. Record what had to be assumed."))
+        .stdout(contains(
+            "11. A solved investigation with failed attempts is a candidate for a how-to or a lesson.",
+        ))
         .stdout(contains("dossier learn \"<statement>\""))
         .stdout(contains("dossier found --dead-end"));
+}
+
+#[test]
+fn review_task_prints_a_solved_investigation_with_its_attempts_and_its_solution() {
+    let project = Project::new();
+    write_todo(&project, SHOW_T121);
+    project.stdout(
+        "anna",
+        &[
+            "problem",
+            "The density residual grows from iteration 40 on.",
+            "--title",
+            "Residual blows up",
+            "--task",
+            "T-121",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "tried",
+            "INV-001",
+            "The CFL number is too high",
+            "--failed",
+            "--result",
+            "diverges at iteration 180",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &["tried", "INV-001", "The mesh is too coarse", "--failed"],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "tried",
+            "INV-001",
+            "The flux at the outlet has the wrong sign",
+            "--worked",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "solved",
+            "INV-001",
+            "The outlet flux had the wrong sign",
+            "--attempt",
+            "3",
+        ],
+    );
+    let text = project.stdout("anna", &["review-task", "T-121"]);
+    // The investigation, then its attempts in order, then its solution, with nothing between.
+    let block = [
+        "INV-001 · investigation · Residual blows up",
+        "  1. failed: The CFL number is too high — diverges at iteration 180",
+        "  2. failed: The mesh is too coarse",
+        "  3. worked: The flux at the outlet has the wrong sign",
+        "  solution: The outlet flux had the wrong sign",
+    ]
+    .join("\n");
+    assert!(text.contains(&block), "{text}");
 }
 
 #[test]
@@ -155,4 +221,17 @@ fn review_task_json_gives_the_task_the_entries_and_the_rules() {
         .stdout(contains("\"schema\":\"dossier.review-task.v1\""))
         .stdout(contains("\"id\":\"FND-001\""))
         .stdout(contains("\"rules\":["));
+}
+
+#[test]
+fn review_task_json_lists_eleven_drafting_rules() {
+    let project = Project::new();
+    write_todo(&project, SHOW_T121);
+    let text = project.stdout("anna", &["--json", "review-task", "T-121"]);
+    let value: serde_json::Value = serde_json::from_str(&text).expect("the JSON of review-task");
+    assert_eq!(
+        value["data"]["rules"].as_array().map(Vec::len),
+        Some(11),
+        "{text}"
+    );
 }
