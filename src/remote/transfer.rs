@@ -6,7 +6,7 @@ use crate::remote::pointer::Pointer;
 use crate::remote::ssh;
 use std::ffi::OsString;
 use std::io::Write;
-use std::path::{Component, Path};
+use std::path::{Component, Path, PathBuf};
 
 /// The time limit of each connection in seconds (R-REMOTE-11).
 const TIMEOUT_SECONDS: u64 = 10;
@@ -84,8 +84,9 @@ pub fn maybe(
 }
 
 /// `take` in a connected folder: the server records the take first (`dossier take … --json`), then
-/// each file it names is copied down to the same path below `base`. A failed copy ends with exit 5
-/// and says that the take is recorded, so running the same command again copies again.
+/// each file it names is copied down to the same path below `base`, unless a local file already
+/// exists there (D46: that copy is kept). A failed copy ends with exit 5 and says that the take is
+/// recorded, so running the same command again copies again.
 fn take(args: &[String], base: &Path, pointer: &Pointer, agent: Option<&str>) -> u8 {
     let sub = std::env::current_dir()
         .ok()
@@ -105,9 +106,16 @@ fn take(args: &[String], base: &Path, pointer: &Pointer, agent: Option<&str>) ->
         return code;
     }
     match copy_all(&stdout, base, pointer) {
-        Ok(paths) => {
-            for path in &paths {
-                let _ = writeln!(std::io::stdout(), "{path}: taken and copied");
+        Ok(files) => {
+            for (path, copied) in &files {
+                let line = if *copied {
+                    format!("{path}: taken and copied")
+                } else {
+                    format!(
+                        "{path}: taken; kept your local copy (delete it and run the same take again to copy the server's version)"
+                    )
+                };
+                let _ = writeln!(std::io::stdout(), "{line}");
             }
             0
         }
@@ -157,14 +165,17 @@ fn failure_message(stdout: &str, stderr: &str, code: u8) -> String {
         .unwrap_or_else(|| format!("the command ended with exit code {code}"))
 }
 
-/// Copies each file the server took, in the order of its answer. Every path is checked before the
-/// first copy, so that a bad answer copies nothing.
-fn copy_all(stdout: &str, base: &Path, pointer: &Pointer) -> Result<Vec<String>> {
+/// Copies each file the server took, in the order of its answer, and returns each path with whether
+/// it was copied (false: the local file was kept). Every path is checked before the first copy, so
+/// that a bad answer copies nothing.
+fn copy_all(stdout: &str, base: &Path, pointer: &Pointer) -> Result<Vec<(String, bool)>> {
     let paths = taken_paths(stdout)?;
-    for path in &paths {
-        copy_down(path, base, pointer)?;
+    let mut files = Vec::new();
+    for path in paths {
+        let copied = copy_down(&path, base, pointer)?;
+        files.push((path, copied));
     }
-    Ok(paths)
+    Ok(files)
 }
 
 /// The paths in the `--json` answer of take: `data.files`, each with its `path`. Each path must be
@@ -208,10 +219,34 @@ fn is_below(path: &str) -> bool {
             .all(|part| matches!(part, Component::Normal(_)))
 }
 
+/// The part file of a copy: the same path with `.dossier-part` appended to the file name, so that
+/// `sim/a.sim` gives `sim/a.sim.dossier-part`. Built with OsString, so non-ASCII names stay as they
+/// are.
+fn part_path(local: &Path) -> PathBuf {
+    let mut name = local.file_name().unwrap_or_default().to_os_string();
+    name.push(".dossier-part");
+    local.with_file_name(name)
+}
+
+/// The error of a copy that did not finish; running the same take again copies it.
+fn copy_failed(path: &str) -> Error {
+    Error::new(
+        Code::Ssh,
+        format!(
+            "could not copy {path} from the server; the take is recorded, run the same command again to copy it"
+        ),
+    )
+}
+
 /// Copies one file the server took, from `<folder>/<path>` on the server to `<base>/<path>`,
-/// creating the folders above it first.
-fn copy_down(path: &str, base: &Path, pointer: &Pointer) -> Result<()> {
+/// creating the folders above it first. The copy goes to the part file beside it and is renamed
+/// over the file only when complete, so a failed copy leaves no half file. A local file that
+/// already exists is kept, with no copy: returns false (D46). Returns true when the file was copied.
+fn copy_down(path: &str, base: &Path, pointer: &Pointer) -> Result<bool> {
     let local = base.join(path);
+    if local.exists() {
+        return Ok(false);
+    }
     if let Some(parent) = local.parent() {
         std::fs::create_dir_all(parent).map_err(|error| {
             Error::new(
@@ -223,20 +258,37 @@ fn copy_down(path: &str, base: &Path, pointer: &Pointer) -> Result<()> {
             )
         })?;
     }
+    let part = part_path(&local);
+    match std::fs::remove_file(&part) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(Error::new(
+                Code::Ssh,
+                format!(
+                    "could not copy {path} from the server: cannot remove the part file {} ({error}); the take is recorded, run the same command again to copy it",
+                    part.display()
+                ),
+            ));
+        }
+    }
     let source = remote_path(&pointer.server, &pointer.folder, path);
-    let target = local.to_string_lossy().into_owned();
+    let target = part.to_string_lossy().into_owned();
     let status = std::process::Command::new(program())
         .args(argv(&source, &target, TIMEOUT_SECONDS))
         .status();
     match status {
-        Ok(status) if status.success() => Ok(()),
-        _ => Err(Error::new(
-            Code::Ssh,
-            format!(
-                "could not copy {path} from the server; the take is recorded, run the same command again to copy it"
-            ),
-        )),
+        Ok(status) if status.success() => {}
+        _ => {
+            let _ = std::fs::remove_file(&part);
+            return Err(copy_failed(path));
+        }
     }
+    if std::fs::rename(&part, &local).is_err() {
+        let _ = std::fs::remove_file(&part);
+        return Err(copy_failed(path));
+    }
+    Ok(true)
 }
 
 /// Prints the error and returns its exit code.
@@ -467,5 +519,65 @@ mod tests {
             failure_message("", "", 4),
             "the command ended with exit code 4".to_string()
         );
+    }
+
+    #[test]
+    fn part_path_appends_the_part_suffix_to_the_file_name() {
+        assert_eq!(
+            part_path(Path::new("sim/a.sim")),
+            PathBuf::from("sim/a.sim.dossier-part")
+        );
+        assert_eq!(
+            part_path(Path::new("sim/Größe 1.sim")),
+            PathBuf::from("sim/Größe 1.sim.dossier-part")
+        );
+    }
+
+    #[test]
+    fn copy_down_keeps_a_local_file_that_exists_and_runs_no_scp() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let base = tempfile::tempdir().unwrap();
+        let local = base.path().join("sim").join("a.sim");
+        std::fs::create_dir_all(local.parent().unwrap()).unwrap();
+        std::fs::write(&local, "my edits").unwrap();
+        let before = std::env::var_os("DOSSIER_SCP");
+        // SAFETY: ENV_LOCK is held, so no other test in this process reads or changes the
+        // environment while this one does. A missing program makes any run of scp fail.
+        unsafe { std::env::set_var("DOSSIER_SCP", base.path().join("no-scp-here")) };
+        let result = copy_down("sim/a.sim", base.path(), &pointer()).ok();
+        // SAFETY: ENV_LOCK is still held here.
+        unsafe {
+            match before {
+                Some(value) => std::env::set_var("DOSSIER_SCP", value),
+                None => std::env::remove_var("DOSSIER_SCP"),
+            }
+        }
+        assert_eq!(result, Some(false));
+        assert_eq!(std::fs::read_to_string(&local).unwrap(), "my edits");
+        assert!(!part_path(&local).exists());
+    }
+
+    #[test]
+    fn copy_down_removes_an_old_part_file_and_the_part_file_of_a_failed_copy() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let base = tempfile::tempdir().unwrap();
+        let local = base.path().join("a.sim");
+        let part = part_path(&local);
+        std::fs::write(&part, "half copy from before").unwrap();
+        let before = std::env::var_os("DOSSIER_SCP");
+        // SAFETY: ENV_LOCK is held, so no other test in this process reads or changes the
+        // environment while this one does.
+        unsafe { std::env::set_var("DOSSIER_SCP", base.path().join("no-scp-here")) };
+        let result = copy_down("a.sim", base.path(), &pointer());
+        // SAFETY: ENV_LOCK is still held here.
+        unsafe {
+            match before {
+                Some(value) => std::env::set_var("DOSSIER_SCP", value),
+                None => std::env::remove_var("DOSSIER_SCP"),
+            }
+        }
+        assert_eq!(result.err().map(|error| error.exit()), Some(5));
+        assert!(!part.exists());
+        assert!(!local.exists());
     }
 }
