@@ -233,6 +233,7 @@ mod tests {
             brief_lines: 60,
             status_lines: 60,
             draft_days: 14,
+            take_days: 14,
             lock_wait_seconds: 30,
             ssh_timeout_seconds: 10,
             kind: "project".to_string(),

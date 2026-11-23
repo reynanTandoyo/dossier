@@ -32,6 +32,8 @@ pub struct Config {
     pub brief_lines: usize,
     pub status_lines: usize,
     pub draft_days: i64,
+    /// Days after which a taken file is marked (format.md §30, `[limits] take_days`).
+    pub take_days: i64,
     pub lock_wait_seconds: u64,
     pub ssh_timeout_seconds: u64,
     /// "project" or "team" (format.md §26); missing means "project".
@@ -121,6 +123,7 @@ struct LimitsFile {
     brief_lines: usize,
     status_lines: usize,
     draft_days: i64,
+    take_days: i64,
     lock_wait_seconds: u64,
     ssh_timeout_seconds: u64,
 }
@@ -131,6 +134,7 @@ impl Default for LimitsFile {
             brief_lines: 60,
             status_lines: 60,
             draft_days: 14,
+            take_days: 14,
             lock_wait_seconds: 30,
             ssh_timeout_seconds: 10,
         }
@@ -248,6 +252,15 @@ fn parse(text: &str, path: &Path) -> Result<Config> {
         ));
     }
     let file: File = toml::from_str(text).map_err(|error| config_error(path, error))?;
+    if file.limits.take_days < 1 {
+        return Err(config_error(
+            path,
+            format!(
+                "[limits] take_days must be at least 1, not {}",
+                file.limits.take_days
+            ),
+        ));
+    }
     Ok(Config {
         format: file.format,
         code: file.code,
@@ -270,6 +283,7 @@ fn parse(text: &str, path: &Path) -> Result<Config> {
         brief_lines: file.limits.brief_lines,
         status_lines: file.limits.status_lines,
         draft_days: file.limits.draft_days,
+        take_days: file.limits.take_days,
         lock_wait_seconds: file.limits.lock_wait_seconds,
         ssh_timeout_seconds: file.limits.ssh_timeout_seconds,
         kind: file.kind,
@@ -615,6 +629,48 @@ mod tests {
         let cfg = loaded(&dir);
         assert_eq!(cfg.draft_days, 3);
         assert_eq!(cfg.brief_lines, 60);
+    }
+
+    #[test]
+    fn a_missing_take_days_is_14() {
+        let dir = dossier_with("format = 1\ncode = \"P-001\"\n");
+        assert_eq!(loaded(&dir).take_days, 14);
+    }
+
+    #[test]
+    fn take_days_under_limits_is_read_and_leaves_the_other_limits_alone() {
+        let dir = dossier_with("format = 1\ncode = \"P-001\"\n[limits]\ntake_days = 30\n");
+        let cfg = loaded(&dir);
+        assert_eq!(cfg.take_days, 30);
+        assert_eq!(cfg.draft_days, 14);
+    }
+
+    #[test]
+    fn the_smallest_take_days_is_one() {
+        let dir = dossier_with("format = 1\ncode = \"P-001\"\n[limits]\ntake_days = 1\n");
+        assert_eq!(loaded(&dir).take_days, 1);
+    }
+
+    #[test]
+    fn a_take_days_below_one_is_a_config_error_naming_the_file_and_the_key() {
+        for value in ["0", "-3"] {
+            let dir = dossier_with(&format!(
+                "format = 1\ncode = \"P-001\"\n[limits]\ntake_days = {value}\n"
+            ));
+            let error = refused(&dir);
+            assert_eq!(error.code, Code::Config);
+            let path = dir.path().join(FILE).display().to_string();
+            assert!(error.message.starts_with(&path), "{}", error.message);
+            assert!(error.message.contains("take_days"), "{}", error.message);
+        }
+    }
+
+    #[test]
+    fn an_unknown_key_under_limits_is_still_a_config_error() {
+        let dir = dossier_with("format = 1\ncode = \"P-001\"\n[limits]\ntake_day = 3\n");
+        let error = refused(&dir);
+        assert_eq!(error.code, Code::Config);
+        assert!(error.message.contains("take_day"), "{}", error.message);
     }
 
     #[test]
