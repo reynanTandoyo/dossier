@@ -2,7 +2,6 @@
 //! arguments, and `take` and `return` in a connected folder.
 
 use crate::remote::pointer::Pointer;
-use crate::remote::ssh;
 use std::ffi::OsString;
 use std::path::Path;
 
@@ -13,9 +12,12 @@ pub fn program() -> OsString {
         .unwrap_or_else(|| OsString::from("scp"))
 }
 
-/// The arguments of scp: -o BatchMode=yes -o ConnectTimeout=<n> -p, then source and target.
+/// The arguments of scp: -s -o BatchMode=yes -o ConnectTimeout=<n> -p, then source and target.
+/// -s forces the SFTP protocol (OpenSSH 8.7 or newer; the default from 9.0 on), so that the remote
+/// path is read the same way by every scp.
 pub fn argv(source: &str, target: &str, timeout: u64) -> Vec<String> {
     vec![
+        "-s".to_string(),
         "-o".to_string(),
         "BatchMode=yes".to_string(),
         "-o".to_string(),
@@ -26,9 +28,19 @@ pub fn argv(source: &str, target: &str, timeout: u64) -> Vec<String> {
     ]
 }
 
-/// "<server>:<quoted folder/stored>" for scp.
+/// "<server>:<folder/stored>" for scp, not shell-quoted: in SFTP mode the path reaches the server
+/// as written, and quotes would become part of the name. Each `\`, `*`, `?`, `[` and `]` gets a
+/// backslash in front, so that the SFTP glob matches only this file (tested against OpenSSH 10.2,
+/// 2026-11-23: a quoted path is not found, and an unescaped `a*b.sim` also copies `axxb.sim`).
 pub fn remote_path(server: &str, folder: &str, stored: &str) -> String {
-    format!("{server}:{}", ssh::quote(&format!("{folder}/{stored}")))
+    let mut escaped = String::new();
+    for ch in format!("{folder}/{stored}").chars() {
+        if matches!(ch, '\\' | '*' | '?' | '[' | ']') {
+            escaped.push('\\');
+        }
+        escaped.push(ch);
+    }
+    format!("{server}:{escaped}")
 }
 
 /// The file arguments of `return`: the words that do not start with `-` and are not the word
@@ -69,34 +81,35 @@ mod tests {
     }
 
     #[test]
-    fn argv_has_batch_mode_the_timeout_and_keeps_the_times() {
+    fn argv_forces_sftp_then_has_batch_mode_the_timeout_and_keeps_the_times() {
         assert_eq!(
-            argv("anna@server:'/srv/my project/a.sim'", "a.sim", 10),
+            argv("anna@server:/srv/my project/a.sim", "a.sim", 10),
             words(&[
+                "-s",
                 "-o",
                 "BatchMode=yes",
                 "-o",
                 "ConnectTimeout=10",
                 "-p",
-                "anna@server:'/srv/my project/a.sim'",
+                "anna@server:/srv/my project/a.sim",
                 "a.sim",
             ])
         );
     }
 
     #[test]
-    fn remote_path_quotes_a_folder_and_a_stored_name_with_a_space() {
+    fn remote_path_is_not_quoted_for_a_folder_and_a_stored_name_with_a_space() {
         assert_eq!(
             remote_path("anna@server", "/srv/my project", "sim/run 1.sim"),
-            "anna@server:'/srv/my project/sim/run 1.sim'"
+            "anna@server:/srv/my project/sim/run 1.sim"
         );
     }
 
     #[test]
-    fn remote_path_quotes_a_single_quote_and_keeps_non_ascii() {
+    fn remote_path_escapes_glob_characters_and_keeps_quotes_and_non_ascii() {
         assert_eq!(
-            remote_path("anna@server", "/srv/p", "it's Grüße.sim"),
-            "anna@server:'/srv/p/it'\\''s Grüße.sim'"
+            remote_path("anna@server", "/srv/p", "it's Grüße [2]*?.sim"),
+            "anna@server:/srv/p/it's Grüße \\[2\\]\\*\\?.sim"
         );
     }
 
