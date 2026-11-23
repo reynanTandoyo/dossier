@@ -7777,8 +7777,10 @@
 - note (2026-11-23, haiku-T-289): done
 
 ### T-290 · forward.rs: --allow-credential-like asks ssh for a terminal
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-290
+- claimed: 2026-11-23T18:46+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-285
 - why: Dossiers are committed to git, where a credential stays in the history (D40).
@@ -7796,8 +7798,10 @@
 - note (2026-11-22, planner): added
 
 ### T-291 · check: report text that looks like a credential (SECRET)
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-291
+- claimed: 2026-11-23T18:46+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-285
 - why: Dossiers are committed to git, where a credential stays in the history (D40).
@@ -7816,8 +7820,8 @@
 - note (2026-11-22, planner): added
 
 ### T-292 · Agent rules and README: never write a credential into the dossier
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-292
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-285
 - why: Dossiers are committed to git, where a credential stays in the history (D40).
@@ -7832,8 +7836,12 @@
   4. Run cargo test --lib agents:: and cargo test --test cmd_agents --test cmd_skill; where a test compares the whole rules text, update its expected text.
 - accept: The agent rules and the README say that credentials do not belong in a dossier and what happens when one is written.
 - verify: cargo test --lib agents:: && cargo test --test cmd_agents --test cmd_skill
+- verified: 2026-11-23
+- commit: 90d070d
 - reqs: R-CONF-7, R-AGENT-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, planner): added
+- note (2026-11-23, haiku-T-292): done
 
 ### T-286 · Trial and error is recorded: a problem, the attempts in order, what solved it
 - status: open
