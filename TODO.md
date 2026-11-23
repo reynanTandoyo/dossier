@@ -7899,10 +7899,8 @@
 - note (2026-11-23, haiku-T-295): done
 
 ### T-296 · attempts.rs: the attempt lines of an investigation
-- status: claimed
+- status: done
 - owner: haiku-T-296
-- claimed: 2026-11-23T19:12+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-287
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -7918,8 +7916,12 @@
   5. Run cargo test --lib attempts::
 - accept: Attempt lines are written and read back exactly, and lines that are no attempts are left alone.
 - verify: cargo test --lib attempts::
+- verified: 2026-11-23
+- commit: 850b694
 - reqs: R-INV-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-296): done
 
 ### T-297 · Investigations skeleton: command stubs for problem, tried, solved and gave-up
 - status: open
@@ -7980,8 +7982,10 @@
 - note (2026-11-23, haiku-T-358): done
 
 ### T-359 · Register problem, tried, solved and gave-up
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-359
+- claimed: 2026-11-23T19:18+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-297
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -8089,8 +8093,10 @@
 - note (2026-11-23, planner): added
 
 ### T-301 · filter.rs: --state
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-301
+- claimed: 2026-11-23T19:18+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-287
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
