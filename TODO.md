@@ -4277,7 +4277,8 @@
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
   1. Add a section on the session review under the newest version's additions: `dossier review-session <session file>` and what it prints; the session file format in five lines with the example of docs/format.md section 34, and that any tool or LLM can write one; `--claude` and `dossier session convert --claude <transcript>` for Claude Code; `dossier hooks install --session-review "<command>"` with one example command (`claude -p "Read the file given as the last argument and propose lessons with dossier learn"`); that dossier only starts the command and never calls a model itself; that the material is in .claude/dossier-session-review.md; and that Claude Code's own transcript format may change, in which case only the converter is updated and a warning says that no turn could be read.
-  2. Run cargo test --test smoke
+  2. README.md, the session review part: say that the review command given to `hooks install --session-review` runs on Windows in cmd and elsewhere in sh, so it is written in that shell's syntax (on Windows double quotes, not single quotes), and that dossier adds the path of the material as its last argument and does not wait for it.
+  3. Run cargo test --test smoke
 - accept: The README explains the session review and how to switch it on.
 - verify: cargo test --test smoke
 - reqs: R-DRAFT-7, R-DRAFT-9, REL-2
@@ -9081,7 +9082,7 @@
 - files: src/cmd/search.rs, tests/cmd_search.rs
 - read: src/select.rs, docs/design.md
 - steps:
-  1. src/cmd/search.rs, --similar: after the dash, print why the entry was chosen, from the reason that select.rs gives since T-392 (for example `shares tags: aero, cfd; words: stall, margin`), in place of repeating the title. The plain word search stays as it is. In --json, each result of --similar gains the field `reason` with that text.
+  1. src/cmd/search.rs, --similar: after the dash, print why the entry was chosen, the reason that select::reason gives since T-392 (`tag match` or `word match`), in place of repeating the title. The plain word search stays as it is. In --json, each result of --similar gains the field `reason` with that text.
   2. tests/cmd_search.rs: the --similar tests expect the reason after the dash and no repeated title; one test checks the `reason` field in --json.
   3. Run cargo test --test cmd_search
 - accept: search --similar prints the reason after the dash and gives it in --json.
