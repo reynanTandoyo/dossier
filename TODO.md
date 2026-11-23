@@ -3309,10 +3309,8 @@
 - note (2026-11-23, haiku-T-370): done
 
 ### T-319 · config.rs: take_days
-- status: claimed
+- status: done
 - owner: haiku-T-319
-- claimed: 2026-11-23T21:14+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-054
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3326,10 +3324,14 @@
   3. Run cargo test --lib config::
 - accept: The settings know after how many days a take counts as old.
 - verify: cargo test --lib config::
+- verified: 2026-11-23
+- commit: ac5981f
 - reqs: R-FILE-7, R-CFG-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): forced set (owner was haiku-T-319)
 - note (2026-11-23, planner): src/filelist.rs and src/names.rs build a Config in their tests and need take_days: 14 there; added to the files. The below-1 check is new for take_days and stays.
+- note (2026-11-23, haiku-T-319): done
 
 ### T-320 · taken.rs: the file of taken files
 - status: done
