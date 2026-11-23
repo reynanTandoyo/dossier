@@ -19,6 +19,9 @@ const INVESTIGATION_STATES: [&str; 3] = ["open", "solved", "given up"];
 /// The values of `outcome` of a finding (format.md §5).
 const OUTCOMES: [&str; 1] = ["dead end"];
 
+/// The most lines that the `Summary` of a digest may have (format.md §32).
+const SUMMARY_LINES: usize = 15;
+
 /// The sections that every entry of `kind` must have.
 pub fn required_sections(kind: Kind) -> &'static [&'static str] {
     match kind {
@@ -30,10 +33,12 @@ pub fn required_sections(kind: Kind) -> &'static [&'static str] {
         Kind::Howto => &["Purpose", "Steps"],
         Kind::Tool => &["Purpose"],
         Kind::Investigation => &["Problem"],
+        Kind::Digest => &["Summary"],
     }
 }
 
-/// The order of the sections of an entry of `kind` (format.md §8, and §15 for a usage record).
+/// The order of the sections of an entry of `kind` (format.md §8, §15 for a usage record, and §32
+/// for a digest).
 pub fn section_order(kind: Kind) -> &'static [&'static str] {
     match kind {
         Kind::Decision => &["Decision", "Reason", "Rejected"],
@@ -58,12 +63,15 @@ pub fn section_order(kind: Kind) -> &'static [&'static str] {
             "Tested with",
         ],
         Kind::Investigation => &["Problem", "Attempts", "Solution"],
+        Kind::Digest => &["Summary"],
     }
 }
 
 /// What is missing for approval: required sections, `confidence` for a lesson with one of the
 /// four values, a valid `state` for an assumption or an investigation, a valid `outcome` if
-/// present, and the fields `software`, `version` and `task` of a usage record (format.md §15).
+/// present, the fields `software`, `version` and `task` of a usage record (format.md §15), and
+/// the fields `milestone` and `tasks` of a digest with a `Summary` of at most 15 lines (format.md
+/// §32).
 ///
 /// The problems come in this order: the required sections of the kind, then the field of the
 /// kind. A section with no text counts as missing. A field with an empty value counts as
@@ -125,6 +133,21 @@ pub fn problems(entry: &Entry) -> Vec<Problem> {
                 .is_some_and(|state| is_one_of(&state, &INVESTIGATION_STATES))
             {
                 found.push(problem("state must be open, solved or given up"));
+            }
+        }
+        Kind::Digest => {
+            for key in ["milestone", "tasks"] {
+                if filled_field(entry, key).is_none() {
+                    found.push(problem(format!("missing field {key}")));
+                }
+            }
+            if entry
+                .section("Summary")
+                .is_some_and(|body| body.lines().count() > SUMMARY_LINES)
+            {
+                found.push(problem(format!(
+                    "Summary has more than {SUMMARY_LINES} lines"
+                )));
             }
         }
     }
@@ -468,7 +491,7 @@ results/run-1/
 
     #[test]
     fn required_sections_are_those_of_format_section_8_in_their_order() {
-        let expected: [(Kind, &[&str], &[&str]); 8] = [
+        let expected: [(Kind, &[&str], &[&str]); 9] = [
             (
                 Kind::Decision,
                 &["Decision", "Reason"],
@@ -523,6 +546,7 @@ results/run-1/
                 &["Problem"],
                 &["Problem", "Attempts", "Solution"],
             ),
+            (Kind::Digest, &["Summary"], &["Summary"]),
         ];
         for (kind, required, order) in expected {
             assert_eq!(required_sections(kind), required, "{}", kind.name());
@@ -682,6 +706,92 @@ Converts files.
                 "missing section Problem",
                 "state must be open, solved or given up",
             ]
+        );
+    }
+
+    /// A complete digest, as `render` writes it, with the given `Summary`. Invented content.
+    fn digest(summary: &str) -> String {
+        render(&Draft {
+            kind: Kind::Digest,
+            id: "DIG-101".to_string(),
+            title: "Invented milestone".to_string(),
+            fields: vec![
+                ("status".to_string(), "draft".to_string()),
+                ("milestone".to_string(), "T-101".to_string()),
+                ("tasks".to_string(), "T-102, T-103".to_string()),
+            ],
+            sections: vec![("Summary".to_string(), summary.to_string())],
+        })
+    }
+
+    /// A summary of `count` lines. Invented content.
+    fn summary_of(count: usize) -> String {
+        (1..=count)
+            .map(|line| format!("Invented line {line}."))
+            .collect::<Vec<String>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn a_digest_with_milestone_tasks_and_a_short_summary_has_no_problems() {
+        let found = whats(&digest(&summary_of(3)));
+        assert!(found.is_empty(), "{found:?}");
+    }
+
+    #[test]
+    fn a_digest_with_fifteen_summary_lines_has_no_problems() {
+        let found = whats(&digest(&summary_of(15)));
+        assert!(found.is_empty(), "{found:?}");
+    }
+
+    #[test]
+    fn a_digest_with_sixteen_summary_lines_lists_the_length_rule() {
+        let found = whats(&digest(&summary_of(16)));
+        assert_eq!(found, ["Summary has more than 15 lines"]);
+    }
+
+    #[test]
+    fn a_digest_without_milestone_or_tasks_lists_the_missing_fields_in_order() {
+        let text = replacing(&digest(&summary_of(3)), "- milestone: T-101\n", "");
+        assert_eq!(whats(&text), ["missing field milestone"]);
+        let text = replacing(&digest(&summary_of(3)), "- tasks: T-102, T-103\n", "");
+        assert_eq!(whats(&text), ["missing field tasks"]);
+        let text = replacing(
+            &replacing(&digest(&summary_of(3)), "- milestone: T-101\n", ""),
+            "- tasks: T-102, T-103\n",
+            "",
+        );
+        assert_eq!(
+            whats(&text),
+            ["missing field milestone", "missing field tasks"]
+        );
+    }
+
+    #[test]
+    fn a_digest_without_summary_lists_the_section_before_the_fields() {
+        let text = render(&Draft {
+            kind: Kind::Digest,
+            id: "DIG-102".to_string(),
+            title: "Invented milestone".to_string(),
+            fields: Vec::new(),
+            sections: Vec::new(),
+        });
+        assert_eq!(
+            whats(&text),
+            [
+                "missing section Summary",
+                "missing field milestone",
+                "missing field tasks",
+            ]
+        );
+    }
+
+    #[test]
+    fn a_digest_lists_the_fields_before_the_length_of_its_summary() {
+        let text = replacing(&digest(&summary_of(16)), "- tasks: T-102, T-103\n", "");
+        assert_eq!(
+            whats(&text),
+            ["missing field tasks", "Summary has more than 15 lines"]
         );
     }
 }

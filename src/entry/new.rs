@@ -10,10 +10,10 @@ const FORMAT_LINE: &str = "<!-- dossier-format: 1 -->";
 const PICTURES: &str = "Pictures";
 
 /// The known fields in the order of format.md §5, with the fields of §14 and §15 after
-/// `rejected-reason` and after `software`, and the fields of §28 after `refuted`. `history` is not
-/// listed: it is always written last. `kind` is listed first, but `render` writes it from
-/// `Draft::kind`.
-const FIELD_ORDER: [&str; 43] = [
+/// `rejected-reason` and after `software`, the fields of §28 after `refuted`, and the fields of
+/// §32 after `task`. `history` is not listed: it is always written last. `kind` is listed first,
+/// but `render` writes it from `Draft::kind`.
+const FIELD_ORDER: [&str; 46] = [
     "kind",
     "status",
     "created",
@@ -26,6 +26,9 @@ const FIELD_ORDER: [&str; 43] = [
     "confidence",
     "outcome",
     "task",
+    "milestone",
+    "tasks",
+    "standing",
     "machine",
     "analysis",
     "software",
@@ -161,7 +164,8 @@ fn sections(draft: &Draft) -> Vec<(String, Vec<String>)> {
     kept
 }
 
-/// The sections of each kind, in the order of format.md §8, and of a usage record in §15.
+/// The sections of each kind, in the order of format.md §8, of a usage record in §15 and of a
+/// digest in §32.
 fn known_sections(kind: Kind) -> &'static [&'static str] {
     match kind {
         Kind::Decision => &["Decision", "Reason", "Rejected"],
@@ -186,6 +190,7 @@ fn known_sections(kind: Kind) -> &'static [&'static str] {
             "Tested with",
         ],
         Kind::Investigation => &["Problem", "Attempts", "Solution"],
+        Kind::Digest => &["Summary"],
     }
 }
 
@@ -1020,6 +1025,39 @@ Run on the cluster.
         assert_eq!(
             headings,
             ["## Problem", "## Attempts", "## Solution", "## Extra"]
+        );
+    }
+
+    #[test]
+    fn the_fields_of_a_digest_follow_format_section_32_after_task() {
+        let draft = Draft {
+            kind: Kind::Digest,
+            id: "DIG-002".to_string(),
+            title: "Field order of a digest".to_string(),
+            fields: pairs(&[
+                ("tasks", "T-102, T-103"),
+                ("standing", "yes"),
+                ("status", "draft"),
+                ("milestone", "T-101"),
+                ("created", "2026-12-03T09:10:00+01:00"),
+                ("task", "T-101"),
+            ]),
+            sections: pairs(&[("Summary", "The milestone is done.")]),
+        };
+        let text = render(&draft);
+        let entry = Entry::parse(&text).expect("parses");
+        let keys: Vec<String> = entry.fields().into_iter().map(|(key, _)| key).collect();
+        assert_eq!(
+            keys,
+            [
+                "kind",
+                "status",
+                "created",
+                "task",
+                "milestone",
+                "tasks",
+                "standing",
+            ]
         );
     }
 }
