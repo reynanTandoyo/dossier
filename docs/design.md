@@ -1114,8 +1114,9 @@ four are refused in a team dossier (R-INV-1). History events: `tried` (detail `<
 
 Changed commands: `list`, `show` and `search` mark an investigation `[open]`, `[solved]` or
 `[given up]`. `brief` gains `## Open investigations` after `## Open assumptions`, one line each:
-`<ID> · <title> — <n> attempts, last: <attempts::summary>` (cut before the lessons when the limit
-is reached). `status` lists them under `## Waiting` as `<ID> · <title> (investigation, <n>
+`<ID> · <title> — <n> attempts, last: <attempts::summary>` (when the limit is reached they are cut
+after the lessons, findings and team lines and before the proposals: open work in progress stays
+longer; T-303). `status` lists them under `## Waiting` as `<ID> · <title> (investigation, <n>
 attempts)`. `brief --task` gains `## Investigations`, at most 15 lines: the open ones whose `task`
 is the task (title line, then one indented `attempts::summary` per attempt), then closed ones of
 the task and up to five others chosen by select::best with the task's tags and title words, one
