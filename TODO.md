@@ -3309,8 +3309,10 @@
 - note (2026-11-23, haiku-T-370): done
 
 ### T-319 · config.rs: take_days
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-319
+- claimed: 2026-11-23T21:14+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-054
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3328,8 +3330,8 @@
 - note (2026-11-23, planner): added
 
 ### T-320 · taken.rs: the file of taken files
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-320
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-054
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3344,8 +3346,12 @@
   4. Run cargo test --lib taken::
 - accept: The program reads who holds which file and the log of each file's versions from one readable file.
 - verify: cargo test --lib taken::
+- verified: 2026-11-23
+- commit: 6915748
 - reqs: R-FILE-1, R-FILE-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-320): done
 
 ### T-321 · take: record who took a file
 - status: open
