@@ -8942,8 +8942,10 @@
 - note (2026-11-24, planner): added
 
 ### T-417 · brief: one summed-up line per digest, pointing to dossier show
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-417
+- claimed: 2026-11-24T00:23+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-056
 - why: The summed-up line pointed to list --task <task>, which cannot name a milestone of several tasks (found in T-333).
