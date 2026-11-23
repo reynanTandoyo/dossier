@@ -7750,8 +7750,8 @@
 - note (2026-11-23, haiku-T-288): done
 
 ### T-289 · tx.rs: refuse a write that adds text looking like a credential
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-289
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-285
 - why: Dossiers are committed to git, where a credential stays in the history (D40).
@@ -7769,8 +7769,12 @@
   7. Run cargo test --test secret and cargo test --lib tx::
 - accept: No command writes a new line that looks like a credential into a .md file of a dossier, unless a person at a terminal allows it; the journal records that.
 - verify: cargo test --test secret
+- verified: 2026-11-23
+- commit: da803c4
 - reqs: R-CONF-7, D40
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, planner): added
+- note (2026-11-23, haiku-T-289): done
 
 ### T-290 · forward.rs: --allow-credential-like asks ssh for a terminal
 - status: open

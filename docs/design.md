@@ -996,6 +996,8 @@ pub fn listed(file: &str, hits: &[Hit]) -> String;
 // with `--allow-credential-like` (read from the arguments like `--allow-network-drive`):
 // Code::Refused, "this looks like a credential and was not written: <listed>; write where it is
 // kept instead. A person at a terminal can add --allow-credential-like when it is a false alarm".
+// <listed> names the change's ID (`FND-001`) in place of the file: an entry's file name is made
+// from its title and could hold the credential itself (T-289).
 // With the flag: an LLM is Code::NeedsPerson, no terminal is Code::NeedsTerminal; a person at a
 // terminal: after `apply`, `secret::allow` and one journal record per file (event `allowed`,
 // detail `credential-like text, line <n>[, <n>…]`). A dry run refuses the same way and allows
