@@ -4680,7 +4680,7 @@
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
 - summary: The version number and the README are ready for the owner to tag release 0.6.0.
-- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309
+- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -8857,6 +8857,25 @@
 - note (2026-11-23, planner): added
 - note (2026-11-23, haiku-T-411): done
 
+### T-414 · Readers' guide and README: the answer 'edit first' of approve
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: docs
+- milestone: T-058
+- why: The readers' guide describes the answers of approve, and gains the fourth with T-413.
+- summary: The guide for readers explains that a draft can be corrected in the editor during approve.
+- depends: T-413
+- files: docs/guide-for-readers.md, README.md
+- read: src/cmd/approve.rs
+- steps:
+  1. docs/guide-for-readers.md: where the answers of approve are described, add the fourth, `e` (edit first): it opens the draft in the editor (VISUAL, else EDITOR, else Notepad on Windows); after saving, the changed draft is shown again and approve asks once more; the change is kept and recorded even when the draft is then skipped. Remove the sentence that edits go through the writer, if it is there.
+  2. README.md: where approve and its answers are described, name the four answers a, e, r and s in the same way (one sentence). Change nothing else.
+  3. Run cargo test --test smoke
+- accept: The guide and the README name the four answers of approve.
+- verify: cargo test --test smoke
+- reqs: R-DRAFT-4, REL-4
+- note (2026-11-23, planner): added
+
 ## Questions
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.
@@ -8898,8 +8917,22 @@
 - type: idea
 - note (2026-11-23, planner): added
 
-### T-413 · R-DRAFT-4 (MUST) gap: approve asks approve, reject or skip, but not 'edit first' (open the draft in the editor like dossier edit, then show it again and ask once more). Found in T-354; docs/guide-for-readers.md describes the three answers that exist and must gain the fourth when it is built.
+### T-413 · approve: the answer 'edit first'
 - status: open
 - owner: —
-- type: idea
+- difficulty: 1
+- type: feature
+- why: R-DRAFT-4 (MUST) names four answers; approve offered three, so a reader could not correct a draft before approving it (found in T-354).
+- summary: During approve a person can open a draft in the editor, correct it, and then approve, reject or skip it.
+- files: src/cmd/approve.rs, src/cmd/edit.rs, tests/cmd_approve.rs
+- read: docs/requirements.md, src/cmd/edit.rs, tests/cmd_edit.rs
+- steps:
+  1. src/cmd/edit.rs: `fn editor_program`, `fn edit_in_temp_file` and `fn refuse_tool_lines` become `pub(crate) fn`; nothing else in edit.rs changes.
+  2. src/cmd/approve.rs, review: keep `let mut current = item.entry.clone();` and ask in a loop with the prompt `<ID>: approve, edit first, reject or skip? (a/e/r/s) `. `e` or `edit`: run `crate::cmd::edit::edit_in_temp_file(&crate::cmd::edit::editor_program(), &id, &current.text())`; when the text came back unchanged, ask again; else parse it with Entry::parse, call `crate::cmd::edit::refuse_tool_lines(&current, &edited)` (an error ends the command, as in edit), add the history line `changed — edited before approval` with `edited.add_history(tx.time(), who, "changed", "edited before approval")`, set `current = edited`, show it again with show(&current.text()), check rules::problems(&current) as before the first question (problems: skipped with the same warning, but the edited text is still written), and ask again. `a`, `r` and anything else end the loop as now.
+  3. src/cmd/approve.rs: approve and reject take the entry to write: `fn approve(tx: &mut Tx, item: &Item, entry: &Entry, who: &Who)` and `fn reject(tx: &mut Tx, item: &Item, entry: &Entry, who: &Who)` start from `entry.clone()` in place of `item.entry.clone()`. A skip after an edit queues the edited draft with `tx.put(item.path.clone(), Some(item), current.text(), change(id, "changed"))`, so that the edit is kept; a skip without an edit writes nothing, as now. Only one tx.put per draft. Update the module doc comment and the doc comment of review to name the four answers (R-DRAFT-4).
+  4. tests/cmd_approve.rs: with the stand-in editor of tests/cmd_edit.rs that appends `Added by the editor.` (copy its two texts and write it with Project::write_stand_in), set as VISUAL: answers `e|a` approve the draft, its text contains `Added by the editor.`, its history has `edited before approval` before `approved`; answers `e|s` leave a draft that contains the added line; with an editor that saves the file unchanged, `e|r` rejects it without a `changed` history line.
+  5. Run cargo test --test cmd_approve
+- accept: approve asks a/e/r/s; e opens the editor, shows the changed draft and asks again; the edit is kept with a history line, whatever the answer after it.
+- verify: cargo test --test cmd_approve
+- reqs: R-DRAFT-4
 - note (2026-11-23, planner): added
