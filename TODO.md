@@ -3982,10 +3982,8 @@
 - note (2026-11-23, planner): split into T-380, T-381, T-382, T-383, T-384
 
 ### T-380 · Stub files: review-session and session
-- status: claimed
+- status: done
 - owner: haiku-T-380
-- claimed: 2026-11-23T23:54+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-337
 - why: Capture only becomes a habit when the routine steps happen by themselves.
@@ -3999,8 +3997,12 @@
   4. Run cargo build (it must still pass).
 - accept: The two stub files exist and are formatted.
 - verify: rustfmt --check --edition 2024 src/cmd/review_session.rs src/cmd/session.rs && cargo build
+- verified: 2026-11-24
+- commit: 031b715
 - reqs: R-DRAFT-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-380): done
 
 ### T-381 · Register review-session and session
 - status: open
