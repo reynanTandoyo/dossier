@@ -8776,10 +8776,8 @@
 - note (2026-11-23, haiku-T-409): done
 
 ### T-410 · transfer.rs: return --done does not copy the PC's file mode to the server
-- status: claimed
+- status: done
 - owner: haiku-T-410
-- claimed: 2026-11-23T23:18+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-054
 - why: scp -p from Windows sends mode 0666, so a returned file became writable for everyone on the server (found in the end-to-end check, 2026-11-23).
@@ -8793,12 +8791,18 @@
   3. Run cargo test --lib remote::transfer::
 - accept: An upload runs scp without -p; a download keeps -p.
 - verify: cargo test --lib remote::transfer::
+- verified: 2026-11-23
+- commit: 1737e5e
 - reqs: R-REMOTE-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-410): done
 
 ### T-411 · secret.rs: build the AWS-shaped test values at run time
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-411
+- claimed: 2026-11-23T23:22+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: chore
 - milestone: T-054
 - why: GitHub secret scanning reports the invented AWS key of the T-288 tests as a leaked secret (alert #1).
