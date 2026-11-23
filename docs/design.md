@@ -1309,7 +1309,9 @@ pub fn turns(transcript: &str) -> Vec<Turn>;
 
 // hooks.rs
 pub const SESSION_END: &str = "dossier session-end";
-/// The settings with a SessionEnd hook running `dossier session-end --run <quoted command>`.
+/// The settings with a SessionEnd hook running `dossier session-end --run <quoted command>`. The
+/// command is quoted for a POSIX shell, so the hook says `"shell": "bash"`: on Windows Claude Code
+/// would otherwise run it in PowerShell when Git Bash is not installed (T-416).
 pub fn review_installed(existing: &str, command: &str) -> Result<String>;
 ```
 

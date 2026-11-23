@@ -4708,7 +4708,7 @@
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
 - summary: The version number and the README are ready for the owner to tag release 0.6.0.
-- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414
+- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -8905,6 +8905,25 @@
 - verify: cargo test --test smoke
 - reqs: R-DRAFT-4, REL-4
 - note (2026-11-23, planner): added
+
+### T-416 · hooks.rs: the session-end hook runs in bash
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-339
+- why: Its command is quoted for a POSIX shell; on Windows without Git Bash, Claude Code would run it in PowerShell, where that quoting breaks.
+- summary: The session review hook runs the same way on every PC, because it says which shell runs it.
+- depends: T-338
+- files: src/hooks.rs
+- read: docs/design.md
+- steps:
+  1. src/hooks.rs, review_installed: the SessionEnd hook object it writes gains `"shell": "bash"` next to `"type": "command"` and `"command"`, with a comment: the command is quoted for a POSIX shell, and Claude Code runs a hook on Windows in Git Bash, or in PowerShell when Git Bash is not installed, unless `shell` says which (code.claude.com/docs/en/hooks). A SessionEnd dossier hook that is replaced in place gets the field too. The other hooks (brief, guard, after) stay as they are: their commands have no quotes.
+  2. src/hooks.rs, unit tests: the installed SessionEnd hook has `"shell": "bash"`; replacing an existing one keeps exactly one hook with the field; the SessionStart hook still has no `shell` field.
+  3. Run cargo test --lib hooks::
+- accept: The SessionEnd hook that hooks install writes says shell: bash; the other hooks are unchanged.
+- verify: cargo test --lib hooks::
+- reqs: R-DRAFT-9
+- note (2026-11-24, planner): added
 
 ## Questions
 
