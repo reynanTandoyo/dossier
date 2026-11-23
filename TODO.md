@@ -3020,8 +3020,10 @@
 - note (2026-11-23, planner): split into T-311, T-312, T-313, T-314, T-315, T-316
 
 ### T-311 · ssh.rs: variables and a subfolder for the remote command, and captured output
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-311
+- claimed: 2026-11-23T20:40+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-053
 - why: Team members work on Windows PCs while the one copy of the dossier is on the Linux server.
@@ -3040,8 +3042,10 @@
 - note (2026-11-23, planner): added
 
 ### T-312 · remote/version.rs: compare the versions of PC and server
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-312
+- claimed: 2026-11-23T20:40+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-053
 - why: Team members work on Windows PCs while the one copy of the dossier is on the Linux server.
