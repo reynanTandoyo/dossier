@@ -3723,10 +3723,8 @@
 - note (2026-11-23, haiku-T-329): done
 
 ### T-330 · digest.rs: which digest covers which entry
-- status: claimed
+- status: done
 - owner: haiku-T-330
-- claimed: 2026-11-23T23:54+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-056
 - why: The context an LLM gets must stay small as a project grows (D22).
@@ -3743,8 +3741,12 @@
   6. Run cargo test --lib digest:: and cargo test --lib approval::
 - accept: The program can tell which entries an approved digest replaces in brief and status.
 - verify: cargo test --lib digest::
+- verified: 2026-11-24
+- commit: ec0a1fe
 - reqs: R-CTX-15
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-330): done
 
 ### T-331 · digest: the material for summing up a milestone, and writing the digest
 - status: open
