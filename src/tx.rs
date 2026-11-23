@@ -10,8 +10,10 @@ use crate::journal;
 use crate::lock;
 use crate::names::Who;
 use crate::output::Output;
+use crate::secret;
 use crate::snapshot;
 use crate::store::Item;
+use crate::term;
 use crate::time;
 use std::path::{Path, PathBuf};
 
@@ -69,6 +71,17 @@ const NETWORK_DRIVE: &str =
 
 /// The program argument that lets one command write to a network drive anyway (R-LOCK-3).
 const ALLOW_NETWORK: &str = "--allow-network-drive";
+
+/// The program argument that lets a person at a terminal write text that looks like a credential
+/// (R-CONF-7).
+const ALLOW_CREDENTIAL: &str = "--allow-credential-like";
+
+/// A change that writes a `.md` file with text that looks like a credential: its ID, and the lines
+/// that are new and not allowed.
+struct Found {
+    id: String,
+    hits: Vec<secret::Hit>,
+}
 
 impl<'a> Tx<'a> {
     /// The context of the command.
@@ -135,10 +148,11 @@ impl<'a> Tx<'a> {
     }
 }
 
-/// Refuses a network drive, takes the lock, runs `f`, then for each queued change: saves a
-/// snapshot of the old file, replaces the file with atomic::replace (expecting the old bytes),
-/// appends the journal record. With ctx.dry_run nothing is written and the Output gets one
-/// warning per change: `dry run: would write <path>`. An error in `f` writes nothing.
+/// Refuses a network drive, takes the lock, runs `f`, refuses text that looks like a credential
+/// (R-CONF-7), then for each queued change: saves a snapshot of the old file, replaces the file
+/// with atomic::replace (expecting the old bytes), appends the journal record. With ctx.dry_run
+/// nothing is written and the Output gets one warning per change: `dry run: would write <path>`.
+/// An error in `f` writes nothing.
 pub fn write<F>(ctx: &Ctx, f: F) -> Result<Output>
 where
     F: FnOnce(&mut Tx) -> Result<Output>,
@@ -165,13 +179,117 @@ where
         queued: Vec::new(),
     };
     let output = f(&mut tx)?;
+    let found = credential_found(ctx, &tx.queued)?;
+    let allowed = !found.is_empty() && credential_allowed(who, &found)?;
     if ctx.dry_run {
         return Ok(tx.queued.iter().fold(output, |output, queued| {
             output.warn(dry_run_warning(&ctx.root, queued))
         }));
     }
     apply(ctx, who, &tx.time, &tx.queued)?;
+    if allowed {
+        allow_found(ctx, who, &tx.time, &found)?;
+    }
     Ok(commit_team(ctx, &tx.queued, output))
+}
+
+/// The changes that write text which looks like a credential (R-CONF-7): every change that writes
+/// a `.md` file with UTF-8 text, with the lines that are new and not allowed (`secret::added`).
+/// The allowed file is read only when some change writes a `.md` file.
+fn credential_found(ctx: &Ctx, queued: &[Queued]) -> Result<Vec<Found>> {
+    let writes: Vec<(&Queued, &str)> = queued
+        .iter()
+        .filter_map(|op| written_md(op).map(|text| (op, text)))
+        .collect();
+    if writes.is_empty() {
+        return Ok(Vec::new());
+    }
+    let allowed = secret::allowed(&ctx.state)?;
+    Ok(writes
+        .into_iter()
+        .filter_map(|(op, text)| {
+            let hits = secret::added(old_text(op), text, &allowed);
+            (!hits.is_empty()).then(|| Found {
+                id: op.change.id.clone(),
+                hits,
+            })
+        })
+        .collect())
+}
+
+/// The new text of a change that writes a `.md` file, when the new bytes are UTF-8. A rename is
+/// checked at its new path.
+fn written_md(op: &Queued) -> Option<&str> {
+    let (path, text) = match &op.action {
+        Action::Put { path, text } => (path, text.as_str()),
+        Action::Rename { to, text, .. } => (to, text.as_str()),
+        Action::PutRaw { path, bytes } => (path, std::str::from_utf8(bytes).ok()?),
+        Action::Delete { .. } | Action::DeleteRaw { .. } => return None,
+    };
+    is_md(path).then_some(text)
+}
+
+/// The old text of a change, when its old bytes are UTF-8.
+fn old_text(op: &Queued) -> Option<&str> {
+    op.old
+        .as_deref()
+        .and_then(|bytes| std::str::from_utf8(bytes).ok())
+}
+
+/// Whether the credential-like text of `found` may be written. Without `--allow-credential-like`
+/// it is refused, naming the changes and their lines but never the text. With the flag only a
+/// person at a terminal may allow it: an LLM is Code::NeedsPerson, and no terminal is
+/// Code::NeedsTerminal.
+fn credential_allowed(who: &Who, found: &[Found]) -> Result<bool> {
+    if !allowed_on_credential() {
+        let listed: Vec<String> = found
+            .iter()
+            .map(|found| secret::listed(&found.id, &found.hits))
+            .collect();
+        return Err(Error::new(
+            Code::Refused,
+            format!(
+                "this looks like a credential and was not written: {}; write where it is kept instead. A person at a terminal can add --allow-credential-like when it is a false alarm",
+                listed.join("; ")
+            ),
+        ));
+    }
+    if who.is_llm {
+        return Err(Error::new(
+            Code::NeedsPerson,
+            format!(
+                "only a person can allow text that looks like a credential; {} is an LLM",
+                who.name
+            ),
+        ));
+    }
+    if !term::is_terminal() {
+        return Err(Error::new(
+            Code::NeedsTerminal,
+            "this command must be run by a person at a terminal",
+        ));
+    }
+    Ok(true)
+}
+
+/// Allows the credential-like lines of `found` (`secret::allow`) and journals one `allowed`
+/// record per change. Called after the changes are written.
+fn allow_found(ctx: &Ctx, who: &Who, time: &str, found: &[Found]) -> Result<()> {
+    let hits: Vec<secret::Hit> = found
+        .iter()
+        .flat_map(|found| found.hits.iter().cloned())
+        .collect();
+    secret::allow(&ctx.state, &hits)?;
+    for found in found {
+        let lines: Vec<String> = found.hits.iter().map(|hit| hit.line.to_string()).collect();
+        let change = Change {
+            id: found.id.clone(),
+            event: "allowed".to_string(),
+            detail: format!("credential-like text, line {}", lines.join(", ")),
+        };
+        journal::append(&ctx.state, &record(time, who, &ctx.command, &change))?;
+    }
+    Ok(())
 }
 
 /// Commits the changes of a team dossier to git (D36, R-TEAM-6): one commit for the command,
@@ -204,6 +322,11 @@ fn change_ids(queued: &[Queued]) -> Vec<&str> {
 /// are, so that one that is not UTF-8 does not stop the command.
 fn allowed_on_network() -> bool {
     std::env::args_os().any(|arg| arg == ALLOW_NETWORK)
+}
+
+/// Whether the program was started with `--allow-credential-like`, read like `allowed_on_network`.
+fn allowed_on_credential() -> bool {
+    std::env::args_os().any(|arg| arg == ALLOW_CREDENTIAL)
 }
 
 /// Writes the queued changes in order. Every change is first checked against the file as it was
@@ -1366,5 +1489,82 @@ mod tests {
             },
         ];
         assert_eq!(change_ids(&queued), ["DEC-001", "DEC-002"]);
+    }
+
+    #[test]
+    fn a_credential_like_line_in_a_md_file_is_refused_and_nothing_is_written() {
+        let _clock = FixedClock::new();
+        let (_dir, ctx) = project();
+        let path = ctx.dossier.join("decisions").join("DEC-020-twentieth.md");
+        let text = format!("{}password: hunter22\n", entry_text("DEC-020 · Twentieth"));
+        let error = write(&ctx, |tx| {
+            tx.put(
+                path.clone(),
+                None,
+                text.clone(),
+                change("DEC-020", "created", ""),
+            );
+            Ok(Output::text("DEC-020: added"))
+        })
+        .err()
+        .expect("the text is refused");
+
+        assert_eq!(error.code, Code::Refused);
+        assert!(
+            error.message.contains("DEC-020: line 12 (password)"),
+            "{}",
+            error.message
+        );
+        assert!(!error.message.contains("hunter22"), "{}", error.message);
+        assert!(!path.exists());
+        assert!(journal::read(&ctx.state).expect("the journal").is_empty());
+    }
+
+    #[test]
+    fn a_credential_like_line_the_file_already_had_is_not_refused_again() {
+        let _clock = FixedClock::new();
+        let (_dir, ctx) = project();
+        let old_text = format!(
+            "{}password: hunter22\n",
+            entry_text("DEC-022 · Twenty-second")
+        );
+        let item = existing(
+            &ctx,
+            "decisions/DEC-022-twenty-second.md",
+            &old_text,
+            "DEC-022",
+        );
+        let new_text = old_text.replace("An invented decision", "A changed decision");
+        write(&ctx, |tx| {
+            tx.put(
+                item.path.clone(),
+                Some(&item),
+                new_text.clone(),
+                change("DEC-022", "changed", "field decision"),
+            );
+            Ok(Output::text("DEC-022: changed"))
+        })
+        .expect("the line was in the file already");
+
+        assert_eq!(fs::read_to_string(&item.path).expect("the file"), new_text);
+    }
+
+    #[test]
+    fn a_credential_like_line_in_a_file_that_is_not_md_is_not_checked() {
+        let _clock = FixedClock::new();
+        let (_dir, ctx) = project();
+        let path = ctx.dossier.join("images").join("DEC-021").join("note.txt");
+        write(&ctx, |tx| {
+            tx.put_raw(
+                path.clone(),
+                None,
+                b"password: hunter22\n".to_vec(),
+                change("DEC-021", "picture added", "note.txt"),
+            );
+            Ok(Output::text("DEC-021: picture added"))
+        })
+        .expect("a file that is not .md is written");
+
+        assert_eq!(fs::read(&path).expect("the file"), b"password: hunter22\n");
     }
 }

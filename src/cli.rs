@@ -18,6 +18,8 @@ pub struct Global {
     #[arg(long, global = true)]
     pub allow_network_drive: bool,
     #[arg(long, global = true)]
+    pub allow_credential_like: bool,
+    #[arg(long, global = true)]
     pub project: Option<String>,
     /// Work on the team dossier (`init` names a team path with `--with-team` instead).
     #[arg(long, global = true)]
