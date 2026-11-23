@@ -4011,10 +4011,8 @@
 - note (2026-11-24, haiku-T-380): done
 
 ### T-381 · Register review-session and session
-- status: claimed
+- status: done
 - owner: haiku-T-381
-- claimed: 2026-11-24T00:00+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-337
 - why: Capture only becomes a habit when the routine steps happen by themselves.
@@ -4029,10 +4027,14 @@
   4. Run cargo build and cargo test --test smoke
 - accept: The two commands are part of the program and the overview.
 - verify: cargo build && cargo test --test smoke
+- verified: 2026-11-24
+- commit: e043e16
 - reqs: R-DRAFT-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): Added tests/cmd_agents.rs: its help overview test lists every command (found in T-359).
 - note (2026-11-23, planner): src/cmd/mod.rs moved to T-380, so this task stays at 3 files (level 1).
+- note (2026-11-24, haiku-T-381): done
 
 ### T-382 · review-session and session run on the PC; the drafting rules become public
 - status: done
