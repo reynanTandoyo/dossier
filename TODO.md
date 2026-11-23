@@ -4005,8 +4005,10 @@
 - note (2026-11-24, haiku-T-380): done
 
 ### T-381 · Register review-session and session
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-381
+- claimed: 2026-11-24T00:00+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-337
 - why: Capture only becomes a habit when the routine steps happen by themselves.
