@@ -4,7 +4,7 @@
 while doing its projects. People and their LLMs write to it and read from it, so that neither has
 to rely on memory.
 
-**Status: v0.3 (phase 3)**
+**Status: v0.3.1**
 
 - [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the six phases it is
   built in.
@@ -787,12 +787,27 @@ Example Customer: added
 LES-001: promoted as team:LES-004 (draft, waiting for approval in the team dossier)
 ```
 
-### Not in version 0.3
+### What version 0.3.1 adds
+
+Version 0.3.1 refuses text that looks like a credential: a private key, an access token, or a
+password after `password:` or `=`. Dossiers are committed to git, where a credential would stay in
+the history. Such a write is refused on every command, for people and for LLMs, and the message
+names the entry and the line, never the value. A person at a terminal can add
+`--allow-credential-like` when it is a false alarm; an LLM cannot. `dossier check` reports a line
+like this that was added by hand as `SECRET`.
+
+```sh
+dossier found "The licence server login is password: Example-2406" --evidence "Setup notes"
+```
+
+```
+error: this looks like a credential and was not written: FND-001: line 2 (password); line 15 (password); write where it is kept instead. A person at a terminal can add --allow-credential-like when it is a false alarm
+```
+
+### Not in version 0.3.1
 
 These come in later phases. See [`docs/requirements.md`](docs/requirements.md), section 11.
 
-- **Version 0.3.1:** text that looks like a password, key or access token is refused on every
-  write.
 - **Phase 4 (v0.4):** investigations: a problem, the attempts to solve it in order, and what
   solved it.
 - **Phase 5 (v0.5):** copying large simulation files to a PC and back.
