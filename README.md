@@ -4,7 +4,7 @@
 while doing its projects. People and their LLMs write to it and read from it, so that neither has
 to rely on memory.
 
-**Status: v0.3.1**
+**Status: v0.4 (phase 4)**
 
 - [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the six phases it is
   built in.
@@ -804,15 +804,6 @@ dossier found "The licence server login is password: Example-2406" --evidence "S
 error: this looks like a credential and was not written: FND-001: line 2 (password); line 15 (password); write where it is kept instead. A person at a terminal can add --allow-credential-like when it is a false alarm
 ```
 
-### Not in version 0.3.1
-
-These come in later phases. See [`docs/requirements.md`](docs/requirements.md), section 11.
-
-- **Phase 4 (v0.4):** investigations: a problem, the attempts to solve it in order, and what
-  solved it.
-- **Phase 5 (v0.5):** copying large simulation files to a PC and back.
-- **Phase 6 (v0.6):** milestone digests, session review, hooks after `todo` commands, and export.
-
 ### What version 0.4 adds
 
 #### Investigations: trial and error
@@ -822,9 +813,28 @@ An attempt is a line in the investigation, not a task. A solved one is promoted 
 ```sh
 dossier problem "The density residual grows from iteration 40 on and the run stops with a negative pressure" --task T-012
 dossier tried INV-003 "The flux at the outlet has the wrong sign" --worked --did "corrected the sign in the outlet flux" --result "converges in 900 iterations"
-dossier solved INV-003 "The outlet flux had the wrong sign" --attempt 3
+dossier solved INV-003 "The outlet flux had the wrong sign" --attempt 1
 dossier show INV-003
 ```
+
+`tried` takes `--failed`, `--worked` or `--unclear`, and a failed attempt counts as a dead end.
+`gave-up <ID> --reason "<why>"` closes an investigation that was not solved. A `tried` on a closed
+investigation opens it again. `list`, `show` and `search` mark each one `[open]`, `[solved]` or
+`[given up]`.
+
+`brief` and `status` list the open investigations under what is waiting. `brief --task T-012`
+prints the open investigations of the task with their attempts, and the closed ones of the task
+and similar ones, one line each. `history T-012` lists the attempts that name the task, and
+`review-task T-012` prints the task's investigations as material for a how-to or a lesson.
+`promote INV-003 --as howto` (or `--as lesson`) copies a solved investigation to the team dossier
+as a draft; the failed attempts become the traps of the how-to.
+
+### Not in version 0.4
+
+These come in later phases. See [`docs/requirements.md`](docs/requirements.md), section 11.
+
+- **Phase 5 (v0.5):** copying large simulation files to a PC and back.
+- **Phase 6 (v0.6):** milestone digests, session review, hooks after `todo` commands, and export.
 
 ## What it needs
 
