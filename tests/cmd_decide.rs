@@ -434,3 +434,70 @@ fn a_decider_replaces_an_approved_decision_as_before() {
         "DEC-002: added (approved)\nDEC-001: superseded by DEC-002\n"
     );
 }
+
+#[test]
+fn a_standing_decision_is_written_with_the_field_standing_yes() {
+    let project = Project::new();
+    let output = project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Every run uses the project's mesh rules.",
+            "--reason",
+            "The whole project compares against one mesh.",
+            "--standing",
+        ],
+    );
+    assert_eq!(output, "DEC-001: added (approved)\n");
+
+    let text = decision_text(&project, "DEC-001");
+    assert!(
+        text.contains("\n- standing: yes\n"),
+        "a standing decision has the field: {text}"
+    );
+}
+
+#[test]
+fn a_decision_without_standing_has_no_standing_field() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Use the transient runs for the last three points.",
+            "--reason",
+            "Steady runs converged.",
+        ],
+    );
+
+    let text = decision_text(&project, "DEC-001");
+    assert!(
+        !text.contains("standing"),
+        "a decision without --standing has no such field: {text}"
+    );
+}
+
+#[test]
+fn set_adds_standing_to_an_existing_decision() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Use the transient runs for the last three points.",
+            "--reason",
+            "Steady runs converged.",
+        ],
+    );
+    assert!(!decision_text(&project, "DEC-001").contains("standing"));
+
+    project
+        .run("anna", &["set", "DEC-001", "--field", "standing=yes"])
+        .success();
+
+    let text = decision_text(&project, "DEC-001");
+    assert!(
+        text.contains("\n- standing: yes\n"),
+        "set adds the field: {text}"
+    );
+}

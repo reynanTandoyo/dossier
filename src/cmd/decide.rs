@@ -65,6 +65,9 @@ pub struct Args {
     /// The new decision stands next to the related ones (an LLM states this instead of --replaces)
     #[arg(long)]
     pub besides: bool,
+    /// The decision binds the whole project, not one milestone; it is written with `standing: yes`
+    #[arg(long)]
+    pub standing: bool,
     /// The machines the decision is about, comma-separated
     #[arg(long)]
     pub machine: Option<String>,
@@ -172,7 +175,7 @@ fn announce(id: &str, status: Status, entry: &Entry) -> Result<String> {
 }
 
 /// The entry that `decide` asks to create: the decision and its reason, the rejected options
-/// when given, the tags and task when given, and the person who said it.
+/// when given, the tags, task and standing mark when given, and the person who said it.
 fn new_decision(args: &Args) -> New {
     let mut sections = vec![
         ("Decision".to_string(), args.decision.clone()),
@@ -195,6 +198,9 @@ fn new_decision(args: &Args) -> New {
         .collect();
     if let Some(task) = non_empty(args.task.as_deref()) {
         fields.push(("task".to_string(), task.to_uppercase()));
+    }
+    if args.standing {
+        fields.push(("standing".to_string(), "yes".to_string()));
     }
     let title = non_empty(args.title.as_deref()).unwrap_or_else(|| default_title(&args.decision));
     New {
