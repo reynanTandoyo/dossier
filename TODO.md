@@ -4025,8 +4025,10 @@
 - note (2026-11-23, planner): src/cmd/mod.rs moved to T-380, so this task stays at 3 files (level 1).
 
 ### T-382 · review-session and session run on the PC; the drafting rules become public
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-382
+- claimed: 2026-11-23T23:59+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-337
 - why: Capture only becomes a habit when the routine steps happen by themselves.
