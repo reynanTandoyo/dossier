@@ -7899,8 +7899,10 @@
 - note (2026-11-23, haiku-T-295): done
 
 ### T-296 · attempts.rs: the attempt lines of an investigation
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-296
+- claimed: 2026-11-23T19:12+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-287
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -7934,8 +7936,10 @@
 - note (2026-11-23, planner): split into T-357, T-358, T-359, T-360
 
 ### T-357 · Stub files: problem and tried
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-357
+- claimed: 2026-11-23T19:12+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-297
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -7952,8 +7956,10 @@
 - note (2026-11-23, planner): added
 
 ### T-358 · Stub files: solved and gave-up
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-358
+- claimed: 2026-11-23T19:12+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-297
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -7990,8 +7996,8 @@
 - note (2026-11-23, planner): added
 
 ### T-360 · ctx.rs: problem, tried, solved and gave-up are writing commands
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-360
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-297
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -8003,8 +8009,12 @@
   2. Run cargo test --lib ctx::
 - accept: The four commands refuse a name that is not in the settings, like the other writing commands.
 - verify: cargo test --lib ctx::
+- verified: 2026-11-23
+- commit: 4672a0f
 - reqs: R-CFG-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-360): done
 
 ### T-298 · problem: open an investigation
 - status: open
