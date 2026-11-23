@@ -4,11 +4,11 @@
 //! (R-REMOTE-10) runs on the server through ssh. The arguments go on as they were typed, so that
 //! they arrive unchanged (R-REMOTE-2); the exit code and the output come back unchanged.
 
-use crate::error::Result;
-use crate::remote::{pointer, register, ssh, version};
+use crate::error::{Code, Error, Result};
+use crate::remote::{pointer, register, ssh, transfer, version};
 use crate::term;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// The global options that take their value as the next argument.
 const VALUE_OPTIONS: [&str; 3] = ["--dossier", "--agent", "--project"];
@@ -57,7 +57,8 @@ enum ProjectOption {
 
 /// Called first by `main_exit`. Some(exit code) when the command was run on a server: the
 /// `--project <code>` option is given, or the current folder has a pointer file and the command
-/// is not one of `LOCAL_COMMANDS`. None: run locally.
+/// is not one of `LOCAL_COMMANDS`. None: run locally. `take` and `return --done` copy files, so in
+/// a connected folder transfer runs them (R-REMOTE-4); with `--project` they are refused.
 pub fn maybe(args: &[String]) -> Option<u8> {
     // The program name comes first; everything after it is the command line.
     let (_, args) = args.split_first()?;
@@ -68,11 +69,14 @@ pub fn maybe(args: &[String]) -> Option<u8> {
     }
 
     let mut forwarded = args.to_vec();
-    let target = match take_project(&mut forwarded) {
+    let (target, connected) = match take_project(&mut forwarded) {
         ProjectOption::NoValue => return None,
-        ProjectOption::Absent => pointer_target()?,
+        ProjectOption::Absent => {
+            let (target, base, pointer) = pointer_target()?;
+            (target, Some((base, pointer)))
+        }
         ProjectOption::Code(code) => match project_target(&code) {
-            Ok(Some(target)) => target,
+            Ok(Some(target)) => (target, None),
             Ok(None) => {
                 report(&format!(
                     "no project {code} in the register; see dossier projects"
@@ -86,6 +90,23 @@ pub fn maybe(args: &[String]) -> Option<u8> {
         },
     };
 
+    let after = after_command(&forwarded);
+    let agent = agent_name(&forwarded);
+    if let Some((base, pointer)) = &connected {
+        if matches!(command, "take" | "return")
+            && let Some(code) = transfer::maybe(command, after, base, pointer, agent.as_deref())
+        {
+            return Some(code);
+        }
+    } else if copies_files(command, after) {
+        let error = Error::new(
+            Code::Usage,
+            "take and return --done copy files and need a connected folder: dossier connect",
+        );
+        report(&error.message);
+        return Some(error.exit());
+    }
+
     let mut program = "dossier";
     if command == "todo" {
         program = "todo";
@@ -95,7 +116,7 @@ pub fn maybe(args: &[String]) -> Option<u8> {
     }
     let terminal = (TERMINAL_COMMANDS.contains(&command) || allows_credential(&forwarded))
         && term::is_terminal();
-    let env = remote_variables(program, agent_name(&forwarded).as_deref());
+    let env = remote_variables(program, agent.as_deref());
     let argv = ssh::argv_with(
         &target.server,
         &target.folder,
@@ -130,6 +151,14 @@ fn command_index(args: &[String]) -> Option<usize> {
         }
     }
     None
+}
+
+/// The words after the command word (`command_index`); none when there is no command word.
+fn after_command(args: &[String]) -> &[String] {
+    match command_index(args) {
+        Some(at) => &args[at + 1..],
+        None => &[],
+    }
 }
 
 /// Takes `--project <code>` or `--project=<code>` out of `args`, and says what it found.
@@ -216,15 +245,22 @@ fn allows_credential(args: &[String]) -> bool {
 }
 
 /// The server and folder of the pointer file in the current folder or above, and the current
-/// folder below the pointer's folder.
-fn pointer_target() -> Option<Target> {
+/// folder below the pointer's folder. Also the folder that holds the pointer file, and the pointer.
+fn pointer_target() -> Option<(Target, PathBuf, pointer::Pointer)> {
     let folder = std::env::current_dir().ok()?;
     let (pointer_folder, pointer) = pointer::find(&folder)?;
-    Some(Target {
-        server: pointer.server,
-        folder: pointer.folder,
+    let target = Target {
+        server: pointer.server.clone(),
+        folder: pointer.folder.clone(),
         sub: sub_folder(&folder, &pointer_folder),
-    })
+    };
+    Some((target, pointer_folder, pointer))
+}
+
+/// Whether the command copies files, which needs a connected folder (R-REMOTE-4): `take`, and
+/// `return` with `--done`. `args` are the words after the command.
+fn copies_files(command: &str, args: &[String]) -> bool {
+    command == "take" || (command == "return" && args.iter().any(|arg| arg == "--done"))
 }
 
 /// The folder `current` below `pointer_folder`, its parts joined with `/`. None when they are
@@ -401,6 +437,32 @@ mod tests {
             "{written}"
         );
 
+        // take and return --done copy files, so transfer runs them here: take asks the server for
+        // the take with --json. The other returns are forwarded like any other command.
+        let (code, written) =
+            maybe_with(&args_file, &["dossier", "take", "a.sim", "--task", "T-1"]);
+        assert_eq!(code, Some(7));
+        assert!(
+            written.contains("cd '/srv/P-001' && DOSSIER_CLIENT_VERSION="),
+            "{written}"
+        );
+        assert!(
+            written.contains("'dossier' 'take' 'a.sim' '--task' 'T-1' '--json'"),
+            "{written}"
+        );
+        let (code, written) = maybe_with(&args_file, &["dossier", "return", "a.sim", "--done"]);
+        assert_eq!(code, Some(7));
+        assert!(
+            written.contains("'dossier' 'return' 'a.sim' '--check'"),
+            "{written}"
+        );
+        let (code, written) = maybe_with(&args_file, &["dossier", "return", "a.sim", "--check"]);
+        assert_eq!(code, Some(7));
+        assert!(
+            written.contains("'dossier' 'return' 'a.sim' '--check'"),
+            "{written}"
+        );
+
         // Commands that stay on the PC, with a pointer present.
         let local: [&[&str]; 7] = [
             &["dossier", "connect", "anna@sim01:/srv/P-001"],
@@ -484,6 +546,47 @@ mod tests {
             (None, String::new())
         );
 
+        // take and return --done copy files and need a connected folder: --project refuses them,
+        // even with a pointer in this folder. The other returns are forwarded.
+        assert_eq!(
+            maybe_with(
+                &args_file,
+                &[
+                    "dossier",
+                    "--project",
+                    "P-002",
+                    "take",
+                    "a.sim",
+                    "--task",
+                    "T-1"
+                ]
+            ),
+            (Some(2), String::new())
+        );
+        assert_eq!(
+            maybe_with(
+                &args_file,
+                &["dossier", "--project", "P-002", "return", "a.sim", "--done"]
+            ),
+            (Some(2), String::new())
+        );
+        let (code, written) = maybe_with(
+            &args_file,
+            &[
+                "dossier",
+                "--project",
+                "P-002",
+                "return",
+                "a.sim",
+                "--check",
+            ],
+        );
+        assert_eq!(code, Some(7));
+        assert!(
+            written.contains("cd '/work/P-002' && DOSSIER_CLIENT_VERSION="),
+            "{written}"
+        );
+
         // ssh cannot be run: the command fails with exit code 5.
         // SAFETY: ENV_LOCK is still held.
         unsafe { std::env::set_var("DOSSIER_SSH", root.join("no-such-ssh")) };
@@ -522,6 +625,19 @@ mod tests {
             "list"
         ])));
         assert!(!allows_credential(&args(&[])));
+    }
+
+    #[test]
+    fn take_and_return_done_are_the_commands_that_copy_files() {
+        let words =
+            |list: &[&str]| -> Vec<String> { list.iter().map(|word| word.to_string()).collect() };
+        assert!(copies_files("take", &words(&["a.sim", "--task", "T-1"])));
+        assert!(copies_files("return", &words(&["a.sim", "--done"])));
+        // The other returns, and the other commands, copy nothing.
+        assert!(!copies_files("return", &words(&["a.sim", "--check"])));
+        assert!(!copies_files("return", &words(&["a.sim", "--abandon"])));
+        assert!(!copies_files("files", &words(&["a.sim", "--taken"])));
+        assert!(!copies_files("list", &words(&[])));
     }
 
     #[test]
