@@ -3473,10 +3473,8 @@
 - note (2026-11-23, planner): split into T-371, T-372, T-373
 
 ### T-371 · transfer.rs: the scp program, its arguments and the server path
-- status: claimed
+- status: done
 - owner: haiku-T-371
-- claimed: 2026-11-23T21:38+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-325
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3492,8 +3490,12 @@
   5. Run cargo test --lib remote::transfer::
 - accept: The arguments for scp and the path of a file on the server are built correctly, also with spaces.
 - verify: cargo test --lib remote::transfer::
+- verified: 2026-11-23
+- commit: 1477074
 - reqs: R-REMOTE-4, NFR-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-371): done
 
 ### T-372 · transfer.rs: take from a PC
 - status: open
