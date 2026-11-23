@@ -3042,10 +3042,8 @@
 - note (2026-11-23, planner): added
 
 ### T-312 · remote/version.rs: compare the versions of PC and server
-- status: claimed
+- status: done
 - owner: haiku-T-312
-- claimed: 2026-11-23T20:40+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-053
 - why: Team members work on Windows PCs while the one copy of the dossier is on the Linux server.
@@ -3059,8 +3057,12 @@
   4. Run cargo test --lib remote::version::
 - accept: The server can tell whether the PC that sent a command reads the same format and has the same program version.
 - verify: cargo test --lib remote::version::
+- verified: 2026-11-23
+- commit: 5c7268d
 - reqs: R-XOS-9, NFR-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-312): done
 
 ### T-313 · forward.rs: send the versions and the subfolder with every command
 - status: open
