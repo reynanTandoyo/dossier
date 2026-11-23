@@ -1,15 +1,19 @@
 //! Runs the built program for `digest <milestone>`: the material for summing up a milestone (the
 //! title, goal and tasks from todo, the approved entries of its tasks under their headings, the
-//! rules for the summary), the JSON data, the journal left as it was, the refusals without todo
-//! and the `--write` arguments that are not built yet (R-CTX-14).
+//! rules for the summary), the JSON data, the journal left as it was, the refusals without todo,
+//! and `digest <milestone> --write --stdin`, which stores the summary as a digest entry (R-CTX-14).
 //! Each test runs in its own temporary project folder with the clock fixed; the milestone, the
-//! tasks and the entries are invented.
+//! tasks, the entries and the summary are invented.
 
 mod common;
 
 use common::Project;
+use dossier::entry::{Entry, Kind, Status};
 use predicates::str::contains;
 use serde_json::{Value, json};
+
+/// The fixed clock of the tests (the same as the shared project of tests/common).
+const NOW: &str = "2026-11-20T10:00:00+01:00";
 
 /// The answer of todo to `show T-900` (invented): the title and status at the top of the data, the
 /// goal at the top too.
@@ -24,6 +28,14 @@ const LIST: &str = r#"{"schema":"todo.list.v1","ok":true,"data":{"tasks":[{"id":
 
 /// The answer of todo to `list --milestone T-900 --status all` when the milestone has no tasks.
 const EMPTY_LIST: &str = r#"{"schema":"todo.list.v1","ok":true,"data":{"tasks":[]},"warnings":[]}"#;
+
+/// The answer of todo to `show T-900` (invented) when the milestone is not finished yet.
+const SHOW_OPEN: &str = r#"{"schema":"todo.show.v1","ok":true,"data":{"id":"T-900","title":"Invented milestone of the digest tests","status":"open","goal":"Invented goal: the digest tests run on it"},"warnings":[]}"#;
+
+/// The summary that `--write --stdin` tests write (invented).
+const SUMMARY: &str = "Three speedline points stay: the runs converged where stall shows.\n\
+The first run diverged at iteration 40 and was dropped.\n\
+The wall function is still assumed valid at this Reynolds number.\n";
 
 /// The stand-in for todo. It answers `--version` with exit 0, appends the arguments of every other
 /// call to calls.txt in the project folder, and answers `show` with `show` and any other call with
@@ -327,16 +339,155 @@ fn without_todo_the_digest_is_refused_with_todo_missing() {
 }
 
 #[test]
-fn write_needs_stdin_and_with_stdin_the_digest_entry_is_not_built_yet() {
+fn write_needs_stdin() {
     let project = Project::new();
     project
         .run("anna", &["digest", "T-900", "--write"])
         .code(2)
         .stderr(contains("needs --stdin"));
+}
+
+#[test]
+fn write_without_todo_is_refused_with_todo_missing() {
+    let project = Project::new();
     project
-        .run("anna", &["digest", "T-900", "--write", "--stdin"])
-        .code(2)
-        .stderr(contains("not built yet"));
+        .command("anna", NOW)
+        .args(["digest", "T-900", "--write", "--stdin"])
+        .write_stdin(SUMMARY)
+        .assert()
+        .code(5)
+        .stderr(contains("todo is not installed"));
+}
+
+/// Runs `digest T-900 --write --stdin` as `agent` with `summary` on standard input and `extra`
+/// arguments after those, and returns the run.
+fn write_as(
+    project: &Project,
+    agent: &str,
+    summary: &str,
+    extra: &[&str],
+) -> assert_cmd::assert::Assert {
+    let mut args = vec!["digest", "T-900", "--write", "--stdin"];
+    args.extend_from_slice(extra);
+    project
+        .command(agent, NOW)
+        .args(&args)
+        .write_stdin(summary)
+        .assert()
+}
+
+/// The standard output of a run that succeeded.
+fn stdout_of(assert: assert_cmd::assert::Assert) -> String {
+    let output = assert.success().get_output().stdout.clone();
+    String::from_utf8(output).expect("the standard output is UTF-8")
+}
+
+/// The number of files in the digests folder of the project.
+fn digest_files(project: &Project) -> usize {
+    std::fs::read_dir(project.root().join("DOSSIER").join("digests"))
+        .map(|folder| folder.count())
+        .unwrap_or(0)
+}
+
+#[test]
+fn anna_writes_a_digest_that_is_approved_with_its_milestone_tasks_and_summary() {
+    let project = project_with_entries();
+    let stdout = stdout_of(write_as(&project, "anna", SUMMARY, &[]));
+    assert_eq!(stdout, "DIG-001: added (approved)\n");
+
+    let text = std::fs::read_to_string(project.entry_file("DIG-001")).expect("the digest file");
+    let entry = Entry::parse(&text).expect("the file is an entry");
+    assert_eq!(entry.kind(), Some(Kind::Digest));
+    assert_eq!(entry.status(), Some(Status::Approved));
+    assert_eq!(entry.field("author").as_deref(), Some("anna"));
+    assert_eq!(entry.field("via"), None);
+    assert_eq!(
+        entry.title(),
+        "Digest of T-900: Invented milestone of the digest tests"
+    );
+    assert_eq!(entry.field("milestone").as_deref(), Some("T-900"));
+    assert_eq!(entry.field("tasks").as_deref(), Some("T-900, T-901, T-902"));
+    assert_eq!(
+        entry.section("Summary").as_deref(),
+        Some(SUMMARY.trim_end())
+    );
+    let last = project
+        .entry_journal()
+        .pop()
+        .expect("the journal has records");
+    assert_eq!(
+        (last.id.as_str(), last.event.as_str()),
+        ("DIG-001", "created")
+    );
+}
+
+#[test]
+fn an_llm_writes_a_digest_as_a_draft_with_the_title_it_is_given() {
+    let project = project_with_entries();
+    let stdout = stdout_of(write_as(
+        &project,
+        "anna-claude",
+        SUMMARY,
+        &["--title", "Invented digest title"],
+    ));
+    assert_eq!(stdout, "DIG-001: added (draft, waiting for approval)\n");
+
+    let text = std::fs::read_to_string(project.entry_file("DIG-001")).expect("the digest file");
+    let entry = Entry::parse(&text).expect("the file is an entry");
+    assert_eq!(entry.status(), Some(Status::Draft));
+    assert_eq!(entry.field("author").as_deref(), Some("anna"));
+    assert_eq!(entry.field("via").as_deref(), Some("anna-claude"));
+    assert_eq!(entry.field("approved"), None);
+    assert_eq!(entry.title(), "Invented digest title");
+    assert_eq!(entry.field("milestone").as_deref(), Some("T-900"));
+}
+
+#[test]
+fn a_summary_that_is_empty_or_has_more_than_15_lines_is_refused_and_nothing_is_written() {
+    let project = project_with_entries();
+    let journal = project.entry_journal().len();
+    let sixteen: String = (1..=16).map(|line| format!("line {line}\n")).collect();
+    let cases = [
+        (sixteen.as_str(), "the summary has 16 lines: at most 15"),
+        ("  \n\n ", "the summary is empty"),
+    ];
+    for (summary, message) in cases {
+        write_as(&project, "anna", summary, &[])
+            .code(1)
+            .stderr(contains(message));
+    }
+    assert_eq!(digest_files(&project), 0);
+    assert_eq!(project.entry_journal().len(), journal);
+}
+
+#[test]
+fn a_summary_of_15_lines_is_written() {
+    let project = project_with_entries();
+    let fifteen: String = (1..=15).map(|line| format!("line {line}\n")).collect();
+    let stdout = stdout_of(write_as(&project, "anna", &fifteen, &[]));
+    assert_eq!(stdout, "DIG-001: added (approved)\n");
+}
+
+#[test]
+fn a_milestone_that_is_not_done_in_todo_is_refused() {
+    let project = project_with_todo(SHOW_OPEN, LIST);
+    write_as(&project, "anna", SUMMARY, &[])
+        .code(1)
+        .stderr(contains("T-900 is not finished in todo"));
+    assert_eq!(digest_files(&project), 0);
+}
+
+#[test]
+fn a_second_digest_of_the_same_milestone_names_the_one_it_supersedes() {
+    let project = project_with_entries();
+    stdout_of(write_as(&project, "anna", SUMMARY, &[]));
+    let assert = write_as(&project, "anna", SUMMARY, &[]).success();
+    let stdout = String::from_utf8(assert.get_output().stdout.clone()).expect("UTF-8");
+    assert_eq!(stdout, "DIG-002: added (approved)\n");
+    assert_eq!(
+        String::from_utf8(assert.get_output().stderr.clone()).expect("UTF-8"),
+        "warning: DIG-001 already sums up T-900: replace it with dossier supersede DIG-001 --by DIG-002\n"
+    );
 }
 
 #[test]

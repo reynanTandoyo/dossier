@@ -1,18 +1,21 @@
 //! The `digest` command (docs/design.md section 18, R-CTX-14, R-CTX-15): the material for summing
 //! up a milestone. The title, goal, status and tasks come from `todo`; the approved decisions,
 //! assumptions, findings, dead ends and investigations of the milestone's tasks come from the
-//! dossier, with the rules for the summary. It changes nothing. Writing the digest entry
-//! (`--write --stdin`) is not built yet.
+//! dossier, with the rules for the summary. It changes nothing. With `--write --stdin` it stores
+//! the summary read from standard input as a digest entry, once the milestone is done in `todo`.
 
 use crate::cli::Global;
+use crate::create::{self, New};
 use crate::ctx::Ctx;
-use crate::digest::RULES;
+use crate::digest::{self, RULES};
 use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
 use crate::output::Output;
 use crate::store::{self, Item};
 use crate::todo_bridge;
+use crate::tx;
 use serde_json::{Value, json};
+use std::io::Read;
 use std::path::Path;
 
 /// The heading over the tasks of the milestone.
@@ -29,13 +32,15 @@ const DEAD_ENDS: &str = "## Dead ends";
 const INVESTIGATIONS: &str = "## Investigations";
 /// The heading over the rules for the summary.
 const RULES_HEADING: &str = "## Rules for the summary";
+/// The most lines the Summary of a digest may have (format.md §32; entry/rules.rs checks the same).
+const SUMMARY_LINES: usize = 15;
 
 /// The arguments of `digest`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
     /// The milestone to sum up, such as T-130
     pub milestone: String,
-    /// Write the digest entry from the summary on standard input (not built yet)
+    /// Write the digest entry from the summary on standard input; the milestone must be done in todo
     #[arg(long)]
     pub write: bool,
     /// Read the summary from standard input; needs --write
@@ -73,8 +78,8 @@ struct Shown {
     lines: Vec<String>,
 }
 
-/// Runs `digest <milestone>`: the material for the summary. `--write` is not built yet: without
-/// `--stdin` it is a usage error, with it Code::NotImplemented.
+/// Runs `digest <milestone>`: the material for the summary. With `--write` it writes the digest
+/// entry instead (`write_digest`); `--write` without `--stdin` is a usage error.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     if args.write {
         if !args.stdin {
@@ -83,10 +88,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
                 "digest --write needs --stdin: the summary is read from standard input",
             ));
         }
-        return Err(Error::new(
-            Code::NotImplemented,
-            "digest --write is not built yet",
-        ));
+        return write_digest(args, g);
     }
     let ctx = Ctx::load(g, "digest")?;
     let milestone = read_milestone(&ctx.root, &args.milestone)?;
@@ -144,6 +146,115 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         output = output.warn(warning);
     }
     Ok(output)
+}
+
+/// Runs `digest <milestone> --write --stdin` (R-CTX-14): the summary from standard input becomes
+/// the Summary of a digest entry with the fields `milestone` and `tasks` (the milestone and its
+/// tasks, as todo gives them). The milestone must be done in todo. An LLM's digest is a draft; a
+/// person's is approved. An approved digest that already sums up the milestone is named in a
+/// warning, with the supersede command that replaces it.
+fn write_digest(args: &Args, g: &Global) -> Result<Output> {
+    let ctx = Ctx::load(g, "digest")?;
+    let milestone = read_milestone(&ctx.root, &args.milestone)?;
+    if !same(&milestone.status, "done") {
+        return Err(Error::new(
+            Code::Refused,
+            format!("{} is not finished in todo", args.milestone),
+        ));
+    }
+    let id = args.milestone.trim().to_uppercase();
+    let title = digest_title(args.title.as_deref(), &milestone, &id)?;
+    let summary = read_summary()?;
+    let task_ids = milestone_ids(&id, &milestone.tasks);
+    let (items, _) = store::all(&ctx.dossier);
+    let previous: Vec<String> = digest::in_force(&items, None)
+        .into_iter()
+        .filter(|item| {
+            item.entry
+                .field("milestone")
+                .is_some_and(|ms| same(&ms, &id))
+        })
+        .map(|item| item.entry.id())
+        .collect();
+    let new = New {
+        kind: Kind::Digest,
+        title,
+        fields: vec![
+            ("milestone".to_string(), id.clone()),
+            ("tasks".to_string(), task_ids.join(", ")),
+        ],
+        sections: vec![("Summary".to_string(), summary)],
+        said_by: None,
+        draft: false,
+    };
+
+    tx::write(&ctx, |tx| {
+        let (new_id, text) = create::create(tx, &new)?;
+        let status = status_of(&text)?;
+        let mut output = Output::with(
+            format!("{new_id}: added ({})", status_words(status)),
+            json!({"id": new_id, "status": status.name()}),
+        );
+        for old in &previous {
+            output = output.warn(format!(
+                "{old} already sums up {id}: replace it with dossier supersede {old} --by {new_id}"
+            ));
+        }
+        Ok(output)
+    })
+}
+
+/// The title of the digest entry: `--title` without its blank ends, or else
+/// `Digest of <milestone>: <milestone title>` (`Digest of <milestone>` when todo gives no title).
+/// A blank `--title` is Code::BadValue.
+fn digest_title(title: Option<&str>, milestone: &Milestone, id: &str) -> Result<String> {
+    match title {
+        Some(title) if title.trim().is_empty() => {
+            Err(Error::new(Code::BadValue, "the title is empty"))
+        }
+        Some(title) => Ok(title.trim().to_string()),
+        None if milestone.title.is_empty() => Ok(format!("Digest of {id}")),
+        None => Ok(format!("Digest of {id}: {}", milestone.title)),
+    }
+}
+
+/// The summary from standard input, trimmed. Code::BadValue when it is empty or has more than
+/// SUMMARY_LINES lines.
+fn read_summary() -> Result<String> {
+    let mut text = String::new();
+    std::io::stdin()
+        .read_to_string(&mut text)
+        .map_err(|error| Error::new(Code::Io, format!("standard input: {error}")))?;
+    let summary = text.trim();
+    if summary.is_empty() {
+        return Err(Error::new(
+            Code::BadValue,
+            "the summary is empty: write it on standard input",
+        ));
+    }
+    let lines = summary.lines().count();
+    if lines > SUMMARY_LINES {
+        return Err(Error::new(
+            Code::BadValue,
+            format!("the summary has {lines} lines: at most {SUMMARY_LINES}"),
+        ));
+    }
+    Ok(summary.to_string())
+}
+
+/// The status of the text that the transaction created.
+fn status_of(text: &str) -> Result<Status> {
+    Entry::parse(text)?
+        .status()
+        .ok_or_else(|| Error::new(Code::Parse, "the new entry has no status"))
+}
+
+/// The words for the status in the first output line of a write (docs/design.md section 5).
+fn status_words(status: Status) -> &'static str {
+    match status {
+        Status::Draft => "draft, waiting for approval",
+        _ => status.name(),
+    }
 }
 
 /// The milestone from todo: `show <milestone>` gives its title, goal and status, and
