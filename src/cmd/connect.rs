@@ -87,8 +87,10 @@ fn connect(args: &Args, target: &str) -> Result<Output> {
     Ok(Output::with(text, data))
 }
 
-/// Tests the connection of the folder `here`: its pointer file is found from it, and the server
-/// answers for the project. A server answer for another code is a warning.
+/// Tests the connection of the folder `here` (R-REMOTE-8, design.md §16). Its pointer file is
+/// found from it, then three commands run on the server in the pointer's folder, each through an
+/// ssh connection of its own: `dossier --version`, `todo --version` and `dossier where --json`.
+/// A server answer for another project code, or another dossier version, is a warning.
 fn check(here: &Path) -> Result<Output> {
     let (_, saved) = pointer::find(here).ok_or_else(|| {
         Error::new(
@@ -96,18 +98,118 @@ fn check(here: &Path) -> Result<Output> {
             "this folder is not connected; run dossier connect <user@server>:<folder>",
         )
     })?;
-    let code = read_code(&saved.server, &saved.folder)?;
-    let text = format!("ok: {code} on {}", saved.server);
-    let data = json!({"code": code, "server": saved.server, "folder": saved.folder});
-    let output = Output::with(text, data);
-    if code == saved.code {
-        Ok(output)
-    } else {
-        Ok(output.warn(format!(
+    let server = saved.server.as_str();
+    let folder = saved.folder.as_str();
+
+    // The first run tests the connection: when ssh cannot reach the server, or cannot sign in, the
+    // failure names the server and says what ssh wrote.
+    let dossier = match ssh_run(server, folder, "dossier", &["--version"]) {
+        Ok((0, stdout, _)) => version_in(&stdout),
+        Ok((255, _, stderr)) => return Err(unreached(server, last_line(&stderr))),
+        Ok(_) => {
+            return Err(Error::new(
+                Code::Ssh,
+                format!("dossier is not installed on {server}, or not on its PATH"),
+            ));
+        }
+        Err(error) => return Err(unreached(server, Some(&error.message))),
+    };
+    let todo = match ssh_run(server, folder, "todo", &["--version"])? {
+        (0, stdout, _) => version_in(&stdout),
+        _ => {
+            return Err(Error::new(
+                Code::TodoMissing,
+                format!("todo is not installed on {server}, or not on its PATH"),
+            ));
+        }
+    };
+    let code = match ssh_run(server, folder, "dossier", &["where", "--json"])? {
+        (0, stdout, _) => code_in(stdout.as_bytes()),
+        _ => None,
+    }
+    .ok_or_else(|| {
+        Error::new(
+            Code::NoDossier,
+            format!("{folder} on {server} has no dossier; run dossier init there"),
+        )
+    })?;
+
+    let text = [
+        "ssh: ok".to_string(),
+        format!("dossier on the server: {dossier}"),
+        format!("todo on the server: {todo}"),
+        format!("dossier folder: ok ({code})"),
+    ]
+    .join("\n");
+    let data = json!({
+        "server": server,
+        "folder": folder,
+        "code": code,
+        "dossier": dossier,
+        "todo": todo,
+    });
+    let mut output = Output::with(text, data);
+    if dossier != env!("CARGO_PKG_VERSION") {
+        output = output.warn(format!(
+            "this PC has dossier {}, the server {dossier}",
+            env!("CARGO_PKG_VERSION")
+        ));
+    }
+    if code != saved.code {
+        output = output.warn(format!(
             "this folder is connected to {}, but the server answers for {code}",
             saved.code
-        )))
+        ));
     }
+    Ok(output)
+}
+
+/// Runs `program` with `args` in `folder` on `server` through ssh, with a connection of its own:
+/// the exit code, standard output and standard error (ssh::capture).
+fn ssh_run(
+    server: &str,
+    folder: &str,
+    program: &str,
+    args: &[&str],
+) -> Result<(u8, String, String)> {
+    let args: Vec<String> = args.iter().map(|arg| arg.to_string()).collect();
+    let argv = ssh::argv(
+        server,
+        folder,
+        None,
+        program,
+        &args,
+        false,
+        SSH_TIMEOUT_SECONDS,
+    );
+    ssh::capture(&argv)
+}
+
+/// The failure when ssh cannot reach the server or sign in. `detail` is the last line that ssh
+/// wrote, or the reason ssh did not start, when there is one.
+fn unreached(server: &str, detail: Option<&str>) -> Error {
+    let detail = detail.map(|line| format!(": {line}")).unwrap_or_default();
+    Error::new(
+        Code::Ssh,
+        format!("could not reach {server}{detail}; sign in once by hand with ssh {server}"),
+    )
+}
+
+/// The last line of `text` that is not empty, with the spaces at its ends removed.
+fn last_line(text: &str) -> Option<&str> {
+    text.lines()
+        .map(str::trim)
+        .rev()
+        .find(|line| !line.is_empty())
+}
+
+/// The version that `--version` prints: its last word. `unknown` when it prints nothing.
+fn version_in(stdout: &str) -> String {
+    stdout
+        .split_whitespace()
+        .last()
+        .unwrap_or("unknown")
+        .to_string()
 }
 
 /// The server and the folder of `target`, which is `user@server:folder`, split at the first ':'.
