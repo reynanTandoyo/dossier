@@ -3461,8 +3461,8 @@
 - note (2026-11-23, haiku-T-324): done
 
 ### T-325 · remote/transfer.rs: the scp arguments and the steps of take and return from a PC
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - milestone: T-054
 - goal: From a connected folder, take records the take on the server and then copies the files to the PC; return checks first, copies back, and only then ends the take.
@@ -3471,8 +3471,10 @@
 - depends: T-322, T-311
 - accept: From a connected folder, take records the take on the server and then copies the files to the PC; return checks first, copies back, and only then ends the take.
 - reqs: R-REMOTE-4, R-FILE-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): split into T-371, T-372, T-373
+- note (2026-11-23, planner): done — take and return copy files between a connected PC folder and the server with scp in SFTP mode, safely and retryably.
 
 ### T-371 · transfer.rs: the scp program, its arguments and the server path
 - status: done
