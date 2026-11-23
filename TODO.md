@@ -4543,8 +4543,10 @@
 - note (2026-11-24, haiku-T-392): done
 
 ### T-393 · brief_task.rs: the entries chosen for a task, each with its reason
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-393
+- claimed: 2026-11-24T00:56+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-347
 - why: Smaller comforts that are worth having once the daily use is settled.
@@ -4701,8 +4703,10 @@
 - note (2026-11-23, planner): added
 
 ### T-351 · help <command>: a description and three examples, first group
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-351
+- claimed: 2026-11-24T00:56+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
