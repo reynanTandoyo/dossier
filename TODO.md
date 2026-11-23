@@ -4453,8 +4453,10 @@
 - note (2026-11-23, planner): added
 
 ### T-345 · search --similar: entries that share the most with one entry
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-345
+- claimed: 2026-11-24T00:42+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
