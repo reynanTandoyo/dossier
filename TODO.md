@@ -3412,10 +3412,8 @@
 - note (2026-11-23, haiku-T-322): done
 
 ### T-323 · files: the taken files, their age, and the log of one file
-- status: claimed
+- status: done
 - owner: haiku-T-323
-- claimed: 2026-11-23T21:38+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-054
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3431,8 +3429,12 @@
   5. Run cargo test --test cmd_files
 - accept: files shows which files are taken, by whom and since when, marks old takes, and lists every recorded version of a file.
 - verify: cargo test --test cmd_files
+- verified: 2026-11-23
+- commit: 0ecd628
 - reqs: R-FILE-5, R-FILE-7, R-FILE-11
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-323): done
 
 ### T-324 · status: the taken files under Working now
 - status: done
