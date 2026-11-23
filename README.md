@@ -984,6 +984,8 @@ warning: dry run: would write DOSSIER/findings/FND-001-the-steady-speedline-stop
 | `4` | A file or settings problem, such as no `DOSSIER` folder here. |
 | `5` | A needed program or connection failed: `todo` is missing, or ssh could not reach the server. |
 
+For team members who only read and approve drafts, see [the one-page guide for readers](docs/guide-for-readers.md).
+
 ### For LLMs
 
 - `dossier help agents` prints the rules that an LLM follows in a dossier project.
