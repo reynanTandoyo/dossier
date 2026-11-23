@@ -952,3 +952,376 @@ adds the team's lessons and how-tos that match the project's tags and the news l
 --task` adds team entries, glossary terms and the last three usage-index lines; `status --since
 last` includes the team dossier; `drafts --imported`; `check` reports entries due for review and
 changed tool files; `hooks install` also writes `.claude/settings.local.json` (D34).
+
+---
+
+# Additions of 2026-11-22 (D39 to D42)
+
+Same principles as §1: a skeleton task first creates every new file as a stub that compiles; one
+file, one task; every write goes through `tx`; who and when for everything (D29); `dossier` never
+manages tasks (D38). Formats: format.md §27 to §29. The three parts below are independent of each
+other and of phase 5. D45 places them: credentials (§13) in the patch release 0.3.1,
+investigations in phase 4 (v0.4), and the hook after shell commands in phase 6 (v0.6). The
+reminder about investigations after `todo stuck` and `todo done` needs that hook, so it is built
+with it.
+
+## 13. Credentials are refused (R-CONF-7, D40)
+
+```rust
+// secret.rs (format.md §27)
+pub const FILE: &str = "credential-ok.json";       // in the state folder
+#[derive(Debug, Clone, PartialEq)]
+pub struct Hit { pub line: usize, pub kind: &'static str, pub text: String }
+                       // line: 1-based; kind: "private key", "access token" or "password";
+                       // text: the whole line, trimmed (never printed, only hashed)
+/// Every line of `text` that looks like it holds a credential.
+pub fn find(text: &str) -> Vec<Hit>;
+/// The hits of `new` that are new: their line text is no hit line of `old` and its hash is not in
+/// `allowed`. `old` is the file before the change (None for a new file).
+pub fn added(old: Option<&str>, new: &str, allowed: &[String]) -> Vec<Hit>;
+/// The hashes of the lines a person allowed (sha256 hex of the trimmed line); a missing file is
+/// an empty list.
+pub fn allowed(state: &Path) -> Result<Vec<String>>;
+/// Adds the hashes of these hits to the file (each once, sorted); written with atomic::replace.
+pub fn allow(state: &Path, hits: &[Hit]) -> Result<()>;
+/// "<file>: line 12 (password); line 14 (private key)" for a refusal. Never the text.
+pub fn listed(file: &str, hits: &[Hit]) -> String;
+
+// cli.rs Global gains
+#[arg(long, global = true)] pub allow_credential_like: bool,
+
+// tx.rs, in `write`, after `f(&mut tx)` and before the dry-run branch: for every queued Put,
+// Rename and PutRaw whose path ends in `.md` and whose bytes are UTF-8, `secret::added(old text,
+// new text, &secret::allowed(&ctx.state)?)`. No hits: go on. Hits and the program was not started
+// with `--allow-credential-like` (read from the arguments like `--allow-network-drive`):
+// Code::Refused, "this looks like a credential and was not written: <listed>; write where it is
+// kept instead. A person at a terminal can add --allow-credential-like when it is a false alarm".
+// With the flag: an LLM is Code::NeedsPerson, no terminal is Code::NeedsTerminal; a person at a
+// terminal: after `apply`, `secret::allow` and one journal record per file (event `allowed`,
+// detail `credential-like text, line <n>[, <n>…]`). A dry run refuses the same way and allows
+// nothing.
+
+// remote/forward.rs: a command with `--allow-credential-like` among its arguments asks ssh for a
+// terminal like the commands of TERMINAL_COMMANDS.
+
+// cmd/check.rs: kind SECRET for every entry file and block file (`*.md` in the dossier, the
+// state folder left out): one problem per hit of secret::find whose hash is not allowed,
+// "looks like a credential (<kind>); remove it, or a person allows it with
+// --allow-credential-like on the command that writes it".
+```
+
+Only `.md` files are checked: settings, pictures and the state folder are not. `unpack` restores
+an archive as it is and checks nothing; `check` runs afterwards (R-BACKUP-2).
+
+## 14. Hooks after `todo` commands (R-AGENT-5, D39)
+
+```rust
+// hooks.rs
+pub const AFTER: &str = "dossier after";
+/// The matcher of the PostToolUse hook: the tools that run a shell command.
+const SHELL_TOOLS: &str = "Bash|PowerShell";
+/// Seconds Claude Code waits for `dossier after` (a server that does not answer takes 10).
+const AFTER_TIMEOUT: u64 = 30;
+#[derive(Debug, Clone, PartialEq)]
+pub enum TodoEvent { Claimed(String), Done(String), Stuck(String) }   // the task ID, upper case
+/// The todo event of a Claude Code PostToolUse payload of a shell tool; None for anything else.
+pub fn todo_event(payload: &str) -> Option<TodoEvent>;
+/// {"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":<text>}} as one line.
+pub fn context(text: &str) -> String;
+// `installed` also adds a PostToolUse entry {"matcher": SHELL_TOOLS, "hooks": [{"type":
+// "command", "command": AFTER, "timeout": AFTER_TIMEOUT}]}, once; `uninstalled` removes it.
+```
+
+`todo_event` reads `tool_input.command` and, for a claim made with `next`, `tool_response.stdout`.
+The command text is cut into simple commands at `&&`, `||`, `;`, `|` and line breaks, and each
+into words at spaces (quotes around a word removed). A simple command counts when one of its words
+is `todo` (also with a path in front and `.exe` behind), or `dossier` followed by `todo`. Of the
+words after it:
+
+| Words | Event |
+|---|---|
+| `done` and a task ID | `Done(id)` |
+| `stuck` and a task ID | `Stuck(id)` |
+| `claim` and a task ID | `Claimed(id)` |
+| `next` and `--claim` | `Claimed(id)`: the first task ID in `tool_response.stdout` |
+
+A task ID is letters, `-`, digits (`T-042`), found in any case and returned in upper case. A
+command with `--dry-run`, `--help` or `-h` is no event. The first event of the command text
+counts. Claude Code runs the hook only after a command that succeeded.
+
+`after` (src/cmd/after.rs) takes no arguments, reads the payload from standard input, and never
+fails: every error ends as no output and exit 0. It runs locally, also in a connected folder
+(`LOCAL_COMMANDS`), and gets its text by running the program itself (`std::env::current_exe`) in
+the current folder with the output captured, so that remote mode works without more code:
+
+| Event | Text |
+|---|---|
+| `Claimed(id)` | the output of `brief --task <id>` |
+| `Done(id)` | the output of `review-task <id>`; then, when `list --kind usage --task <id> --all --json` gives no entry: `No usage record for <id>: if software was used, record it with dossier used <software> --version <v> --task <id>` |
+| `Stuck(id)` | `<id> was given back. Record what was missing or did not work, so that the planner finds it: dossier found "<what was tried>" --dead-end --task <id>, or dossier assume "<what was assumed>" --reason "<why>" --task <id>` |
+
+A run of the program that does not end with exit 0 adds nothing. When the text is not empty,
+`after` prints `hooks::context(text)`; otherwise nothing.
+
+## 15. Investigations (R-INV-1 to R-INV-10, D41, D42)
+
+```rust
+// entry/mod.rs
+pub enum Kind { Decision, Assumption, Finding, Lesson, Usage, Howto, Tool, Investigation }
+                 // all() -> [Kind; 8]; name investigation, prefix INV, folder investigations
+// entry/rules.rs: investigation: required section Problem; order Problem, Attempts, Solution;
+// `state` must be one of INVESTIGATION_STATES = ["open", "solved", "given up"].
+// entry/new.rs: FIELD_ORDER gains `closed` and `given-up-reason`, in this order after `refuted`.
+// approval.rs: an investigation is not guarded: it is approved at once, whoever writes it.
+// ctx.rs WRITING and cmd/help.rs COMMANDS gain problem, tried, solved, gave-up.
+
+// attempts.rs (format.md §28)
+pub const SECTION: &str = "Attempts";
+pub const VERDICTS: [&str; 3] = ["failed", "worked", "unclear"];
+#[derive(Debug, Clone, PartialEq)]
+pub struct Attempt { pub n: u32, pub verdict: String, pub text: String,
+    pub did: Option<String>, pub result: Option<String>, pub run: Option<String>,
+    pub task: Option<String>, pub time: String, pub who: String }
+/// The attempts of an Attempts section body, in file order; other lines are skipped.
+pub fn parse(body: &str) -> Vec<Attempt>;
+/// One attempt as its line (format.md §28). parse(line(a)) gives a back.
+pub fn line(attempt: &Attempt) -> String;
+/// 1 + the highest number in the body; 1 for an empty body.
+pub fn next_number(body: &str) -> u32;
+/// "<n>. <verdict>: <text>[ — <result>]", for brief, status and history.
+pub fn summary(attempt: &Attempt) -> String;
+/// The attempts of an entry (its Attempts section); empty for another kind.
+pub fn of(entry: &Entry) -> Vec<Attempt>;
+
+// filter.rs: a new option --state <state>: the entry's `state` field equals it, case ignored.
+```
+
+| Command | Arguments | Result |
+|---|---|---|
+| `problem` | `<what goes wrong> [--observed <t>] [--title <t>] [--task <task>] [tag options]` | an investigation with `state: open`; first line `INV-001: added (open)`, then up to five lines `similar: <ID> [<state>] <title>` (select::best over the investigations, words of the title and the tags) |
+| `tried` | `<ID> <hypothesis, or what was tried> --failed \| --worked \| --unclear [--did <t>] [--result <t>] [--run <USE-ID>] [--task <task>]` | adds one attempt; `INV-001: attempt 3 recorded (failed)`; on a closed investigation also sets `state: open`, removes `closed` and `given-up-reason`, and adds `, opened again` to the line |
+| `solved` | `<ID> <what solved it> [--attempt <n>]…` | `state: solved`, `closed: <time> by <person>`, section Solution (the text, then `Attempts: 2, 3` when given); `INV-001: solved` |
+| `gave-up` | `<ID> --reason <t>` | `state: given up`, `closed`, `given-up-reason`; `INV-001: given up` |
+
+Texts are one line each (a line break or a text starting with `## ` is Code::BadValue). Exactly
+one verdict is required (Code::Usage). `--run` must name a usage record, `--attempt` an attempt
+that exists (Code::NotFound). `tried`, `solved` and `gave-up` refuse an entry that is not an
+approved investigation (Code::Refused); `solved` and `gave-up` refuse one that is not open. All
+four are refused in a team dossier (R-INV-1). History events: `tried` (detail `<n> <verdict>`),
+`solved`, `given up`, `reopened`.
+
+Changed commands: `list`, `show` and `search` mark an investigation `[open]`, `[solved]` or
+`[given up]`. `brief` gains `## Open investigations` after `## Open assumptions`, one line each:
+`<ID> · <title> — <n> attempts, last: <attempts::summary>` (cut before the lessons when the limit
+is reached). `status` lists them under `## Waiting` as `<ID> · <title> (investigation, <n>
+attempts)`. `brief --task` gains `## Investigations`, at most 15 lines: the open ones whose `task`
+is the task (title line, then one indented `attempts::summary` per attempt), then closed ones of
+the task and up to five others chosen by select::best with the task's tags and title words, one
+line each: `<ID> · <title> — solved: <first line of Solution> (<n> failed)` or `— given up:
+<reason> (<n> failed)`. `history <task>` also lists the attempts whose `task` is the task:
+`<time>  <who>  <ID> attempt <n>  <text>`. `review-task` prints, under each investigation of the
+task, its attempts and its solution, and its rules gain: `A solved investigation with failed
+attempts is a candidate for a how-to or a lesson.` `promote <INV-ID>` needs `--as howto` or `--as
+lesson` (Code::Usage otherwise): a lesson draft gets Statement = Solution and Evidence = Problem
+and the attempts; a how-to draft gets Purpose = Problem, Steps = Solution and the attempts that
+worked, Traps = the attempts that failed. `after` (§14): the `Stuck` text also names `dossier
+problem "<what goes wrong>" --task <id>`, and after `Done(id)` each open investigation that
+`history <id> --json` or `list --kind investigation --task <id> --state open --json` names adds
+`<INV-ID> is still open: record the result with dossier tried <INV-ID> … or close it with dossier
+solved`.
+
+---
+
+# Phase 5 (v0.5)
+
+Same principles as before. Formats: format.md §30 and §31. Two requirements that phase 1 lists
+were found not built when this phase was planned and are built here: R-XOS-9 (the PC and the
+server compare versions) and R-XOS-3 (a path typed in a folder below the connected folder).
+
+## 16. Remote mode: changes
+
+```rust
+// remote/ssh.rs
+/// As `argv`, with more: `env` are variables set for the remote command (NAME=<quoted value>, in
+/// order, after `cd`), `sub` is a folder below `folder` (with /) to run in when it exists:
+/// `cd <quoted folder/sub> 2>/dev/null || cd <quoted folder> && …`. `argv` is
+/// argv_with(server, folder, None, DOSSIER_AGENT when given, …).
+pub fn argv_with(server: &str, folder: &str, sub: Option<&str>, env: &[(String, String)],
+    program: &str, args: &[String], terminal: bool, timeout: u64) -> Vec<String>;
+/// Runs the ssh program with the output captured: the exit code, standard output, standard error.
+pub fn capture(argv: &[String]) -> Result<(u8, String, String)>;
+// Each command makes its own connection (D43): nothing is kept open, R-REMOTE-7 is not built.
+
+// remote/version.rs (R-XOS-9)
+pub const FORMAT: u32 = 1;
+pub const CLIENT_VERSION: &str = "DOSSIER_CLIENT_VERSION";   // set by the PC for each command
+pub const CLIENT_FORMAT: &str = "DOSSIER_CLIENT_FORMAT";
+/// On the server, from the two variables: Err(Code::TooNew) naming the side to update when the
+/// formats differ; Ok(Some(warning)) when only the program versions differ; Ok(None) when equal
+/// or when the variables are not set.
+pub fn check(client_version: Option<&str>, client_format: Option<&str>) -> Result<Option<String>>;
+
+// remote/forward.rs: every forwarded `dossier` command gets the two variables (argv_with env)
+// and `sub`: the current folder relative to the folder that holds the pointer, with `/`
+// (R-XOS-3); none with `--project`. cli.rs main_exit: after forward::maybe, version::check on
+// the two variables; an error is emitted and ends the command, a warning is added to the Output.
+```
+
+`connect --check` (R-REMOTE-8) runs three commands on the server and prints one line each:
+`ssh: ok`, `dossier on the server: <version>` (a warning when it differs from the PC's),
+`todo on the server: <version>` (Code::TodoMissing when it is missing), `dossier folder: ok
+(<code>)` (Code::NoDossier when the folder has none). When ssh itself fails, the message holds
+what ssh wrote to standard error.
+
+## 17. Large files: take and return (R-FILE-1 to R-FILE-7, R-REMOTE-4)
+
+```rust
+// taken.rs (format.md §30); replaces the files.json of requirements §7 with a readable file
+pub const FILE: &str = "taken.md";
+pub const ITEM: &str = "TAKEN";
+pub fn load(dossier: &Path, code: &str) -> Result<(BlockFile, Option<Vec<u8>>)>; // empty: "Taken files of <code>"
+pub struct Take { pub path: String, pub person: String, pub time: String, pub task: String,
+    pub size: u64, pub modified: String, pub checksum: String, pub forced: bool }
+pub fn current(file: &BlockFile, path: &str) -> Option<Take>;   // None when not taken now
+pub fn all(file: &BlockFile) -> Vec<Take>;                      // taken now, file order
+/// The history lines of a path: every take, return and abandon (R-FILE-5).
+pub fn log(file: &BlockFile, path: &str) -> Vec<String>;
+
+// config.rs: Config gains `pub take_days: i64` ([limits] take_days, default 14).
+
+// remote/transfer.rs (R-REMOTE-4): `take` and `return` in a connected folder
+/// The scp program: DOSSIER_SCP, else `scp`.
+pub fn program() -> std::ffi::OsString;
+/// The arguments of scp: -o BatchMode=yes -o ConnectTimeout=<n> -p, then source and target.
+pub fn argv(source: &str, target: &str, timeout: u64) -> Vec<String>;
+/// "<server>:<quoted folder/stored>" for scp.
+pub fn remote_path(server: &str, folder: &str, stored: &str) -> String;
+/// Called by forward::maybe for `take` and `return` when the folder is connected; Some(exit code).
+pub fn maybe(command: &str, args: &[String], base: &Path, pointer: &Pointer, agent: Option<&str>)
+    -> Option<u8>;
+```
+
+| Command | Arguments | Result |
+|---|---|---|
+| `take` | `<file>… --task <task> [--force]` | records who took each file, for which task, when, with size, time and checksum; refuses a file another person holds (Code::Refused naming person, task and time) unless `--force`; a file the caller already holds is left as it is and reported again |
+| `return` | `<file>… --check \| --done \| --abandon [--force]` | `--check`: exit 0 when every file is still as taken, else Code::Refused naming the changed ones; `--done`: records the new size, time and checksum and ends the take; `--abandon`: ends it; only the person who took a file returns it, or anyone with `--force` |
+| `files` | also `--taken`, `--log <file>` | the files taken now (file, person, task, since; `[taken <n> days]` above `take_days`); every recorded version of one file |
+
+`return` is `src/cmd/return_cmd.rs` (`Return(cmd::return_cmd::Args)`). Changed commands: `files`
+marks a taken file `[taken by <person>]`; `status` lists the taken files under `## Working now`.
+`take` warns about names that cannot exist on Windows and names that differ only in case
+(R-XOS-5).
+
+In a connected folder (`transfer::maybe`): `take` runs `dossier take … --json` on the server; on
+exit 0 it copies each file with scp from the server into the same relative path below the
+connected folder. A failed copy ends with exit 5 and says that the take is recorded and that the
+same `take` command copies again. `return --done` runs `return … --check` on the server and stops
+when it fails; copies each file to `<name>.dossier-part` on the server and moves it over the file
+with `mv -f` through ssh; then runs `return … --done`. A failed copy leaves the take as it was.
+`--check` and `--abandon` alone are forwarded like any other command. With `--project` and no
+connected folder, `take` and `return --done` are Code::Usage.
+
+---
+
+# Phase 6 (v0.6)
+
+Formats: format.md §32 and §33.
+
+## 18. Milestone digests (R-CTX-14, R-CTX-15)
+
+```rust
+// entry/mod.rs: Kind gains Digest (name digest, prefix DIG, folder digests); all() -> [Kind; 9].
+// entry/rules.rs: digest: required section Summary and the fields `milestone` and `tasks`;
+// order Summary. entry/new.rs: FIELD_ORDER gains `milestone`, `tasks` and `standing` after `task`.
+// approval.rs: guarded(Digest) is true: an LLM's digest is a draft until a person approves it.
+
+// digest.rs
+/// The approved digests in force (on `day`, when given), newest first.
+pub fn in_force<'a>(items: &'a [Item], day: Option<&str>) -> Vec<&'a Item>;
+/// The digest that covers this entry: the entry's `task` is in the digest's `tasks` list, and the
+/// entry is not a decision with `standing: yes` and not an open assumption or investigation.
+pub fn covering<'a>(digests: &[&'a Item], entry: &Entry) -> Option<&'a Item>;
+/// The rules for the summary, printed by `digest`.
+pub const RULES: [&str; 5];
+```
+
+| Command | Arguments | Result |
+|---|---|---|
+| `digest` | `<milestone>` | the material: the milestone's title and goal (`todo show`), its tasks with status (`todo list --milestone`), the decisions, assumptions, findings, dead ends and investigations of those tasks, then RULES; changes nothing |
+| `digest` | `<milestone> --write --stdin` | a digest entry: Summary from standard input (at most 15 lines, Code::BadValue above), `milestone`, `tasks` (the milestone and its tasks, from todo); refused while the milestone is not done in todo; a second digest for a milestone supersedes the first |
+| `decide` | also `--standing` | the field `standing: yes` |
+
+`brief` and `status` print, for each digest in force, `<DIG-ID> · <milestone> · <title>` and its
+Summary lines indented, in place of the decisions and findings it covers, and one line `<n>
+entries are summed up in digests: dossier list --task <task>`.
+
+## 19. Session review (R-DRAFT-7, R-DRAFT-9, D44)
+
+```rust
+// session.rs (format.md §34): dossier's own session format
+pub const VERSION: u32 = 1;
+#[derive(Debug, Clone, PartialEq)]
+pub struct Turn { pub role: String, pub text: String }   // role: "user" or "assistant"
+/// The turns of a session file. A version above VERSION: Code::TooNew, the message says to
+/// update. A missing format line reads as version 1.
+pub fn parse(text: &str) -> Result<Vec<Turn>>;
+/// A session file of the current version: the format line, `# Session`, a `- tool:` line, then
+/// one `## <role>` block per turn. parse(render(tool, turns)) gives the turns back.
+pub fn render(tool: &str, turns: &[Turn]) -> String;
+/// The turns that state a decision or discuss a result (a word of CUES in them), each with the
+/// turn before it, in order, cut from the oldest until they fit `limit` characters.
+pub fn relevant(turns: &[Turn], limit: usize) -> Vec<String>;
+pub const CUES: [&str; 16];
+
+// claude.rs: the only place that knows the transcript format of Claude Code, which is internal
+// and may change with any release. Reading is lenient and never fails on a line it does not know.
+/// One turn per JSON line that has a `type` of user or assistant and text in `message.content`
+/// (a string, or an array whose `text` items are joined); every other line is skipped.
+pub fn turns(transcript: &str) -> Vec<Turn>;
+
+// hooks.rs
+pub const SESSION_END: &str = "dossier session-end";
+/// The settings with a SessionEnd hook running `dossier session-end --run <quoted command>`.
+pub fn review_installed(existing: &str, command: &str) -> Result<String>;
+```
+
+| Command | Arguments | Result |
+|---|---|---|
+| `review-session` | `<file> [--claude] [--limit <characters>]` | the material (default limit 20000) and the drafting rules of `review-task`; the file is a session file, or with `--claude` a transcript of Claude Code that is converted first; no turn found: one line saying so |
+| `session` | `convert --claude <transcript> [--to <file>]` | the session file made from a transcript of Claude Code, printed or written |
+| `session-end` | `--run <command>` | reads the SessionEnd payload from standard input, writes the output of `review-session --claude <transcript_path>` to `.claude/dossier-session-review.md`, starts `<command>` with that path as its last argument without waiting for it, and never fails |
+| `hooks` | `install` also takes `--session-review <command>` | adds the SessionEnd hook; `uninstall` removes it |
+
+`review-session`, `session` and `session-end` read files of the machine the session ran on. They
+need no dossier and always run locally, also in a connected folder (`LOCAL_COMMANDS`): the server
+could not read a path of the PC. What the review then writes (`learn`, `found`) goes to the server
+like every other command.
+
+## 20. Extras
+
+| Command | Arguments | Result | Requirement |
+|---|---|---|---|
+| `story` | `[--milestone <task>]` | the approved decisions, oldest first: `<date>  <ID> · <title>`, the Reason indented, `task: <task>` | R-READ-7 |
+| `search` | also `--similar <ID>` (then no words are needed) | the entries sharing most tags and title words with it (select::best, limit 10) | R-READ-9 |
+| `brief` | also `--budget <lines>` | the limit for this call | R-CTX-6 |
+| `brief --task --json` | — | each item with `reason`: `linked`, `milestone`, `tag match` or `word match` | R-CTX-6 |
+| `check` | also `--fix` | renames files that do not start with their ID and slug, adds a missing format line, puts the tool's own fields in the order of format.md; then checks again | R-CHECK-2 |
+| `check` | — | warning kind UNIT: a `name: value` or `name = value` line in the Settings or Statement of a how-to or lesson whose value is a bare number | R-ENTRY-11 |
+| `export` | `[--milestone <task>] [--to <file>]` | one Markdown document: decisions, findings, investigations and usage records in time order | R-OUT-7 |
+| `schema` | — | JSON: every command with its description and schema name, the exit codes, the error codes | R-OUT-6 |
+| `team summary` | — | the team dossier: entries per kind and status, drafts waiting, entries due for review, the newest ten | R-TEAM-5 |
+| `help` | `<command>` | the description and three examples (two PowerShell, one Linux shell) from `examples.rs` | R-OUT-5 |
+
+```rust
+// examples.rs
+/// Two PowerShell examples and one for a Linux shell; None for a command without examples.
+pub fn of(command: &str) -> Option<[&'static str; 3]>;
+// select.rs
+/// Which rule gave the points: Some("tag match") when a query tag matched, else
+/// Some("word match") when a word matched, else None.
+pub fn reason(item: &Item, query: &Query) -> Option<&'static str>;
+```
+
+`docs/guide-for-readers.md` (REL-4) is one page for team members who only read and approve:
+`drafts`, `approve`, `search`, `show`. R-CTX-8 needs a change in `todo` and is not built here;
+R-AGENT-5 gives the same result for Claude Code.

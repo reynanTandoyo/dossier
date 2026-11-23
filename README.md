@@ -6,7 +6,7 @@ to rely on memory.
 
 **Status: v0.3 (phase 3)**
 
-- [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the five phases it is
+- [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the six phases it is
   built in.
 - [`docs/format.md`](docs/format.md): the exact format of the entry files.
 - [`TODO.md`](TODO.md): the work plan for building the program.
@@ -791,8 +791,12 @@ LES-001: promoted as team:LES-004 (draft, waiting for approval in the team dossi
 
 These come in later phases. See [`docs/requirements.md`](docs/requirements.md), section 11.
 
-- **Phase 4 (v0.4):** copying large simulation files to a PC and back.
-- **Phase 5 (v0.5):** milestone digests, session review, and export.
+- **Version 0.3.1:** text that looks like a password, key or access token is refused on every
+  write.
+- **Phase 4 (v0.4):** investigations: a problem, the attempts to solve it in order, and what
+  solved it.
+- **Phase 5 (v0.5):** copying large simulation files to a PC and back.
+- **Phase 6 (v0.6):** milestone digests, session review, hooks after `todo` commands, and export.
 
 ## What it needs
 

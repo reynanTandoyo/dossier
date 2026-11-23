@@ -563,3 +563,189 @@ describes = "/archive/P-003"      # the project folder it describes, with --in
 ```
 
 All top-level, before `[tags]`, all optional.
+
+---
+
+# Additions of 2026-11-22
+
+Still format version 1. Every rule of §2 to §26 holds; every change carries who and when (D29).
+
+## 27. Text that looks like a credential (R-CONF-7)
+
+A line of a `.md` file of the dossier looks like it holds a credential when one of these holds:
+
+| Kind | Rule |
+|---|---|
+| `private key` | the line contains `-----BEGIN ` and, after it, `PRIVATE KEY-----` |
+| `access token` | a word of the line (cut at spaces and at `"`, `'`, `` ` ``, `(`, `)`, `,`, `;`, `=`, `:`) starts with one of `ghp_`, `gho_`, `ghu_`, `ghs_`, `ghr_`, `github_pat_`, `glpat-`, `xoxb-`, `xoxp-`, `xoxa-`, `sk-` and has at least 20 more characters of letters, digits, `_` and `-`; or starts with `AKIA` or `ASIA` and is exactly 20 capital letters and digits; or starts with `AIza` and has 39 characters; or starts with `eyJ` and has three parts of at least 10 characters separated by two `.` |
+| `password` | the line contains one of the names `password`, `passwd`, `pwd`, `secret`, `token`, `api key`, `api-key`, `api_key`, `apikey` (case ignored, not directly after a letter or digit), then optional spaces and one optional `"` or `'`, then `=` or `:`, then a value: the rest of the line, trimmed and without surrounding quotes, is one word of at least 4 characters |
+
+A password value is no hit when it starts with `<`, `{`, `[`, `$` or `%`, or consists only of
+`*`, `x`, `X` and `.` (a placeholder or a masked value). Field lines of the tool itself never
+match, because no field name of §5 contains one of the names.
+
+`.state/credential-ok.json` is a JSON array of strings, sorted: the SHA-256 (hex) of each line,
+trimmed, that a person allowed with `--allow-credential-like`. A line whose hash is in the list is
+no hit, in any file. The journal gets one record per file: event `allowed`, detail
+`credential-like text, line 12` (several lines: `line 12, 14`).
+
+## 28. Investigations (D41)
+
+An eighth kind of entry: `investigation`, prefix `INV`, folder `investigations/`. Sections, in
+this order: `Problem` (required), `Attempts`, `Solution`. Fields: `state` (`open`, `solved`,
+`given up`), `task`, the tag fields, `closed` (`<time> by <person>`, while solved or given up)
+and `given-up-reason`. An investigation is approved at once, whoever writes it, and exists only
+in project dossiers. History events added to §6: `tried`, `solved`, `given up`.
+
+The `Attempts` section holds one line per attempt, in the order they were recorded:
+
+```
+<n>. [<verdict>] <text>[ — did: <text>][ — result: <text>][ — run: <USE-ID>][ — task: <task>] (<time> <who>)
+```
+
+`<n>` counts from 1 and is never reused or changed. `<verdict>` is `failed`, `worked` or
+`unclear`. `<who>` is written as in history lines (`anna` or `anna via anna - claude`). The parts
+are separated by space, em dash (U+2014), space, and come in this order; a part that was not
+given is left out. Each text is one line. When reading, the last ` (` of the line starts the time
+and who; a line of the section that does not have this form is kept as written and is no attempt.
+
+```markdown
+<!-- dossier-format: 1 -->
+# INV-003 · Residual blows up after 40 iterations
+
+- kind: investigation
+- status: approved
+- created: 2026-12-03T09:10:00+01:00
+- author: anna
+- via: anna - claude
+- approved: 2026-12-03T09:10:00+01:00 by anna
+- valid-from: 2026-12-03T09:10:00+01:00
+- state: solved
+- task: T-012
+- closed: 2026-12-03T11:40:00+01:00 by anna
+- history: 2026-12-03T09:10:00+01:00 anna via anna - claude: created
+- history: 2026-12-03T09:10:00+01:00 anna via anna - claude: approved
+- history: 2026-12-03T09:30:00+01:00 anna via anna - claude: tried — 1 failed
+- history: 2026-12-03T10:15:00+01:00 anna via anna - claude: tried — 2 failed
+- history: 2026-12-03T11:35:00+01:00 anna via anna - claude: tried — 3 worked
+- history: 2026-12-03T11:40:00+01:00 anna via anna - claude: solved
+
+## Problem
+
+The density residual grows from iteration 40 on and the run stops with a negative pressure.
+
+## Attempts
+
+1. [failed] The CFL number is too high — did: CFL 5 to 1 — result: diverges at iteration 180 (2026-12-03T09:30:00+01:00 anna via anna - claude)
+2. [failed] The mesh is too coarse at the leading edge — did: one refinement level more — result: same divergence (2026-12-03T10:15:00+01:00 anna via anna - claude)
+3. [worked] The flux at the outlet has the wrong sign — did: corrected the sign in the outlet flux — result: converges in 900 iterations (2026-12-03T11:35:00+01:00 anna via anna - claude)
+
+## Solution
+
+The outlet flux had the wrong sign.
+
+Attempts: 3
+```
+
+## 29. The hook after shell commands (R-AGENT-5)
+
+`hooks install` adds to `.claude/settings.json`, next to the two entries of design.md §8:
+
+```json
+"PostToolUse": [
+  { "matcher": "Bash|PowerShell",
+    "hooks": [ { "type": "command", "command": "dossier after", "timeout": 30 } ] }
+]
+```
+
+`dossier after` answers with nothing, or with one line of JSON that Claude Code adds to the
+agent's context:
+`{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"<text>"}}`.
+
+---
+
+# Phase 5 (v0.5) additions
+
+## 30. Taken files
+
+`taken.md` in a project dossier is a block file (§17), title `Taken files of <code>`, item ID
+`TAKEN`. One block per file that was ever taken; the key is the stored path.
+
+| Field | Value |
+|---|---|
+| `taken` | `<time> by <person>`, while the file is taken; removed when it is returned or abandoned |
+| `task` | the task it was taken for |
+| `size`, `modified`, `checksum` | of the file on the server when it was taken, and after `return --done` of the returned file (§18) |
+| `forced` | `yes` while the take was made with `--force` over another person's |
+
+History lines: `taken — <task> <checksum>`, `taken by force — <task> <checksum>, from <person>`,
+`returned — <checksum>`, `abandoned`. The history is the log of the file's versions (R-FILE-5).
+
+`dossier.toml` gains `take_days = 14` under `[limits]`: above this age a take is marked.
+
+## 31. Versions between PC and server (R-XOS-9)
+
+The PC sets two variables for every `dossier` command it runs on the server:
+`DOSSIER_CLIENT_VERSION` (the program version, such as `0.5.0`) and `DOSSIER_CLIENT_FORMAT` (the
+format version, `1`). A server that reads another format than its own refuses the command
+(`TOO_NEW`) and says which side to update; another program version with the same format is a
+warning. Without the variables (a command typed on the server) nothing is compared.
+
+---
+
+# Phase 6 (v0.6) additions
+
+## 32. Digests (D22)
+
+A ninth kind of entry: `digest`, prefix `DIG`, folder `digests/`. Section `Summary` (required, at
+most 15 lines). Fields: `milestone` (the `todo` milestone it sums up) and `tasks` (comma-separated:
+the milestone and every task below it when the digest was written), both required. A digest is
+guarded like a lesson: an LLM writes it as a draft, a person approves it. A decision may carry
+`standing: yes`: it binds the whole project and is never replaced by a digest.
+
+## 33. The session review hook (R-DRAFT-9)
+
+`hooks install --session-review "<command>"` adds to `.claude/settings.json`:
+
+```json
+"SessionEnd": [
+  { "hooks": [ { "type": "command", "command": "dossier session-end --run '<command>'" } ] }
+]
+```
+
+The material is written to `.claude/dossier-session-review.md` in the project folder, replaced at
+the end of each session.
+
+## 34. Session files (D44)
+
+A session file holds what a person and an LLM said in one session, as plain text. It is what
+`review-session` reads; any tool, or an LLM itself, can write one.
+
+```markdown
+<!-- dossier-session: 1 -->
+# Session
+
+- tool: claude code
+
+## user
+
+We go with the SST model because the test data is for attached flow.
+
+## assistant
+
+Recorded as DEC-012. The first run diverges at iteration 40.
+```
+
+1. **Format line**: `<!-- dossier-session: 1 -->`. A file without one is read as version 1. A
+   higher number than the program knows is refused (`TOO_NEW`) with a message that says to update
+   `dossier`. The number rises only when an older program could misread the file; new optional
+   field lines do not raise it.
+2. **Heading** `# Session`, optionally followed by more text on the line.
+3. **Field lines** `- <key>: <value>`: `tool` (which program the session ran in), and any other
+   key, which is kept and ignored.
+4. **Turns**: a line `## user` or `## assistant`, then the text up to the next such line. A text
+   line that itself starts with `## ` is written with one space in front. A `## ` heading with
+   another name starts a block that is skipped.
+
+`session convert --claude` and `review-session --claude` make this file from a transcript of
+Claude Code; only `src/claude.rs` knows that format.

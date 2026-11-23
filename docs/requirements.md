@@ -1,10 +1,10 @@
 # dossier — requirements
 
-Draft 6, 2026-11-21 (owner's decisions: D28 to D38). Four points are still open (§12); everything else is decided (§3) until the
+Draft 9, 2026-11-23 (owner's decisions: D28 to D45). Four points are still open (§12); everything else is decided (§3) until the
 owner says otherwise.
 
 Each requirement has a priority, which says how important it is. When it is built is decided
-separately, by the five phases in §11.
+separately, by the six phases and the patch release 0.3.1 in §11.
 
 | Priority | Meaning |
 |---|---|
@@ -78,6 +78,10 @@ an LLM starts with the right context.
 | S21 | The team has years of finished projects whose knowledge is only in reports and heads | R-IMPORT-1 … R-IMPORT-8 |
 | S22 | The evidence for a lesson is a plot | R-ENTRY-16 … R-ENTRY-18 |
 | S23 | A session is held in German, and a colleague later searches in English | R-ENTRY-19, R-TERM-4 |
+| S24 | A how-to for the licence server is written with the password in it | R-CONF-7 |
+| S25 | An LLM claims a task and starts without reading what the dossier holds for it | R-AGENT-5 |
+| S26 | An LLM's first solver run blows up; it tests three hypotheses before the third one fixes it, and the next LLM must not test the first two again | R-INV-1 … R-INV-5, R-INV-10 |
+| S27 | An engineer looks for a first converging solution, tries three changes at the simulation program, and the order in which they were made is what worked | R-INV-3, R-INV-4, R-INV-8 |
 | S14 | Three LLMs work for three people in one project; each must know the state of the whole project and stay inside what was decided | R-CTX-9 … R-CTX-13 |
 
 ---
@@ -118,12 +122,19 @@ an LLM starts with the right context.
 | D30 | Knowledge (text) can be promoted to the team dossier; files (simulation files, CAD parts, spreadsheets, scripts) are never copied, only pointed to from their project. Small pictures are the exception of D26. (Owner, 2026-11-21.) | The team dossier stays small and free of customer files. |
 | D31 | Scripts, commands on the server, installed software and git repositories are one entry kind, a *tool* (`TOOL-001`), with a `type` (`script`, `command`, `software`, `repo`) and a `location`. It replaces the separate software list, script entries and `script_root` of D19 and R-USE-1, R-USE-8 to R-USE-13, which are rewritten when phase 3 starts. The team standardises its tools in the meantime. (Owner, 2026-11-21.) | The team has no single place or form for its tools yet; one flexible kind fits all of them. |
 | D32 | Anyone in the project may add a confidential term, also an LLM when its person says so in the session; removing a term needs a person at a terminal. There are no automatic terms; writing to the team dossier is refused until the project has at least one term or a person stated that there are none. (Owner, 2026-11-21.) | The tool cannot guess a customer's names; the refusal makes sure nobody forgets the list. |
-| D33 | The Claude Code hooks (`brief` at session start, a guard against direct edits of `DOSSIER/`) and the skill come in phase 2; the session-end review (R-DRAFT-9) stays in phase 5. Export (R-OUT-7) writes Markdown only. Review dates (R-LIFE-7) have no default: they are set per entry. (Owner, 2026-11-21.) | The hooks make the tool part of every session from the start. |
+| D33 | The Claude Code hooks (`brief` at session start, a guard against direct edits of `DOSSIER/`) and the skill come in phase 2; the session-end review (R-DRAFT-9) stays in phase 6 (numbered 5 before D45). Export (R-OUT-7) writes Markdown only. Review dates (R-LIFE-7) have no default: they are set per entry. (Owner, 2026-11-21.) | The hooks make the tool part of every session from the start. |
 | D34 | The team is a list of usernames (the operating-system login of each member), plus a separate list of plain names: people who are not users (an external colleague, a customer contact) and can be named as author, source or `--said-by`, but never write themselves. An LLM is named `<username> - <anything>`, for example `tony - claude opus 5.5 high`; LLM names are not registered. Without `--agent` or `DOSSIER_AGENT` the writer is the operating-system username. `hooks install` sets `DOSSIER_AGENT` to `<username> - claude` in the user's personal Claude Code settings (`.claude/settings.local.json`), so that Claude's writes are always marked as an LLM's. Names registered with `people add --llm` keep working. Replaces the registration of LLM names of D13. (Owner, 2026-11-21.) | Simple to set up: nobody keeps a list of LLM names, and a person's own commands need no name at all. |
 | D35 | Software names stay free text; R-USE-1's refusal of unknown names is dropped for now and may come back when the team has standardised its tools. (Owner, 2026-11-21.) | The team has no standard list yet. |
 | D36 | Project folders and the team dossier are git repositories. `dossier` commits its own changes in the team dossier (R-TEAM-6) and never pushes; in a project folder `DOSSIER/` is committed with the project's work, like `TODO.md`. (Owner, 2026-11-21.) | One history for the work, the tasks and the knowledge. |
 | D37 | A tool (D31) has a name, required, and a location, optional: a path, a command or a URL when one is known. Nothing is checked for a tool without a location. (Owner, 2026-11-21.) | Many tools have no single place yet. |
 | D38 | `dossier` keeps the knowledge, `todo` keeps the work, side by side. `dossier` never creates, changes, claims or closes a task and never writes `TODO.md`; it reads tasks only through `todo --json`, and `dossier todo` only passes a command through to `todo` on the server. `dossier`'s register on the PC (`connect`, `projects`) holds the server connection for remote mode and is separate from `todo`'s project register (`todo project`, `todo overview`). Every later feature keeps to this. (Owner, 2026-11-21.) | Two tools that each do one thing work well together; overlapping features would drift apart. |
+| D39 | A rule for agents that a `todo` command can trigger is carried out by a Claude Code hook and not left to the agent's memory: after a task is claimed, finished or given back, a hook prints what `dossier` has for that moment. The hook only reads the `todo` command that was run; it changes no task (D38). (Owner, 2026-11-22.) | A rule in a text is followed only some of the time; a hook runs every time. (Idea taken from the ECC project.) |
+| D40 | Text that looks like a credential (a private key, an access token, a password) is refused on every write, in a project dossier and in the team dossier. (Owner, 2026-11-22.) | Dossiers are committed to git (D36), where a credential stays in the history. How-tos about licence servers and ssh are where one would be written down. (Idea taken from the ECC project.) |
+| D41 | Trial and error is recorded in an eighth kind of entry, the *investigation* (`INV-001`): one problem, the attempts in the order they were made, each with its hypothesis and its result, and what solved it. It serves people and LLMs alike. (Owner, 2026-11-22.) | Single dead ends lose the order and the link to what finally worked, and the order is often the recipe: a change that failed first may work after another one. |
+| D42 | An attempt is a line in an investigation, not a `todo` task. Only an attempt that is real work (long compute, another person, a plan) is a task; a person or the planner creates it with `todo`, and the investigation points to it. `dossier` never creates it (D38). (Owner, 2026-11-22.) | Most attempts take minutes inside a task that is already claimed; a task for each would be too heavy to be written, and workers would be planning. |
+| D43 | A command from a PC makes its own ssh connection; nothing is kept open in the background. Reading through the network share with a file browser or an editor stays possible at any time (R-XOS-1). R-REMOTE-7 is not built. (Owner, 2026-11-23.) | The ssh program of Windows cannot share a connection, and a helper process on every PC would be more to install and to go wrong than the wait it saves. |
+| D44 | The session review reads a session file in `dossier`'s own format, which has a version number like the entry format. A transcript of Claude Code is first converted to it; only that converter knows Claude Code's format. (Owner, 2026-11-23.) | Claude Code's transcript format is internal and changes between releases. With an own format the review works for every LLM, and a change at Claude Code touches one converter. |
+| D45 | The order of the releases after 0.3: refusing credentials (R-CONF-7) is released alone as 0.3.1; investigations (D41, D42) become phase 4 (v0.4); working from the PC moves to phase 5 (v0.5) and growing projects to phase 6 (v0.6). (Owner, 2026-11-23.) | The credential check protects every dossier already in use, so it does not wait for a larger release. |
 
 ---
 
@@ -263,7 +274,7 @@ The exact format is fixed in [`docs/format.md`](format.md); where the two differ
 ### 5.3 Identity — ID
 
 - **R-ID-1 MUST** IDs are `DEC-`, `ASM-`, `FND-`, `LES-`, `HOW-`, `SCR-` or `USE-` and a number of at least three
-  digits. Each dossier counts each kind separately. The next number is the highest ever given
+  digits; since D31, D41 and D22 also `TOOL-`, `INV-` and `DIG-`. Each dossier counts each kind separately. The next number is the highest ever given
   plus one, chosen under the lock, also counting entries that were deleted.
 - **R-ID-2 MUST** Inside its own dossier an entry is named by its ID alone. Elsewhere it is named
   with its place: `team:LES-031` or `<project code>:FND-004`. Commands accept both forms.
@@ -348,9 +359,16 @@ Every write command needs a name (D13) and prints one line such as `DEC-012: add
   can be recognised (R-WRITE-11 includes them, marked as rejected).
 - **R-DRAFT-6 MUST** Drafts are never printed by `brief` (R-CTX) or found by `search` unless
   `--drafts` is given; when they are shown they are marked `DRAFT — not approved`.
-- **R-DRAFT-7 SHOULD** `dossier review-session <transcript file>` prints the same kind of material
-  for a whole session: the parts of a Claude Code transcript where a decision was stated or a
-  result was discussed, cut to a size limit, followed by the drafting rules.
+- **R-DRAFT-7 SHOULD** `dossier review-session <session file>` prints the same kind of material
+  for a whole session: the parts where a decision was stated or a result was discussed, cut to
+  a size limit, followed by the drafting rules. The session file is in `dossier`'s own format
+  (D44, format.md): a version line and the turns of the person and the LLM as plain text; a
+  file with a newer version than the program knows is refused with a message that says to
+  update. `review-session --claude <transcript>` first converts a transcript of Claude Code;
+  `session convert --claude <transcript>` only converts and prints the session file. A
+  transcript the converter cannot read gives an empty session and one line that says so,
+  never an error in the middle. These commands read a file of the machine the session ran on,
+  so they run there and need no dossier, also in a folder that is connected to a server.
 - **R-DRAFT-8 SHOULD** Drafts older than 14 days (`draft_days`) are listed first in `summary`
   with their age.
 - **R-DRAFT-9 COULD** `hooks install` adds a Claude Code hook that, when a session ends, runs a
@@ -557,7 +575,9 @@ Every write command needs a name (D13) and prints one line such as `DEC-012: add
   milestone: its goal, its tasks, and its decisions, assumptions, findings and dead ends, with
   rules for the summary (at most 15 lines: what was decided and still binds, what was found,
   what was assumed and is still open, what did not work). The LLM in the session writes it with
-  `digest <milestone> --write --stdin`; it is a draft until a person approves it.
+  `digest <milestone> --write --stdin`; it is a draft until a person approves it. A digest is
+  an entry of its own kind (`DIG-001`, in `digests/`, with the field `milestone`), so it is
+  approved, shown and superseded like a lesson.
 - **R-CTX-15 MUST** Once a milestone has an approved digest, `brief` and `status` print the
   digest in place of that milestone's single entries, with one line saying how to see them.
   Decisions marked `standing: yes` (they bind the whole project, not one milestone) and open
@@ -572,7 +592,8 @@ Every write command needs a name (D13) and prints one line such as `DEC-012: add
 - **R-CTX-7 SHOULD** `hooks install` adds a Claude Code session-start hook that runs `brief`.
 - **R-CTX-8 COULD** `todo brief` (the work order of `todo` 0.8) can include the output of
   `dossier brief --task` when a setting in `todo.toml` names the command. This needs a change in
-  `todo` and is decided there.
+  `todo` and is decided there. For Claude Code, R-AGENT-5 gives the same result without a
+  change in `todo`. *Not planned in `dossier`: it stays an idea for `todo`.*
 
 ### 5.11 Files of a task — FILE
 
@@ -738,6 +759,63 @@ things are in the code is left to code navigation tools.
   dossier or the customer exchange, and writes agent rules without the parts about runs, large
   files and customers.
 
+### 5.11h Investigations — INV
+
+An investigation records trial and error (D41): a problem, the attempts to solve it in order,
+and what solved it.
+
+- **R-INV-1 MUST** An **investigation** is an entry of its own kind with IDs `INV-` (as
+  R-ID-1), kept in `investigations/` in the project dossier. It has the field `state` (`open`,
+  `solved` or `given up`) and the sections *Problem* (what goes wrong and how it shows;
+  required), *Attempts* and *Solution*. Like a finding it is a fact of the project: it is
+  approved at once, whoever writes it, and `via` shows when an LLM did. Investigations stay in
+  the project and never go to the team dossier as they are (R-INV-8).
+- **R-INV-2 MUST** `problem "<what goes wrong>" [--observed "…"] [--task <task>]` opens an
+  investigation with state `open` and prints its ID. Before it writes, it prints the
+  investigations, open or closed, with the most similar title and tags (as R-WRITE-11), so
+  that an existing one is continued or its solution is used.
+- **R-INV-3 MUST** `tried <ID> "<hypothesis, or what was tried>" --failed | --worked | --unclear
+  [--did "<what was changed>"] [--result "<what happened>"] [--run <usage record>]
+  [--task <task>]` adds one attempt at the end of *Attempts*. The text and the verdict are
+  required and nothing else, so that an attempt costs ten seconds. Each attempt has a number,
+  the person, the LLM if one wrote it, and the time (R-HIST-4). Attempts keep the order in
+  which they were recorded and are never renumbered. `--worked` doesn't close the
+  investigation: an attempt may solve one part of the problem. `--run` names the usage record
+  of the run that tested it (R-USE-14), so the parameters are not typed twice.
+- **R-INV-4 MUST** `solved <ID> "<what solved it>" [--attempt <number>…]` sets the state to
+  `solved` and writes *Solution*, naming the attempts that led to it when several were needed
+  together or in a certain order. `gave-up <ID> --reason "…"` sets `given up`. `tried` on a
+  closed investigation opens it again and says so.
+- **R-INV-5 MUST** Reading:
+  - `show <ID>` prints the problem, every attempt in order with its verdict, and the solution;
+    `list --kind investigation [--state <state>]` lists them.
+  - `brief` and `status` list the open investigations under what is waiting: ID, title, number
+    of attempts and the last attempt.
+  - `brief --task` prints the open investigations of the task with one line per attempt, and
+    the closed ones that match the task's tags and title words as one line each (the problem,
+    what solved it, how many attempts failed), next to the dead ends of R-CTX-16; at most 15
+    lines.
+  - `search` also finds the text of attempts and names the attempt in the result.
+- **R-INV-6 MUST** Tasks (D42). `--task` on `problem` names the task in which the problem came
+  up; `--task` on `tried` names a task that carried out that attempt. `dossier` reads these
+  tasks through `todo --json` and never creates or changes one. `history <task>` (R-READ-6)
+  lists the investigations and attempts that name the task.
+- **R-INV-7 MUST** A failed attempt counts as a dead end wherever dead ends are shown or
+  searched (R-CTX-16, S18). `found --dead-end` (R-WRITE-16) stays for a single thing that did
+  not work and belongs to no problem.
+- **R-INV-8 MUST** `review-task` (R-DRAFT-1) prints the investigations of the task as material,
+  and the drafting rules (R-DRAFT-2) add: a solved investigation with failed attempts is a
+  candidate for a how-to or a lesson. `promote <ID> --as howto|lesson` writes that draft in the
+  team dossier as in R-TEAM-2, after the check of R-CONF-2.
+- **R-INV-9 SHOULD** The hook of R-AGENT-5 also covers investigations: after `todo stuck <id>`
+  it suggests `problem … --task <id>`, and after `todo done <id>` for a task that an open
+  investigation or one of its attempts names, it reminds the agent to record the result with
+  `tried`.
+- **R-INV-10 MUST** The agent rules (R-AGENT-1) say: when something fails and you start looking
+  for the cause, open an investigation with `problem`, or continue the one that exists; read
+  its attempts before you try anything; record one `tried` line for each hypothesis, also the
+  failed ones, and not one for each compile or run; close it with `solved`.
+
 ### 5.12 Remote mode — REMOTE
 
 - **R-REMOTE-1 MUST** `dossier connect <user@server>:<project folder>` in a folder on a PC writes a
@@ -772,6 +850,7 @@ things are in the code is left to code navigation tools.
   project code and the server folder, so an LLM knows where the project's files are.
 - **R-REMOTE-7 SHOULD** One ssh connection is kept open and reused for several commands, so that
   a command takes under half a second on the office network after the first.
+  *Not built (D43): each command makes its own connection.*
 - **R-REMOTE-8 SHOULD** `dossier connect --check` tests the connection, that `dossier` and `todo`
   exist on the server with matching versions, and that the folder has a dossier.
 
@@ -794,6 +873,19 @@ things are in the code is left to code navigation tools.
   `confidential none --yes` (a person, at a terminal) that there are none.
 - **R-CONF-6 SHOULD** `confidential scan` checks the whole team dossier against the current
   project's terms and lists every match, for terms that were added late.
+- **R-CONF-7 MUST** Every command that writes text into a dossier (an entry, a value, a note on
+  a file or an exchange record, a glossary term, a digest) refuses when the text looks like it
+  holds a credential (D40): a private-key block (`-----BEGIN … PRIVATE KEY-----`), an access
+  token of a well-known shape, or a name such as `password`, `passwd`, `secret`, `token` or
+  `api key` followed by `=` or `:` and a value of one word (a value of several words, such
+  as `password: ask the administrator`, is not refused). The error names the line and the kind of
+  credential and never prints the value; nothing is written and nothing reaches the journal.
+  The rule holds in the project dossier and the team dossier, for people and LLMs.
+  `--allow-credential-like`, for a person at a terminal, writes the text anyway when the match
+  is a false alarm (for example `password: required`), and the journal records
+  that it was used. `check` reports the same matches in files that were changed by hand. The
+  agent rules (R-AGENT-1) say: never write a password, key or token into an entry; write where
+  it is kept. The check catches known shapes only; it is a safety net, not a guarantee.
 
 ### 5.14 Locking and writing — LOCK, IO, EDIT
 
@@ -909,6 +1001,23 @@ depend on which of the two a command was typed on.
   guard that refuses direct edits of files under `DOSSIER/` and names the command to use.
 - **R-AGENT-4 SHOULD** `skill install` writes a Claude Code skill with the same rules and a few
   worked examples.
+- **R-AGENT-5 SHOULD** `hooks install` also adds a Claude Code hook that runs after every shell
+  command of the agent (D39). It reads the hook's payload, as `guard` does, and acts only when
+  the command was a `todo` command that succeeded, typed directly or as `dossier todo …`
+  (R-REMOTE-5); the task ID is taken from the command or from its output:
+  - after a task was claimed (`todo next --claim`, `todo claim <id>`): the output of
+    `brief --task <id>` (R-CTX-2);
+  - after `todo done <id>`: the output of `review-task <id>` (R-DRAFT-1) and, when the task has
+    no usage record, one line that reminds the agent to add one if software was used (R-USE-7);
+  - after `todo stuck <id>`: one line that tells the agent to record what was missing or did not
+    work, with `found --dead-end` or `assume`, or to open an investigation with
+    `problem … --task <id>` (R-INV-9), so that the planner finds it in `brief --task`.
+
+  After any other command it prints nothing. It never blocks or fails the agent's command,
+  never changes a task (D38) or an entry, and stays silent when the folder has no dossier or
+  `todo` is missing. Its text reaches the agent's context; how Claude Code passes it on is
+  checked against Claude Code's documentation when the task is split. `hooks uninstall` removes
+  it with the others.
 
 ### 5.18 Settings — CFG
 
@@ -969,6 +1078,7 @@ depend on which of the two a command was typed on.
 | `received`, `delivered`, `exchange` | what came from and went to the customer | MUST |
 | `ran`, `runs` | simulation runs | MUST |
 | `digest` | summary of a closed milestone | MUST |
+| `problem`, `tried`, `solved`, `gave-up` | investigations: a problem, the attempts in order, what solved it | MUST |
 | `term add`, `term`, `glossary` | glossary | MUST |
 | `pack`, `unpack` | backup archive | MUST |
 | `image add`, `image remove` | pictures in entries | MUST |
@@ -1012,22 +1122,24 @@ A project folder:
     decisions/DEC-001-….md
     assumptions/ASM-001-….md
     findings/FND-001-….md
+    investigations/INV-001-….md   a problem, the attempts in order, what solved it
     values.md                  the key values with their history
     exchange.md                received from and delivered to the customer
     glossary.md                terms of this project
-    digests/T-010.md           summary of each closed milestone
+    digests/DIG-001-….md       summary of each closed milestone
     images/FND-004/….png       pictures shown by entries
     lessons/LES-001-….md       lessons kept in the project only
     howtos/HOW-001-….md        how-tos kept in the project only
     usage/USE-001-….md
     scripts/SCR-001-….md       entries for scripts kept in the project only
     files/T-001.md             the files of each task, by role
+    taken.md                   the files that are taken, and the log of their versions
     .state/
       write.lock
       ids.json                 highest number given out, per kind
       journal.jsonl
       approved.json            checksums of approved lessons and how-tos
-      files.json               files taken, and the log of versions
+      credential-ok.json       lines a person allowed although they look like a credential
       history/                 snapshots
 ```
 
@@ -1124,7 +1236,8 @@ On a PC, in a connected folder: `.dossier-connect`, holding the server and the p
 
 ## 11. Releases
 
-The tool is built in five phases. Each phase ends with something that is used on real work
+The tool is built in six phases, with one patch release (0.3.1) between phases 3 and 4. The
+order after phase 3 was set by D45. Each phase ends with something that is used on real work
 before the next one starts; what is learned there may change the later phases. The non-functional
 requirements (§8), the tests that belong to a phase's requirements (§9) and REL-1 to REL-3 apply
 from phase 1 on.
@@ -1222,7 +1335,32 @@ reports.
 **It worked if:** a task in a new project is shown a lesson and a how-to that came from another
 project, and one finished project has been brought in with at least ten approved entries.
 
-### Phase 4 — Working from the PC (v0.4)
+### Patch release 0.3.1 — Credentials are refused
+
+**Goal:** no write to a project dossier or the team dossier stores a private key, an access
+token or a password, and `check` finds one that was added by hand.
+
+| Area | Requirements |
+|---|---|
+| Credentials | R-CONF-7 (D40) |
+
+It comes before phase 4 because it protects every dossier that is already in use.
+
+### Phase 4 — Investigations (v0.4)
+
+**Goal:** a person or an LLM records a problem, each attempt to solve it with its hypothesis and
+result, and what solved it; the next person or LLM on a similar task sees what was tried and
+what worked.
+
+| Area | Requirements |
+|---|---|
+| Investigations (D41, D42) | R-INV-1 to 10 |
+
+The exact form of an attempt in the file is fixed in `docs/format.md` §28. Pointing to
+investigations after `todo stuck` and `todo done` needs the hook of R-AGENT-5 and comes with it in
+phase 6.
+
+### Phase 5 — Working from the PC (v0.5)
 
 **Goal:** team members and their LLMs use the dossier from their Windows PCs as if it were
 local, and large files are safe when copied out and back.
@@ -1233,13 +1371,13 @@ it without overwriting a colleague's version.
 
 | Area | Requirements |
 |---|---|
-| Remote mode: copying files, connection reuse, connection check | R-REMOTE-4, 7, 8 |
+| Remote mode: copying files, connection check | R-REMOTE-4, 8 (R-REMOTE-7 is not built, D43) |
 | Large files | R-FILE-1 to 7 |
 
 **It worked if:** all three team members work for two weeks without typing `ssh`, and one
 attempted double copy-back was caught.
 
-### Phase 5 — Growing projects and comfort (v0.5)
+### Phase 6 — Growing projects and comfort (v0.6)
 
 **Goal:** the dossier stays small enough for an LLM's context in a long project, and the
 routine steps happen by themselves.
@@ -1247,15 +1385,23 @@ routine steps happen by themselves.
 | Area | Requirements |
 |---|---|
 | Milestone digests | R-CTX-14, 15 |
-| Context extras | R-CTX-6, 8 |
+| Context extras | R-CTX-6 (R-CTX-8 is not built, see there) |
 | Session review | R-DRAFT-7, 9 |
 | Reading extras | R-READ-7, 9 |
 | Repairs, export, schema | R-CHECK-2, R-OUT-6, 7 |
 | Unit warnings | R-ENTRY-11 |
 | Team overview, guide for readers | R-TEAM-5, REL-4 |
+| Hooks after `todo` commands (D39) | R-AGENT-5 |
 
 **It worked if:** `brief` in a project with more than 200 entries still fits its limit and
 still contains what the LLM needed.
+
+### Added on 2026-11-22
+
+Three pieces of work were added after phase 3 was finished: R-AGENT-5 (hooks after `todo`
+commands), R-CONF-7 (refusing credentials) and investigations (D41, D42, R-INV-1 to 10). D45
+places them: R-CONF-7 is the patch release 0.3.1, investigations are phase 4, and R-AGENT-5
+belongs to phase 6 but depends on nothing in phases 4 and 5, so it may be built earlier.
 
 ### Merged commands
 
@@ -1293,7 +1439,7 @@ Where another requirement still names a removed command, the replacement is mean
 - **O-7 Reaching the server in phases 1 to 3.** *Decided 2026-11-20: running commands from the
   PC is part of phase 1, with a per-user register of projects (R-REMOTE-9 to 12). The team's
   network signs in to the server by key without a password. Copying large files stays in
-  phase 4.*
+  phase 5 (numbered 4 before D45).*
 - **O-5 Tags on tasks.** R-CTX-3 uses `machine`, `analysis` and `software` fields on `todo`
   tasks. Whether `todo` 0.8's planner writes them, or the project's default tags are enough, is
   to be seen in the first real project.
@@ -1313,6 +1459,20 @@ Where another requirement still names a removed command, the replacement is mean
 - **I-6** Reading settings out of simulation files to fill a usage record automatically.
 - **I-7** Reminders by mail or chat for drafts that wait too long.
 - **I-8** Translating entries, for teams that write in two languages.
+- **I-9** Measuring whether LLMs follow the agent rules. A test that is skipped by default sets
+  up a temporary project, runs a headless agent session on a few prepared scenarios, each with
+  three prompts (one that asks for the dossier, one that doesn't mention it, one that pushes
+  against it), and checks the journal and the agent's commands against the rules. It prints a
+  rate per rule. A rule with a low rate gets a hook (D39) or better wording. One such hook
+  would hold a session open at its end until a task that was finished in it has its
+  `review-task` and usage record. To be built after R-AGENT-5, so that it measures what the
+  hooks leave open. (Idea taken from ECC's `skill-comply`.)
+- **I-10** Recording when a lesson was applied again and whether it held: an option on `used`
+  such as `--lesson <ID> --held` or `--failed`, next to `--howto`, that adds a line (project
+  code, date, held or not) to the lesson in the team dossier, as R-USE-6 does for how-tos. A
+  reader then sees whether a lesson held in five projects or was seen once, a single
+  contradiction has a place without retiring the lesson, and *Valid for* can grow. To be
+  decided when lessons are really reused across projects.
 
 ---
 
