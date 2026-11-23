@@ -4232,10 +4232,8 @@
 - note (2026-11-23, planner): added
 
 ### T-388 · hooks install --session-review: add the session-end hook
-- status: claimed
+- status: done
 - owner: haiku-T-388
-- claimed: 2026-11-24T00:31+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-339
 - why: Capture only becomes a habit when the routine steps happen by themselves.
@@ -4250,8 +4248,12 @@
   4. Run cargo test --test cmd_hooks
 - accept: hooks install --session-review adds the hook that starts the session review, and uninstall removes it.
 - verify: cargo test --test cmd_hooks
+- verified: 2026-11-24
+- commit: 47aea05
 - reqs: R-DRAFT-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-388): done
 
 ### T-340 · README: the session review
 - status: open
