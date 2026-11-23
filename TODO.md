@@ -3904,10 +3904,8 @@
 - note (2026-11-24, haiku-T-333): done
 
 ### T-334 · status: a digest in place of the entries it covers
-- status: claimed
+- status: done
 - owner: haiku-T-334
-- claimed: 2026-11-24T00:06+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-056
 - why: The context an LLM gets must stay small as a project grows (D22).
@@ -3922,8 +3920,12 @@
   4. Run cargo test --test cmd_status
 - accept: status shows finished milestones as their digests.
 - verify: cargo test --test cmd_status
+- verified: 2026-11-24
+- commit: ca3e992
 - reqs: R-CTX-15
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-334): done
 
 ### T-335 · Agent rules and README: digests
 - status: open
