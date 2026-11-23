@@ -4191,10 +4191,8 @@
 - note (2026-11-24, haiku-T-385): done
 
 ### T-386 · session-end: in the help overview, and run on the PC
-- status: claimed
+- status: done
 - owner: haiku-T-386
-- claimed: 2026-11-24T00:41+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: chore
 - milestone: T-339
 - why: Capture only becomes a habit when the routine steps happen by themselves.
@@ -4209,9 +4207,13 @@
   4. Run cargo test --lib remote::forward:: and cargo test --test smoke
 - accept: The overview lists session-end, and it runs on the PC.
 - verify: cargo test --lib remote::forward:: && cargo test --test smoke
+- verified: 2026-11-24
+- commit: 21a1cf5
 - reqs: R-DRAFT-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): Added tests/cmd_agents.rs: its help overview test lists every command (found in T-359).
+- note (2026-11-24, haiku-T-386): done
 
 ### T-387 · session-end: write the material and start the review command
 - status: claimed
