@@ -3067,8 +3067,10 @@
 - note (2026-11-23, haiku-T-312): done
 
 ### T-313 · forward.rs: send the versions and the subfolder with every command
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-313
+- claimed: 2026-11-23T20:48+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-053
 - why: Team members work on Windows PCs while the one copy of the dossier is on the Linux server.
@@ -3087,10 +3089,8 @@
 - note (2026-11-23, planner): added
 
 ### T-314 · cli.rs: refuse a PC with another format, warn about another version
-- status: claimed
+- status: done
 - owner: haiku-T-314
-- claimed: 2026-11-23T20:47+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-053
 - why: Team members work on Windows PCs while the one copy of the dossier is on the Linux server.
@@ -3104,12 +3104,18 @@
   3. Run cargo test --test remote_version
 - accept: A command from a PC with another format version is refused with a message that says which side to update; another program version is a warning.
 - verify: cargo test --test remote_version
+- verified: 2026-11-23
+- commit: 9a8bad1
 - reqs: R-XOS-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-314): done
 
 ### T-315 · connect --check: the connection, dossier and todo on the server, and the folder
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-315
+- claimed: 2026-11-23T20:48+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-053
 - why: Team members work on Windows PCs while the one copy of the dossier is on the Linux server.
