@@ -37,6 +37,7 @@ pub mod output;
 pub mod paths;
 pub mod picture;
 pub mod remote;
+pub mod secret;
 pub mod select;
 pub mod snapshot;
 pub mod store;
