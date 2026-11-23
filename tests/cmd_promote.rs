@@ -1,13 +1,14 @@
 //! Runs the built program for `promote`: a lesson, a finding and a how-to copied into the team
 //! dossier as drafts linked both ways, the confidential check (a term found, no terms yet), the
-//! refused kinds, pictures (confirmed at a terminal, refused for an LLM) and a team that is not
-//! there. Each test runs in its own temporary project folder (common::Project), with the clock
-//! fixed at 2026-11-20T10:00:00+01:00.
+//! refused kinds, an investigation that needs `--as` and must be solved first (R-INV-8), pictures
+//! (confirmed at a terminal, refused for an LLM) and a team that is not there. Each test runs in
+//! its own temporary project folder (common::Project), with the clock fixed at
+//! 2026-11-20T10:00:00+01:00.
 
 mod common;
 
 use common::Project;
-use dossier::entry::{Entry, Status};
+use dossier::entry::{Entry, Kind, Status};
 use predicates::str::contains;
 use std::path::{Path, PathBuf};
 
@@ -91,6 +92,41 @@ fn entry_in(dossier: &Path, id: &str) -> Entry {
         }
     }
     panic!("no entry {id} in {}", dossier.display());
+}
+
+/// Every file under `folder` with its bytes, sorted by path: a snapshot to compare before and after
+/// a refused command.
+fn files_of(folder: &Path) -> Vec<(PathBuf, Vec<u8>)> {
+    let mut files = Vec::new();
+    let mut pending = vec![folder.to_path_buf()];
+    while let Some(next) = pending.pop() {
+        for item in std::fs::read_dir(&next).expect("the folder is read") {
+            let path = item.expect("a folder entry").path();
+            if path.is_dir() {
+                pending.push(path);
+            } else {
+                let bytes = std::fs::read(&path).expect("the file is read");
+                files.push((path, bytes));
+            }
+        }
+    }
+    files.sort();
+    files
+}
+
+/// Opens INV-001 as anna and closes it as solved (invented text).
+fn solved_investigation(project: &Project) {
+    project.stdout(
+        "anna",
+        &[
+            "problem",
+            "The density residual grows from iteration 40 on.",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &["solved", "INV-001", "The outlet flux had the wrong sign."],
+    );
 }
 
 /// A PNG file's bytes (invented content).
@@ -292,6 +328,73 @@ fn a_confirmed_picture_is_copied_and_a_declined_one_is_left_out() {
         png_bytes()
     );
     assert!(!folder.join("profile.png").exists());
+}
+
+#[test]
+fn an_investigation_without_as_is_a_usage_error_and_writes_nothing() {
+    let (project, _folder, team) = with_team();
+    solved_investigation(&project);
+    let before = files_of(&team);
+    project
+        .run("anna", &["promote", "INV-001"])
+        .code(2)
+        .stderr(contains("add --as howto or --as lesson"));
+    assert_eq!(files_of(&team), before, "the team dossier is not changed");
+    let original = entry_in(&project.root().join("DOSSIER"), "INV-001");
+    assert_eq!(original.field("promoted"), None);
+}
+
+#[test]
+fn an_open_investigation_is_refused_and_the_team_dossier_is_not_written() {
+    let (project, _folder, team) = with_team();
+    project.stdout(
+        "anna",
+        &[
+            "problem",
+            "The density residual grows from iteration 40 on.",
+        ],
+    );
+    let before = files_of(&team);
+    project
+        .run("anna", &["promote", "INV-001", "--as", "howto"])
+        .code(1)
+        .stderr(contains(
+            "INV-001 is not solved yet; close it with dossier solved first",
+        ));
+    assert_eq!(files_of(&team), before, "the team dossier is not changed");
+    let original = entry_in(&project.root().join("DOSSIER"), "INV-001");
+    assert_eq!(original.field("promoted"), None);
+}
+
+#[test]
+fn a_solved_investigation_is_promoted_as_a_lesson_draft_with_its_source() {
+    let (project, _folder, team) = with_team();
+    solved_investigation(&project);
+    let stdout = project.stdout("anna", &["promote", "INV-001", "--as", "lesson"]);
+    assert_eq!(
+        stdout,
+        "INV-001: promoted as team:LES-001 (draft, waiting for approval in the team dossier)\n"
+    );
+
+    let copy = entry_in(&team, "LES-001");
+    assert_eq!(copy.kind(), Some(Kind::Lesson));
+    assert_eq!(copy.status(), Some(Status::Draft));
+    assert_eq!(copy.field("source").as_deref(), Some("P-001:INV-001"));
+
+    let original = entry_in(&project.root().join("DOSSIER"), "INV-001");
+    assert_eq!(original.field("promoted").as_deref(), Some("team:LES-001"));
+}
+
+#[test]
+fn a_solved_investigation_is_promoted_as_a_howto_draft_with_its_source() {
+    let (project, _folder, team) = with_team();
+    solved_investigation(&project);
+    project.stdout("anna", &["promote", "INV-001", "--as", "howto"]);
+
+    let copy = entry_in(&team, "HOW-001");
+    assert_eq!(copy.kind(), Some(Kind::Howto));
+    assert_eq!(copy.status(), Some(Status::Draft));
+    assert_eq!(copy.field("source").as_deref(), Some("P-001:INV-001"));
 }
 
 #[test]

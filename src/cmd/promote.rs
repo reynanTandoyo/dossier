@@ -1,11 +1,13 @@
-//! The `promote` command (docs/design.md section 12, R-TEAM-2, R-TEAM-3, R-ENTRY-18): copies a
-//! finding, a lesson or a how-to of the project into the team dossier as a draft.
+//! The `promote` command (docs/design.md section 12, R-TEAM-2, R-TEAM-3, R-ENTRY-18, R-INV-8):
+//! copies a finding, a lesson, a how-to or a solved investigation of the project into the team
+//! dossier as a draft.
 //!
 //! The order is fixed: the kind and the link are checked, then the confidential terms (the whole
 //! text of the entry must be free of them), then a person confirms each picture, then the team
 //! copy is written (a draft with `source` `<code>:<ID>`), then its pictures, and last the project
 //! entry gets `promoted` `team:<ID>`. A finding becomes a lesson; its Observation becomes the
-//! Statement.
+//! Statement. An investigation becomes the lesson or how-to that `--as` names, and only once it
+//! is solved.
 
 use crate::approval::{self, Mark};
 use crate::cli::Global;
@@ -26,16 +28,20 @@ use std::path::Path;
 /// The section that holds the pictures of an entry (format.md §16).
 const PICTURES: &str = "Pictures";
 
+/// The state of an investigation that is solved (format.md §28).
+const SOLVED: &str = "solved";
+
 /// The fields that are copied to the team copy when the entry has them.
 const COPIED_FIELDS: [&str; 5] = ["confidence", "machine", "analysis", "software", "tags"];
 
 /// The arguments of `promote`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
-    /// The ID of the finding, lesson or how-to to copy to the team dossier, such as LES-004
+    /// The ID of the finding, lesson, how-to or solved investigation to copy to the team
+    /// dossier, such as LES-004
     pub id: String,
     /// The kind of the team copy: lesson or howto (default: the entry's own kind; a finding
-    /// becomes a lesson)
+    /// becomes a lesson; an investigation needs it)
     #[arg(long = "as", value_name = "KIND")]
     pub as_kind: Option<String>,
 }
@@ -109,6 +115,13 @@ fn promote(ctx: &Ctx, id: &str, as_kind: Option<Kind>) -> Result<Promoted> {
             format!("{id} is already promoted as {promoted}"),
         ));
     }
+    // Checked before the team is read: an investigation that is not solved has nothing to copy.
+    if kind == Kind::Investigation && item.entry.field("state").as_deref() != Some(SOLVED) {
+        return Err(Error::new(
+            Code::Refused,
+            format!("{id} is not solved yet; close it with dossier solved first"),
+        ));
+    }
     let who = ctx.writer()?.clone();
     let team = ctx.team_ctx()?;
 
@@ -157,9 +170,20 @@ fn promote(ctx: &Ctx, id: &str, as_kind: Option<Kind>) -> Result<Promoted> {
     })
 }
 
-/// The kind of the team copy. Only findings, lessons and how-tos are promoted; a how-to stays a
-/// how-to and a finding or lesson becomes a lesson.
+/// The kind of the team copy. Only findings, lessons, how-tos and investigations are promoted; a
+/// how-to stays a how-to, a finding or lesson becomes a lesson, and an investigation becomes the
+/// lesson or how-to that `--as` names (R-INV-8).
 fn target_kind(id: &str, kind: Kind, as_kind: Option<Kind>) -> Result<Kind> {
+    if kind == Kind::Investigation {
+        return match as_kind {
+            None => Err(Error::new(
+                Code::Usage,
+                "an investigation is promoted as a how-to or a lesson: add --as howto or --as lesson",
+            )),
+            Some(wanted @ (Kind::Lesson | Kind::Howto)) => Ok(wanted),
+            Some(_) => Err(Error::new(Code::BadValue, "--as must be lesson or howto")),
+        };
+    }
     if !matches!(kind, Kind::Finding | Kind::Lesson | Kind::Howto) {
         return Err(Error::new(
             Code::Refused,
@@ -205,16 +229,18 @@ fn copied_fields(code: &str, id: &str, entry: &Entry) -> Vec<(String, String)> {
 }
 
 /// The sections of the team copy, in the order of its kind, without the Pictures section. A
-/// finding's Observation becomes the Statement.
+/// finding's Observation becomes the Statement. An investigation is copied like a finding for
+/// now: its own sections are not mapped yet.
 fn copied_sections(kind: Kind, target: Kind, entry: &Entry) -> Vec<(String, String)> {
     rules::section_order(target)
         .iter()
         .filter_map(|name| {
-            let from = if kind == Kind::Finding && *name == "Statement" {
-                "Observation"
-            } else {
-                name
-            };
+            let from =
+                if matches!(kind, Kind::Finding | Kind::Investigation) && *name == "Statement" {
+                    "Observation"
+                } else {
+                    name
+                };
             entry
                 .section(from)
                 .filter(|body| !body.trim().is_empty())
