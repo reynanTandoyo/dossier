@@ -104,8 +104,9 @@ fn shown_warning(root: &Path, warning: &str) -> String {
     }
 }
 
-/// The marks of an entry, in this order: its status (design.md section 5); `[due for review]`
-/// when its `review` date is before today (R-LIFE-7); `[imported]` when a document was imported
+/// The marks of an entry, in this order: its status (design.md section 5); the state of an
+/// investigation, `[open]`, `[solved]` or `[given up]` (R-INV-5); `[due for review]` when its
+/// `review` date is before today (R-LIFE-7); `[imported]` when a document was imported
 /// into it (R-IMPORT-5); `[changed after approval]` for an approved guarded entry (lesson,
 /// how-to or tool) whose text differs from its recorded checksum (R-LIFE-6); `[file changed since
 /// approval]` for a tool whose script changed (R-USE-11); then `[rests on <IDs>]` when its
@@ -127,6 +128,9 @@ fn marks(ctx: &Ctx, item: &Item) -> Vec<String> {
         Some(Status::Proposed) => marks.push("[proposed]".to_string()),
         Some(Status::Declined) => marks.push("[declined]".to_string()),
         Some(Status::Approved) | None => {}
+    }
+    if let Some(mark) = investigation_mark(entry) {
+        marks.push(mark);
     }
     if due_for_review(entry, time::date(&time::now())) {
         marks.push("[due for review]".to_string());
@@ -153,6 +157,17 @@ fn marks(ctx: &Ctx, item: &Item) -> Vec<String> {
         marks.push(mark);
     }
     marks
+}
+
+/// The state of an investigation as a mark: `[open]`, `[solved]` or `[given up]` from its `state`
+/// field (format.md §28, R-INV-5), the value compared ignoring case and surrounding spaces. None for
+/// an entry that is not an investigation, and for a state that is none of the three.
+fn investigation_mark(entry: &Entry) -> Option<String> {
+    if entry.kind() != Some(Kind::Investigation) {
+        return None;
+    }
+    let state = entry.field("state")?.trim().to_ascii_lowercase();
+    matches!(state.as_str(), "open" | "solved" | "given up").then(|| format!("[{state}]"))
 }
 
 /// Whether the `review` date of the entry (format.md §23) is before `today`, both as

@@ -1202,3 +1202,76 @@ fn a_team_how_to_is_marked_from_the_team_usage_index() {
         json!(["[not tested with 2502]"])
     );
 }
+
+/// Invented text: the problem of the investigations that the state-mark tests open.
+const INVESTIGATION_PROBLEM: &str =
+    "An invented run stops with a negative pressure after 40 iterations.";
+
+#[test]
+fn an_open_investigation_shows_the_open_mark_and_a_solved_one_the_solved_mark() {
+    let project = Project::new();
+    assert_eq!(
+        project.stdout("anna", &["problem", INVESTIGATION_PROBLEM]),
+        "INV-001: added (open)\n"
+    );
+
+    let text = text_of(&project, "INV-001");
+    assert_eq!(
+        project.stdout("anna", &["show", "INV-001"]),
+        format!("[open]\n{text}")
+    );
+    assert_eq!(show_data(&project, "INV-001")["marks"], json!(["[open]"]));
+
+    assert_eq!(
+        project.stdout(
+            "anna",
+            &["solved", "INV-001", "An invented fix: a smaller time step."],
+        ),
+        "INV-001: solved\n"
+    );
+
+    let text = text_of(&project, "INV-001");
+    assert_eq!(
+        project.stdout("anna", &["show", "INV-001"]),
+        format!("[solved]\n{text}")
+    );
+    assert_eq!(show_data(&project, "INV-001")["marks"], json!(["[solved]"]));
+}
+
+#[test]
+fn a_given_up_investigation_shows_the_given_up_mark() {
+    let project = Project::new();
+    project.stdout("anna", &["problem", INVESTIGATION_PROBLEM]);
+    project.stdout(
+        "anna",
+        &[
+            "gave-up",
+            "INV-001",
+            "--reason",
+            "An invented reason: the time budget ran out.",
+        ],
+    );
+
+    let text = text_of(&project, "INV-001");
+    assert_eq!(
+        project.stdout("anna", &["show", "INV-001"]),
+        format!("[given up]\n{text}")
+    );
+    assert_eq!(
+        show_data(&project, "INV-001")["marks"],
+        json!(["[given up]"])
+    );
+}
+
+#[test]
+fn a_finding_with_a_state_field_gets_no_state_mark() {
+    let project = Project::new();
+    project.write(
+        "DOSSIER/findings/FND-001-state-open.md",
+        &hand_written_finding("FND-001", "approved", "- state: open\n"),
+    );
+
+    let text = text_of(&project, "FND-001");
+    assert_eq!(project.stdout("anna", &["show", "FND-001"]), text);
+    assert_eq!(show_data(&project, "FND-001")["marks"], json!([]));
+}
