@@ -7724,8 +7724,8 @@
 - note (2026-11-22, planner): split into T-288, T-289, T-290, T-291, T-292
 
 ### T-288 · secret.rs: find text that looks like a credential
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-288
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-285
 - why: Dossiers are committed to git, where a credential stays in the history (D40).
@@ -7742,8 +7742,12 @@
   7. Run cargo test --lib secret::
 - accept: secret::find recognises the three kinds of format.md section 27, and added leaves out what was there before or was allowed.
 - verify: cargo test --lib secret::
+- verified: 2026-11-23
+- commit: 18fdbe9
 - reqs: R-CONF-7, D40
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, planner): added
+- note (2026-11-23, haiku-T-288): done
 
 ### T-289 · tx.rs: refuse a write that adds text looking like a credential
 - status: open
