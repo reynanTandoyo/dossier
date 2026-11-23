@@ -4482,17 +4482,19 @@
 - why: Smaller comforts that are worth having once the daily use is settled.
 - summary: A file renamed by mistake is put right by one command.
 - depends: T-341
-- files: src/cmd/check.rs, tests/cmd_check.rs
+- files: src/cmd/check.rs, tests/cmd_check.rs, src/cmd/unpack.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
   1. Args gain `#[arg(long)] pub fix: bool`. With --fix, before the checks run, call a new private `fix(ctx: &Ctx) -> Result<Vec<String>>` that does its repairs inside one tx::write (so check --fix needs a name; without --fix nothing changes) and returns one line per repair. Print each as `fixed: <line>` before the normal check output; on a dry run tx reports them as warnings.
   2. First repair: for every entry file that parses and whose ID appears only once, when its path is not store::path_for(dossier, kind, id, title): rename it with tx.rename(&item, new_path, item.entry.text(), Change { id, event: "fixed", detail: "file name" }); line `<old file> renamed to <new file>`. Skip it when the new path exists already.
   3. tests/cmd_check.rs: a file renamed by hand to `FND-001-wrong.md` is renamed back by `check --fix` and the dossier is ok afterwards; with --dry-run nothing changes; `check --fix` without a name is exit 2; plain `check` still only reports.
-  4. Run cargo test --test cmd_check
+  4. src/cmd/unpack.rs: the check::Args literal (near line 53, `check::run(&check::Args {}, ...)`) gains `fix: false`; nothing else in that file changes.
+  5. Run cargo test --test cmd_check
 - accept: check --fix gives every entry file the name that its ID and title ask for.
 - verify: cargo test --test cmd_check
 - reqs: R-CHECK-2
 - note (2026-11-23, planner): added
+- note (2026-11-23, planner): src/cmd/unpack.rs builds check::Args, so adding --fix needs fix: false there (found before the phase started).
 
 ### T-396 · check --fix: add a missing format line
 - status: open
