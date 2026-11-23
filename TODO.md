@@ -4781,7 +4781,7 @@
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
 - summary: The version number and the README are ready for the owner to tag release 0.6.0.
-- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417, T-418, T-419
+- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417, T-418, T-419, T-421
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -9062,6 +9062,25 @@
 - accept: digest --write refuses a summary with a heading line and writes nothing.
 - verify: cargo test --test cmd_digest
 - reqs: R-CTX-14
+- note (2026-11-24, planner): added
+
+### T-421 · search --similar: show why each entry is similar
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: feature
+- milestone: T-058
+- why: Each result printed its title twice (found in T-345); the reason of select.rs says more.
+- summary: search --similar tells for each result what it shares with the entry, instead of repeating its title.
+- depends: T-345, T-392
+- files: src/cmd/search.rs, tests/cmd_search.rs
+- read: src/select.rs, docs/design.md
+- steps:
+  1. src/cmd/search.rs, --similar: after the dash, print why the entry was chosen, from the reason that select.rs gives since T-392 (for example `shares tags: aero, cfd; words: stall, margin`), in place of repeating the title. The plain word search stays as it is. In --json, each result of --similar gains the field `reason` with that text.
+  2. tests/cmd_search.rs: the --similar tests expect the reason after the dash and no repeated title; one test checks the `reason` field in --json.
+  3. Run cargo test --test cmd_search
+- accept: search --similar prints the reason after the dash and gives it in --json.
+- verify: cargo test --test cmd_search
+- reqs: R-READ-9
 - note (2026-11-24, planner): added
 
 ## Questions
