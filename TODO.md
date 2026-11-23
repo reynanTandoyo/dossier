@@ -3228,17 +3228,19 @@
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
 - summary: The two new commands become part of the program.
 - depends: T-366
-- files: src/cmd/mod.rs, src/cli.rs, src/cmd/help.rs
+- files: src/cmd/mod.rs, src/cli.rs, src/cmd/help.rs, tests/cmd_agents.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
   1. src/cmd/mod.rs: `pub mod return_cmd;` and `pub mod take;` at their alphabetical places.
   2. src/cli.rs: variants `Take(cmd::take::Args)` and `Return(cmd::return_cmd::Args)` in the Command enum and two arms in the match of main_exit with the names "take" and "return".
   3. src/cmd/help.rs: ("take", "Records who took a file") and ("return", "Checks or ends a take") in COMMANDS, and the array length raised by two.
-  4. Run cargo build and cargo test --test smoke; `dossier take` must answer `take is not built yet` with exit 2.
+  4. tests/cmd_agents.rs: help_without_a_topic_lists_every_command_in_order compares the whole list that `dossier help` prints; when the new commands now appear in it, add them to the expected list at the place where `dossier help` prints them, and change nothing else in that file.
+  5. Run cargo build and cargo test --test smoke; `dossier take` must answer `take is not built yet` with exit 2.
 - accept: take and return are part of the program and the overview.
 - verify: cargo build && cargo test --test smoke
 - reqs: R-FILE-1, R-FILE-2
 - note (2026-11-23, planner): added
+- note (2026-11-23, planner): Added tests/cmd_agents.rs: its help overview test lists every command (found in T-359).
 
 ### T-370 · ctx.rs: take and return are writing commands
 - status: open
@@ -3661,16 +3663,18 @@
 - why: The context an LLM gets must stay small as a project grows (D22).
 - summary: The new command is listed.
 - depends: T-376
-- files: src/cmd/help.rs, src/ctx.rs
+- files: src/cmd/help.rs, src/ctx.rs, tests/cmd_agents.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
   1. src/cmd/help.rs: ("digest", "Sums up a closed milestone") in COMMANDS, length raised by one.
   2. src/ctx.rs: "digest" in WRITING, length raised by one.
-  3. Run cargo test --lib ctx:: and cargo test --test smoke
+  3. tests/cmd_agents.rs: help_without_a_topic_lists_every_command_in_order compares the whole list that `dossier help` prints; when the new commands now appear in it, add them to the expected list at the place where `dossier help` prints them, and change nothing else in that file.
+  4. Run cargo test --lib ctx:: and cargo test --test smoke
 - accept: The overview lists digest, and it follows the name rule of writing commands.
 - verify: cargo test --lib ctx:: && cargo test --test smoke
 - reqs: R-CTX-14
 - note (2026-11-23, planner): added
+- note (2026-11-23, planner): Added tests/cmd_agents.rs: its help overview test lists every command (found in T-359).
 
 ### T-378 · digest <milestone>: the material for the summary
 - status: open
@@ -3871,17 +3875,19 @@
 - why: Capture only becomes a habit when the routine steps happen by themselves.
 - summary: The two new commands become part of the program.
 - depends: T-380
-- files: src/cmd/mod.rs, src/cli.rs, src/cmd/help.rs
+- files: src/cmd/mod.rs, src/cli.rs, src/cmd/help.rs, tests/cmd_agents.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
   1. src/cmd/mod.rs: `pub mod review_session;` and `pub mod session;` at their alphabetical places.
   2. src/cli.rs: `ReviewSession(cmd::review_session::Args)` and `Session(cmd::session::Args)` in the Command enum, and two arms in the match of main_exit with the names "review-session" and "session".
   3. src/cmd/help.rs: ("review-session", "Material from a session file") and ("session", "Converts a transcript") in COMMANDS, length raised by two.
-  4. Run cargo build and cargo test --test smoke
+  4. tests/cmd_agents.rs: help_without_a_topic_lists_every_command_in_order compares the whole list that `dossier help` prints; when the new commands now appear in it, add them to the expected list at the place where `dossier help` prints them, and change nothing else in that file.
+  5. Run cargo build and cargo test --test smoke
 - accept: The two commands are part of the program and the overview.
 - verify: cargo build && cargo test --test smoke
 - reqs: R-DRAFT-7
 - note (2026-11-23, planner): added
+- note (2026-11-23, planner): Added tests/cmd_agents.rs: its help overview test lists every command (found in T-359).
 
 ### T-382 · review-session and session run on the PC; the drafting rules become public
 - status: open
@@ -4003,16 +4009,18 @@
 - why: Capture only becomes a habit when the routine steps happen by themselves.
 - summary: The hook command is listed and stays on the PC.
 - depends: T-385
-- files: src/cmd/help.rs, src/remote/forward.rs
+- files: src/cmd/help.rs, src/remote/forward.rs, tests/cmd_agents.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
   1. src/cmd/help.rs: ("session-end", "Starts the session review") in COMMANDS, length raised by one.
   2. src/remote/forward.rs: "session-end" in LOCAL_COMMANDS, length raised by one.
-  3. Run cargo test --lib remote::forward:: and cargo test --test smoke
+  3. tests/cmd_agents.rs: help_without_a_topic_lists_every_command_in_order compares the whole list that `dossier help` prints; when the new commands now appear in it, add them to the expected list at the place where `dossier help` prints them, and change nothing else in that file.
+  4. Run cargo test --lib remote::forward:: and cargo test --test smoke
 - accept: The overview lists session-end, and it runs on the PC.
 - verify: cargo test --lib remote::forward:: && cargo test --test smoke
 - reqs: R-DRAFT-9
 - note (2026-11-23, planner): added
+- note (2026-11-23, planner): Added tests/cmd_agents.rs: its help overview test lists every command (found in T-359).
 
 ### T-387 · session-end: write the material and start the review command
 - status: open
@@ -4146,17 +4154,19 @@
 - why: Smaller comforts that are worth having once the daily use is settled.
 - summary: The three new commands become part of the program.
 - depends: T-389
-- files: src/cmd/mod.rs, src/cli.rs, src/cmd/help.rs
+- files: src/cmd/mod.rs, src/cli.rs, src/cmd/help.rs, tests/cmd_agents.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
   1. src/cmd/mod.rs: `pub mod export;`, `pub mod schema;`, `pub mod story;` at their alphabetical places.
   2. src/cli.rs: `Story(cmd::story::Args)`, `Export(cmd::export::Args)`, `Schema(cmd::schema::Args)` in the Command enum and three arms in the match of main_exit with the names "story", "export", "schema".
   3. src/cmd/help.rs: ("story", "Decisions in the order made"), ("export", "Writes the project as Markdown"), ("schema", "Describes commands and JSON") in COMMANDS, length raised by three; make the COMMANDS constant `pub`.
-  4. Run cargo build and cargo test --test smoke
+  4. tests/cmd_agents.rs: help_without_a_topic_lists_every_command_in_order compares the whole list that `dossier help` prints; when the new commands now appear in it, add them to the expected list at the place where `dossier help` prints them, and change nothing else in that file.
+  5. Run cargo build and cargo test --test smoke
 - accept: The three commands are part of the program and the overview, and the command list can be read by other modules.
 - verify: cargo build && cargo test --test smoke
 - reqs: R-READ-7, R-OUT-6, R-OUT-7
 - note (2026-11-23, planner): added
+- note (2026-11-23, planner): Added tests/cmd_agents.rs: its help overview test lists every command (found in T-359).
 
 ### T-342 · story: the decisions in the order they were made
 - status: open
@@ -7668,16 +7678,18 @@
 - why: A rule that an agent must remember is followed only some of the time; a hook runs every time (D39).
 - summary: The hook command is listed and stays on the PC, where Claude Code runs.
 - depends: T-398
-- files: src/cmd/help.rs, src/remote/forward.rs
+- files: src/cmd/help.rs, src/remote/forward.rs, tests/cmd_agents.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
   1. src/cmd/help.rs: add ("after", "Adds context after todo commands") to COMMANDS, next to guard, and raise the array length in its type by one.
   2. src/remote/forward.rs: add "after" to LOCAL_COMMANDS and raise its length by one; extend the comment above it: `after` reads the payload of the Claude Code on the PC.
-  3. Run cargo test --lib remote::forward:: and cargo test --test smoke
+  3. tests/cmd_agents.rs: help_without_a_topic_lists_every_command_in_order compares the whole list that `dossier help` prints; when the new commands now appear in it, add them to the expected list at the place where `dossier help` prints them, and change nothing else in that file.
+  4. Run cargo test --lib remote::forward:: and cargo test --test smoke
 - accept: The overview lists `after`, and in a connected folder it runs on the PC and is not sent to the server.
 - verify: cargo test --lib remote::forward:: && cargo test --test smoke
 - reqs: R-AGENT-5
 - note (2026-11-23, planner): added
+- note (2026-11-23, planner): Added tests/cmd_agents.rs: its help overview test lists every command (found in T-359).
 
 ### T-400 · after: the text for a claimed, finished or given-back task
 - status: open
@@ -7991,7 +8003,7 @@
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
 - summary: The four new commands become part of the program.
 - depends: T-357, T-358
-- files: src/cmd/mod.rs, src/cli.rs, src/cmd/help.rs
+- files: src/cmd/mod.rs, src/cli.rs, src/cmd/help.rs, tests/cmd_agents.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
   1. src/cmd/mod.rs: `pub mod gave_up;`, `pub mod problem;`, `pub mod solved;`, `pub mod tried;`, each at its alphabetical place.
@@ -8002,6 +8014,8 @@
 - verify: cargo build && cargo test --test smoke
 - reqs: R-INV-2, R-INV-3, R-INV-4
 - note (2026-11-23, planner): added
+- note (2026-11-23, planner): The help overview test in tests/cmd_agents.rs lists every command, so registering new commands changes its expected list; the file was added to this task.
+- note (2026-11-23, planner): forced set (owner was haiku-T-359)
 
 ### T-360 · ctx.rs: problem, tried, solved and gave-up are writing commands
 - status: done
