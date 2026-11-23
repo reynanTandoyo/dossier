@@ -3178,6 +3178,7 @@
 - reqs: R-FILE-1 to R-FILE-7, R-REMOTE-4, D15, TEST-7, TEST-10
 - note (2026-11-20, planner): added
 - note (2026-11-23, planner): split into T-318, T-319, T-320, T-321, T-322, T-323, T-324, T-325, T-326, T-327, T-328
+- note (2026-11-23, planner): For TEST-10: a file returned from a PC gets the umask of the server's sftp-server (often 0644). If colleagues must replace each other's files, run sftp-server with a group umask (Subsystem sftp ... -u 002) or use folder ACLs. Checked end to end on 2026-11-23 against OpenSSH 10.2 in WSL: take, retake (kept), return --done from a subfolder, paths with spaces.
 
 ### T-318 · v0.5 skeleton: stubs for take, return, taken.rs and remote/transfer.rs
 - status: done
