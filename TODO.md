@@ -8656,8 +8656,8 @@
 - note (2026-11-23, haiku-T-405): done
 
 ### T-406 · transfer.rs: take from a PC sends the versions and the subfolder
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-406
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-325
 - why: Every forwarded command carries the PC's versions and the subfolder (design.md section 16); without them the server skips its version check and a path typed in a subfolder means another file.
@@ -8673,8 +8673,12 @@
   5. Run cargo test --lib remote::transfer:: and cargo test --lib remote::forward::
 - accept: take from a PC runs on the server with DOSSIER_CLIENT_VERSION, DOSSIER_CLIENT_FORMAT and the subfolder of the current folder.
 - verify: cargo test --lib remote::transfer:: && cargo test --lib remote::forward::
+- verified: 2026-11-23
+- commit: 2efb71d
 - reqs: R-REMOTE-4, R-XOS-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-406): done
 
 ### T-407 · transfer.rs: take copies through a part file and keeps a local file
 - status: open
