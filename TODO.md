@@ -3612,7 +3612,8 @@
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
   1. Add a section `### Large files: take and return` under `## Remote mode: from a Windows PC`: the three steps (take, work locally, return --done), what a refused take looks like, `return --check`, `--abandon`, `--force`, `files --taken` and `files --log`, and what to do when a copy failed (run the same command again). State plainly that dossier never stores the files: it records who has them and checks before they come back.
-  2. Run cargo test --test smoke
+  2. README.md, in the large-files part: one sentence that take and return from a PC need scp from OpenSSH 8.7 or newer (it is run with -s, the SFTP protocol); Windows 11 has it, and an older scp stops with an unknown-option error. Check the version with `ssh -V`.
+  3. Run cargo test --test smoke
 - accept: The README explains how to take a simulation file to a PC and return it safely.
 - verify: cargo test --test smoke
 - reqs: R-FILE-1 to R-FILE-5, REL-2
@@ -8624,8 +8625,10 @@
 - note (2026-11-23, haiku-T-403): done
 
 ### T-405 · transfer.rs: scp in SFTP mode with an unquoted, glob-escaped remote path
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-405
+- claimed: 2026-11-23T22:10+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-325
 - why: scp has used the SFTP protocol by default since OpenSSH 9.0; a shell-quoted remote path is then not found, and an unescaped * copies other files too (tested 2026-11-23).
