@@ -4091,8 +4091,10 @@
 - note (2026-11-23, planner): added
 
 ### T-338 · hooks.rs: the SessionEnd hook for the session review
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-338
+- claimed: 2026-11-24T00:05+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-057
 - why: Capture only becomes a habit when the routine steps happen by themselves.
