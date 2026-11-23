@@ -1195,9 +1195,14 @@ pub fn log(file: &BlockFile, path: &str) -> Vec<String>;
 // remote/transfer.rs (R-REMOTE-4): `take` and `return` in a connected folder
 /// The scp program: DOSSIER_SCP, else `scp`.
 pub fn program() -> std::ffi::OsString;
-/// The arguments of scp: -o BatchMode=yes -o ConnectTimeout=<n> -p, then source and target.
+/// The arguments of scp: -s -o BatchMode=yes -o ConnectTimeout=<n> -p, then source and target.
+/// -s forces the SFTP protocol (OpenSSH 8.7 or newer; the default from 9.0 on), so that the remote
+/// path is read the same way by every scp.
 pub fn argv(source: &str, target: &str, timeout: u64) -> Vec<String>;
-/// "<server>:<quoted folder/stored>" for scp.
+/// "<server>:<folder/stored>" for scp, not shell-quoted: in SFTP mode the path reaches the server
+/// as written, and quotes would become part of the name. Each `\`, `*`, `?`, `[` and `]` gets a
+/// backslash in front, so that the SFTP glob matches only this file (tested against OpenSSH 10.2,
+/// 2026-11-23: a quoted path is not found, and an unescaped `a*b.sim` also copies `axxb.sim`).
 pub fn remote_path(server: &str, folder: &str, stored: &str) -> String;
 /// Called by forward::maybe for `take` and `return` when the folder is connected; Some(exit code).
 pub fn maybe(command: &str, args: &[String], base: &Path, pointer: &Pointer, agent: Option<&str>)

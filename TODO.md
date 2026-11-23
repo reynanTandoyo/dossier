@@ -3498,6 +3498,7 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, haiku-T-371): done
+- note (2026-11-23, planner): Its remote_path shell-quoted the path, which SFTP-mode scp reads literally; fixed by T-405 (found with a real sshd in WSL).
 
 ### T-372 · transfer.rs: take from a PC
 - status: open
@@ -3506,7 +3507,7 @@
 - milestone: T-325
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
 - summary: Taking a simulation file from the PC: the server notes it, then the file is copied down.
-- depends: T-371
+- depends: T-371, T-405
 - files: src/remote/transfer.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -8621,6 +8622,26 @@
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): Owner, 2026-11-23: replace, do not refuse; only the four separator forms, so plain em dashes stay.
 - note (2026-11-23, haiku-T-403): done
+
+### T-405 · transfer.rs: scp in SFTP mode with an unquoted, glob-escaped remote path
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-325
+- why: scp has used the SFTP protocol by default since OpenSSH 9.0; a shell-quoted remote path is then not found, and an unescaped * copies other files too (tested 2026-11-23).
+- summary: Copies to and from the server find exactly the right file, also when its name has spaces, quotes or wildcard characters.
+- depends: T-371
+- files: src/remote/transfer.rs
+- read: docs/design.md
+- steps:
+  1. src/remote/transfer.rs, argv: put "-s" first, before "-o", "BatchMode=yes"; everything else stays in its order. Update the doc comment to the one of docs/design.md section 17.
+  2. src/remote/transfer.rs, remote_path: return `format!("{server}:{}", escaped)` where escaped is `format!("{folder}/{stored}")` with a backslash put in front of each `\`, `*`, `?`, `[` and `]`, and nothing else changed: no quotes, spaces and `'` and non-ASCII stay as they are. Do not call ssh::quote; remove the `use crate::remote::ssh;` line if nothing else uses it. Update the doc comment to the one of docs/design.md section 17.
+  3. src/remote/transfer.rs, unit tests: replace the two remote_path tests: `remote_path("anna@server", "/srv/my project", "sim/run 1.sim")` is `"anna@server:/srv/my project/sim/run 1.sim"`; `remote_path("anna@server", "/srv/p", "it's Grüße [2]*?.sim")` is `"anna@server:/srv/p/it's Grüße \\[2\\]\\*\\?.sim"` (in Rust source: each backslash of the result written as `\\`); and argv's first argument is `-s`. Change any other test of argv that lists the arguments so that `-s` comes first.
+  4. Run cargo test --lib remote::transfer::
+- accept: argv starts with -s, and remote_path gives the path unquoted with \ * ? [ ] escaped by a backslash.
+- verify: cargo test --lib remote::transfer::
+- reqs: R-REMOTE-4, R-XOS-2
+- note (2026-11-23, planner): added
 
 ## Questions
 
