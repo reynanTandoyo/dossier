@@ -1276,7 +1276,7 @@ pub const RULES: [&str; 5];
 | Command | Arguments | Result |
 |---|---|---|
 | `digest` | `<milestone>` | the material: the milestone's title and goal (`todo show`), its tasks with status (`todo list --milestone`), the decisions, assumptions, findings, dead ends and investigations of those tasks, then RULES; changes nothing |
-| `digest` | `<milestone> --write --stdin` | a digest entry: Summary from standard input (at most 15 lines, Code::BadValue above), `milestone`, `tasks` (the milestone and its tasks, from todo); refused while the milestone is not done in todo; a second digest for a milestone supersedes the first |
+| `digest` | `<milestone> --write --stdin` | a digest entry: Summary from standard input (at most 15 lines, Code::BadValue above), `milestone`, `tasks` (the milestone and its tasks, from todo); refused while the milestone is not done in todo; no Summary line may start with the heading mark `##` (Code::BadValue, as in `problem`); a second digest for a milestone that already has an approved one is written too, with the warning `<old ID> already sums up <ms>: replace it with dossier supersede <old ID> --by <new ID>`, because replacing an approved entry is a person's decision (T-379) |
 | `decide` | also `--standing` | the field `standing: yes` |
 
 `brief` and `status` print, for each digest in force, `<DIG-ID> · <milestone> · <title>` and its
