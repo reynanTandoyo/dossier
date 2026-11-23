@@ -8354,8 +8354,8 @@
 - note (2026-11-23, planner): added
 
 ### T-308 · promote: a solved investigation becomes a how-to or lesson draft for the team
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - milestone: T-287
 - goal: A solved investigation is promoted to the team dossier as a how-to or lesson draft, after the confidentiality check.
@@ -8364,8 +8364,10 @@
 - depends: T-300
 - accept: A solved investigation reaches the team dossier as a how-to or lesson draft, after the confidentiality check.
 - reqs: R-INV-8, R-TEAM-2, R-CONF-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): split into T-364, T-365
+- note (2026-11-23, planner): done — A solved investigation is promoted as a how-to or lesson draft whose sections come from its problem, attempts and solution.
 
 ### T-364 · promote: an investigation needs --as, and must be solved
 - status: done
