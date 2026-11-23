@@ -3699,10 +3699,8 @@
 - note (2026-11-23, planner): split into T-329, T-330, T-331, T-332, T-333, T-334, T-335
 
 ### T-329 · Entry kinds: the digest (DIG)
-- status: claimed
+- status: done
 - owner: haiku-T-329
-- claimed: 2026-11-23T23:45+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-056
 - why: The context an LLM gets must stay small as a project grows (D22).
@@ -3717,8 +3715,12 @@
   5. Run cargo test --lib entry:: and cargo build; where the compiler asks for a match arm for Digest, add the arm that treats it like a lesson.
 - accept: The program knows the digest as a kind of entry with its folder, section and fields.
 - verify: cargo test --lib entry::
+- verified: 2026-11-23
+- commit: b3ef2ae
 - reqs: R-CTX-14, D22
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-329): done
 
 ### T-330 · digest.rs: which digest covers which entry
 - status: open
