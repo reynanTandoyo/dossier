@@ -1,6 +1,7 @@
 //! Runs the built program for `files`: the file lists of the tasks, grouped by role with their
 //! marks, narrowed by --task, --role and words, and as they were on a day with --on (R-FILE-11,
-//! R-LIFE-9). Each test runs in its own temporary project folder with the clock fixed by
+//! R-LIFE-9); the taken files with --taken and the versions of one file with --log (R-FILE-5).
+//! Each test runs in its own temporary project folder with the clock fixed by
 //! `common::Project` (2026-11-20T10:00:00+01:00). The modification dates of the files are the
 //! real ones, so the tests take them from the lists.
 
@@ -45,6 +46,22 @@ fn attach_model(project: &Project) {
 fn attach_result(project: &Project, task: &str, path: &str) {
     project.write(path, RESULT);
     project.stdout("anna", &["attach", task, path, "--role", "result"]);
+}
+
+/// Takes `path` for `task` as `agent`, at the fixed clock.
+fn take_file(project: &Project, agent: &str, task: &str, path: &str) {
+    project.stdout(agent, &["take", path, "--task", task]);
+}
+
+/// The standard output of `files` run as anna with the clock set to `now`.
+fn files_at(project: &Project, now: &str, args: &[&str]) -> String {
+    let output = project
+        .run_at("anna", now, args)
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    String::from_utf8(output).expect("the standard output is UTF-8")
 }
 
 #[test]
@@ -269,4 +286,197 @@ fn a_list_that_cannot_be_read_is_a_warning_unless_its_task_is_asked_for() {
         .run("anna", &["files", "--task", "T-003"])
         .failure()
         .stderr(contains("no heading"));
+}
+
+#[test]
+fn a_taken_file_is_marked_in_its_list_and_listed_by_taken() {
+    let project = Project::new();
+    attach_model(&project);
+    attach_result(&project, "T-001", "results/run1.csv");
+    take_file(&project, "anna", "T-001", "models/wing-v3.step");
+    take_file(&project, "ben", "T-001", "results/run1.csv");
+
+    let model = modified_day(&project, "T-001", "models/wing-v3.step");
+    let result = modified_day(&project, "T-001", "results/run1.csv");
+    assert_eq!(
+        project.stdout("anna", &["files", "--task", "T-001"]),
+        format!(
+            "model\n  models/wing-v3.step  first mesh  {model}  [taken by anna]\n\
+             result\n  results/run1.csv  {result}  [taken by ben]\n"
+        )
+    );
+    assert_eq!(
+        project.stdout("anna", &["files"]),
+        format!(
+            "T-001  models/wing-v3.step  first mesh  {model}  [taken by anna]\n\
+             T-001  results/run1.csv  {result}  [taken by ben]\n"
+        )
+    );
+    assert_eq!(
+        project.stdout("anna", &["files", "--taken"]),
+        "models/wing-v3.step  anna  T-001  since 2026-11-20\n\
+         results/run1.csv  ben  T-001  since 2026-11-20\n"
+    );
+}
+
+#[test]
+fn a_take_is_marked_with_its_age_only_above_take_days() {
+    let project = Project::new();
+    attach_model(&project);
+    take_file(&project, "anna", "T-001", "models/wing-v3.step");
+
+    // Taken on 20 Nov: 14 days is not above take_days (14); 15 and 20 days are, with their age.
+    assert_eq!(
+        files_at(&project, "2026-12-04T10:00:00+01:00", &["files", "--taken"]),
+        "models/wing-v3.step  anna  T-001  since 2026-11-20\n"
+    );
+    assert_eq!(
+        files_at(&project, "2026-12-05T10:00:00+01:00", &["files", "--taken"]),
+        "models/wing-v3.step  anna  T-001  since 2026-11-20  [taken 15 days]\n"
+    );
+    assert_eq!(
+        files_at(&project, "2026-12-10T10:00:00+01:00", &["files", "--taken"]),
+        "models/wing-v3.step  anna  T-001  since 2026-11-20  [taken 20 days]\n"
+    );
+}
+
+#[test]
+fn json_names_each_taken_file_with_its_days_and_none_is_an_empty_list() {
+    let project = Project::new();
+    attach_model(&project);
+    assert_eq!(
+        project.stdout("anna", &["files", "--taken"]),
+        "no files are taken\n"
+    );
+    let empty = project.stdout("anna", &["files", "--taken", "--json"]);
+    let value: serde_json::Value =
+        serde_json::from_str(empty.trim_end()).expect("one line of JSON");
+    assert_eq!(value["data"]["taken"], json!([]));
+
+    take_file(&project, "anna", "T-001", "models/wing-v3.step");
+    let output = project.stdout("anna", &["files", "--taken", "--json"]);
+    let value: serde_json::Value =
+        serde_json::from_str(output.trim_end()).expect("one line of JSON");
+    assert_eq!(value["schema"], "dossier.files.v1");
+    assert_eq!(value["ok"], true);
+    assert_eq!(
+        value["data"]["taken"],
+        json!([{
+            "path": "models/wing-v3.step",
+            "person": "anna",
+            "task": "T-001",
+            "since": "2026-11-20T10:00:00+01:00",
+            "days": 0,
+        }])
+    );
+}
+
+#[test]
+fn log_lists_the_take_and_the_return_of_a_file_and_a_return_ends_the_take() {
+    let project = Project::new();
+    attach_model(&project);
+    assert_eq!(
+        project.stdout("anna", &["files", "--log", "models/wing-v3.step"]),
+        "nothing recorded for models/wing-v3.step\n"
+    );
+
+    take_file(&project, "anna", "T-001", "models/wing-v3.step");
+    project
+        .run_at(
+            "anna",
+            "2026-11-22T09:00:00+01:00",
+            &["return", "models/wing-v3.step", "--done"],
+        )
+        .success();
+
+    let log = project.stdout("anna", &["files", "--log", "models/wing-v3.step"]);
+    let lines: Vec<&str> = log.lines().collect();
+    assert_eq!(lines.len(), 2, "{log}");
+    assert!(
+        lines[0].starts_with("2026-11-20T10:00:00+01:00 anna: taken — T-001 "),
+        "{log}"
+    );
+    assert!(
+        lines[1].starts_with("2026-11-22T09:00:00+01:00 anna: returned — "),
+        "{log}"
+    );
+
+    let json_output = project.stdout("anna", &["files", "--log", "models/wing-v3.step", "--json"]);
+    let value: serde_json::Value =
+        serde_json::from_str(json_output.trim_end()).expect("one line of JSON");
+    assert_eq!(value["data"]["path"], "models/wing-v3.step");
+    assert_eq!(value["data"]["log"].as_array().map(Vec::len), Some(2));
+
+    // The returned file is no longer taken, and its list shows no mark.
+    assert_eq!(
+        project.stdout("anna", &["files", "--taken"]),
+        "no files are taken\n"
+    );
+    let model = modified_day(&project, "T-001", "models/wing-v3.step");
+    assert_eq!(
+        project.stdout("anna", &["files", "--task", "T-001"]),
+        format!("model\n  models/wing-v3.step  first mesh  {model}\n")
+    );
+}
+
+#[test]
+fn a_taken_path_with_spaces_and_non_ascii_is_listed_and_logged() {
+    let project = Project::new();
+    project.write("Modelle ü/Lauf 1.sim", MODEL);
+    project.stdout(
+        "anna",
+        &["attach", "T-001", "Modelle ü/Lauf 1.sim", "--role", "model"],
+    );
+    take_file(&project, "anna", "T-001", "Modelle ü/Lauf 1.sim");
+
+    assert_eq!(
+        project.stdout("anna", &["files", "--taken"]),
+        "Modelle ü/Lauf 1.sim  anna  T-001  since 2026-11-20\n"
+    );
+    let log = project.stdout("anna", &["files", "--log", "Modelle ü/Lauf 1.sim"]);
+    assert!(
+        log.starts_with("2026-11-20T10:00:00+01:00 anna: taken — T-001 "),
+        "{log}"
+    );
+}
+
+#[test]
+fn a_taken_md_that_cannot_be_read_is_a_warning_in_the_lists_and_an_error_for_taken() {
+    let project = Project::new();
+    attach_model(&project);
+    project.write("DOSSIER/taken.md", "not a block file\n");
+
+    project
+        .run("anna", &["files", "--task", "T-001"])
+        .success()
+        .stdout(contains("models/wing-v3.step  first mesh"))
+        .stderr(contains(
+            "warning: marks of taken files are left out: taken.md: line 1: no heading",
+        ));
+    project
+        .run("anna", &["files", "--taken"])
+        .failure()
+        .stderr(contains("taken.md: line 1: no heading"));
+}
+
+#[test]
+fn taken_and_log_take_no_list_option_and_not_each_other() {
+    let project = Project::new();
+    project
+        .run("anna", &["files", "--taken", "--task", "T-001"])
+        .failure()
+        .stderr(contains(
+            "--taken and --log are not narrowed by --task, --role, --on, --all or words",
+        ));
+    project
+        .run("anna", &["files", "--log", "models/wing-v3.step", "--all"])
+        .failure()
+        .stderr(contains("--taken and --log are not narrowed"));
+    project
+        .run(
+            "anna",
+            &["files", "--taken", "--log", "models/wing-v3.step"],
+        )
+        .failure()
+        .stderr(contains("give --taken or --log, not both"));
 }

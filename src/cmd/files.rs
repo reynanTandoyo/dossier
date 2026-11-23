@@ -2,7 +2,10 @@
 //! tasks with their marks. With `--task` the list of one task, grouped by role in the order of
 //! `filelist::ROLES` and then the other roles; without it every list, each line with its task.
 //! `--role` and words narrow the lines. Detached files are left out unless `--all`. With `--on`
-//! the lists are shown as they were on that day, without marks.
+//! the lists are shown as they were on that day, without marks. A file taken now (R-FILE-1) gets
+//! the mark `taken by <person>`. `--taken` lists the files taken now, with the days of the old
+//! takes (R-FILE-5, R-FILE-7); `--log <file>` lists every recorded version of one file. Neither
+//! takes a narrowing option, and they are not used together.
 
 use crate::blockfile::BlockFile;
 use crate::cli::Global;
@@ -11,6 +14,8 @@ use crate::ctx::Ctx;
 use crate::error::{Code, Error, Result};
 use crate::filelist;
 use crate::output::Output;
+use crate::paths;
+use crate::taken::{self, Take};
 use crate::time;
 use chrono::NaiveDate;
 use serde_json::json;
@@ -33,6 +38,12 @@ pub struct Args {
     /// Also the detached files
     #[arg(long)]
     pub all: bool,
+    /// The files taken now: who took each, for which task, since when, and its age when it is old
+    #[arg(long)]
+    pub taken: bool,
+    /// Every recorded version of one file, with the task it came from (R-FILE-5)
+    #[arg(long, value_name = "file")]
+    pub log: Option<String>,
 }
 
 /// What a file of a list must hold to be shown.
@@ -60,9 +71,23 @@ struct Line {
 
 /// Runs `files`: the lines of the lists that the arguments choose, as text and as data. A list
 /// that cannot be read is a warning when every list is shown, and an error when one task is asked
-/// for.
+/// for. `--taken` and `--log` are their own listings and are refused with the list options.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
+    if args.taken && args.log.is_some() {
+        return Err(usage("give --taken or --log, not both"));
+    }
+    if (args.taken || args.log.is_some()) && narrowed(args) {
+        return Err(usage(
+            "--taken and --log are not narrowed by --task, --role, --on, --all or words",
+        ));
+    }
     let ctx = Ctx::load(g, "files")?;
+    if args.taken {
+        return taken_files(&ctx);
+    }
+    if let Some(typed) = &args.log {
+        return log_of(&ctx, typed);
+    }
     let task = args.task.as_deref().map(task_of).transpose()?;
     let choice = Choice {
         role: args
@@ -86,9 +111,23 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     };
     let mut lines = Vec::new();
     let mut warnings = Vec::new();
+    // The taken files give the marks. A taken.md that cannot be read is a warning, and the lists
+    // are shown without those marks.
+    let taken_file = match taken::load(&ctx.dossier, &ctx.cfg.code) {
+        Ok((file, _)) => Some(file),
+        Err(error) => {
+            warnings.push(format!(
+                "marks of taken files are left out: {}",
+                error.message
+            ));
+            None
+        }
+    };
     for name in &names {
         match filelist::load(&ctx.dossier, name) {
-            Ok((file, _)) => lines.extend(list_lines(&ctx, name, &file, &choice)),
+            Ok((file, _)) => {
+                lines.extend(list_lines(&ctx, name, &file, &choice, taken_file.as_ref()))
+            }
             Err(error) if task.is_some() => return Err(error),
             Err(error) => warnings.push(format!(
                 "{}: {}",
@@ -109,8 +148,15 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         .fold(output, |output, warning| output.warn(warning)))
 }
 
-/// The lines of one list that the choice holds, in the order of the list.
-fn list_lines(ctx: &Ctx, task: &str, file: &BlockFile, choice: &Choice) -> Vec<Line> {
+/// The lines of one list that the choice holds, in the order of the list. `taken_file` is the
+/// taken files, when they could be read: a file taken now gets its mark.
+fn list_lines(
+    ctx: &Ctx,
+    task: &str,
+    file: &BlockFile,
+    choice: &Choice,
+    taken_file: Option<&BlockFile>,
+) -> Vec<Line> {
     let mut keys: Vec<String> = Vec::new();
     for key in file.keys() {
         if !keys.contains(&key) {
@@ -127,11 +173,106 @@ fn list_lines(ctx: &Ctx, task: &str, file: &BlockFile, choice: &Choice) -> Vec<L
             marks: choice
                 .on
                 .is_none()
-                .then(|| filelist::marks(&ctx.root, file, &key)),
+                .then(|| line_marks(ctx, file, &key, taken_file)),
             path: key,
         })
         .filter(|line| chosen(line, choice))
         .collect()
+}
+
+/// The marks of a line: those of `filelist::marks`, then `taken by <person>` when the file is taken
+/// now (R-FILE-11).
+fn line_marks(
+    ctx: &Ctx,
+    file: &BlockFile,
+    key: &str,
+    taken_file: Option<&BlockFile>,
+) -> Vec<String> {
+    let mut marks = filelist::marks(&ctx.root, file, key);
+    if let Some(take) = taken_file.and_then(|taken_file| taken::current(taken_file, key)) {
+        marks.push(format!("taken by {}", take.person));
+    }
+    marks
+}
+
+/// Whether a narrowing option is given. `--taken` and `--log` show no list, so they take none.
+fn narrowed(args: &Args) -> bool {
+    args.task.is_some()
+        || args.role.is_some()
+        || args.on.is_some()
+        || args.all
+        || !args.words.is_empty()
+}
+
+/// `--taken`: the files taken now, in file order, each with its person, task and the day of the
+/// take. A take older than `take_days` is marked with its age (R-FILE-5, R-FILE-7). The data holds
+/// the time of the take as `since` and the age in days as `days`, for every take.
+fn taken_files(ctx: &Ctx) -> Result<Output> {
+    let (file, _) = taken::load(&ctx.dossier, &ctx.cfg.code)?;
+    let now = time::now();
+    let takes: Vec<(Take, i64)> = taken::all(&file)
+        .into_iter()
+        .map(|take| {
+            let days = time::days_between(&take.time, &now);
+            (take, days)
+        })
+        .collect();
+    if takes.is_empty() {
+        return Ok(Output::with("no files are taken", json!({"taken": []})));
+    }
+    let text = takes
+        .iter()
+        .map(|(take, days)| taken_text(take, *days, ctx.cfg.take_days))
+        .collect::<Vec<String>>()
+        .join("\n");
+    let rows: Vec<serde_json::Value> = takes
+        .iter()
+        .map(|(take, days)| {
+            json!({
+                "path": take.path,
+                "person": take.person,
+                "task": take.task,
+                "since": take.time,
+                "days": days,
+            })
+        })
+        .collect();
+    Ok(Output::with(text, json!({"taken": rows})))
+}
+
+/// A taken file as text: its path, person, task and the day of the take, then `[taken <n> days]`
+/// when the take is older than `take_days`.
+fn taken_text(take: &Take, days: i64, take_days: i64) -> String {
+    let mut text = format!(
+        "{}  {}  {}  since {}",
+        take.path,
+        take.person,
+        take.task,
+        time::date(&take.time)
+    );
+    if days > take_days {
+        text.push_str(&format!("  [taken {days} days]"));
+    }
+    text
+}
+
+/// `--log <file>`: every recorded version of one file, one history line each, as the file's
+/// history holds them (R-FILE-5). The data holds the stored path and the lines. The text is
+/// `nothing recorded for <path>` when the file has no history.
+fn log_of(ctx: &Ctx, typed: &str) -> Result<Output> {
+    let cwd = std::env::current_dir()?;
+    let path = paths::stored(&ctx.root, &cwd, typed)?;
+    if path.is_empty() {
+        return Err(bad("the project folder itself has no log"));
+    }
+    let (file, _) = taken::load(&ctx.dossier, &ctx.cfg.code)?;
+    let log = taken::log(&file, &path);
+    let text = if log.is_empty() {
+        format!("nothing recorded for {path}")
+    } else {
+        log.join("\n")
+    };
+    Ok(Output::with(text, json!({"path": path, "log": log})))
 }
 
 /// Whether a block is in the list the command shows. Without `--on`: the block is attached now,
@@ -323,4 +464,9 @@ fn shown_path(root: &Path, path: &Path) -> String {
 /// A failure for a value the person gave, Code::BadValue.
 fn bad(message: impl Into<String>) -> Error {
     Error::new(Code::BadValue, message)
+}
+
+/// A failure for options that cannot be used together, Code::Usage.
+fn usage(message: impl Into<String>) -> Error {
+    Error::new(Code::Usage, message)
 }
