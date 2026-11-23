@@ -10,6 +10,7 @@
 //! is solved.
 
 use crate::approval::{self, Mark};
+use crate::attempts;
 use crate::cli::Global;
 use crate::conf;
 use crate::create::{self, New};
@@ -30,6 +31,15 @@ const PICTURES: &str = "Pictures";
 
 /// The state of an investigation that is solved (format.md §28).
 const SOLVED: &str = "solved";
+
+/// The Problem section of an investigation (format.md §28).
+const PROBLEM: &str = "Problem";
+
+/// The Solution section of an investigation (format.md §28).
+const SOLUTION: &str = "Solution";
+
+/// The line that `solved` writes last in the Solution section, when attempts led to the solution.
+const ATTEMPTS_LINE: &str = "Attempts:";
 
 /// The fields that are copied to the team copy when the entry has them.
 const COPIED_FIELDS: [&str; 5] = ["confidence", "machine", "analysis", "software", "tags"];
@@ -229,24 +239,91 @@ fn copied_fields(code: &str, id: &str, entry: &Entry) -> Vec<(String, String)> {
 }
 
 /// The sections of the team copy, in the order of its kind, without the Pictures section. A
-/// finding's Observation becomes the Statement. An investigation is copied like a finding for
-/// now: its own sections are not mapped yet.
+/// finding's Observation becomes the Statement. An investigation's sections are made by
+/// `investigation_section`.
 fn copied_sections(kind: Kind, target: Kind, entry: &Entry) -> Vec<(String, String)> {
     rules::section_order(target)
         .iter()
         .filter_map(|name| {
-            let from =
-                if matches!(kind, Kind::Finding | Kind::Investigation) && *name == "Statement" {
+            let body = if kind == Kind::Investigation {
+                investigation_section(target, name, entry)
+            } else {
+                let from = if kind == Kind::Finding && *name == "Statement" {
                     "Observation"
                 } else {
                     name
                 };
-            entry
-                .section(from)
-                .filter(|body| !body.trim().is_empty())
+                entry.section(from)
+            };
+            body.filter(|body| !body.trim().is_empty())
                 .map(|body| (name.to_string(), body))
         })
         .collect()
+}
+
+/// The body of one section of the team copy of an investigation (design.md section 15). A lesson
+/// gets Statement = the solution and Evidence = the problem, a blank line, then every attempt as
+/// its summary. A how-to gets Purpose = the problem, Steps = the solution, then one bullet per
+/// attempt that worked, and Traps = one bullet per attempt that failed. Any other section is None.
+fn investigation_section(target: Kind, name: &str, entry: &Entry) -> Option<String> {
+    let problem = entry.section(PROBLEM).unwrap_or_default();
+    let found = attempts::of(entry);
+    match (target, name) {
+        (Kind::Lesson, "Statement") => Some(solution_text(entry)),
+        (Kind::Lesson, "Evidence") => {
+            let mut lines = vec![problem];
+            if !found.is_empty() {
+                lines.push(String::new());
+                lines.extend(found.iter().map(attempts::summary));
+            }
+            Some(lines.join("\n"))
+        }
+        (Kind::Howto, "Purpose") => Some(problem),
+        (Kind::Howto, "Steps") => {
+            let mut lines = vec![solution_text(entry)];
+            lines.extend(
+                found
+                    .iter()
+                    .filter(|attempt| attempt.verdict == "worked")
+                    .map(|attempt| bullet(&attempt.text, attempt.did.as_deref())),
+            );
+            Some(lines.join("\n"))
+        }
+        (Kind::Howto, "Traps") => {
+            let lines: Vec<String> = found
+                .iter()
+                .filter(|attempt| attempt.verdict == "failed")
+                .map(|attempt| bullet(&attempt.text, attempt.result.as_deref()))
+                .collect();
+            Some(lines.join("\n"))
+        }
+        _ => None,
+    }
+}
+
+/// The Solution section of an investigation without the `Attempts: <numbers>` line that `solved`
+/// writes last, and without the blank lines that were before it.
+fn solution_text(entry: &Entry) -> String {
+    let body = entry.section(SOLUTION).unwrap_or_default();
+    let mut lines: Vec<&str> = body.lines().collect();
+    if lines
+        .last()
+        .is_some_and(|line| line.starts_with(ATTEMPTS_LINE))
+    {
+        lines.pop();
+    }
+    while lines.last().is_some_and(|line| line.trim().is_empty()) {
+        lines.pop();
+    }
+    lines.join("\n")
+}
+
+/// One bullet line of a how-to: `- <text>`, with `: <part>` after it when the attempt has a part.
+fn bullet(text: &str, part: Option<&str>) -> String {
+    match part {
+        Some(part) => format!("- {text}: {part}"),
+        None => format!("- {text}"),
+    }
 }
 
 /// The pictures of the entry that a person confirmed (R-ENTRY-18). An LLM or no terminal is

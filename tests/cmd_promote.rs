@@ -1,7 +1,8 @@
 //! Runs the built program for `promote`: a lesson, a finding and a how-to copied into the team
 //! dossier as drafts linked both ways, the confidential check (a term found, no terms yet), the
-//! refused kinds, an investigation that needs `--as` and must be solved first (R-INV-8), pictures
-//! (confirmed at a terminal, refused for an LLM) and a team that is not there. Each test runs in
+//! refused kinds, an investigation that needs `--as` and must be solved first (R-INV-8), the
+//! sections a team copy of an investigation gets from its attempts, pictures (confirmed at a
+//! terminal, refused for an LLM) and a team that is not there. Each test runs in
 //! its own temporary project folder (common::Project), with the clock fixed at
 //! 2026-11-20T10:00:00+01:00.
 
@@ -134,6 +135,54 @@ fn png_bytes() -> Vec<u8> {
     let mut bytes = vec![0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
     bytes.extend_from_slice(b"invented picture data");
     bytes
+}
+
+/// Opens INV-001 as anna, records a failed attempt and a worked one (2), and closes it as solved
+/// by the worked one (invented text).
+fn investigation_with_attempts(project: &Project) {
+    project.stdout(
+        "anna",
+        &[
+            "problem",
+            "The density residual grows from iteration 40 on.",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "tried",
+            "INV-001",
+            "The CFL number is too high",
+            "--failed",
+            "--did",
+            "CFL 5 to 1",
+            "--result",
+            "diverges at iteration 180",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "tried",
+            "INV-001",
+            "The flux at the outlet has the wrong sign",
+            "--worked",
+            "--did",
+            "corrected the sign in the outlet flux",
+            "--result",
+            "converges in 900 iterations",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "solved",
+            "INV-001",
+            "The outlet flux had the wrong sign.",
+            "--attempt",
+            "2",
+        ],
+    );
 }
 
 /// Adds a picture to LES-001 as anna.
@@ -395,6 +444,110 @@ fn a_solved_investigation_is_promoted_as_a_howto_draft_with_its_source() {
     assert_eq!(copy.kind(), Some(Kind::Howto));
     assert_eq!(copy.status(), Some(Status::Draft));
     assert_eq!(copy.field("source").as_deref(), Some("P-001:INV-001"));
+}
+
+#[test]
+fn a_solved_investigation_as_a_howto_has_its_attempts_as_steps_and_traps() {
+    let (project, _folder, team) = with_team();
+    investigation_with_attempts(&project);
+    project.stdout("anna", &["promote", "INV-001", "--as", "howto"]);
+
+    let copy = entry_in(&team, "HOW-001");
+    assert_eq!(
+        copy.section("Purpose").as_deref(),
+        Some("The density residual grows from iteration 40 on.")
+    );
+    assert_eq!(
+        copy.section("Steps").as_deref(),
+        Some(
+            "The outlet flux had the wrong sign.\n- The flux at the outlet has the wrong sign: corrected the sign in the outlet flux"
+        )
+    );
+    assert_eq!(
+        copy.section("Traps").as_deref(),
+        Some("- The CFL number is too high: diverges at iteration 180")
+    );
+}
+
+#[test]
+fn a_how_to_draft_leaves_out_the_traps_when_no_attempt_failed() {
+    let (project, _folder, team) = with_team();
+    project.stdout(
+        "anna",
+        &[
+            "problem",
+            "The density residual grows from iteration 40 on.",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &["tried", "INV-001", "The outlet flux is wrong", "--worked"],
+    );
+    project.stdout(
+        "anna",
+        &["solved", "INV-001", "The outlet flux had the wrong sign."],
+    );
+    project.stdout("anna", &["promote", "INV-001", "--as", "howto"]);
+
+    let copy = entry_in(&team, "HOW-001");
+    assert_eq!(copy.section("Traps"), None);
+    assert_eq!(
+        copy.section("Steps").as_deref(),
+        Some("The outlet flux had the wrong sign.\n- The outlet flux is wrong")
+    );
+}
+
+#[test]
+fn a_solved_investigation_as_a_lesson_has_its_attempts_as_evidence() {
+    let (project, _folder, team) = with_team();
+    investigation_with_attempts(&project);
+    project.stdout("anna", &["promote", "INV-001", "--as", "lesson"]);
+
+    let copy = entry_in(&team, "LES-001");
+    assert_eq!(
+        copy.section("Statement").as_deref(),
+        Some("The outlet flux had the wrong sign.")
+    );
+    assert_eq!(
+        copy.section("Evidence").as_deref(),
+        Some(
+            "The density residual grows from iteration 40 on.\n\n1. failed: The CFL number is too high — diverges at iteration 180\n2. worked: The flux at the outlet has the wrong sign — converges in 900 iterations"
+        )
+    );
+}
+
+#[test]
+fn a_confidential_term_in_an_attempt_refuses_the_promotion_and_names_the_term() {
+    let (project, _folder, team) = with_team();
+    project.stdout(
+        "anna",
+        &[
+            "problem",
+            "The density residual grows from iteration 40 on.",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "tried",
+            "INV-001",
+            "The inlet of Nordwind is too coarse",
+            "--failed",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &["solved", "INV-001", "The outlet flux had the wrong sign."],
+    );
+    let before = files_of(&team);
+    project
+        .run("anna", &["promote", "INV-001", "--as", "howto"])
+        .code(1)
+        .stderr(contains("confidential terms found"))
+        .stderr(contains("Nordwind (line"));
+    assert_eq!(files_of(&team), before, "the team dossier is not changed");
+    let original = entry_in(&project.root().join("DOSSIER"), "INV-001");
+    assert_eq!(original.field("promoted"), None);
 }
 
 #[test]
