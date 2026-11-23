@@ -15,7 +15,7 @@ pub struct Args {
 
 /// Every command of docs/design.md sections 5, 9 and 12, in that order, each with a description of at
 /// most five words.
-const COMMANDS: [(&str, &str); 80] = [
+const COMMANDS: [(&str, &str); 82] = [
     ("init", "Creates the dossier folder here"),
     ("where", "Shows folders and project code"),
     ("people", "Adds or extends a person"),
@@ -96,6 +96,8 @@ const COMMANDS: [(&str, &str); 80] = [
     ("gave-up", "Closes an investigation unsolved"),
     ("take", "Records who took a file"),
     ("return", "Checks or ends a take"),
+    ("review-session", "Material from a session file"),
+    ("session", "Converts a transcript"),
 ];
 
 /// Runs `help`.

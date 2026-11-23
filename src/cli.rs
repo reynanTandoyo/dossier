@@ -126,6 +126,8 @@ pub enum Command {
     GaveUp(cmd::gave_up::Args),
     Take(cmd::take::Args),
     Return(cmd::return_cmd::Args),
+    ReviewSession(cmd::review_session::Args),
+    Session(cmd::session::Args),
 }
 
 /// On Linux, files and folders this program creates are writable by the group (R-XOS-8): the
@@ -284,6 +286,11 @@ pub fn main_exit() -> u8 {
         Command::GaveUp(a) => ("gave-up", gated(&check, || cmd::gave_up::run(a, g))),
         Command::Take(a) => ("take", gated(&check, || cmd::take::run(a, g))),
         Command::Return(a) => ("return", gated(&check, || cmd::return_cmd::run(a, g))),
+        Command::ReviewSession(a) => (
+            "review-session",
+            gated(&check, || cmd::review_session::run(a, g)),
+        ),
+        Command::Session(a) => ("session", gated(&check, || cmd::session::run(a, g))),
     };
     crate::output::emit(name, g.json, &result)
 }
