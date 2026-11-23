@@ -282,6 +282,8 @@ fn help_without_a_topic_lists_every_command_in_order() {
             "tried",
             "solved",
             "gave-up",
+            "take",
+            "return",
         ]
     );
     let first = format!("  {:<12}  Creates the dossier folder here\n", "init");

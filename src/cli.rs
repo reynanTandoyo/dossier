@@ -124,6 +124,8 @@ pub enum Command {
     Tried(cmd::tried::Args),
     Solved(cmd::solved::Args),
     GaveUp(cmd::gave_up::Args),
+    Take(cmd::take::Args),
+    Return(cmd::return_cmd::Args),
 }
 
 /// On Linux, files and folders this program creates are writable by the group (R-XOS-8): the
@@ -280,6 +282,8 @@ pub fn main_exit() -> u8 {
         Command::Tried(a) => ("tried", gated(&check, || cmd::tried::run(a, g))),
         Command::Solved(a) => ("solved", gated(&check, || cmd::solved::run(a, g))),
         Command::GaveUp(a) => ("gave-up", gated(&check, || cmd::gave_up::run(a, g))),
+        Command::Take(a) => ("take", gated(&check, || cmd::take::run(a, g))),
+        Command::Return(a) => ("return", gated(&check, || cmd::return_cmd::run(a, g))),
     };
     crate::output::emit(name, g.json, &result)
 }
