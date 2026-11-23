@@ -50,6 +50,9 @@ pub enum Action {
         /// Writes the files
         #[arg(long)]
         yes: bool,
+        /// Also adds a SessionEnd hook that starts this review command when a session ends
+        #[arg(long)]
+        session_review: Option<String>,
     },
     /// Removes the dossier hooks from .claude/settings.json and DOSSIER_AGENT from
     /// .claude/settings.local.json; without --yes it only says what would change
@@ -185,16 +188,24 @@ impl Change {
 /// Runs `hooks`.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     match &args.action {
-        Action::Install { yes } => change(Direction::Install, *yes, g),
-        Action::Uninstall { yes } => change(Direction::Uninstall, *yes, g),
+        Action::Install {
+            yes,
+            session_review,
+        } => change(Direction::Install, *yes, session_review.as_deref(), g),
+        Action::Uninstall { yes } => change(Direction::Uninstall, *yes, None, g),
     }
 }
 
 /// Installs or removes the dossier hooks and the name of the writer. A file whose settings already
 /// are as the direction makes them is not written, and without `yes` (or with a dry run) nothing is
 /// written at all. The journal line comes after the writes, and only when a dossier is found and
-/// something changed.
-fn change(direction: Direction, yes: bool, g: &Global) -> Result<Output> {
+/// something changed. `session_review` is the command of the SessionEnd hook, when it is given.
+fn change(
+    direction: Direction,
+    yes: bool,
+    session_review: Option<&str>,
+    g: &Global,
+) -> Result<Output> {
     let cwd = std::env::current_dir()?;
     // The dossier is found before anything is written, so that a refused --dossier changes nothing.
     let state = journal_state(&cwd, g)?;
@@ -206,7 +217,13 @@ fn change(direction: Direction, yes: bool, g: &Global) -> Result<Output> {
     // Both new texts are made before anything is written, so that a settings file that is not
     // valid refuses the whole change.
     let hooks_after = match direction {
-        Direction::Install => hooks::installed(hooks_before.as_deref().unwrap_or(""))?,
+        Direction::Install => {
+            let installed = hooks::installed(hooks_before.as_deref().unwrap_or(""))?;
+            match session_review {
+                Some(command) => hooks::review_installed(&installed, command)?,
+                None => installed,
+            }
+        }
         Direction::Uninstall => hooks::uninstalled(hooks_before.as_deref().unwrap_or(""))?,
     };
     let local_after = match direction {

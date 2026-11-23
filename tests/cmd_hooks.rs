@@ -431,3 +431,115 @@ fn the_agent_is_named_for_the_person_of_an_llm_or_a_person_who_writes() {
         json!({"env": {"DOSSIER_AGENT": "ben - claude"}})
     );
 }
+
+#[test]
+fn session_review_without_yes_lists_the_session_end_line_and_writes_nothing() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &["hooks", "install", "--session-review", "my-review"],
+        )
+        .success()
+        .stdout(contains(
+            "+ SessionEnd: dossier session-end --run 'my-review'",
+        ));
+    assert!(!exists(&project, ".claude"));
+    assert!(hook_records(&project).is_empty());
+}
+
+#[test]
+fn install_with_session_review_adds_one_session_end_hook_with_the_command() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &["hooks", "install", "--yes", "--session-review", "my-review"],
+        )
+        .success()
+        .stdout(contains(
+            "+ SessionEnd: dossier session-end --run 'my-review'",
+        ));
+    let value = settings(&project);
+    let session_end = value["hooks"]["SessionEnd"].as_array().unwrap();
+    assert_eq!(session_end.len(), 1, "{value}");
+    assert_eq!(
+        session_end[0]["hooks"][0]["command"],
+        "dossier session-end --run 'my-review'"
+    );
+    // The other dossier hooks are installed as before.
+    assert_eq!(
+        value["hooks"]["SessionStart"][0]["hooks"][0]["command"],
+        "dossier brief"
+    );
+}
+
+#[test]
+fn a_second_session_review_replaces_the_command_and_keeps_one_session_end_hook() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "hooks",
+                "install",
+                "--yes",
+                "--session-review",
+                "old-review",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &["hooks", "install", "--yes", "--session-review", "my-review"],
+        )
+        .success()
+        .stdout(contains(
+            "- SessionEnd: dossier session-end --run 'old-review'",
+        ))
+        .stdout(contains(
+            "+ SessionEnd: dossier session-end --run 'my-review'",
+        ));
+    let value = settings(&project);
+    let session_end = value["hooks"]["SessionEnd"].as_array().unwrap();
+    assert_eq!(session_end.len(), 1, "{value}");
+    assert_eq!(
+        session_end[0]["hooks"][0]["command"],
+        "dossier session-end --run 'my-review'"
+    );
+    assert_eq!(session_end[0]["hooks"].as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn install_without_session_review_adds_no_session_end_hook() {
+    let project = Project::new();
+    let listing = project.stdout("anna", &["hooks", "install"]);
+    assert!(!listing.contains("SessionEnd"), "{listing}");
+    project
+        .run("anna", &["hooks", "install", "--yes"])
+        .success();
+    assert!(settings(&project)["hooks"].get("SessionEnd").is_none());
+}
+
+#[test]
+fn uninstall_removes_the_session_end_hook_with_the_other_dossier_hooks() {
+    let project = Project::new();
+    project.write(SETTINGS, OTHER);
+    project
+        .run(
+            "anna",
+            &["hooks", "install", "--yes", "--session-review", "my-review"],
+        )
+        .success();
+    project
+        .run("anna", &["hooks", "uninstall", "--yes"])
+        .success()
+        .stdout(contains(
+            "- SessionEnd: dossier session-end --run 'my-review'",
+        ));
+    assert_eq!(
+        settings(&project),
+        serde_json::from_str::<Value>(OTHER).unwrap()
+    );
+}
