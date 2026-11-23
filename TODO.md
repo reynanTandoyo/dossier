@@ -3870,8 +3870,10 @@
 - note (2026-11-23, haiku-T-332): done
 
 ### T-333 · brief: a digest in place of the entries it covers
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-333
+- claimed: 2026-11-24T00:06+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-056
 - why: The context an LLM gets must stay small as a project grows (D22).
@@ -3890,8 +3892,10 @@
 - note (2026-11-23, planner): added
 
 ### T-334 · status: a digest in place of the entries it covers
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-334
+- claimed: 2026-11-24T00:06+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-056
 - why: The context an LLM gets must stay small as a project grows (D22).
