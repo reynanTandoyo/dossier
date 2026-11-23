@@ -8070,8 +8070,8 @@
 - note (2026-11-23, haiku-T-298): done
 
 ### T-299 · tried: add one attempt to an investigation
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-299
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-287
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -8089,8 +8089,12 @@
   7. Run cargo test --test cmd_tried
 - accept: Each attempt is one numbered line with its verdict, who and when, added in ten seconds, and a new attempt opens a closed investigation again.
 - verify: cargo test --test cmd_tried
+- verified: 2026-11-23
+- commit: c785499
 - reqs: R-INV-3, R-INV-4, R-INV-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-299): done
 
 ### T-300 · solved and gave-up: close an investigation
 - status: open
