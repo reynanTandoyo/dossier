@@ -8093,10 +8093,8 @@
 - note (2026-11-23, planner): added
 
 ### T-301 · filter.rs: --state
-- status: claimed
+- status: done
 - owner: haiku-T-301
-- claimed: 2026-11-23T19:18+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-287
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -8110,8 +8108,12 @@
   3. Run cargo test --lib filter::
 - accept: list and search can be limited to entries in one state, such as open investigations.
 - verify: cargo test --lib filter::
+- verified: 2026-11-23
+- commit: ed6a701
 - reqs: R-INV-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-301): done
 
 ### T-302 · list, show and search: mark the state of an investigation
 - status: open
