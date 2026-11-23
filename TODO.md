@@ -3412,8 +3412,10 @@
 - note (2026-11-23, haiku-T-322): done
 
 ### T-323 · files: the taken files, their age, and the log of one file
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-323
+- claimed: 2026-11-23T21:38+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-054
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3433,10 +3435,8 @@
 - note (2026-11-23, planner): added
 
 ### T-324 · status: the taken files under Working now
-- status: claimed
+- status: done
 - owner: haiku-T-324
-- claimed: 2026-11-23T21:30+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-054
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3451,8 +3451,12 @@
   4. Run cargo test --test cmd_status
 - accept: status shows the files that are taken next to the tasks that are claimed.
 - verify: cargo test --test cmd_status
+- verified: 2026-11-23
+- commit: 7bebcdf
 - reqs: R-CTX-9, R-FILE-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-324): done
 
 ### T-325 · remote/transfer.rs: the scp arguments and the steps of take and return from a PC
 - status: open
@@ -3469,8 +3473,10 @@
 - note (2026-11-23, planner): split into T-371, T-372, T-373
 
 ### T-371 · transfer.rs: the scp program, its arguments and the server path
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-371
+- claimed: 2026-11-23T21:38+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-325
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
