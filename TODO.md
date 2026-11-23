@@ -8800,10 +8800,8 @@
 - note (2026-11-23, haiku-T-410): done
 
 ### T-411 · secret.rs: build the AWS-shaped test values at run time
-- status: claimed
+- status: done
 - owner: haiku-T-411
-- claimed: 2026-11-23T23:22+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: chore
 - milestone: T-054
 - why: GitHub secret scanning reports the invented AWS key of the T-288 tests as a leaked secret (alert #1).
@@ -8817,8 +8815,12 @@
   4. Run cargo test --lib secret::
 - accept: The tests check the same texts as before, and git grep finds no AKIA or ASIA key-shaped literal.
 - verify: cargo test --lib secret::
+- verified: 2026-11-23
+- commit: bde5f8b
 - reqs: R-CONF-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-411): done
 
 ## Questions
 
