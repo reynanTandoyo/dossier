@@ -7994,10 +7994,8 @@
 - note (2026-11-23, haiku-T-358): done
 
 ### T-359 · Register problem, tried, solved and gave-up
-- status: claimed
+- status: done
 - owner: haiku-T-359
-- claimed: 2026-11-23T19:18+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-297
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -8012,10 +8010,14 @@
   4. Run cargo build and cargo test --test smoke; `dossier problem` must answer `problem is not built yet` with exit 2.
 - accept: The four commands are part of the program and the overview, and answer that they are not built yet.
 - verify: cargo build && cargo test --test smoke
+- verified: 2026-11-23
+- commit: 7d89571
 - reqs: R-INV-2, R-INV-3, R-INV-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): The help overview test in tests/cmd_agents.rs lists every command, so registering new commands changes its expected list; the file was added to this task.
 - note (2026-11-23, planner): forced set (owner was haiku-T-359)
+- note (2026-11-23, haiku-T-359): done
 
 ### T-360 · ctx.rs: problem, tried, solved and gave-up are writing commands
 - status: done
