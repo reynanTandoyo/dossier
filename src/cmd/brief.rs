@@ -22,6 +22,11 @@
 //!
 //! The open investigations (R-INV-5) come after the open assumptions, one line each with its number
 //! of attempts and its last attempt. With `--on` their state and attempts are those of now.
+//!
+//! The approved digests in force (R-CTX-15) come after the key values, under `## Digests`: each
+//! one's heading and its Summary, indented. The decisions and findings that a digest sums up are
+//! left out and counted in the line after the digests. Open assumptions and decisions that stand
+//! (`standing: yes`) are never left out, and a digest line is never cut to fit the limit.
 
 use crate::approval::{self, Mark};
 use crate::attempts;
@@ -30,6 +35,7 @@ use crate::brief_task;
 use crate::cli::Global;
 use crate::config::Tags;
 use crate::ctx::Ctx;
+use crate::digest;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
 use crate::filelist;
@@ -59,6 +65,7 @@ pub struct Args {
 /// The headings of the project brief, in the order they are printed.
 const MAP: &str = "## Map";
 const KEY_VALUES: &str = "## Key values";
+const DIGESTS: &str = "## Digests";
 const DECISIONS: &str = "## Decisions in force";
 const ASSUMPTIONS: &str = "## Open assumptions";
 const INVESTIGATIONS: &str = "## Open investigations";
@@ -188,13 +195,21 @@ struct Brief {
     map: Vec<String>,
     /// The values in force: key values first, then by name, at most MAX_VALUES.
     values: Vec<Line>,
-    /// The decisions in force (approved, or with `--on` in force on the day), newest first.
+    /// The approved digests in force, newest first (R-CTX-15). Their lines are never cut.
+    digests: Vec<Digest>,
+    /// The number of decisions and findings the digests in force sum up (R-CTX-15). They are not
+    /// printed singly.
+    summed_up: usize,
+    /// The task of the first entry the digests sum up, named by the line after the digests.
+    summed_task: Option<String>,
+    /// The decisions in force (approved, or with `--on` in force on the day), newest first, without
+    /// those a digest sums up.
     decisions: Vec<Decision>,
     /// The assumptions that are open, by ID.
     assumptions: Vec<Line>,
     /// The open investigations, newest first, by ID (R-INV-5).
     investigations: Vec<Line>,
-    /// The findings, by ID.
+    /// The findings, by ID, without those a digest sums up.
     findings: Vec<Line>,
     /// The lessons, by ID.
     lessons: Vec<Line>,
@@ -305,12 +320,25 @@ impl Brief {
         rests_section: Vec<Line>,
     ) -> Brief {
         let wrong = Wrong::of(items, day);
+        let digests = digest::in_force(items, day);
         let mut decisions = shown(items, Kind::Decision, day);
         decisions.sort_by(|a, b| newest_first(&a.entry, &b.entry));
+        let (decisions, summed_decisions) = split_covered(decisions, &digests);
+        let (findings, summed_findings) = split_covered(shown(items, Kind::Finding, day), &digests);
+        let summed: Vec<&Item> = summed_decisions
+            .into_iter()
+            .chain(summed_findings)
+            .collect();
         Brief {
             head: head(ctx, remote),
             map: map_section,
             values: value_section,
+            digests: digests
+                .iter()
+                .map(|digest| digest_of(digest, &ctx.state))
+                .collect(),
+            summed_up: summed.len(),
+            summed_task: summed.first().and_then(|item| item.entry.field("task")),
             decisions: decisions
                 .into_iter()
                 .map(|item| decision_of(item, &ctx.state, &wrong))
@@ -321,7 +349,7 @@ impl Brief {
                 .map(|item| line(&item.entry, &review_marks(&ctx.state, item), &wrong))
                 .collect(),
             investigations: investigations_of(items, &ctx.state, day, &wrong),
-            findings: shown(items, Kind::Finding, day)
+            findings: findings
                 .into_iter()
                 .map(|item| {
                     let dead_end = if is_dead_end(&item.entry) {
@@ -363,6 +391,17 @@ impl Brief {
         }
     }
 
+    /// The lines of the digests in force: each digest's heading and summary, then the line that
+    /// says how many entries the digests sum up and where to see them, when there are any.
+    fn digest_lines(&self) -> Vec<String> {
+        let mut lines: Vec<String> = self.digests.iter().flat_map(Digest::lines).collect();
+        if self.summed_up > 0 {
+            let task = self.summed_task.as_deref().unwrap_or("-");
+            lines.push(summed_text(self.summed_up, task));
+        }
+        lines
+    }
+
     /// The lines as they would be printed now: the head, then each heading with its lines (a
     /// heading with no lines is left out), the drafts line and the left-out lines.
     fn lines(&self) -> Vec<String> {
@@ -370,6 +409,7 @@ impl Brief {
         let mut lines = self.head.clone();
         push_section(&mut lines, MAP, &self.map);
         push_section(&mut lines, KEY_VALUES, &texts(&self.values));
+        push_section(&mut lines, DIGESTS, &self.digest_lines());
         let decisions: Vec<String> = self.decisions.iter().flat_map(Decision::lines).collect();
         push_section(&mut lines, DECISIONS, &decisions);
         push_section(&mut lines, ASSUMPTIONS, &texts(&self.assumptions));
@@ -454,7 +494,8 @@ impl Brief {
     /// team line, the last open investigation, the last proposal, the last line that rests on a
     /// wrong assumption, the last value, the whole map, the oldest decision, the last open
     /// assumption. Returns false when nothing is left to cut. Each step stops at the first list
-    /// that had something, so only one thing is cut per call.
+    /// that had something, so only one thing is cut per call. The digests in force and the line
+    /// about them are not on the list: they are never cut (R-CTX-15).
     fn cut_one(&mut self) -> bool {
         if self.lessons.pop().is_some() || self.findings.pop().is_some() {
             self.left_out += 1;
@@ -480,14 +521,17 @@ impl Brief {
     }
 
     /// The data of `--json`: the day, the map lines, and the IDs (values: names) of the entries
-    /// printed, the team's IDs, the news, and the number of drafts. A file block that rests on a
-    /// wrong assumption is named by its task and path, as `<task> <path>`.
+    /// printed, the digests in force, the number of entries they sum up, the team's IDs, the news,
+    /// and the number of drafts. A file block that rests on a wrong assumption is named by its task
+    /// and path, as `<task> <path>`.
     fn data(&self, code: &str) -> Value {
         json!({
             "code": code,
             "on": self.day,
             "map": self.map,
             "values": ids(&self.values),
+            "digests": self.digests.iter().map(|digest| digest.id.as_str()).collect::<Vec<_>>(),
+            "summed_up": self.summed_up,
             "decisions": self.decisions.iter().map(|decision| decision.id.as_str()).collect::<Vec<_>>(),
             "assumptions": ids(&self.assumptions),
             "investigations": ids(&self.investigations),
@@ -513,6 +557,23 @@ impl Decision {
     }
 }
 
+/// One digest in force (R-CTX-15) as printed: its heading `<DIG-ID> · <milestone> · <title>` with
+/// its review marks, then its Summary lines, indented by two spaces.
+struct Digest {
+    id: String,
+    heading: String,
+    summary: Vec<String>,
+}
+
+impl Digest {
+    /// The lines the digest takes: the heading, then the summary.
+    fn lines(&self) -> Vec<String> {
+        let mut lines = vec![self.heading.clone()];
+        lines.extend(self.summary.iter().cloned());
+        lines
+    }
+}
+
 /// The entries of one kind that the brief shows, in the order of `store::all`: the approved ones,
 /// or with `day` the ones in force on that day (R-LIFE-9).
 fn shown<'a>(items: &'a [Item], kind: Kind, day: Option<&str>) -> Vec<&'a Item> {
@@ -524,6 +585,37 @@ fn shown<'a>(items: &'a [Item], kind: Kind, day: Option<&str>) -> Vec<&'a Item> 
             None => item.entry.status() == Some(Status::Approved),
         })
         .collect()
+}
+
+/// Splits the entries into those no digest covers and those a digest sums up (R-CTX-15), each in the
+/// order given. `digests` are the digests in force, as `digest::in_force` gives them.
+fn split_covered<'a>(items: Vec<&'a Item>, digests: &[&Item]) -> (Vec<&'a Item>, Vec<&'a Item>) {
+    items
+        .into_iter()
+        .partition(|item| digest::covering(digests, &item.entry).is_none())
+}
+
+/// The digest as printed: `<ID> · <milestone> · <title>` with its review marks, and its Summary
+/// indented by two spaces. A digest with no milestone shows `-` for it, and one with no title
+/// leaves the title out.
+fn digest_of(item: &Item, state: &Path) -> Digest {
+    let entry = &item.entry;
+    let milestone = entry
+        .field("milestone")
+        .filter(|milestone| !milestone.is_empty())
+        .unwrap_or_else(|| "-".to_string());
+    let mut parts = vec![entry.id(), milestone];
+    let title = entry.title();
+    if !title.is_empty() {
+        parts.push(title);
+    }
+    Digest {
+        id: entry.id(),
+        heading: format!("{}{}", parts.join(" · "), review_marks(state, item)),
+        summary: entry
+            .section("Summary")
+            .map_or_else(Vec::new, |summary| indented(&summary)),
+    }
 }
 
 /// The decisions waiting for a decider (status `proposed`), in the order of `store::all`, each as
@@ -969,6 +1061,17 @@ fn left_out_text(n: usize, one: &str, many: &str, command: &str) -> String {
     } else {
         format!("{n} {many} left out: {command}")
     }
+}
+
+/// `1 entry is summed up in digests: dossier list --task <task>`, or `<n> entries are summed up in
+/// digests: dossier list --task <task>`.
+fn summed_text(n: usize, task: &str) -> String {
+    let what = if n == 1 {
+        "1 entry is".to_string()
+    } else {
+        format!("{n} entries are")
+    };
+    format!("{what} summed up in digests: dossier list --task {task}")
 }
 
 /// A warning of `store::all` (`<path>: <message>`) with its path shown relative to the project

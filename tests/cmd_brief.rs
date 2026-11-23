@@ -10,7 +10,9 @@
 //! `[due for review]` mark of every entry printed, and the changed mark of team how-tos
 //! (R-LIFE-6, R-LIFE-7, R-CTX-4). The last part adds the open investigations under their heading,
 //! after the open assumptions, with their number of attempts and the last attempt (R-INV-5), and
-//! their place in the order in which the line limit cuts.
+//! their place in the order in which the line limit cuts. The digest part adds the approved digests
+//! in force under `## Digests`, the decisions and findings they sum up left out, the count line
+//! after them, and the rule that a digest line is never cut (R-CTX-15).
 
 mod common;
 
@@ -2055,4 +2057,391 @@ fn open_investigations_are_cut_before_the_proposals_and_the_cut_is_said() {
         "{text}"
     );
     assert!(!text.contains("INV-005 ·"), "{text}");
+}
+
+/// Writes a digest of `milestone` as the file the `digest` command writes (format.md §32): the
+/// command is not built yet, so the test writes the file itself. `status` is `approved` or
+/// `draft`, `tasks` the comma-separated tasks of the milestone, and `summary` the lines of the
+/// Summary section. An approved digest is in force from NOW.
+fn write_digest(
+    project: &Project,
+    id: &str,
+    status: &str,
+    milestone: &str,
+    tasks: &str,
+    summary: &str,
+) {
+    let approval = if status == "approved" {
+        format!("- approved: {NOW} by anna\n- valid-from: {NOW}\n")
+    } else {
+        String::new()
+    };
+    let text = format!(
+        "<!-- dossier-format: 1 -->\n\
+         # {id} · Summary of {milestone}\n\
+         \n\
+         - kind: digest\n\
+         - status: {status}\n\
+         - created: {NOW}\n\
+         - author: anna-claude\n\
+         {approval}\
+         - milestone: {milestone}\n\
+         - tasks: {tasks}\n\
+         - history: {NOW} anna-claude: created\n\
+         \n\
+         ## Summary\n\
+         \n\
+         {summary}\n"
+    );
+    let name = format!("{id}-summary-of-{}.md", milestone.to_lowercase());
+    project.write(&format!("DOSSIER/digests/{name}"), &text);
+}
+
+/// Writes an approved decision of `task` numbered `number`, as the file `decide` writes. Many of
+/// them are written this way, since one `decide` run each would be slow.
+fn write_decision(project: &Project, number: usize, task: &str) {
+    let id = format!("DEC-{number:03}");
+    let text = format!(
+        "<!-- dossier-format: 1 -->\n\
+         # {id} · Decision {number}\n\
+         \n\
+         - kind: decision\n\
+         - status: approved\n\
+         - created: {NOW}\n\
+         - author: anna\n\
+         - approved: {NOW} by anna\n\
+         - valid-from: {NOW}\n\
+         - task: {task}\n\
+         - history: {NOW} anna: created\n\
+         - history: {NOW} anna: approved\n\
+         \n\
+         ## Decision\n\
+         \n\
+         Decision number {number} of the invented project.\n\
+         \n\
+         ## Reason\n\
+         \n\
+         Reason number {number} of the invented project.\n"
+    );
+    project.write(
+        &format!("DOSSIER/decisions/{id}-decision-{number}.md"),
+        &text,
+    );
+}
+
+#[test]
+fn a_digest_prints_its_summary_in_place_of_the_decisions_and_findings_of_its_tasks() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Run the first speedline plan.",
+                "--reason",
+                "It was the first plan.",
+                "--title",
+                "First plan",
+                "--task",
+                "T-010",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "found",
+                "The steady run stalled at the lowest mass flow.",
+                "--title",
+                "Steady run stalls at low flow",
+                "--task",
+                "T-010",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "found",
+                "The transient run held its margin.",
+                "--title",
+                "Transient run holds",
+                "--task",
+                "T-011",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "found",
+                "The surge margin was measured at the rig.",
+                "--title",
+                "Surge margin of the rig",
+                "--task",
+                "T-012",
+            ],
+        )
+        .success();
+    write_digest(
+        &project,
+        "DIG-001",
+        "approved",
+        "T-010",
+        "T-010, T-011",
+        "Decided: run the first speedline plan.\nFound: the steady run stalls at low flow.",
+    );
+
+    let text = brief(&project, &[], None);
+
+    let lines: Vec<&str> = text.lines().collect();
+    assert!(lines.contains(&"## Digests"), "{text}");
+    assert!(
+        lines.contains(&"DIG-001 · T-010 · Summary of T-010"),
+        "{text}"
+    );
+    assert!(
+        lines.contains(&"  Decided: run the first speedline plan."),
+        "{text}"
+    );
+    assert!(
+        lines.contains(&"  Found: the steady run stalls at low flow."),
+        "{text}"
+    );
+    // The decision and the two findings of T-010 and T-011 are summed up; the finding of T-012 is
+    // not in the digest and stays.
+    assert!(
+        lines.contains(&"3 entries are summed up in digests: dossier list --task T-010"),
+        "{text}"
+    );
+    assert!(!text.contains("DEC-001"), "{text}");
+    assert!(!text.contains("FND-001"), "{text}");
+    assert!(!text.contains("FND-002"), "{text}");
+    assert!(!lines.contains(&"## Decisions in force"), "{text}");
+    assert!(
+        lines.contains(&"FND-003 · Surge margin of the rig"),
+        "{text}"
+    );
+    let digests_at = text.find("## Digests").expect("the digests heading");
+    let findings_at = text.find("## Findings").expect("the findings heading");
+    assert!(digests_at < findings_at, "{text}");
+}
+
+#[test]
+fn a_decision_that_stands_and_an_open_assumption_of_a_summed_task_are_still_printed() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Run the last speedline points transient.",
+                "--reason",
+                "Steady runs stall first.",
+                "--title",
+                "Transient speedline points",
+                "--task",
+                "T-010",
+                "--standing",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "assume",
+                "The inlet profile is uniform.",
+                "--reason",
+                "No measured profile was delivered.",
+                "--title",
+                "Uniform inlet profile",
+                "--task",
+                "T-010",
+            ],
+        )
+        .success();
+    write_digest(
+        &project,
+        "DIG-001",
+        "approved",
+        "T-010",
+        "T-010",
+        "Decided: the transient points run.",
+    );
+
+    let text = brief(&project, &[], None);
+
+    let lines: Vec<&str> = text.lines().collect();
+    assert!(
+        lines.contains(&"DEC-001 · Transient speedline points (anna, 2026-11-20)"),
+        "{text}"
+    );
+    assert!(
+        lines.contains(&"  Run the last speedline points transient."),
+        "{text}"
+    );
+    assert!(lines.contains(&"## Open assumptions"), "{text}");
+    assert!(lines.contains(&"ASM-001 · Uniform inlet profile"), "{text}");
+    // Nothing is summed up: the digest's heading and summary still print.
+    assert!(!text.contains("summed up"), "{text}");
+}
+
+#[test]
+fn a_draft_digest_changes_nothing() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Run the first speedline plan.",
+                "--reason",
+                "It was the first plan.",
+                "--title",
+                "First plan",
+                "--task",
+                "T-010",
+            ],
+        )
+        .success();
+    write_digest(
+        &project,
+        "DIG-001",
+        "draft",
+        "T-010",
+        "T-010",
+        "Decided: run the first plan.",
+    );
+
+    let text = brief(&project, &[], None);
+
+    let lines: Vec<&str> = text.lines().collect();
+    assert!(
+        lines.contains(&"DEC-001 · First plan (anna, 2026-11-20)"),
+        "{text}"
+    );
+    assert!(lines.contains(&"  It was the first plan."), "{text}");
+    assert!(!text.contains("## Digests"), "{text}");
+    assert!(!text.contains("summed up"), "{text}");
+    assert!(
+        lines.contains(&"1 draft is waiting: dossier drafts"),
+        "{text}"
+    );
+}
+
+#[test]
+fn with_500_decisions_of_which_480_are_summed_up_the_brief_keeps_its_limit() {
+    let project = Project::new();
+    for number in 1..=500 {
+        let task = if number <= 480 { "T-010" } else { "T-020" };
+        write_decision(&project, number, task);
+    }
+    write_digest(
+        &project,
+        "DIG-001",
+        "approved",
+        "T-010",
+        "T-010",
+        "Decided: 480 invented decisions.\nFound: nothing new.",
+    );
+
+    let text = brief(&project, &[], None);
+
+    let lines: Vec<&str> = text.lines().collect();
+    assert!(lines.len() <= 60, "{} lines:\n{text}", lines.len());
+    assert!(
+        lines.contains(&"480 entries are summed up in digests: dossier list --task T-010"),
+        "{text}"
+    );
+    assert!(
+        lines.contains(&"DEC-500 · Decision 500 (anna, 2026-11-20)"),
+        "{text}"
+    );
+    assert!(!text.contains("DEC-001 ·"), "{text}");
+}
+
+#[test]
+fn a_digest_line_is_never_cut_to_fit_the_limit() {
+    let project = Project::new();
+    for number in 1..=70 {
+        write_decision(&project, number, "T-020");
+    }
+    write_digest(
+        &project,
+        "DIG-001",
+        "approved",
+        "T-010",
+        "T-010",
+        "Decided: the first plan.\nFound: the steady run stalls.",
+    );
+
+    let text = brief(&project, &[], None);
+
+    // The digest takes 4 lines and the project line, the decisions heading and the left-out line
+    // take 3 more: 53 of the 70 decisions fit with the rest in 60 lines.
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 60, "{text}");
+    assert_eq!(
+        lines.last(),
+        Some(&"17 entries left out: dossier list"),
+        "{text}"
+    );
+    assert!(lines.contains(&"## Digests"), "{text}");
+    assert!(
+        lines.contains(&"DIG-001 · T-010 · Summary of T-010"),
+        "{text}"
+    );
+    assert!(lines.contains(&"  Found: the steady run stalls."), "{text}");
+}
+
+#[test]
+fn the_json_data_names_the_digests_and_the_entries_they_sum_up() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Run the first speedline plan.",
+                "--reason",
+                "It was the first plan.",
+                "--title",
+                "First plan",
+                "--task",
+                "T-010",
+            ],
+        )
+        .success();
+    write_digest(
+        &project,
+        "DIG-001",
+        "approved",
+        "T-010",
+        "T-010",
+        "Decided: run the first plan.",
+    );
+
+    let text = brief(&project, &[], None);
+    assert!(
+        text.contains("1 entry is summed up in digests: dossier list --task T-010"),
+        "{text}"
+    );
+
+    let text = brief(&project, &["--json"], None);
+    let envelope: serde_json::Value = serde_json::from_str(text.trim()).expect("one JSON line");
+    assert_eq!(
+        envelope["data"]["digests"],
+        serde_json::json!(["DIG-001"]),
+        "{text}"
+    );
+    assert_eq!(envelope["data"]["summed_up"], 1, "{text}");
+    assert_eq!(
+        envelope["data"]["decisions"],
+        serde_json::json!([]),
+        "{text}"
+    );
 }
