@@ -3193,10 +3193,8 @@
 - note (2026-11-23, planner): split into T-366, T-367, T-368, T-369, T-370
 
 ### T-366 · Stub files: take and return
-- status: claimed
+- status: done
 - owner: haiku-T-366
-- claimed: 2026-11-23T21:03+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-318
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3210,8 +3208,12 @@
   4. Run cargo build (it must still pass).
 - accept: The two stub files exist and are formatted.
 - verify: rustfmt --check --edition 2024 src/cmd/take.rs src/cmd/return_cmd.rs && cargo build
+- verified: 2026-11-23
+- commit: cf02380
 - reqs: R-FILE-1, R-FILE-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-366): done
 
 ### T-367 · Stub module: taken.rs
 - status: claimed
