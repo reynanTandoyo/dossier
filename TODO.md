@@ -3939,10 +3939,8 @@
 - note (2026-11-23, planner): split into T-336, T-337, T-338, T-339, T-340
 
 ### T-336 · session.rs and claude.rs: dossier's own session format, and the converter from a Claude Code transcript
-- status: claimed
+- status: done
 - owner: haiku-T-336
-- claimed: 2026-11-23T23:45+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-057
 - why: Capture only becomes a habit when the routine steps happen by themselves.
@@ -3958,8 +3956,12 @@
   6. Run cargo test --lib session:: and cargo test --lib claude::
 - accept: A session file is written and read back exactly, a newer version is refused with a message to update, and a Claude Code transcript converts to turns without ever failing on an unknown line.
 - verify: cargo test --lib session:: && cargo test --lib claude::
+- verified: 2026-11-23
+- commit: ec8c0ac
 - reqs: R-DRAFT-7, D44
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-336): done
 
 ### T-337 · review-session and session convert: the material of a whole session for drafting
 - status: open
