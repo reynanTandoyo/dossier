@@ -4,7 +4,7 @@
 while doing its projects. People and their LLMs write to it and read from it, so that neither has
 to rely on memory.
 
-**Status: v0.4 (phase 4)**
+**Status: v0.5 (phase 5)**
 
 - [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the six phases it is
   built in.
@@ -829,11 +829,26 @@ and similar ones, one line each. `history T-012` lists the attempts that name th
 `promote INV-003 --as howto` (or `--as lesson`) copies a solved investigation to the team dossier
 as a draft; the failed attempts become the traps of the how-to.
 
-### Not in version 0.4
+### What version 0.5 adds
+
+Version 0.5 lets a team member work from a Windows PC, and take a large simulation file out and
+bring it back without overwriting a colleague's copy. The commands are described in
+[Remote mode: from a Windows PC](#remote-mode-from-a-windows-pc).
+
+- `dossier connect --check` tests the connection, and the PC and the server compare their versions
+  with every command. See [Check the connection](#check-the-connection).
+- A command typed in a subfolder of a connected folder runs in the same subfolder on the server.
+- Each command makes its own ssh connection, and nothing is kept open in the background (decision
+  [D43](docs/requirements.md)).
+- `take` and `return` work for large files from a PC. A `take` never overwrites a local file
+  ([D46](docs/requirements.md)), and a copy goes to a `<name>.dossier-part` file that is renamed
+  only when it is complete. See [Large files: take and return](#large-files-take-and-return).
+- `dossier files --taken` lists the files taken now, and `status` shows them under `## Working now`.
+
+### Not in version 0.5
 
 These come in later phases. See [`docs/requirements.md`](docs/requirements.md), section 11.
 
-- **Phase 5 (v0.5):** copying large simulation files to a PC and back.
 - **Phase 6 (v0.6):** milestone digests, session review, hooks after `todo` commands, and export.
 
 ## What it needs
