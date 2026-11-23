@@ -4167,8 +4167,10 @@
 - note (2026-11-23, planner): split into T-385, T-386, T-387, T-388
 
 ### T-385 · session-end: the command file and its place in the command list
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-385
+- claimed: 2026-11-24T00:30+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-339
 - why: Capture only becomes a habit when the routine steps happen by themselves.
