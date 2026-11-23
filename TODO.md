@@ -3173,12 +3173,13 @@
 - milestone: T-318
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
 - summary: Empty files for the two new commands.
-- files: src/cmd/take.rs, src/cmd/return_cmd.rs
+- files: src/cmd/take.rs, src/cmd/return_cmd.rs, src/cmd/mod.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
   1. Create both files, each with `#[derive(clap::Args, Debug)] pub struct Args {}` and `pub fn run(_args: &Args, _g: &Global) -> Result<Output>` returning Err(Error::new(Code::NotImplemented, "<command> is not built yet")), with the same `use` lines as src/cmd/guard.rs.
   2. Check them with rustfmt --check --edition 2024 src/cmd/take.rs src/cmd/return_cmd.rs
-  3. Run cargo build (it must still pass).
+  3. src/cmd/mod.rs: `pub mod return_cmd;` and `pub mod take;` at their alphabetical places. These modules exist from this task on, so they are compiled and checked; the register task adds them to cli.rs and help.rs.
+  4. Run cargo build (it must still pass).
 - accept: The two stub files exist and are formatted.
 - verify: rustfmt --check --edition 2024 src/cmd/take.rs src/cmd/return_cmd.rs && cargo build
 - reqs: R-FILE-1, R-FILE-2
@@ -3228,19 +3229,19 @@
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
 - summary: The two new commands become part of the program.
 - depends: T-366
-- files: src/cmd/mod.rs, src/cli.rs, src/cmd/help.rs, tests/cmd_agents.rs
+- files: src/cli.rs, src/cmd/help.rs, tests/cmd_agents.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
-  1. src/cmd/mod.rs: `pub mod return_cmd;` and `pub mod take;` at their alphabetical places.
-  2. src/cli.rs: variants `Take(cmd::take::Args)` and `Return(cmd::return_cmd::Args)` in the Command enum and two arms in the match of main_exit with the names "take" and "return".
-  3. src/cmd/help.rs: ("take", "Records who took a file") and ("return", "Checks or ends a take") in COMMANDS, and the array length raised by two.
-  4. tests/cmd_agents.rs: help_without_a_topic_lists_every_command_in_order compares the whole list that `dossier help` prints; when the new commands now appear in it, add them to the expected list at the place where `dossier help` prints them, and change nothing else in that file.
-  5. Run cargo build and cargo test --test smoke; `dossier take` must answer `take is not built yet` with exit 2.
+  1. src/cli.rs: variants `Take(cmd::take::Args)` and `Return(cmd::return_cmd::Args)` in the Command enum and two arms in the match of main_exit with the names "take" and "return".
+  2. src/cmd/help.rs: ("take", "Records who took a file") and ("return", "Checks or ends a take") in COMMANDS, and the array length raised by two.
+  3. tests/cmd_agents.rs: help_without_a_topic_lists_every_command_in_order compares the whole list that `dossier help` prints; when the new commands now appear in it, add them to the expected list at the place where `dossier help` prints them, and change nothing else in that file.
+  4. Run cargo build and cargo test --test smoke; `dossier take` must answer `take is not built yet` with exit 2.
 - accept: take and return are part of the program and the overview.
 - verify: cargo build && cargo test --test smoke
 - reqs: R-FILE-1, R-FILE-2
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): Added tests/cmd_agents.rs: its help overview test lists every command (found in T-359).
+- note (2026-11-23, planner): src/cmd/mod.rs moved to T-366, so this task stays at 3 files (level 1).
 
 ### T-370 · ctx.rs: take and return are writing commands
 - status: open
@@ -3856,12 +3857,13 @@
 - milestone: T-337
 - why: Capture only becomes a habit when the routine steps happen by themselves.
 - summary: Empty files for the two new commands.
-- files: src/cmd/review_session.rs, src/cmd/session.rs
+- files: src/cmd/review_session.rs, src/cmd/session.rs, src/cmd/mod.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
   1. Create both files, each with `#[derive(clap::Args, Debug)] pub struct Args {}` and `pub fn run(_args: &Args, _g: &Global) -> Result<Output>` returning Err(Error::new(Code::NotImplemented, "<command> is not built yet")), with the same `use` lines as src/cmd/guard.rs.
   2. Check them with rustfmt --check --edition 2024 src/cmd/review_session.rs src/cmd/session.rs
-  3. Run cargo build (it must still pass).
+  3. src/cmd/mod.rs: `pub mod review_session;` and `pub mod session;` at their alphabetical places. These modules exist from this task on, so they are compiled and checked; the register task adds them to cli.rs and help.rs.
+  4. Run cargo build (it must still pass).
 - accept: The two stub files exist and are formatted.
 - verify: rustfmt --check --edition 2024 src/cmd/review_session.rs src/cmd/session.rs && cargo build
 - reqs: R-DRAFT-7
@@ -3875,19 +3877,19 @@
 - why: Capture only becomes a habit when the routine steps happen by themselves.
 - summary: The two new commands become part of the program.
 - depends: T-380
-- files: src/cmd/mod.rs, src/cli.rs, src/cmd/help.rs, tests/cmd_agents.rs
+- files: src/cli.rs, src/cmd/help.rs, tests/cmd_agents.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
-  1. src/cmd/mod.rs: `pub mod review_session;` and `pub mod session;` at their alphabetical places.
-  2. src/cli.rs: `ReviewSession(cmd::review_session::Args)` and `Session(cmd::session::Args)` in the Command enum, and two arms in the match of main_exit with the names "review-session" and "session".
-  3. src/cmd/help.rs: ("review-session", "Material from a session file") and ("session", "Converts a transcript") in COMMANDS, length raised by two.
-  4. tests/cmd_agents.rs: help_without_a_topic_lists_every_command_in_order compares the whole list that `dossier help` prints; when the new commands now appear in it, add them to the expected list at the place where `dossier help` prints them, and change nothing else in that file.
-  5. Run cargo build and cargo test --test smoke
+  1. src/cli.rs: `ReviewSession(cmd::review_session::Args)` and `Session(cmd::session::Args)` in the Command enum, and two arms in the match of main_exit with the names "review-session" and "session".
+  2. src/cmd/help.rs: ("review-session", "Material from a session file") and ("session", "Converts a transcript") in COMMANDS, length raised by two.
+  3. tests/cmd_agents.rs: help_without_a_topic_lists_every_command_in_order compares the whole list that `dossier help` prints; when the new commands now appear in it, add them to the expected list at the place where `dossier help` prints them, and change nothing else in that file.
+  4. Run cargo build and cargo test --test smoke
 - accept: The two commands are part of the program and the overview.
 - verify: cargo build && cargo test --test smoke
 - reqs: R-DRAFT-7
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): Added tests/cmd_agents.rs: its help overview test lists every command (found in T-359).
+- note (2026-11-23, planner): src/cmd/mod.rs moved to T-380, so this task stays at 3 files (level 1).
 
 ### T-382 · review-session and session run on the PC; the drafting rules become public
 - status: open
@@ -4135,12 +4137,14 @@
 - milestone: T-341
 - why: Smaller comforts that are worth having once the daily use is settled.
 - summary: An empty place for the examples of each command.
-- files: src/examples.rs, src/lib.rs
+- depends: T-389
+- files: src/examples.rs, src/lib.rs, src/cmd/mod.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
   1. Create src/examples.rs with `pub fn of(_command: &str) -> Option<[&'static str; 3]> { None }` and the doc comment of docs/design.md section 20.
   2. src/lib.rs: `pub mod examples;` at its alphabetical place.
-  3. Run cargo build
+  3. src/cmd/mod.rs: `pub mod export;`, `pub mod schema;`, `pub mod story;` at their alphabetical places. These modules exist from this task on, so they are compiled and checked; the register task adds them to cli.rs and help.rs.
+  4. Run cargo build
 - accept: The module exists with its final signature and compiles.
 - verify: cargo build
 - reqs: R-OUT-5
@@ -4153,20 +4157,20 @@
 - milestone: T-341
 - why: Smaller comforts that are worth having once the daily use is settled.
 - summary: The three new commands become part of the program.
-- depends: T-389
-- files: src/cmd/mod.rs, src/cli.rs, src/cmd/help.rs, tests/cmd_agents.rs
+- depends: T-389, T-390
+- files: src/cli.rs, src/cmd/help.rs, tests/cmd_agents.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
-  1. src/cmd/mod.rs: `pub mod export;`, `pub mod schema;`, `pub mod story;` at their alphabetical places.
-  2. src/cli.rs: `Story(cmd::story::Args)`, `Export(cmd::export::Args)`, `Schema(cmd::schema::Args)` in the Command enum and three arms in the match of main_exit with the names "story", "export", "schema".
-  3. src/cmd/help.rs: ("story", "Decisions in the order made"), ("export", "Writes the project as Markdown"), ("schema", "Describes commands and JSON") in COMMANDS, length raised by three; make the COMMANDS constant `pub`.
-  4. tests/cmd_agents.rs: help_without_a_topic_lists_every_command_in_order compares the whole list that `dossier help` prints; when the new commands now appear in it, add them to the expected list at the place where `dossier help` prints them, and change nothing else in that file.
-  5. Run cargo build and cargo test --test smoke
+  1. src/cli.rs: `Story(cmd::story::Args)`, `Export(cmd::export::Args)`, `Schema(cmd::schema::Args)` in the Command enum and three arms in the match of main_exit with the names "story", "export", "schema".
+  2. src/cmd/help.rs: ("story", "Decisions in the order made"), ("export", "Writes the project as Markdown"), ("schema", "Describes commands and JSON") in COMMANDS, length raised by three; make the COMMANDS constant `pub`.
+  3. tests/cmd_agents.rs: help_without_a_topic_lists_every_command_in_order compares the whole list that `dossier help` prints; when the new commands now appear in it, add them to the expected list at the place where `dossier help` prints them, and change nothing else in that file.
+  4. Run cargo build and cargo test --test smoke
 - accept: The three commands are part of the program and the overview, and the command list can be read by other modules.
 - verify: cargo build && cargo test --test smoke
 - reqs: R-READ-7, R-OUT-6, R-OUT-7
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): Added tests/cmd_agents.rs: its help overview test lists every command (found in T-359).
+- note (2026-11-23, planner): src/cmd/mod.rs moved to T-390, so this task stays at 3 files (level 1).
 
 ### T-342 · story: the decisions in the order they were made
 - status: open
@@ -7869,21 +7873,10 @@
 - priority: P2 · type: milestone
 - goal: A person or an LLM records a problem, each attempt to solve it with its hypothesis and result, and what solved it, in ten seconds per attempt; the next person or LLM on a similar task sees what was tried and what worked. Attempts are lines in the dossier, not tasks; dossier never creates a task. Requirements: docs/requirements.md section 5.11h (R-INV-1 to 10), section 11 Phase 4 (v0.4), decisions D41, D42 and D45; version 0.4.0 is ready to tag.
 - summary: Hypotheses, experiments and their results are tracked, so that nobody tests again what already failed and the way to the solution can be reused.
-- depends: T-299
-- files: src/cmd/tried.rs, tests/cmd_tried.rs
-- read: docs/format.md, src/attempts.rs
-- steps:
-  1. src/cmd/tried.rs: add a private fn `unseparated(text: &str) -> String` that replaces each of the four separator forms of src/attempts.rs (`" — did: "`, `" — result: "`, `" — run: "`, `" — task: "`, with the em dash U+2014) by the same text with an en dash U+2013 (`" – did: "` and so on). Every other character, including a plain `" — "`, stays as it is.
-  2. src/cmd/tried.rs, in `run`: apply `unseparated` to the attempt text (after check_line, before it goes into Attempt) and to `did` and `result` (after optional_line). Do not apply it to `run` and `task`.
-  3. Unit tests at the end of src/cmd/tried.rs for `unseparated`: `"CFL 5 — result: diverges"` becomes `"CFL 5 – result: diverges"`; `"CFL 5 — still diverges"` is unchanged; a text with two separator forms has both replaced.
-  4. tests/cmd_tried.rs: `tried INV-001 "CFL 5 — result: diverges" --failed` writes an attempt line that contains `CFL 5 – result: diverges` and no ` — result: `; `tried INV-001 "CFL 5 — still diverges" --failed --result "same — did: nothing"` keeps `CFL 5 — still diverges` as written and writes `same – did: nothing` as the result.
-  5. Run cargo test --test cmd_tried and cargo test --lib cmd::tried::
-- accept: A text, --did or --result that holds a separator form is written with an en dash, every other em dash is kept, and the attempt reads back with the same parts.
-- verify: cargo test --test cmd_tried && cargo test --lib cmd::tried::
-- reqs: R-INV-2
 - note (2026-11-22, planner): added
 - note (2026-11-23, planner): Owner, 2026-11-23 (D45): this is now phase 4, release 0.4.0 (T-402). T-309 moved to T-283, because it needs the hook of T-294, which comes in 0.6.
 - note (2026-11-23, planner): Owner, 2026-11-23: replace, do not refuse; only the four separator forms, so plain em dashes stay.
+- note (2026-11-23, planner): The note above about replacing belongs to the task on attempt texts with a separator form, added below T-287; it was written here by a planner mistake.
 
 ### T-287 · Investigations: problem, tried, solved, gave-up, and their place in show, brief, status and search
 - status: open
@@ -8460,7 +8453,7 @@
 - milestone: T-286
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
 - summary: The version number and the README are ready for the owner to tag release 0.4.0.
-- depends: T-401, T-303, T-304, T-305, T-306, T-307, T-310, T-361, T-362, T-363, T-365, error
+- depends: T-401, T-303, T-304, T-305, T-306, T-307, T-310, T-361, T-362, T-363, T-365, T-403
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -8471,6 +8464,28 @@
 - verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
 - reqs: REL-1, REL-2
 - note (2026-11-23, planner): added
+
+### T-403 · tried: a text that holds a part separator keeps reading back the same
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-287
+- why: An attempt text with ' — result: ' in it would read back split into the wrong parts (format.md section 28).
+- summary: When an attempt's text contains one of the separator forms, it is written with an en dash so the line reads back exactly as recorded.
+- depends: T-299
+- files: src/cmd/tried.rs, tests/cmd_tried.rs
+- read: docs/format.md, src/attempts.rs
+- steps:
+  1. src/cmd/tried.rs: add a private fn `unseparated(text: &str) -> String` that replaces each of the four separator forms of src/attempts.rs (`" — did: "`, `" — result: "`, `" — run: "`, `" — task: "`, with the em dash U+2014) by the same text with an en dash U+2013 (`" – did: "` and so on). Every other character, including a plain `" — "`, stays as it is.
+  2. src/cmd/tried.rs, in `run`: apply `unseparated` to the attempt text (after check_line, before it goes into Attempt) and to `did` and `result` (after optional_line). Do not apply it to `run` and `task`.
+  3. Unit tests at the end of src/cmd/tried.rs for `unseparated`: `"CFL 5 — result: diverges"` becomes `"CFL 5 – result: diverges"`; `"CFL 5 — still diverges"` is unchanged; a text with two separator forms has both replaced.
+  4. tests/cmd_tried.rs: `tried INV-001 "CFL 5 — result: diverges" --failed` writes an attempt line that contains `CFL 5 – result: diverges` and no ` — result: `; `tried INV-001 "CFL 5 — still diverges" --failed --result "same — did: nothing"` keeps `CFL 5 — still diverges` as written and writes `same – did: nothing` as the result.
+  5. Run cargo test --test cmd_tried and cargo test --lib cmd::tried::
+- accept: A text, --did or --result that holds a separator form is written with an en dash, every other em dash is kept, and the attempt reads back with the same parts.
+- verify: cargo test --test cmd_tried && cargo test --lib cmd::tried::
+- reqs: R-INV-2
+- note (2026-11-23, planner): added
+- note (2026-11-23, planner): Owner, 2026-11-23: replace, do not refuse; only the four separator forms, so plain em dashes stay.
 
 ## Questions
 
