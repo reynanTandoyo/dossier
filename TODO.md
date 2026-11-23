@@ -8776,8 +8776,10 @@
 - note (2026-11-23, haiku-T-409): done
 
 ### T-410 · transfer.rs: return --done does not copy the PC's file mode to the server
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-410
+- claimed: 2026-11-23T23:18+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-054
 - why: scp -p from Windows sends mode 0666, so a returned file became writable for everyone on the server (found in the end-to-end check, 2026-11-23).
