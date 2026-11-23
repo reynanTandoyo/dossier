@@ -8,7 +8,9 @@
 //! the clock fixed at 2026-11-20T10:00:00+01:00. Phase 3 adds the team's lessons and how-tos whose
 //! tags match the project's, and the news line (R-CTX-1, R-READ-11). The later part adds the
 //! `[due for review]` mark of every entry printed, and the changed mark of team how-tos
-//! (R-LIFE-6, R-LIFE-7, R-CTX-4).
+//! (R-LIFE-6, R-LIFE-7, R-CTX-4). The last part adds the open investigations under their heading,
+//! after the open assumptions, with their number of attempts and the last attempt (R-INV-5), and
+//! their place in the order in which the line limit cuts.
 
 mod common;
 
@@ -1856,4 +1858,201 @@ fn a_team_lesson_and_how_to_past_their_review_date_are_marked_due_for_review() {
         lines.contains(&"team:HOW-001 · Restart the solver [due for review]"),
         "{text}"
     );
+}
+
+/// Opens an investigation as anna with the title `title`; its problem is invented.
+fn open_investigation(project: &Project, title: &str) {
+    project
+        .run(
+            "anna",
+            &[
+                "problem",
+                "The density residual grows after 40 iterations.",
+                "--title",
+                title,
+            ],
+        )
+        .success();
+}
+
+/// Records one attempt of the investigation `id` as anna: the hypothesis `text` and a verdict flag.
+fn try_it(project: &Project, id: &str, text: &str, verdict: &str) {
+    project.run("anna", &["tried", id, text, verdict]).success();
+}
+
+#[test]
+fn an_open_investigation_is_listed_with_its_attempts_and_its_last_one() {
+    let project = Project::new();
+    open_investigation(&project, "Residual blows up");
+    try_it(
+        &project,
+        "INV-001",
+        "The CFL number is too high",
+        "--failed",
+    );
+    try_it(
+        &project,
+        "INV-001",
+        "The mesh is too coarse at the leading edge",
+        "--failed",
+    );
+
+    let text = brief(&project, &[], None);
+
+    assert_eq!(
+        text.lines().collect::<Vec<&str>>(),
+        vec![
+            "Project P-001",
+            "## Open investigations",
+            "INV-001 · Residual blows up — 2 attempts, last: 2. failed: The mesh is too coarse at the leading edge",
+        ],
+        "{text}"
+    );
+}
+
+#[test]
+fn a_solved_or_given_up_investigation_is_left_out_and_one_without_an_attempt_says_so() {
+    let project = Project::new();
+    open_investigation(&project, "Solved one");
+    try_it(
+        &project,
+        "INV-001",
+        "The flux has the wrong sign",
+        "--worked",
+    );
+    project
+        .run(
+            "anna",
+            &["solved", "INV-001", "The outlet flux had the wrong sign."],
+        )
+        .success();
+    open_investigation(&project, "Given up one");
+    project
+        .run(
+            "anna",
+            &["gave-up", "INV-002", "--reason", "No data to test it with."],
+        )
+        .success();
+    open_investigation(&project, "Open one");
+
+    let text = brief(&project, &[], None);
+
+    assert_eq!(
+        text.lines().collect::<Vec<&str>>(),
+        vec![
+            "Project P-001",
+            "## Open investigations",
+            "INV-003 · Open one — no attempt yet",
+        ],
+        "{text}"
+    );
+}
+
+#[test]
+fn the_open_investigations_come_after_the_open_assumptions_and_before_the_findings() {
+    let project = project_with_entries();
+    open_investigation(&project, "Residual blows up");
+
+    let text = brief(&project, &[], None);
+
+    let position = |heading: &str| {
+        text.lines()
+            .position(|line| line == heading)
+            .unwrap_or_else(|| panic!("no {heading} in:\n{text}"))
+    };
+    assert!(
+        position("## Open assumptions") < position("## Open investigations"),
+        "{text}"
+    );
+    assert!(
+        position("## Open investigations") < position("## Findings"),
+        "{text}"
+    );
+}
+
+#[test]
+fn the_json_data_names_the_open_investigations_only() {
+    let project = Project::new();
+    open_investigation(&project, "Residual blows up");
+    try_it(
+        &project,
+        "INV-001",
+        "The CFL number is too high",
+        "--failed",
+    );
+    open_investigation(&project, "Solved one");
+    project
+        .run(
+            "anna",
+            &["solved", "INV-002", "The flux had the wrong sign."],
+        )
+        .success();
+
+    let text = brief(&project, &["--json"], None);
+
+    let envelope: serde_json::Value = serde_json::from_str(text.trim()).expect("one JSON line");
+    assert_eq!(
+        envelope["data"]["investigations"],
+        serde_json::json!(["INV-001"]),
+        "{text}"
+    );
+}
+
+#[test]
+fn a_brief_without_open_investigations_has_no_such_heading() {
+    let project = project_with_entries();
+
+    let text = brief(&project, &[], None);
+    assert!(!text.contains("## Open investigations"), "{text}");
+
+    let envelope: serde_json::Value =
+        serde_json::from_str(brief(&project, &["--json"], None).trim()).expect("one JSON line");
+    assert_eq!(
+        envelope["data"]["investigations"],
+        serde_json::json!([]),
+        "{envelope}"
+    );
+}
+
+#[test]
+fn open_investigations_are_cut_before_the_proposals_and_the_cut_is_said() {
+    let project = Project::new();
+    for number in 1..=60 {
+        open_investigation(&project, &format!("Investigation {number}"));
+    }
+    project
+        .run(
+            "ben-codex",
+            &[
+                "propose",
+                "Mesh the blades with 1 mm cells.",
+                "--reason",
+                "The tip gap needs fine cells.",
+                "--title",
+                "Blade mesh size",
+            ],
+        )
+        .success();
+
+    let text = brief(&project, &[], None);
+
+    // 60 investigations and 1 proposal make 64 lines with the project line and the two headings.
+    // Five investigations are cut, the oldest, and the left-out line takes the place of one of them.
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 60, "{text}");
+    assert_eq!(
+        lines.last(),
+        Some(&"5 entries left out: dossier list"),
+        "{text}"
+    );
+    assert!(lines.contains(&"DEC-001 · Blade mesh size (ben)"), "{text}");
+    assert!(
+        lines.contains(&"INV-060 · Investigation 60 — no attempt yet"),
+        "{text}"
+    );
+    assert!(
+        lines.contains(&"INV-006 · Investigation 6 — no attempt yet"),
+        "{text}"
+    );
+    assert!(!text.contains("INV-005 ·"), "{text}");
 }

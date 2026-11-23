@@ -19,8 +19,12 @@
 //! Every entry printed carries `[due for review]` when its review date has passed (R-LIFE-7,
 //! R-CTX-4), and a lesson, how-to or tool changed by hand after its approval carries
 //! `[changed after approval]` (R-LIFE-6): the same marks, in the same order, as `show` gives.
+//!
+//! The open investigations (R-INV-5) come after the open assumptions, one line each with its number
+//! of attempts and its last attempt. With `--on` their state and attempts are those of now.
 
 use crate::approval::{self, Mark};
+use crate::attempts;
 use crate::blockfile::BlockFile;
 use crate::brief_task;
 use crate::cli::Global;
@@ -57,6 +61,7 @@ const MAP: &str = "## Map";
 const KEY_VALUES: &str = "## Key values";
 const DECISIONS: &str = "## Decisions in force";
 const ASSUMPTIONS: &str = "## Open assumptions";
+const INVESTIGATIONS: &str = "## Open investigations";
 const FINDINGS: &str = "## Findings";
 const LESSONS: &str = "## Lessons";
 const TEAM: &str = "## Team lessons and how-tos";
@@ -187,6 +192,8 @@ struct Brief {
     decisions: Vec<Decision>,
     /// The assumptions that are open, by ID.
     assumptions: Vec<Line>,
+    /// The open investigations, newest first, by ID (R-INV-5).
+    investigations: Vec<Line>,
     /// The findings, by ID.
     findings: Vec<Line>,
     /// The lessons, by ID.
@@ -204,7 +211,8 @@ struct Brief {
     /// The news of the project and the team since the person's marker (R-READ-11). Set after
     /// `collect`; None with `--on`, and when no person is named or the person has no marker yet.
     news: Option<News>,
-    /// The number of entries cut to fit the limit (lessons, findings, decisions, assumptions).
+    /// The number of entries cut to fit the limit (lessons, findings, investigations, decisions,
+    /// assumptions).
     left_out: usize,
     /// The number of team lines left out: those beyond MAX_TEAM, or cut to fit the limit.
     team_left_out: usize,
@@ -312,6 +320,7 @@ impl Brief {
                 .filter(|item| is_open(&item.entry, day))
                 .map(|item| line(&item.entry, &review_marks(&ctx.state, item), &wrong))
                 .collect(),
+            investigations: investigations_of(items, &ctx.state, day, &wrong),
             findings: shown(items, Kind::Finding, day)
                 .into_iter()
                 .map(|item| {
@@ -364,6 +373,7 @@ impl Brief {
         let decisions: Vec<String> = self.decisions.iter().flat_map(Decision::lines).collect();
         push_section(&mut lines, DECISIONS, &decisions);
         push_section(&mut lines, ASSUMPTIONS, &texts(&self.assumptions));
+        push_section(&mut lines, INVESTIGATIONS, &texts(&self.investigations));
         push_section(&mut lines, FINDINGS, &texts(&self.findings));
         push_section(&mut lines, LESSONS, &texts(&self.lessons));
         push_section(&mut lines, TEAM, &texts(&self.team));
@@ -441,15 +451,17 @@ impl Brief {
     }
 
     /// Cuts one thing to fit the limit, in this order: the last lesson, the last finding, the last
-    /// team line, the last proposal, the last line that rests on a wrong assumption, the last value,
-    /// the whole map, the oldest decision, the last open assumption. Returns false when nothing is
-    /// left to cut. Each step stops at the first list that had something, so only one thing is cut
-    /// per call.
+    /// team line, the last open investigation, the last proposal, the last line that rests on a
+    /// wrong assumption, the last value, the whole map, the oldest decision, the last open
+    /// assumption. Returns false when nothing is left to cut. Each step stops at the first list
+    /// that had something, so only one thing is cut per call.
     fn cut_one(&mut self) -> bool {
         if self.lessons.pop().is_some() || self.findings.pop().is_some() {
             self.left_out += 1;
         } else if self.team.pop().is_some() {
             self.team_left_out += 1;
+        } else if self.investigations.pop().is_some() {
+            self.left_out += 1;
         } else if self.proposals.pop().is_some() {
             self.proposals_left_out += 1;
         } else if self.rests.pop().is_some() {
@@ -478,6 +490,7 @@ impl Brief {
             "values": ids(&self.values),
             "decisions": self.decisions.iter().map(|decision| decision.id.as_str()).collect::<Vec<_>>(),
             "assumptions": ids(&self.assumptions),
+            "investigations": ids(&self.investigations),
             "findings": ids(&self.findings),
             "lessons": ids(&self.lessons),
             "team": ids(&self.team),
@@ -527,6 +540,48 @@ fn proposals_of(items: &[Item], state: &Path, wrong: &Wrong) -> Vec<Line> {
             line(&item.entry, &suffix, wrong)
         })
         .collect()
+}
+
+/// The open investigations, newest first, each as `<ID> · <title>[ marks] — <n> attempts, last:
+/// <summary of its last attempt>`, or `— no attempt yet` (R-INV-5). `state` is the state folder of
+/// the dossier and `day` is as in `shown`.
+fn investigations_of(items: &[Item], state: &Path, day: Option<&str>, wrong: &Wrong) -> Vec<Line> {
+    let mut open: Vec<&Item> = shown(items, Kind::Investigation, day)
+        .into_iter()
+        .filter(|item| is_open_investigation(&item.entry))
+        .collect();
+    open.sort_by(|a, b| newest_first(&a.entry, &b.entry));
+    open.into_iter()
+        .map(|item| {
+            let suffix = format!(
+                "{}{}",
+                review_marks(state, item),
+                attempts_text(&item.entry)
+            );
+            line(&item.entry, &suffix, wrong)
+        })
+        .collect()
+}
+
+/// Whether an investigation is open now: its `state` is `open`.
+fn is_open_investigation(entry: &Entry) -> bool {
+    entry
+        .field("state")
+        .is_some_and(|state| state.eq_ignore_ascii_case("open"))
+}
+
+/// The attempts part of an investigation's line: ` — 2 attempts, last: 2. failed: <text>`, or
+/// ` — no attempt yet` when it has none.
+fn attempts_text(entry: &Entry) -> String {
+    let attempts = attempts::of(entry);
+    match attempts.last() {
+        None => " — no attempt yet".to_string(),
+        Some(last) => {
+            let count = attempts.len();
+            let noun = if count == 1 { "attempt" } else { "attempts" };
+            format!(" — {count} {noun}, last: {}", attempts::summary(last))
+        }
+    }
 }
 
 /// What rests on a wrong assumption, as the brief of now prints it (R-CTX-16): the approved entries
