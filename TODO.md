@@ -8959,10 +8959,8 @@
 - note (2026-11-24, planner): added
 
 ### T-417 · brief: one summed-up line per digest, pointing to dossier show
-- status: claimed
+- status: done
 - owner: haiku-T-417
-- claimed: 2026-11-24T00:23+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-056
 - why: The summed-up line pointed to list --task <task>, which cannot name a milestone of several tasks (found in T-333).
@@ -8976,8 +8974,12 @@
   3. Run cargo test --test cmd_brief
 - accept: brief prints one summed-up line per digest with its milestone and DIG-ID and the command dossier show <DIG-ID>.
 - verify: cargo test --test cmd_brief
+- verified: 2026-11-24
+- commit: cd9effa
 - reqs: R-CTX-14
+- by: Reynan Henry Tandoyo
 - note (2026-11-24, planner): added
+- note (2026-11-24, haiku-T-417): done
 
 ### T-418 · status: the summed-up line names the digest's milestone
 - status: claimed
