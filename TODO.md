@@ -3837,10 +3837,8 @@
 - note (2026-11-24, haiku-T-378): done
 
 ### T-379 · digest --write: store the summary as an entry
-- status: claimed
+- status: done
 - owner: haiku-T-379
-- claimed: 2026-11-24T00:24+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-331
 - why: The context an LLM gets must stay small as a project grows (D22).
@@ -3857,8 +3855,12 @@
   6. Run cargo test --test cmd_digest
 - accept: digest --write stores at most 15 lines as a digest entry of the milestone; an LLM's is a draft until a person approves it.
 - verify: cargo test --test cmd_digest
+- verified: 2026-11-24
+- commit: a32a365
 - reqs: R-CTX-14, D5
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-379): done
 
 ### T-332 · decide --standing: a decision that binds the whole project
 - status: done
