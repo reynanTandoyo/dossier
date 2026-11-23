@@ -26,6 +26,36 @@ pub struct Query {
     pub words: Vec<String>,
 }
 
+/// What an entry offers to a query: its title words, its section words and its tags, all in
+/// lower case. `score` and `reason` both compare the query with these sets.
+struct Matchable {
+    title: HashSet<String>,
+    sections: HashSet<String>,
+    tags: HashSet<String>,
+}
+
+/// The title words, section words and tags of `item`.
+fn matchable(item: &Item) -> Matchable {
+    let title: HashSet<String> = words(&item.entry.title()).into_iter().collect();
+    let bodies: Vec<String> = item
+        .entry
+        .sections()
+        .into_iter()
+        .map(|(_, body)| body)
+        .collect();
+    let sections: HashSet<String> = words(&bodies.join(" ")).into_iter().collect();
+    let tags: HashSet<String> = TAG_FIELDS
+        .iter()
+        .flat_map(|key| item.entry.list(key))
+        .map(|tag| tag.to_lowercase())
+        .collect();
+    Matchable {
+        title,
+        sections,
+        tags,
+    }
+}
+
 /// 5 points per query word in the title, 3 per query tag among the entry's tag fields,
 /// 1 per query word in the sections. 0 = no match.
 ///
@@ -33,35 +63,41 @@ pub struct Query {
 /// The title words and the section words are `words` of the title and of all section bodies
 /// joined with a space, so a query word in both gets 6 points.
 pub fn score(item: &Item, query: &Query) -> u32 {
-    let title_words: HashSet<String> = words(&item.entry.title()).into_iter().collect();
-    let bodies: Vec<String> = item
-        .entry
-        .sections()
-        .into_iter()
-        .map(|(_, body)| body)
-        .collect();
-    let section_words: HashSet<String> = words(&bodies.join(" ")).into_iter().collect();
-    let tags: HashSet<String> = TAG_FIELDS
-        .iter()
-        .flat_map(|key| item.entry.list(key))
-        .map(|tag| tag.to_lowercase())
-        .collect();
-
+    let found = matchable(item);
     let mut points = 0;
     for word in folded(&query.words) {
-        if title_words.contains(&word) {
+        if found.title.contains(&word) {
             points += 5;
         }
-        if section_words.contains(&word) {
+        if found.sections.contains(&word) {
             points += 1;
         }
     }
     for tag in folded(&query.tags) {
-        if tags.contains(&tag) {
+        if found.tags.contains(&tag) {
             points += 3;
         }
     }
     points
+}
+
+/// Which rule gave the points: Some("tag match") when a query tag matched, else
+/// Some("word match") when a word matched, else None.
+pub fn reason(item: &Item, query: &Query) -> Option<&'static str> {
+    let found = matchable(item);
+    if folded(&query.tags)
+        .iter()
+        .any(|tag| found.tags.contains(tag))
+    {
+        Some("tag match")
+    } else if folded(&query.words)
+        .iter()
+        .any(|word| found.title.contains(word) || found.sections.contains(word))
+    {
+        Some("word match")
+    } else {
+        None
+    }
 }
 
 /// Items with score > 0, highest first, then newest `created` first, then ID. The ID is
@@ -250,6 +286,52 @@ mod tests {
 
         assert_eq!(score(&entry, &query(&[], &["pump", "PUMP"])), 5);
         assert_eq!(score(&entry, &query(&[], &["reason"])), 0);
+    }
+
+    #[test]
+    fn a_tag_match_is_the_reason_even_when_a_word_matches_too() {
+        let entry = item(
+            "DEC-006",
+            EARLY,
+            "Pump seal choice",
+            &[("tags", "Inbox")],
+            &[("Reason", "Fits the rig.")],
+        );
+        let q = query(&["inbox"], &["pump"]);
+
+        assert_eq!(reason(&entry, &q), Some("tag match"));
+        assert_eq!(score(&entry, &q), 8);
+    }
+
+    #[test]
+    fn a_title_or_section_word_is_a_word_match() {
+        let title_only = item("DEC-007", EARLY, "Pump seal choice", &[], &[]);
+        let section_only = item(
+            "DEC-008",
+            EARLY,
+            "Other",
+            &[],
+            &[("Reason", "The pump was checked.")],
+        );
+        let q = query(&[], &["pump"]);
+
+        assert_eq!(reason(&title_only, &q), Some("word match"));
+        assert_eq!(reason(&section_only, &q), Some("word match"));
+    }
+
+    #[test]
+    fn an_entry_sharing_nothing_has_no_reason_and_no_score() {
+        let entry = item(
+            "DEC-010",
+            EARLY,
+            "Compressor run",
+            &[("tags", "inbox")],
+            &[("Reason", "Fits the rig.")],
+        );
+        let q = query(&["axial"], &["pump"]);
+
+        assert_eq!(reason(&entry, &q), None);
+        assert_eq!(score(&entry, &q), 0);
     }
 
     #[test]
