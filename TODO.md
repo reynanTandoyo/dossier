@@ -3653,7 +3653,7 @@
 - milestone: T-054
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
 - summary: The version number and the README are ready for the owner to tag release 0.5.0.
-- depends: T-402, T-327, T-324, T-316, T-410
+- depends: T-402, T-327, T-324, T-316, T-410, T-411
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -8794,6 +8794,25 @@
 - accept: An upload runs scp without -p; a download keeps -p.
 - verify: cargo test --lib remote::transfer::
 - reqs: R-REMOTE-4
+- note (2026-11-23, planner): added
+
+### T-411 · secret.rs: build the AWS-shaped test values at run time
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: chore
+- milestone: T-054
+- why: GitHub secret scanning reports the invented AWS key of the T-288 tests as a leaked secret (alert #1).
+- summary: The tests of the credential check no longer contain text that GitHub's secret scanning reports as a leaked key.
+- files: src/secret.rs
+- read: src/secret.rs
+- steps:
+  1. src/secret.rs, in the tests module: add `const AWS_BODY: &str = "Q7WXYZ3JKLMN2PQR";` next to `const BODY`, with a comment: the AWS-shaped test values are built at run time, so that the source holds no literal that secret scanners report as a leaked key.
+  2. src/secret.rs, the five lines of the AWS test (now `kinds("AKIAQ7WXYZ3JKLMN2PQR")` and the four after it): build each value with format! from the prefix and AWS_BODY and keep exactly the same text as before: `format!("AKIA{AWS_BODY}")`, `format!("ASIA{AWS_BODY}")`, `format!("AKIA{AWS_BODY}S")`, `format!("AKIA{}", &AWS_BODY[..15])`, `format!("AKIA{}", AWS_BODY.to_lowercase())`. The expected results stay as they are.
+  3. Check that no other line of the repository (outside target/) matches the pattern `(AKIA|ASIA)[A-Za-z0-9]{12,}` any more, for example with git grep -E.
+  4. Run cargo test --lib secret::
+- accept: The tests check the same texts as before, and git grep finds no AKIA or ASIA key-shaped literal.
+- verify: cargo test --lib secret::
+- reqs: R-CONF-7
 - note (2026-11-23, planner): added
 
 ## Questions
