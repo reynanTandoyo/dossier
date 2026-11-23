@@ -18,6 +18,7 @@ pub mod decline;
 pub mod delivered;
 pub mod detach;
 pub mod diff;
+pub mod digest;
 pub mod drafts;
 pub mod edit;
 pub mod exchange;
