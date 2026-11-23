@@ -235,6 +235,11 @@ mod tests {
     /// Twenty characters of the token alphabet.
     const BODY: &str = "abcdefghij0123456789";
 
+    /// The sixteen characters after `AKIA` in the AWS-shaped test values. Those values are built
+    /// at run time, so that the source holds no literal that secret scanners report as a leaked
+    /// key.
+    const AWS_BODY: &str = "Q7WXYZ3JKLMN2PQR";
+
     #[test]
     fn a_private_key_header_is_a_hit() {
         assert_eq!(kinds("-----BEGIN RSA PRIVATE KEY-----"), ["private key"]);
@@ -274,11 +279,11 @@ mod tests {
 
     #[test]
     fn aws_key_ids_are_twenty_capitals_and_digits() {
-        assert_eq!(kinds("AKIAQ7WXYZ3JKLMN2PQR"), ["access token"]);
-        assert_eq!(kinds("ASIAQ7WXYZ3JKLMN2PQR"), ["access token"]);
-        assert!(find("AKIAQ7WXYZ3JKLMN2PQRS").is_empty());
-        assert!(find("AKIAQ7WXYZ3JKLMN2PQ").is_empty());
-        assert!(find("AKIAq7wxyz3jklmn2pqr").is_empty());
+        assert_eq!(kinds(&format!("AKIA{AWS_BODY}")), ["access token"]);
+        assert_eq!(kinds(&format!("ASIA{AWS_BODY}")), ["access token"]);
+        assert!(find(&format!("AKIA{AWS_BODY}S")).is_empty());
+        assert!(find(&format!("AKIA{}", &AWS_BODY[..15])).is_empty());
+        assert!(find(&format!("AKIA{}", AWS_BODY.to_lowercase())).is_empty());
     }
 
     #[test]
