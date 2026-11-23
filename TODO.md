@@ -7770,10 +7770,8 @@
 - note (2026-11-22, planner): split into T-293, T-294
 
 ### T-293 · hooks.rs: the hook after shell commands, and reading a todo command from its payload
-- status: claimed
+- status: done
 - owner: haiku-T-293
-- claimed: 2026-11-23T23:53+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-283
 - why: A rule that an agent must remember is followed only some of the time; a hook runs every time (D39).
@@ -7790,8 +7788,12 @@
   7. Run cargo test --lib hooks:: and cargo test --test cmd_hooks
 - accept: hooks install adds the PostToolUse hook and uninstall removes it; todo_event tells a claimed, finished or given-back task from the payload and nothing else.
 - verify: cargo test --lib hooks:: && cargo test --test cmd_hooks
+- verified: 2026-11-24
+- commit: 9445a7e
 - reqs: R-AGENT-5, D39
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, planner): added
+- note (2026-11-24, haiku-T-293): done
 
 ### T-294 · after: show the agent what the dossier has after a todo command
 - status: open
