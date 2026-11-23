@@ -3992,8 +3992,8 @@
 - note (2026-11-23, haiku-T-336): done
 
 ### T-337 · review-session and session convert: the material of a whole session for drafting
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - milestone: T-057
 - goal: review-session prints the decisive parts of a session file and the drafting rules and changes nothing; with --claude it takes a Claude Code transcript; session convert writes the session file; all of them run on the machine of the session.
@@ -4002,8 +4002,10 @@
 - depends: T-336
 - accept: review-session prints the decisive parts of a session file and the drafting rules, cut to a size limit, and changes nothing; with --claude it takes a Claude Code transcript, and session convert writes the session file.
 - reqs: R-DRAFT-7, D7, D44
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): split into T-380, T-381, T-382, T-383, T-384
+- note (2026-11-24, planner): done — review-session prints the decisive turns of a session with the drafting rules, and session convert --claude makes a session file from a Claude Code transcript.
 
 ### T-380 · Stub files: review-session and session
 - status: done
