@@ -13,6 +13,9 @@ const CONFIDENCE: [&str; 4] = ["measured", "simulated", "experience", "guess"];
 /// The values of `state` of an assumption (format.md §5).
 const STATES: [&str; 3] = ["open", "confirmed", "wrong"];
 
+/// The values of `state` of an investigation (format.md §28).
+const INVESTIGATION_STATES: [&str; 3] = ["open", "solved", "given up"];
+
 /// The values of `outcome` of a finding (format.md §5).
 const OUTCOMES: [&str; 1] = ["dead end"];
 
@@ -26,6 +29,7 @@ pub fn required_sections(kind: Kind) -> &'static [&'static str] {
         Kind::Usage => &[],
         Kind::Howto => &["Purpose", "Steps"],
         Kind::Tool => &["Purpose"],
+        Kind::Investigation => &["Problem"],
     }
 }
 
@@ -53,12 +57,13 @@ pub fn section_order(kind: Kind) -> &'static [&'static str] {
             "Traps",
             "Tested with",
         ],
+        Kind::Investigation => &["Problem", "Attempts", "Solution"],
     }
 }
 
 /// What is missing for approval: required sections, `confidence` for a lesson with one of the
-/// four values, a valid `state` for an assumption, a valid `outcome` if present, and the fields
-/// `software`, `version` and `task` of a usage record (format.md §15).
+/// four values, a valid `state` for an assumption or an investigation, a valid `outcome` if
+/// present, and the fields `software`, `version` and `task` of a usage record (format.md §15).
 ///
 /// The problems come in this order: the required sections of the kind, then the field of the
 /// kind. A section with no text counts as missing. A field with an empty value counts as
@@ -115,6 +120,13 @@ pub fn problems(entry: &Entry) -> Vec<Problem> {
             }
         }
         Kind::Tool => {}
+        Kind::Investigation => {
+            if !filled_field(entry, "state")
+                .is_some_and(|state| is_one_of(&state, &INVESTIGATION_STATES))
+            {
+                found.push(problem("state must be open, solved or given up"));
+            }
+        }
     }
     found
 }
@@ -139,6 +151,7 @@ fn is_one_of(value: &str, allowed: &[&str]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::entry::new::{Draft, render};
 
     /// The messages of the problems of an entry text.
     fn whats(text: &str) -> Vec<String> {
@@ -455,7 +468,7 @@ results/run-1/
 
     #[test]
     fn required_sections_are_those_of_format_section_8_in_their_order() {
-        let expected: [(Kind, &[&str], &[&str]); 7] = [
+        let expected: [(Kind, &[&str], &[&str]); 8] = [
             (
                 Kind::Decision,
                 &["Decision", "Reason"],
@@ -504,6 +517,11 @@ results/run-1/
                     "Traps",
                     "Tested with",
                 ],
+            ),
+            (
+                Kind::Investigation,
+                &["Problem"],
+                &["Problem", "Attempts", "Solution"],
             ),
         ];
         for (kind, required, order) in expected {
@@ -606,5 +624,64 @@ Converts files.
             "",
         );
         assert_eq!(whats(&text), ["missing section Purpose"]);
+    }
+
+    /// A complete investigation, as `render` writes it, with the given `state`. Invented content.
+    fn investigation(state: &str) -> String {
+        render(&Draft {
+            kind: Kind::Investigation,
+            id: "INV-101".to_string(),
+            title: "Invented investigation".to_string(),
+            fields: vec![
+                ("status".to_string(), "approved".to_string()),
+                ("state".to_string(), state.to_string()),
+            ],
+            sections: vec![(
+                "Problem".to_string(),
+                "The invented run stops early.".to_string(),
+            )],
+        })
+    }
+
+    #[test]
+    fn an_investigation_with_a_state_and_a_problem_has_no_problems() {
+        let found = whats(&investigation("open"));
+        assert!(found.is_empty(), "{found:?}");
+    }
+
+    #[test]
+    fn every_state_of_an_investigation_is_accepted_in_any_case() {
+        for value in ["open", "solved", "given up", "Given Up"] {
+            let found = whats(&investigation(value));
+            assert!(found.is_empty(), "{value}: {found:?}");
+        }
+    }
+
+    #[test]
+    fn an_investigation_with_another_state_lists_the_state_rule() {
+        let text = investigation("closed");
+        assert_eq!(whats(&text), ["state must be open, solved or given up"]);
+    }
+
+    #[test]
+    fn an_investigation_without_state_lists_the_state_rule() {
+        let text = replacing(&investigation("open"), "- state: open\n", "");
+        assert_eq!(whats(&text), ["state must be open, solved or given up"]);
+    }
+
+    #[test]
+    fn an_investigation_without_problem_lists_the_section_before_the_state_rule() {
+        let text = replacing(
+            &replacing(&investigation("open"), "- state: open\n", ""),
+            "## Problem\n\nThe invented run stops early.\n",
+            "",
+        );
+        assert_eq!(
+            whats(&text),
+            [
+                "missing section Problem",
+                "state must be open, solved or given up",
+            ]
+        );
     }
 }

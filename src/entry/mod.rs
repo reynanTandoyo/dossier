@@ -1,5 +1,5 @@
-//! Entries: the files of decisions, assumptions, findings, lessons, usage records, how-tos and
-//! tools.
+//! Entries: the files of decisions, assumptions, findings, lessons, usage records, how-tos,
+//! tools and investigations.
 
 pub mod edit;
 pub mod new;
@@ -22,11 +22,12 @@ pub enum Kind {
     Usage,
     Howto,
     Tool,
+    Investigation,
 }
 
 impl Kind {
-    /// The seven kinds.
-    pub fn all() -> [Kind; 7] {
+    /// The eight kinds.
+    pub fn all() -> [Kind; 8] {
         [
             Kind::Decision,
             Kind::Assumption,
@@ -35,6 +36,7 @@ impl Kind {
             Kind::Usage,
             Kind::Howto,
             Kind::Tool,
+            Kind::Investigation,
         ]
     }
 
@@ -48,6 +50,7 @@ impl Kind {
             Kind::Usage => "usage",
             Kind::Howto => "howto",
             Kind::Tool => "tool",
+            Kind::Investigation => "investigation",
         }
     }
 
@@ -61,6 +64,7 @@ impl Kind {
             Kind::Usage => "USE",
             Kind::Howto => "HOW",
             Kind::Tool => "TOOL",
+            Kind::Investigation => "INV",
         }
     }
 
@@ -74,6 +78,7 @@ impl Kind {
             Kind::Usage => "usage",
             Kind::Howto => "howtos",
             Kind::Tool => "tools",
+            Kind::Investigation => "investigations",
         }
     }
 
@@ -824,6 +829,12 @@ Comparison of steady and transient speedlines, report section 4.2.
             (Kind::Usage, "usage", "USE", "usage"),
             (Kind::Howto, "howto", "HOW", "howtos"),
             (Kind::Tool, "tool", "TOOL", "tools"),
+            (
+                Kind::Investigation,
+                "investigation",
+                "INV",
+                "investigations",
+            ),
         ];
         assert_eq!(Kind::all().len(), expected.len());
         for (kind, name, prefix, folder) in expected {
@@ -834,7 +845,7 @@ Comparison of steady and transient speedlines, report section 4.2.
     }
 
     #[test]
-    fn kind_all_lists_the_seven_kinds_in_order() {
+    fn kind_all_lists_the_eight_kinds_in_order() {
         assert_eq!(
             Kind::all(),
             [
@@ -845,6 +856,7 @@ Comparison of steady and transient speedlines, report section 4.2.
                 Kind::Usage,
                 Kind::Howto,
                 Kind::Tool,
+                Kind::Investigation,
             ]
         );
     }
@@ -863,6 +875,8 @@ Comparison of steady and transient speedlines, report section 4.2.
         assert_eq!(Kind::parse("HOW"), Some(Kind::Howto));
         assert_eq!(Kind::parse("Tool"), Some(Kind::Tool));
         assert_eq!(Kind::parse("tool"), Some(Kind::Tool));
+        assert_eq!(Kind::parse("INV"), Some(Kind::Investigation));
+        assert_eq!(Kind::parse("Investigation"), Some(Kind::Investigation));
         assert_eq!(Kind::parse("note"), None);
         assert_eq!(Kind::parse(""), None);
     }
@@ -879,6 +893,8 @@ Comparison of steady and transient speedlines, report section 4.2.
         assert_eq!(Kind::of_id("p-017:use-003"), Some(Kind::Usage));
         assert_eq!(Kind::of_id("HOW-002"), Some(Kind::Howto));
         assert_eq!(Kind::of_id("team:tool-010"), Some(Kind::Tool));
+        assert_eq!(Kind::of_id("P-017:INV-003"), Some(Kind::Investigation));
+        assert_eq!(Kind::of_id("p-017:inv-003"), Some(Kind::Investigation));
         assert_eq!(Kind::of_id("DEC"), Some(Kind::Decision));
         assert_eq!(Kind::of_id("XYZ-001"), None);
         assert_eq!(Kind::of_id("P-017:"), None);

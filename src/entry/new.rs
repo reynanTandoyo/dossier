@@ -10,9 +10,10 @@ const FORMAT_LINE: &str = "<!-- dossier-format: 1 -->";
 const PICTURES: &str = "Pictures";
 
 /// The known fields in the order of format.md §5, with the fields of §14 and §15 after
-/// `rejected-reason` and after `software`. `history` is not listed: it is always written last.
-/// `kind` is listed first, but `render` writes it from `Draft::kind`.
-const FIELD_ORDER: [&str; 41] = [
+/// `rejected-reason` and after `software`, and the fields of §28 after `refuted`. `history` is not
+/// listed: it is always written last. `kind` is listed first, but `render` writes it from
+/// `Draft::kind`.
+const FIELD_ORDER: [&str; 43] = [
     "kind",
     "status",
     "created",
@@ -41,6 +42,8 @@ const FIELD_ORDER: [&str; 41] = [
     "declined-reason",
     "confirmed",
     "refuted",
+    "closed",
+    "given-up-reason",
     "rests-on",
     "code",
     "source",
@@ -182,6 +185,7 @@ fn known_sections(kind: Kind) -> &'static [&'static str] {
             "Traps",
             "Tested with",
         ],
+        Kind::Investigation => &["Problem", "Attempts", "Solution"],
     }
 }
 
@@ -957,6 +961,65 @@ Run on the cluster.
                 "## Traps",
                 "## Tested with"
             ]
+        );
+    }
+
+    #[test]
+    fn the_fields_of_an_investigation_follow_format_section_28_after_refuted() {
+        let draft = Draft {
+            kind: Kind::Investigation,
+            id: "INV-004".to_string(),
+            title: "Field order of an investigation".to_string(),
+            fields: pairs(&[
+                ("given-up-reason", "Out of time"),
+                ("closed", "2026-12-03T11:40:00+01:00 by anna"),
+                ("task", "T-012"),
+                ("state", "given up"),
+                ("refuted", "2026-12-03T10:00:00+01:00 by anna"),
+                ("rests-on", "ASM-003"),
+                ("status", "approved"),
+                ("created", "2026-12-03T09:10:00+01:00"),
+            ]),
+            sections: pairs(&[("Problem", "The run stops.")]),
+        };
+        let text = render(&draft);
+        let entry = Entry::parse(&text).expect("parses");
+        let keys: Vec<String> = entry.fields().into_iter().map(|(key, _)| key).collect();
+        assert_eq!(
+            keys,
+            [
+                "kind",
+                "status",
+                "created",
+                "state",
+                "task",
+                "refuted",
+                "closed",
+                "given-up-reason",
+                "rests-on",
+            ]
+        );
+    }
+
+    #[test]
+    fn an_investigation_renders_problem_attempts_and_solution_in_order_and_extras_after() {
+        let draft = Draft {
+            kind: Kind::Investigation,
+            id: "INV-005".to_string(),
+            title: "Section order".to_string(),
+            fields: Vec::new(),
+            sections: pairs(&[
+                ("Solution", "The outlet flux had the wrong sign."),
+                ("Extra", "Kept after the known sections."),
+                ("Attempts", "1. [failed] An invented attempt."),
+                ("Problem", "The run stops."),
+            ]),
+        };
+        let text = render(&draft);
+        let headings: Vec<&str> = text.lines().filter(|l| l.starts_with("## ")).collect();
+        assert_eq!(
+            headings,
+            ["## Problem", "## Attempts", "## Solution", "## Extra"]
         );
     }
 }
