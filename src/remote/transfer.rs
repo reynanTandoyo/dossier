@@ -304,8 +304,9 @@ fn copy_down(path: &str, base: &Path, pointer: &Pointer) -> Result<bool> {
 /// with the path as typed) is uploaded to a part file beside its copy on the server; each part file
 /// is moved over its file; last, the server records the return (`return … --done`). A failed upload
 /// leaves every file on the server as it was, so the take is unchanged and the same command works
-/// again. After the first move only the server can finish: its files have changed, so a rerun's
-/// `--check` would refuse them, and a failure there names the command that finishes the return.
+/// again. After the first move a rerun's `--check` would refuse the replaced files, so a failure
+/// there names the command that finishes the return on the server for the files moved so far, and
+/// the command that gives back the rest here again.
 fn give_back(args: &[String], base: &Path, pointer: &Pointer, agent: Option<&str>) -> u8 {
     let current = match std::env::current_dir() {
         Ok(current) => current,
@@ -346,9 +347,25 @@ fn give_back(args: &[String], base: &Path, pointer: &Pointer, agent: Option<&str
         }
     }
 
-    for name in &names {
+    for (index, name) in names.iter().enumerate() {
         if !move_into_place(name, sub.as_deref(), pointer, agent) {
-            report(&finish_on_server(pointer, sub.as_deref(), &files));
+            // The `index` files before this one are replaced on the server; this one and the rest
+            // still hold the old version. Nothing was recorded, so when none was replaced yet, the
+            // take is unchanged and the same command works again.
+            if index == 0 {
+                return fail(&Error::new(
+                    Code::Ssh,
+                    format!(
+                        "could not copy {} to the server; the take is unchanged, run the same command again",
+                        files[index]
+                    ),
+                ));
+            }
+            report(&format!(
+                "{}; {}",
+                finish_on_server(pointer, sub.as_deref(), &files[..index]),
+                rest_message(&files[index..])
+            ));
             return 5;
         }
     }
@@ -394,6 +411,29 @@ fn move_into_place(name: &str, sub: Option<&str>, pointer: &Pointer, agent: Opti
     matches!(remote(pointer, sub, agent, "mv", &mv), Ok((0, _, _)))
 }
 
+/// A file name as it is printed in a command for a shell: as it is when it holds only letters,
+/// digits, `-`, `_`, `.` and `/`, else quoted (a space, a quote or `$` would change the command).
+fn shell_word(file: &str) -> String {
+    let plain = !file.is_empty()
+        && file
+            .chars()
+            .all(|ch| ch.is_alphanumeric() || matches!(ch, '-' | '_' | '.' | '/'));
+    if plain {
+        file.to_string()
+    } else {
+        ssh::quote(file)
+    }
+}
+
+/// The files as they are printed in a command for a shell, separated by spaces.
+fn shell_words(files: &[String]) -> String {
+    files
+        .iter()
+        .map(|file| shell_word(file))
+        .collect::<Vec<String>>()
+        .join(" ")
+}
+
 /// The message for a return whose files are on the server but not recorded: the command that
 /// finishes it on the server, in the folder (and subfolder) there. It is not a rerun of the same
 /// command, because its `--check` would see the replaced files as changed.
@@ -405,7 +445,16 @@ fn finish_on_server(pointer: &Pointer, sub: Option<&str>, files: &[String]) -> S
     format!(
         "the files are on the server but the return is not recorded; finish it on the server: ssh {}, then in {folder} run: dossier return {} --done",
         pointer.server,
-        files.join(" ")
+        shell_words(files)
+    )
+}
+
+/// The line that gives back the files a failed move left unfinished, run here again. Their files on
+/// the server are untouched, so this command passes its `--check`.
+fn rest_message(files: &[String]) -> String {
+    format!(
+        "then run here again: dossier return {} --done",
+        shell_words(files)
     )
 }
 
@@ -774,14 +823,45 @@ mod tests {
 
     #[test]
     fn finish_on_server_names_the_folder_with_or_without_a_sub_folder_and_the_files() {
-        let files = words(&["a.sim", "sim/run 1.sim"]);
+        let files = words(&["a.sim", "sim/b.sim"]);
         assert_eq!(
             finish_on_server(&pointer(), None, &files),
-            "the files are on the server but the return is not recorded; finish it on the server: ssh anna@server, then in /projects/p1 run: dossier return a.sim sim/run 1.sim --done"
+            "the files are on the server but the return is not recorded; finish it on the server: ssh anna@server, then in /projects/p1 run: dossier return a.sim sim/b.sim --done"
         );
         assert_eq!(
             finish_on_server(&pointer(), Some("sim"), &files),
-            "the files are on the server but the return is not recorded; finish it on the server: ssh anna@server, then in /projects/p1/sim run: dossier return a.sim sim/run 1.sim --done"
+            "the files are on the server but the return is not recorded; finish it on the server: ssh anna@server, then in /projects/p1/sim run: dossier return a.sim sim/b.sim --done"
+        );
+    }
+
+    #[test]
+    fn finish_on_server_quotes_a_file_with_a_space_and_keeps_a_plain_one_plain() {
+        let files = words(&["a.sim", "run 1.sim"]);
+        assert_eq!(
+            finish_on_server(&pointer(), None, &files),
+            "the files are on the server but the return is not recorded; finish it on the server: ssh anna@server, then in /projects/p1 run: dossier return a.sim 'run 1.sim' --done"
+        );
+    }
+
+    #[test]
+    fn shell_word_keeps_plain_names_and_quotes_what_a_shell_would_change() {
+        assert_eq!(shell_word("sim/Größe-1_a.sim"), "sim/Größe-1_a.sim");
+        assert_eq!(shell_word("run 1.sim"), "'run 1.sim'");
+        assert_eq!(shell_word("it's.sim"), "'it'\\''s.sim'");
+        assert_eq!(shell_word("$HOME.sim"), "'$HOME.sim'");
+        assert_eq!(shell_word("a\\b.sim"), "'a\\b.sim'");
+        assert_eq!(shell_word(""), "''");
+    }
+
+    #[test]
+    fn rest_message_gives_back_the_files_from_the_failed_one_on_quoted_the_same_way() {
+        assert_eq!(
+            rest_message(&words(&["sim/b.sim", "run 1.sim"])),
+            "then run here again: dossier return sim/b.sim 'run 1.sim' --done"
+        );
+        assert_eq!(
+            rest_message(&words(&["c.sim"])),
+            "then run here again: dossier return c.sim --done"
         );
     }
 }
