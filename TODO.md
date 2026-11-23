@@ -4406,10 +4406,8 @@
 - note (2026-11-24, haiku-T-342): done
 
 ### T-343 · export: the project's knowledge as one Markdown document
-- status: claimed
+- status: done
 - owner: haiku-T-343
-- claimed: 2026-11-24T00:33+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
@@ -4425,8 +4423,12 @@
   5. Run cargo test --test cmd_export
 - accept: export writes the decisions, findings, investigations and usage records in order as one Markdown document, the basis for a report or a handover.
 - verify: cargo test --test cmd_export
+- verified: 2026-11-24
+- commit: 569c96a
 - reqs: R-OUT-7, D33
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-343): done
 
 ### T-344 · schema: a machine-readable description of the commands
 - status: claimed
