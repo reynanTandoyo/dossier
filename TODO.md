@@ -3114,10 +3114,8 @@
 - note (2026-11-23, haiku-T-314): done
 
 ### T-315 · connect --check: the connection, dossier and todo on the server, and the folder
-- status: claimed
+- status: done
 - owner: haiku-T-315
-- claimed: 2026-11-23T20:48+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-053
 - why: Team members work on Windows PCs while the one copy of the dossier is on the Linux server.
@@ -3135,8 +3133,12 @@
   7. Run cargo test --test cmd_connect
 - accept: connect --check says what works and what does not: the connection, dossier and todo on the server with their versions, and the project folder.
 - verify: cargo test --test cmd_connect
+- verified: 2026-11-23
+- commit: 973f929
 - reqs: R-REMOTE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-315): done
 
 ### T-316 · README: connect --check, versions and subfolders
 - status: open
