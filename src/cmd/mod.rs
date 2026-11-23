@@ -66,6 +66,7 @@ pub mod runs;
 pub mod schema;
 pub mod search;
 pub mod session;
+pub mod session_end;
 pub mod set;
 pub mod show;
 pub mod skill;
