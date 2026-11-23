@@ -3528,8 +3528,8 @@
 - note (2026-11-23, haiku-T-372): done
 
 ### T-373 · transfer.rs: return --done from a PC
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-373
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-325
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3546,9 +3546,13 @@
   6. Run cargo test --lib remote::transfer::
 - accept: return --done from a connected folder checks on the server first, copies the file up under a temporary name, moves it into place, and only then ends the take.
 - verify: cargo test --lib remote::transfer::
+- verified: 2026-11-23
+- commit: 715646a
 - reqs: R-REMOTE-4, R-FILE-2, R-FILE-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): Steps rewritten: the commands run in the subfolder with the version variables, and the upload target is remote_target (not escaped; SFTP does not glob a target, tested 2026-11-23).
+- note (2026-11-23, haiku-T-373): done
 
 ### T-326 · forward.rs: take and return in a connected folder go through transfer
 - status: open
@@ -3571,7 +3575,7 @@
 - milestone: T-326
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
 - summary: Typing take or return on the PC starts the copy steps.
-- depends: T-325, T-313
+- depends: T-325, T-313, T-408
 - files: src/remote/forward.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -8704,6 +8708,28 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, haiku-T-407): done
+
+### T-408 · transfer.rs: return --done uploads every file before it replaces any
+- status: open
+- owner: —
+- priority: P0 · difficulty: 1 · type: feature
+- milestone: T-325
+- why: A rerun after a partly finished return --done is refused by --check, because a file already moved counts as changed; uploading all first keeps a failed copy retryable.
+- summary: When copying files back to the server fails, the server's files stay untouched and the same command can simply be run again; if something fails later, the message says exactly how to finish.
+- depends: T-373
+- files: src/remote/transfer.rs
+- read: docs/design.md, src/cmd/return_cmd.rs
+- steps:
+  1. src/remote/transfer.rs: split copy_up into `fn upload_part(local: &Path, name: &str, sub: Option<&str>, pointer: &Pointer) -> bool` (only the scp to `<sub>/<name>.dossier-part` with remote_target, as copy_up does now) and `fn move_into_place(name: &str, sub: Option<&str>, pointer: &Pointer, agent: Option<&str>) -> bool` (only the `mv -f -- <name>.dossier-part <name>` through remote, as copy_up does now). Remove copy_up.
+  2. src/remote/transfer.rs, give_back keeps steps (a) `return … --check` and (b) the local files must exist, then: (c) upload_part for every file first; a failure prints `error: could not copy <path> to the server; the take is unchanged, run the same command again` and returns 5, before any file on the server was replaced. (d) move_into_place for every file. (e) `return … --done` as now.
+  3. src/remote/transfer.rs: when (d) fails for a file, or (e) ends with a code other than 0, print `error: the files are on the server but the return is not recorded; finish it on the server: ssh <server>, then in <folder>[/<sub>] run: dossier return <files> --done` (server and folder from the pointer, `/<sub>` only with a sub folder, the files as typed and separated by spaces) and return 5. Do not tell the user to run the same command again there: its --check would see the replaced files as changed.
+  4. src/remote/transfer.rs, the doc comment of give_back: say the order (check, all uploads, then the moves, then --done) and why (a failed upload leaves the server's files untouched; after the first move, only the server can finish).
+  5. src/remote/transfer.rs, unit test: a private `fn finish_on_server(pointer: &Pointer, sub: Option<&str>, files: &[String]) -> String` that builds the message of step 3, tested with and without a sub folder and with two files, one with a space.
+  6. Run cargo test --lib remote::transfer::
+- accept: A failed upload leaves the server's files as taken and the same command works again; a failure after the first move names the command that finishes the return on the server.
+- verify: cargo test --lib remote::transfer::
+- reqs: R-FILE-3, R-REMOTE-4
+- note (2026-11-23, planner): added
 
 ## Questions
 

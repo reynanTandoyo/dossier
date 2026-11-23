@@ -1235,10 +1235,13 @@ copy is complete. A local file that already exists is never overwritten (D46): t
 local copy was kept, and that deleting it and running the same `take` copies the server's
 version. A failed copy ends with exit 5, leaves no part file, and says that the take is recorded
 and that the same `take` command copies again. `return --done` runs `return … --check` on the
-server and stops when it fails; copies each file (the current folder joined with the path as
-typed) to `remote_target(<folder>/<sub>/<path>.dossier-part)` and moves it over the file with
-`mv -f` through ssh, in the subfolder; then runs `return … --done`. A failed copy leaves the take
-as it was.
+server and stops when it fails; copies every file (the current folder joined with the path as
+typed) to `remote_target(<folder>/<sub>/<path>.dossier-part)` first, then moves each over its file
+with `mv -f` through ssh, in the subfolder; then runs `return … --done`. A failed copy leaves the
+server's files and the take as they were, so the same command works again. After the first move
+the server's file has changed and a rerun's `--check` would refuse it, so a failure there names
+the command that finishes the return on the server (`dossier return <files> --done` in the
+folder), which records the new checksums without that check (T-408).
 `--check` and `--abandon` alone are forwarded like any other command. With `--project` and no
 connected folder, `take` and `return --done` are Code::Usage.
 
