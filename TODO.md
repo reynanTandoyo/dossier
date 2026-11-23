@@ -4479,10 +4479,8 @@
 - note (2026-11-23, planner): added
 
 ### T-346 · brief --budget: another line limit for one call
-- status: claimed
+- status: done
 - owner: haiku-T-346
-- claimed: 2026-11-24T00:43+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
@@ -4496,8 +4494,12 @@
   3. Run cargo test --test cmd_brief
 - accept: The limit of brief can be changed for one call.
 - verify: cargo test --test cmd_brief
+- verified: 2026-11-24
+- commit: acc6cf4
 - reqs: R-CTX-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-346): done
 
 ### T-347 · brief --task --json: why each entry was chosen
 - status: open
