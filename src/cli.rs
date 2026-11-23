@@ -118,6 +118,10 @@ pub enum Command {
     ReviewDocument(cmd::review_document::Args),
     ReviewedDocument(cmd::reviewed_document::Args),
     Import(cmd::import::Args),
+    Problem(cmd::problem::Args),
+    Tried(cmd::tried::Args),
+    Solved(cmd::solved::Args),
+    GaveUp(cmd::gave_up::Args),
 }
 
 /// On Linux, files and folders this program creates are writable by the group (R-XOS-8): the
@@ -235,6 +239,10 @@ pub fn main_exit() -> u8 {
         Command::ReviewDocument(a) => ("review-document", cmd::review_document::run(a, g)),
         Command::ReviewedDocument(a) => ("reviewed-document", cmd::reviewed_document::run(a, g)),
         Command::Import(a) => ("import", cmd::import::run(a, g)),
+        Command::Problem(a) => ("problem", cmd::problem::run(a, g)),
+        Command::Tried(a) => ("tried", cmd::tried::run(a, g)),
+        Command::Solved(a) => ("solved", cmd::solved::run(a, g)),
+        Command::GaveUp(a) => ("gave-up", cmd::gave_up::run(a, g)),
     };
     crate::output::emit(name, g.json, &result)
 }

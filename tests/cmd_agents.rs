@@ -278,6 +278,10 @@ fn help_without_a_topic_lists_every_command_in_order() {
             "review-document",
             "reviewed-document",
             "import",
+            "problem",
+            "tried",
+            "solved",
+            "gave-up",
         ]
     );
     let first = format!("  {:<12}  Creates the dossier folder here\n", "init");
