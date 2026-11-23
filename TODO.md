@@ -8681,8 +8681,8 @@
 - note (2026-11-23, haiku-T-406): done
 
 ### T-407 · transfer.rs: take copies through a part file and keeps a local file
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-407
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-325
 - why: A repeated take must not wipe local edits, and a failed copy must not leave a half file (D46).
@@ -8698,8 +8698,12 @@
   5. Run cargo test --lib remote::transfer::
 - accept: A local file that exists is kept and named in the output; a copy lands under its name only when complete.
 - verify: cargo test --lib remote::transfer::
+- verified: 2026-11-23
+- commit: 7a27b3e
 - reqs: R-FILE-2, R-REMOTE-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-407): done
 
 ## Questions
 
