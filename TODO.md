@@ -4749,7 +4749,7 @@
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
 - summary: The version number and the README are ready for the owner to tag release 0.6.0.
-- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417, T-418
+- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417, T-418, T-419
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -9012,6 +9012,25 @@
 - note (2026-11-24, planner): added
 - note (2026-11-24, haiku-T-418): done
 
+### T-419 · digest --write: refuse a heading line in the summary
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-331
+- why: A summary line starting with ## would open a new section in the digest's file (found in T-379); problem refuses headings the same way.
+- summary: A digest summary cannot accidentally break the structure of its entry file.
+- depends: T-379
+- files: src/cmd/digest.rs, tests/cmd_digest.rs
+- read: docs/design.md, src/cmd/problem.rs
+- steps:
+  1. src/cmd/digest.rs, where the summary from standard input is checked (empty, more than 15 lines): also refuse, with Code::BadValue and nothing written, a summary that has a line starting with `##` after leading spaces: `the summary must not contain a heading line (##): line <n>`. A line inside the text that merely contains `##` later is fine.
+  2. tests/cmd_digest.rs: a summary with a line `## Results` is refused with exit code of BadValue, the message names the line number, and no DIG file exists afterwards; a line `see ## in the log` is accepted.
+  3. Run cargo test --test cmd_digest
+- accept: digest --write refuses a summary with a heading line and writes nothing.
+- verify: cargo test --test cmd_digest
+- reqs: R-CTX-14
+- note (2026-11-24, planner): added
+
 ## Questions
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.
@@ -9076,6 +9095,12 @@
 - note (2026-11-23, planner): added
 
 ### T-415 · src/digest.rs copies the date rule and the newest-first sort of filter.rs and cmd/brief.rs (T-330, three-file limit); share them in one place.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-24, planner): added
+
+### T-420 · add (and the other commands that take a multi-line text) do not refuse a line starting with ## , which opens a new section in the entry file; problem and digest --write refuse it (found in T-379).
 - status: open
 - owner: —
 - type: idea
