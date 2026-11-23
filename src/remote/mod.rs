@@ -4,3 +4,4 @@ pub mod forward;
 pub mod pointer;
 pub mod register;
 pub mod ssh;
+pub mod version;
