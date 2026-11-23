@@ -8187,10 +8187,8 @@
 - note (2026-11-23, planner): added
 
 ### T-362 · show: mark the state of an investigation
-- status: claimed
+- status: done
 - owner: haiku-T-362
-- claimed: 2026-11-23T19:52+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-302
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -8204,8 +8202,12 @@
   3. Run cargo test --test cmd_show
 - accept: show shows whether an investigation is open, solved or given up.
 - verify: cargo test --test cmd_show
+- verified: 2026-11-23
+- commit: e1e4751
 - reqs: R-INV-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-362): done
 
 ### T-363 · search: mark the state of an investigation
 - status: done
@@ -8231,8 +8233,10 @@
 - note (2026-11-23, haiku-T-363): done
 
 ### T-303 · brief: the open investigations
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-303
+- claimed: 2026-11-23T20:00+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-287
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
