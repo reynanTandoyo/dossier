@@ -15,9 +15,9 @@ const VALUE_OPTIONS: [&str; 3] = ["--dossier", "--agent", "--project"];
 
 /// The commands that stay on the PC: `connect` and `projects` manage the PC's files, `help`
 /// prints the text of the program on the PC, and `hooks`, `guard` and `skill` work with the
-/// Claude Code on the PC. `review-session` and `session` read a file of this machine, which the
-/// server could not read.
-const LOCAL_COMMANDS: [&str; 8] = [
+/// Claude Code on the PC. `review-session`, `session` and `session-end` read files of this machine,
+/// which the server could not read.
+const LOCAL_COMMANDS: [&str; 9] = [
     "connect",
     "projects",
     "help",
@@ -26,6 +26,7 @@ const LOCAL_COMMANDS: [&str; 8] = [
     "skill",
     "review-session",
     "session",
+    "session-end",
 ];
 
 /// The commands that ask ssh for a terminal when the PC has one (R-REMOTE-3): the approvals and
@@ -474,13 +475,14 @@ mod tests {
         );
 
         // Commands that stay on the PC, with a pointer present.
-        let local: [&[&str]; 7] = [
+        let local: [&[&str]; 8] = [
             &["dossier", "connect", "anna@sim01:/srv/P-001"],
             &["dossier", "projects"],
             &["dossier", "help"],
             &["dossier", "hooks", "install"],
             &["dossier", "guard"],
             &["dossier", "skill", "install"],
+            &["dossier", "session-end", "--run", "review-command"],
             &["dossier", "--json"],
         ];
         for words in local {

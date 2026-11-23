@@ -286,6 +286,7 @@ fn help_without_a_topic_lists_every_command_in_order() {
             "return",
             "review-session",
             "session",
+            "session-end",
             "digest",
             "story",
             "export",
