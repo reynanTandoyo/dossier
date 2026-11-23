@@ -4214,8 +4214,10 @@
 - note (2026-11-23, planner): Added tests/cmd_agents.rs: its help overview test lists every command (found in T-359).
 
 ### T-387 · session-end: write the material and start the review command
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-387
+- claimed: 2026-11-24T00:42+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-339
 - why: Capture only becomes a habit when the routine steps happen by themselves.
