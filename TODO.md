@@ -3216,10 +3216,8 @@
 - note (2026-11-23, haiku-T-366): done
 
 ### T-367 · Stub module: taken.rs
-- status: claimed
+- status: done
 - owner: haiku-T-367
-- claimed: 2026-11-23T21:03+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-318
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3232,8 +3230,12 @@
   3. Run cargo build
 - accept: The module exists with its final signatures and compiles.
 - verify: cargo build
+- verified: 2026-11-23
+- commit: 7e09a18
 - reqs: R-FILE-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-367): done
 
 ### T-368 · Stub module: remote/transfer.rs
 - status: claimed
