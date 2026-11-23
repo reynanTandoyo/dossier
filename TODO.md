@@ -3648,8 +3648,8 @@
 - note (2026-11-23, haiku-T-327): done
 
 ### T-328 · Release 0.5.0
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-328
 - priority: P1 · difficulty: 1 · type: chore
 - milestone: T-054
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3663,9 +3663,13 @@
   3. Run cargo fmt --all -- --check, cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features; all three must pass. Do not tag and do not push: the owner does that.
 - accept: Version 0.5.0 builds, passes every check, and the README says what it adds.
 - verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
+- verified: 2026-11-23
+- commit: 98592bd
 - reqs: REL-1, REL-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): Steps updated: no connection reuse (D43); the 0.5 summary links the sections T-316 and T-327 wrote.
+- note (2026-11-23, haiku-T-328): done
 
 ### T-055 · Growing projects: the context stays small and routine steps run by themselves
 - status: open
