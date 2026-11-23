@@ -3811,10 +3811,8 @@
 - note (2026-11-24, haiku-T-377): done
 
 ### T-378 · digest <milestone>: the material for the summary
-- status: claimed
+- status: done
 - owner: haiku-T-378
-- claimed: 2026-11-24T00:13+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-331
 - why: The context an LLM gets must stay small as a project grows (D22).
@@ -3831,8 +3829,12 @@
   6. Run cargo test --test cmd_digest
 - accept: digest <milestone> prints the milestone's goal, tasks, decisions, assumptions, findings, dead ends and investigations, and the rules for the summary.
 - verify: cargo test --test cmd_digest
+- verified: 2026-11-24
+- commit: c6048f0
 - reqs: R-CTX-14, D7
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-378): done
 
 ### T-379 · digest --write: store the summary as an entry
 - status: open
