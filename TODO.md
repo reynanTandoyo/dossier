@@ -3699,8 +3699,10 @@
 - note (2026-11-23, planner): split into T-329, T-330, T-331, T-332, T-333, T-334, T-335
 
 ### T-329 · Entry kinds: the digest (DIG)
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-329
+- claimed: 2026-11-23T23:45+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-056
 - why: The context an LLM gets must stay small as a project grows (D22).
@@ -3933,8 +3935,10 @@
 - note (2026-11-23, planner): split into T-336, T-337, T-338, T-339, T-340
 
 ### T-336 · session.rs and claude.rs: dossier's own session format, and the converter from a Claude Code transcript
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-336
+- claimed: 2026-11-23T23:45+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: feature
 - milestone: T-057
 - why: Capture only becomes a habit when the routine steps happen by themselves.
@@ -4230,8 +4234,10 @@
 - note (2026-11-23, planner): split into T-389, T-390, T-391
 
 ### T-389 · Stub files: story, export and schema
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-389
+- claimed: 2026-11-23T23:45+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-341
 - why: Smaller comforts that are worth having once the daily use is settled.
@@ -4634,8 +4640,10 @@
 - note (2026-11-23, planner): added
 
 ### T-354 · A one-page guide for team members who only read and approve
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-354
+- claimed: 2026-11-23T23:45+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
