@@ -4234,10 +4234,8 @@
 - note (2026-11-23, planner): split into T-389, T-390, T-391
 
 ### T-389 · Stub files: story, export and schema
-- status: claimed
+- status: done
 - owner: haiku-T-389
-- claimed: 2026-11-23T23:45+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-341
 - why: Smaller comforts that are worth having once the daily use is settled.
@@ -4250,8 +4248,12 @@
   3. Run cargo build (it must still pass).
 - accept: The three stub files exist and are formatted.
 - verify: rustfmt --check --edition 2024 src/cmd/story.rs src/cmd/export.rs src/cmd/schema.rs && cargo build
+- verified: 2026-11-23
+- commit: fe9890f
 - reqs: R-READ-7, R-OUT-6, R-OUT-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-389): done
 
 ### T-390 · Stub module: examples.rs
 - status: open
