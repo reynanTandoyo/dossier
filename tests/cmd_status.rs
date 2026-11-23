@@ -2,7 +2,7 @@
 //! it), who works on what, what waits, what is next, the decisions in force, the newest findings,
 //! the open assumptions, what rests on a wrong assumption, what is unsettled (proposals, the
 //! counts), the map, the key values, the last exchange, `--since`, `--milestone` and `--on`
-//! (R-CTX-16, R-EXCH-5, R-LIFE-9).
+//! (R-CTX-16, R-EXCH-5, R-LIFE-9, R-INV-5).
 //! Each test runs in its own temporary project folder with the clock fixed; the entries and the
 //! names are invented.
 
@@ -673,6 +673,7 @@ fn json_returns_the_same_parts_as_data() {
     assert_eq!(value["data"]["waiting"], Value::Null);
     assert_eq!(value["data"]["next"], Value::Null);
     assert_eq!(value["data"]["decisions"], serde_json::json!(["DEC-001"]));
+    assert_eq!(value["data"]["investigations"], serde_json::json!([]));
     assert_eq!(value["data"]["findings"], serde_json::json!([]));
     assert_eq!(
         value["data"]["unsettled"],
@@ -1836,6 +1837,149 @@ fn a_how_to_and_a_tool_changed_by_hand_after_their_approval_are_counted_as_chang
 
     let value = status_json(&project);
     assert_eq!(value["data"]["unsettled"]["changed_lessons"], 2);
+}
+
+/// Opens an investigation as anna with the title `title`, for `task` when one is given (R-INV-2).
+fn open_problem(project: &Project, title: &str, task: Option<&str>) {
+    let mut args = vec![
+        "problem",
+        "The density residual grows from iteration 40 on.",
+        "--title",
+        title,
+    ];
+    if let Some(task) = task {
+        args.extend(["--task", task]);
+    }
+    project.stdout("anna", &args);
+}
+
+#[test]
+fn an_open_investigation_waits_with_its_attempts_and_a_solved_one_does_not() {
+    let project = Project::new();
+    open_problem(&project, "Residual grows", None);
+    project.stdout(
+        "anna",
+        &["tried", "INV-001", "The CFL number is too high", "--failed"],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "tried",
+            "INV-001",
+            "The outlet flux has the wrong sign",
+            "--worked",
+        ],
+    );
+    open_problem(&project, "Coarse mesh", None);
+    project.stdout("anna", &["solved", "INV-002", "The mesh was refined"]);
+
+    assert_eq!(
+        project.stdout("anna", &["status"]),
+        "Project P-001\n\
+         tasks: todo is not installed\n\
+         ## Waiting\n\
+         INV-001 · Residual grows (investigation, 2 attempts)\n\
+         ## Decisions in force\n\
+         none\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         nothing waiting\n"
+    );
+    assert_eq!(
+        status_data(&project, &[])["investigations"],
+        json!(["INV-001"])
+    );
+}
+
+#[test]
+fn an_open_investigation_waits_after_the_tasks_that_wait_when_todo_is_there() {
+    let project = Project::new();
+    with_todo(&project, LIST, 0);
+    open_problem(&project, "Residual grows", None);
+    project.stdout(
+        "anna",
+        &["tried", "INV-001", "The CFL number is too high", "--failed"],
+    );
+    assert_eq!(
+        project.stdout("anna", &["status"]),
+        "Project P-001\n\
+         ## Tasks\n\
+         T-130 · Context work · 2/5 done\n\
+         open 3, claimed 1, blocked 1, done 2\n\
+         ## Working now\n\
+         T-201 · Cut the speedline runs (ben-codex)\n\
+         ## Waiting\n\
+         T-202 · Get the mesh from the customer (blocked)\n\
+         Q-001 · Is the wall function valid here? (question)\n\
+         INV-001 · Residual grows (investigation, 1 attempt)\n\
+         ## Decisions in force\n\
+         none\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         nothing waiting\n\
+         ## Next\n\
+         T-209 · Tidy the old notes\n\
+         T-203 · Write the status tests\n\
+         T-204 · Write the milestone tests\n\
+         T-205 · Write the cut tests\n\
+         T-206 · Write the JSON tests\n"
+    );
+}
+
+#[test]
+fn milestone_limits_the_open_investigations_to_its_tasks() {
+    let project = Project::new();
+    open_problem(&project, "Residual grows", Some("T-042"));
+    project.stdout(
+        "anna",
+        &["tried", "INV-001", "The CFL number is too high", "--failed"],
+    );
+    open_problem(&project, "Coarse mesh", Some("T-043"));
+
+    assert_eq!(
+        project.stdout("anna", &["status", "--milestone", "t-042"]),
+        "Project P-001\n\
+         tasks: todo is not installed\n\
+         ## Waiting\n\
+         INV-001 · Residual grows (investigation, 1 attempt)\n\
+         ## Decisions in force\n\
+         none\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         nothing waiting\n"
+    );
+    assert_eq!(
+        status_data(&project, &["--milestone", "t-042"])["investigations"],
+        json!(["INV-001"])
+    );
+}
+
+#[test]
+fn a_cut_waiting_part_names_the_investigation_list_when_only_investigations_are_in_it() {
+    let project = Project::new();
+    open_problem(&project, "Residual grows", None);
+    open_problem(&project, "Coarse mesh", None);
+    let settings = project
+        .read("DOSSIER/dossier.toml")
+        .replace("status_lines = 60", "status_lines = 10");
+    project.write("DOSSIER/dossier.toml", &settings);
+
+    assert_eq!(
+        project.stdout("anna", &["status"]),
+        "Project P-001\n\
+         tasks: todo is not installed\n\
+         ## Waiting\n\
+         2 more: dossier list --kind investigation --state open\n\
+         ## Decisions in force\n\
+         none\n\
+         ## Newest findings\n\
+         none\n\
+         ## Unsettled\n\
+         nothing waiting\n"
+    );
 }
 
 /// `status --json` as anna, parsed.

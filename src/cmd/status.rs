@@ -34,7 +34,7 @@ use crate::journal::{self, Record};
 use crate::names::{self, Who};
 use crate::output::Output;
 use crate::store::{self, Item};
-use crate::{exchange, filelist, mapfile, time, todo_bridge, values};
+use crate::{attempts, exchange, filelist, mapfile, time, todo_bridge, values};
 use chrono::{DateTime, FixedOffset, NaiveDate};
 use clap::Parser;
 use serde_json::{Value, json};
@@ -280,10 +280,10 @@ fn in_scope(item: &Item, milestone: Option<&str>) -> bool {
 }
 
 /// The screen without `--since`: the project and its tags, the map (not with a day), the key
-/// values, the tasks, who works on what and what waits (from todo's list), the decisions in force,
-/// the open assumptions, what rests on a wrong assumption, the newest findings, what is unsettled,
-/// the last exchange, and what is next. With a day (`--on`) the decisions, findings, key values and
-/// exchange are those of that day.
+/// values, the tasks, who works on what and what waits (from todo's list, and the open
+/// investigations), the decisions in force, the open assumptions, what rests on a wrong
+/// assumption, the newest findings, what is unsettled, the last exchange, and what is next. With a
+/// day (`--on`) the decisions, findings, key values and exchange are those of that day.
 fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<&Day>) -> Screen {
     let mut warnings = Vec::new();
     let mut sections = vec![Section::plain(vec![project_line(ctx)])];
@@ -344,6 +344,15 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
             .collect();
         sections.push(Section::list("## Working now", lines, "none", "todo list"));
     }
+    let scope: Vec<&Item> = all
+        .iter()
+        .filter(|item| in_scope(item, milestone))
+        .collect();
+    let open_investigations: Vec<&Item> = scope
+        .iter()
+        .copied()
+        .filter(|item| is_open_investigation(item))
+        .collect();
     let waiting: Vec<String> = blocked
         .iter()
         .map(|task| format!("{} · {} (blocked)", task.id, task.title))
@@ -352,15 +361,25 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
                 .iter()
                 .map(|task| format!("{} · {} (question)", task.id, task.title)),
         )
+        .chain(open_investigations.iter().copied().map(investigation_line))
         .collect();
     if !waiting.is_empty() {
-        sections.push(Section::list("## Waiting", waiting, "none", "todo list"));
+        // The hint of a cut part names the sources of its lines that are there.
+        let mut sources = Vec::new();
+        if !blocked.is_empty() || !questions.is_empty() {
+            sources.push("todo list");
+        }
+        if !open_investigations.is_empty() {
+            sources.push("dossier list --kind investigation --state open");
+        }
+        sections.push(Section::list(
+            "## Waiting",
+            waiting,
+            "none",
+            &sources.join(" and "),
+        ));
     }
 
-    let scope: Vec<&Item> = all
-        .iter()
-        .filter(|item| in_scope(item, milestone))
-        .collect();
     let decisions = in_force(&scope, Kind::Decision, day);
     let findings: Vec<&Item> = in_force(&scope, Kind::Finding, day)
         .into_iter()
@@ -468,6 +487,7 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
         "values": values_data,
         "decisions": ids(&decisions),
         "open_assumptions": ids(&open_assumptions),
+        "investigations": ids(&open_investigations),
         "findings": ids(&findings),
         "proposals": ids(&proposals),
         "rests_on": rests_data,
@@ -782,6 +802,25 @@ fn due_mark(entry: &Entry) -> &'static str {
     } else {
         ""
     }
+}
+
+/// Whether an entry is an approved investigation whose `state` is `open` (format.md §28): the open
+/// investigations the Waiting part lists.
+fn is_open_investigation(item: &Item) -> bool {
+    item.entry.kind() == Some(Kind::Investigation)
+        && item.entry.status() == Some(Status::Approved)
+        && item.entry.field("state").as_deref() == Some("open")
+}
+
+/// One open investigation as the Waiting part lists it: `<ID> · <title> (investigation, <n>
+/// attempts)`, the number of its attempts written as `counted` writes it.
+fn investigation_line(item: &Item) -> String {
+    let count = attempts::of(&item.entry).len();
+    format!(
+        "{} (investigation, {})",
+        heading_of(item),
+        counted(count, "attempt", "attempts")
+    )
 }
 
 /// The IDs of the entries, in their order.
