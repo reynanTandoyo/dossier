@@ -74,8 +74,9 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         return Err(Error::new(Code::BadValue, "the attempt must not be empty"));
     }
     check_line(text, "the attempt")?;
-    let did = optional_line(args.did.as_deref(), "--did")?;
-    let result = optional_line(args.result.as_deref(), "--result")?;
+    let did = optional_line(args.did.as_deref(), "--did")?.map(|did| unseparated(&did));
+    let result =
+        optional_line(args.result.as_deref(), "--result")?.map(|result| unseparated(&result));
     let run = optional_line(args.run.as_deref(), "--run")?;
     let task = optional_line(args.task.as_deref(), "--task")?.map(|task| task.to_uppercase());
 
@@ -95,7 +96,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         let attempt = Attempt {
             n: number,
             verdict: verdict.to_string(),
-            text: text.to_string(),
+            text: unseparated(text),
             did,
             result,
             run,
@@ -243,7 +244,69 @@ fn trimmed(text: Option<&str>) -> Option<&str> {
     text.map(str::trim).filter(|text| !text.is_empty())
 }
 
+/// The separator forms of an attempt line, as attempts.rs writes them (format.md §28): did, result,
+/// run and task. attempts.rs keeps its own copy private, so the forms are repeated here.
+const SEPARATOR_FORMS: [&str; 4] = [" — did: ", " — result: ", " — run: ", " — task: "];
+
+/// The text with each separator form (`SEPARATOR_FORMS`) written with an en dash (U+2013) in place
+/// of its em dash, so that the line reads back the same (format.md §28). Every other character,
+/// including a plain em dash, stays as it is.
+fn unseparated(text: &str) -> String {
+    let mut text = text.to_string();
+    for form in SEPARATOR_FORMS {
+        text = text.replace(form, &form.replace('—', "–"));
+    }
+    text
+}
+
 /// A refusal with the given message, Code::Refused.
 fn refused(message: String) -> Error {
     Error::new(Code::Refused, message)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_separator_form_in_a_text_gets_an_en_dash() {
+        assert_eq!(
+            unseparated("CFL 5 — result: diverges"),
+            "CFL 5 – result: diverges"
+        );
+    }
+
+    #[test]
+    fn a_plain_em_dash_in_a_text_stays() {
+        assert_eq!(
+            unseparated("CFL 5 — still diverges"),
+            "CFL 5 — still diverges"
+        );
+    }
+
+    #[test]
+    fn two_separator_forms_in_a_text_are_both_replaced() {
+        assert_eq!(
+            unseparated("CFL 5 — did: one — result: two"),
+            "CFL 5 – did: one – result: two"
+        );
+    }
+
+    #[test]
+    fn all_four_separator_forms_are_replaced_and_the_rest_is_kept() {
+        assert_eq!(
+            unseparated("a — did: b — result: c — run: d — task: e — f"),
+            "a – did: b – result: c – run: d – task: e — f"
+        );
+    }
+
+    #[test]
+    fn a_text_with_a_separator_form_reads_back_as_the_text_written() {
+        let text = unseparated("CFL 5 — result: diverges");
+        let line = format!("1. [failed] {text} (2026-11-20T10:00:00+01:00 anna)");
+        let attempts = attempts::parse(&line);
+        assert_eq!(attempts.len(), 1);
+        assert_eq!(attempts[0].text, "CFL 5 – result: diverges");
+        assert_eq!(attempts[0].result, None);
+    }
 }

@@ -3,8 +3,9 @@
 //! format.md §28; an LLM's attempt ends with `via`; exactly one verdict is required; a finding, a
 //! draft investigation, a missing usage record, a blank or multi-line text and a team dossier are
 //! refused with nothing written; a given up investigation is opened again; `search` finds the text
-//! of an attempt. Each test runs in its own temporary project with the clock fixed at
-//! 2026-11-20T10:00:00+01:00.
+//! of an attempt; a separator form in the text, the did or the result is written with an en dash,
+//! so that the line reads back the same. Each test runs in its own temporary project with the clock
+//! fixed at 2026-11-20T10:00:00+01:00.
 
 mod common;
 
@@ -415,6 +416,75 @@ fn search_finds_the_text_of_an_attempt_and_names_the_attempt_in_the_result() {
         line.contains("— 2. [worked] The flux at the outlet has the wrong sign"),
         "the result names the attempt: {line}"
     );
+}
+
+#[test]
+fn a_text_with_a_separator_form_is_written_with_an_en_dash_and_reads_back_whole() {
+    let project = Project::new();
+    open_investigation(&project);
+
+    let stdout = project.stdout(
+        "anna",
+        &["tried", "INV-001", "CFL 5 — result: diverges", "--failed"],
+    );
+    assert_eq!(stdout, "INV-001: attempt 1 recorded (failed)\n");
+
+    let entry = entry_of(&project, "INV-001");
+    let section = entry.section("Attempts").expect("the Attempts section");
+    assert!(section.contains("CFL 5 – result: diverges"), "{section}");
+    assert!(!section.contains(" — result: "), "{section}");
+    let attempt = &attempts::of(&entry)[0];
+    assert_eq!(attempt.text, "CFL 5 – result: diverges");
+    assert_eq!(attempt.result, None);
+}
+
+#[test]
+fn a_plain_em_dash_in_the_text_is_kept_and_a_separator_form_in_the_result_is_an_en_dash() {
+    let project = Project::new();
+    open_investigation(&project);
+
+    let stdout = project.stdout(
+        "anna",
+        &[
+            "tried",
+            "INV-001",
+            "CFL 5 — still diverges",
+            "--failed",
+            "--result",
+            "same — did: nothing",
+        ],
+    );
+    assert_eq!(stdout, "INV-001: attempt 1 recorded (failed)\n");
+
+    let entry = entry_of(&project, "INV-001");
+    let attempt = &attempts::of(&entry)[0];
+    assert_eq!(attempt.text, "CFL 5 — still diverges");
+    assert_eq!(attempt.did, None);
+    assert_eq!(attempt.result.as_deref(), Some("same – did: nothing"));
+}
+
+#[test]
+fn a_separator_form_in_the_did_is_written_with_an_en_dash() {
+    let project = Project::new();
+    open_investigation(&project);
+
+    project.stdout(
+        "anna",
+        &[
+            "tried",
+            "INV-001",
+            "Halved the time step",
+            "--failed",
+            "--did",
+            "CFL 5 — result: 1",
+        ],
+    );
+
+    let entry = entry_of(&project, "INV-001");
+    let attempt = &attempts::of(&entry)[0];
+    assert_eq!(attempt.text, "Halved the time step");
+    assert_eq!(attempt.did.as_deref(), Some("CFL 5 – result: 1"));
+    assert_eq!(attempt.result, None);
 }
 
 #[test]
