@@ -8281,8 +8281,10 @@
 - note (2026-11-23, planner): added
 
 ### T-305 · brief --task: the investigations of the task and similar ones
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-305
+- claimed: 2026-11-23T20:01+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-287
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -8360,10 +8362,8 @@
 - note (2026-11-23, planner): split into T-364, T-365
 
 ### T-364 · promote: an investigation needs --as, and must be solved
-- status: claimed
+- status: done
 - owner: haiku-T-364
-- claimed: 2026-11-23T19:52+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-308
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -8379,8 +8379,12 @@
   5. Run cargo test --test cmd_promote
 - accept: promote accepts a solved investigation only with --as howto or --as lesson.
 - verify: cargo test --test cmd_promote
+- verified: 2026-11-23
+- commit: 1405ea3
 - reqs: R-INV-8, R-TEAM-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-364): done
 
 ### T-365 · promote: the sections of the how-to or lesson made from an investigation
 - status: open
