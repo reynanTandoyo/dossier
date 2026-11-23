@@ -3557,8 +3557,8 @@
 - note (2026-11-23, haiku-T-373): done
 
 ### T-326 · forward.rs: take and return in a connected folder go through transfer
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - milestone: T-054
 - goal: In a connected folder take and return --done go through transfer and copy the files in the right order; a failed copy leaves the take as it was.
@@ -3567,8 +3567,10 @@
 - depends: T-325, T-313
 - accept: In a connected folder take and return copy the files in the right order, and a failed copy leaves the take as it was.
 - reqs: R-REMOTE-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): split into T-374, T-375
+- note (2026-11-23, planner): done — take and return in a connected folder copy the files through scp; tested with stand-ins on Windows and Linux.
 
 ### T-374 · forward.rs: hand take and return to transfer
 - status: done
@@ -3595,8 +3597,8 @@
 - note (2026-11-23, haiku-T-374): done
 
 ### T-375 · Test: take and return from a connected folder with stand-ins for ssh and scp
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-375
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-326
 - why: The simulation files are gigabytes; the risk is overwriting a colleague's work when two people copy the same file to their PCs and back.
@@ -3614,8 +3616,12 @@
   7. Run cargo test --test remote_transfer on this system; the stand-ins must have a Windows text and a Unix text.
 - accept: The order of the steps of take and return from a PC is pinned by a test that needs no real server.
 - verify: cargo test --test remote_transfer
+- verified: 2026-11-23
+- commit: 7092764
 - reqs: R-REMOTE-4, TEST-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-23, haiku-T-375): done
 
 ### T-327 · README: large files
 - status: open
