@@ -299,10 +299,13 @@ fn copy_down(path: &str, base: &Path, pointer: &Pointer) -> Result<bool> {
     Ok(true)
 }
 
-/// `return --done` in a connected folder. The server first checks that every file is still as taken
-/// (`return … --check`) and stops when one is not. Then each file (the current folder joined with
-/// the path as typed) is copied up and moved over the file on the server; a failed copy ends with
-/// exit 5 and leaves the take as it was. Last, the server records the return (`return … --done`).
+/// `return --done` in a connected folder, in this order: the server checks that every file is still
+/// as taken (`return … --check`) and stops when one is not; every file (the current folder joined
+/// with the path as typed) is uploaded to a part file beside its copy on the server; each part file
+/// is moved over its file; last, the server records the return (`return … --done`). A failed upload
+/// leaves every file on the server as it was, so the take is unchanged and the same command works
+/// again. After the first move only the server can finish: its files have changed, so a rerun's
+/// `--check` would refuse them, and a failure there names the command that finishes the return.
 fn give_back(args: &[String], base: &Path, pointer: &Pointer, agent: Option<&str>) -> u8 {
     let current = match std::env::current_dir() {
         Ok(current) => current,
@@ -331,9 +334,9 @@ fn give_back(args: &[String], base: &Path, pointer: &Pointer, agent: Option<&str
         }
     }
 
-    for path in &files {
-        let name = path.replace('\\', "/");
-        if !copy_up(&current.join(path), &name, sub.as_deref(), pointer, agent) {
+    let names: Vec<String> = files.iter().map(|path| path.replace('\\', "/")).collect();
+    for (path, name) in files.iter().zip(&names) {
+        if !upload_part(&current.join(path), name, sub.as_deref(), pointer) {
             return fail(&Error::new(
                 Code::Ssh,
                 format!(
@@ -343,21 +346,28 @@ fn give_back(args: &[String], base: &Path, pointer: &Pointer, agent: Option<&str
         }
     }
 
+    for name in &names {
+        if !move_into_place(name, sub.as_deref(), pointer, agent) {
+            report(&finish_on_server(pointer, sub.as_deref(), &files));
+            return 5;
+        }
+    }
+
     let mut done = vec!["return".to_string()];
     done.extend(files.iter().cloned());
     done.push("--done".to_string());
-    server_result(remote(pointer, sub.as_deref(), agent, "dossier", &done))
+    let code = server_result(remote(pointer, sub.as_deref(), agent, "dossier", &done));
+    if code != 0 {
+        report(&finish_on_server(pointer, sub.as_deref(), &files));
+        return 5;
+    }
+    0
 }
 
-/// Copies one local file up to `<sub>/<name>` on the server: scp to `<name>.dossier-part` beside it,
-/// then `mv -f` over the file, both run in `sub` below the connected folder. True when both succeed.
-fn copy_up(
-    local: &Path,
-    name: &str,
-    sub: Option<&str>,
-    pointer: &Pointer,
-    agent: Option<&str>,
-) -> bool {
+/// Uploads one local file to `<sub>/<name>.dossier-part` on the server, beside the file it will
+/// replace: scp, run in the connected folder. The file on the server does not change. True when
+/// the upload succeeds.
+fn upload_part(local: &Path, name: &str, sub: Option<&str>, pointer: &Pointer) -> bool {
     let stored = match sub {
         Some(sub) => format!("{sub}/{name}"),
         None => name.to_string(),
@@ -368,15 +378,35 @@ fn copy_up(
         &format!("{stored}.dossier-part"),
     );
     let source = local.to_string_lossy().into_owned();
-    let copied = matches!(
+    matches!(
         std::process::Command::new(program())
             .args(argv(&source, &target, TIMEOUT_SECONDS))
             .status(),
         Ok(status) if status.success()
-    );
+    )
+}
+
+/// Moves `<name>.dossier-part` over `<name>` on the server with `mv -f`, run in `sub` below the
+/// connected folder. This is the step that replaces the server's file. True when the move succeeds.
+fn move_into_place(name: &str, sub: Option<&str>, pointer: &Pointer, agent: Option<&str>) -> bool {
     let part = format!("{name}.dossier-part");
     let mv = ["-f", "--", part.as_str(), name].map(str::to_string);
-    copied && matches!(remote(pointer, sub, agent, "mv", &mv), Ok((0, _, _)))
+    matches!(remote(pointer, sub, agent, "mv", &mv), Ok((0, _, _)))
+}
+
+/// The message for a return whose files are on the server but not recorded: the command that
+/// finishes it on the server, in the folder (and subfolder) there. It is not a rerun of the same
+/// command, because its `--check` would see the replaced files as changed.
+fn finish_on_server(pointer: &Pointer, sub: Option<&str>, files: &[String]) -> String {
+    let folder = match sub {
+        Some(sub) => format!("{}/{sub}", pointer.folder),
+        None => pointer.folder.clone(),
+    };
+    format!(
+        "the files are on the server but the return is not recorded; finish it on the server: ssh {}, then in {folder} run: dossier return {} --done",
+        pointer.server,
+        files.join(" ")
+    )
 }
 
 /// Runs `program args` on the server, in `sub` below the connected folder when it exists, with the
@@ -740,5 +770,18 @@ mod tests {
         assert_eq!(result.err().map(|error| error.exit()), Some(5));
         assert!(!part.exists());
         assert!(!local.exists());
+    }
+
+    #[test]
+    fn finish_on_server_names_the_folder_with_or_without_a_sub_folder_and_the_files() {
+        let files = words(&["a.sim", "sim/run 1.sim"]);
+        assert_eq!(
+            finish_on_server(&pointer(), None, &files),
+            "the files are on the server but the return is not recorded; finish it on the server: ssh anna@server, then in /projects/p1 run: dossier return a.sim sim/run 1.sim --done"
+        );
+        assert_eq!(
+            finish_on_server(&pointer(), Some("sim"), &files),
+            "the files are on the server but the return is not recorded; finish it on the server: ssh anna@server, then in /projects/p1/sim run: dossier return a.sim sim/run 1.sim --done"
+        );
     }
 }
