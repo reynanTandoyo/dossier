@@ -4712,7 +4712,7 @@
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
 - summary: The version number and the README are ready for the owner to tag release 0.6.0.
-- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416
+- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -8927,6 +8927,25 @@
 - accept: The SessionEnd hook that hooks install writes says shell: bash; the other hooks are unchanged.
 - verify: cargo test --lib hooks::
 - reqs: R-DRAFT-9
+- note (2026-11-24, planner): added
+
+### T-417 · brief: one summed-up line per digest, pointing to dossier show
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-056
+- why: The summed-up line pointed to list --task <task>, which cannot name a milestone of several tasks (found in T-333).
+- summary: brief tells for each digest how many entries it sums up and how to see them.
+- depends: T-333
+- files: src/cmd/brief.rs, tests/cmd_brief.rs
+- read: docs/design.md
+- steps:
+  1. src/cmd/brief.rs: replace the one summed-up line (summed_text) by one line per digest in force that covers at least one entry: `<n> entries of <milestone> are summed up in <DIG-ID>: dossier show <DIG-ID>`, or `1 entry of <milestone> is summed up in <DIG-ID>: dossier show <DIG-ID>`, where <milestone> is the digest's `milestone` field and <n> the number of decisions and findings it covers that brief left out. These lines are never cut, like the digest lines. Update the doc comment to docs/design.md section 18.
+  2. tests/cmd_brief.rs: change the tests that expect `are summed up in digests: dossier list --task` to the new line; one test with two digests of two milestones expects two lines, each naming its milestone and DIG-ID.
+  3. Run cargo test --test cmd_brief
+- accept: brief prints one summed-up line per digest with its milestone and DIG-ID and the command dossier show <DIG-ID>.
+- verify: cargo test --test cmd_brief
+- reqs: R-CTX-14
 - note (2026-11-24, planner): added
 
 ## Questions
