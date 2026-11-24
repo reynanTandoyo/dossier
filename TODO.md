@@ -9218,10 +9218,8 @@
 - note (2026-11-24, haiku-T-423): done
 
 ### T-424 · brief --task: one selection for the text and the JSON items
-- status: claimed
+- status: done
 - owner: haiku-T-424
-- claimed: 2026-11-24T01:40+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-347
 - why: R-CTX-6 wants --json to return the same selection as the text; chosen() picked from one pool while lines() picks per heading, so the items could differ from the printed entries (found in T-394).
@@ -9238,8 +9236,12 @@
   6. Run cargo test --test cmd_brief and cargo test --lib brief_task::
 - accept: brief --task --json gives as items exactly the entries the text prints, in order, each with its reason; todo is asked once.
 - verify: cargo test --test cmd_brief && cargo test --lib brief_task::
+- verified: 2026-11-24
+- commit: 9586149
 - reqs: R-CTX-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-24, planner): added
+- note (2026-11-24, haiku-T-424): done
 
 ### T-425 · check --fix: no format-line repair that would show an approved entry as changed
 - status: claimed
