@@ -77,6 +77,15 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         }
         fields.push(("task".to_string(), task));
     }
+    // An assumption starts open, as `assume` writes it, unless a state with a value is given.
+    // Without a state, `approve` refuses the draft (rules::problems).
+    if kind == Kind::Assumption
+        && !fields
+            .iter()
+            .any(|(key, value)| key.as_str() == "state" && !value.is_empty())
+    {
+        fields.push(("state".to_string(), "open".to_string()));
+    }
     // The sections of the body come before the ones given with --section.
     let mut sections = match body_text(args)? {
         Some(text) => body_sections(&text)?,

@@ -390,3 +390,121 @@ fn a_dry_run_names_the_entry_and_writes_nothing() {
         &project.root().join("DOSSIER").join("findings")
     ));
 }
+
+/// The text of an assumption written with `add`, with its sections. Invented content.
+const ASSUMPTION_SECTIONS: [&str; 4] = [
+    "--section",
+    "Assumption=The inlet profile is uniform over the span.",
+    "--section",
+    "Reason=No measured profile was delivered.",
+];
+
+#[test]
+fn an_assumption_written_as_a_draft_has_state_open_and_approve_accepts_it() {
+    let project = Project::new();
+    let mut args = vec![
+        "add",
+        "assumption",
+        "--title",
+        "The inlet profile is uniform over the span",
+        "--draft",
+    ];
+    args.extend(ASSUMPTION_SECTIONS);
+    let stdout = project.stdout("anna-claude", &args);
+    assert_eq!(stdout, "ASM-001: added (draft, waiting for approval)\n");
+
+    let entry = Entry::parse(&text_of(&project, "ASM-001")).expect("the file is an entry");
+    assert_eq!(entry.kind(), Some(Kind::Assumption));
+    assert_eq!(entry.status(), Some(Status::Draft));
+    assert_eq!(entry.field("state").as_deref(), Some("open"));
+
+    project
+        .command("anna", NOW)
+        .env("DOSSIER_ANSWERS", "a")
+        .args(["approve", "ASM-001"])
+        .assert()
+        .success()
+        .stdout("ASM-001: approved\n");
+    let entry = Entry::parse(&text_of(&project, "ASM-001")).expect("the file is an entry");
+    assert_eq!(entry.status(), Some(Status::Approved));
+    assert_eq!(entry.field("state").as_deref(), Some("open"));
+}
+
+#[test]
+fn a_person_adds_an_approved_assumption_with_state_open() {
+    let project = Project::new();
+    let mut args = vec![
+        "add",
+        "assumption",
+        "--title",
+        "The inlet profile is uniform over the span",
+    ];
+    args.extend(ASSUMPTION_SECTIONS);
+    let stdout = project.stdout("anna", &args);
+    assert_eq!(stdout, "ASM-001: added (approved)\n");
+
+    let entry = Entry::parse(&text_of(&project, "ASM-001")).expect("the file is an entry");
+    assert_eq!(entry.status(), Some(Status::Approved));
+    assert_eq!(entry.field("state").as_deref(), Some("open"));
+}
+
+#[test]
+fn a_state_given_with_field_is_kept_and_written_once() {
+    let project = Project::new();
+    let mut args = vec![
+        "add",
+        "assumption",
+        "--title",
+        "The inlet profile is uniform over the span",
+        "--field",
+        "state=confirmed",
+    ];
+    args.extend(ASSUMPTION_SECTIONS);
+    project.stdout("anna", &args);
+
+    let text = text_of(&project, "ASM-001");
+    let states: Vec<&str> = text
+        .lines()
+        .filter(|line| line.starts_with("- state:"))
+        .collect();
+    assert_eq!(states, ["- state: confirmed"], "{text}");
+}
+
+#[test]
+fn a_blank_state_given_with_field_is_replaced_by_open() {
+    let project = Project::new();
+    let mut args = vec![
+        "add",
+        "assumption",
+        "--title",
+        "The inlet profile is uniform over the span",
+        "--field",
+        "state=",
+    ];
+    args.extend(ASSUMPTION_SECTIONS);
+    project.stdout("anna", &args);
+
+    let entry = Entry::parse(&text_of(&project, "ASM-001")).expect("the file is an entry");
+    assert_eq!(entry.field("state").as_deref(), Some("open"));
+}
+
+#[test]
+fn other_kinds_get_no_state_field() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &[
+            "add",
+            "finding",
+            "--title",
+            "No state here",
+            "--section",
+            "Observation=Seen.",
+        ],
+    );
+    let text = text_of(&project, "FND-001");
+    assert!(
+        !text.lines().any(|line| line.starts_with("- state:")),
+        "{text}"
+    );
+}
