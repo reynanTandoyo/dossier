@@ -9412,3 +9412,9 @@
 - owner: —
 - type: idea
 - note (2026-11-24, planner): added
+
+### T-429 · check UNIT: a line such as 10:30 reads as name 10 with value 30 and warns; the name should have to contain a letter (found in T-349).
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-24, planner): added
