@@ -851,8 +851,46 @@ bring it back without overwriting a colleague's copy. The commands are described
 
 ### What version 0.6 adds
 
-Version 0.6 prepares the material for drafting lessons when a Claude Code session ends, so that
-the drafts can be waiting the next morning. Each part has one short example.
+Version 0.6 adds milestone digests, so that `brief` and `status` stay small as a project grows. It
+also prepares the material for drafting lessons when a Claude Code session ends, so that the drafts
+can be waiting the next morning. Each part has one short example.
+
+#### Milestone digests
+
+When a `todo` milestone is closed, it is summed up in a digest of at most 15 lines, written from the
+decisions, assumptions, findings, dead ends and investigations of the milestone's tasks. After a
+person has approved it, `brief` and `status` show the digest in place of the decisions and findings
+it sums up, with one line saying how to see them (decision [D22](docs/requirements.md)).
+
+`digest` has two forms. Without options it prints the material for the summary, with the rules for
+writing it, and changes nothing. With `--write --stdin` it reads the summary from standard input and
+stores it as a digest entry; `todo` must show the milestone as done.
+
+```sh
+dossier digest T-130
+dossier digest T-130 --write --stdin < summary.txt
+```
+
+```
+DIG-001: added (draft, waiting for approval)
+```
+
+Once a person has approved it, `brief` shows the digest like this:
+
+```
+## Digests
+DIG-001 · T-130 · Digest of T-130: Speedline study
+  Three speedline points are decided, and the decision still binds.
+  The first run diverges at iteration 40.
+3 entries of T-130 are summed up in DIG-001: dossier show DIG-001
+```
+
+A second digest of a milestone that already has an approved one is written too, with a warning. A
+person then replaces the old one with `dossier supersede <old ID> --by <new ID>`.
+
+`decide --standing` marks a decision that binds the whole project, not one milestone. Such a
+decision and every open assumption are always shown singly, even when a digest covers their
+milestone.
 
 #### Session review
 

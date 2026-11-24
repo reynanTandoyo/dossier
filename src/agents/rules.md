@@ -18,6 +18,7 @@
 - Record a simulation run with `dossier used <software> --version <v> --task <task> --model <file> --output <path>`.
 - Record what you had to assume with `dossier assume "<assumption>" --reason "<why>"`.
 - After `todo done <id>`, run `dossier review-task <id>`, then propose lessons with `dossier learn` (it needs `--valid-for`, `--evidence` and `--confidence`), or propose none if nothing was learned.
+- When a milestone is closed in todo, sum it up: run `dossier digest <milestone>`, then write at most 15 lines with `dossier digest <milestone> --write --stdin`; a person approves it.
 - Search before you propose something new: `dossier search <words>`.
 - Before writing a script, look for a tool: `dossier list --kind tool`.
 - Write every entry in English, also when the session is in another language.
