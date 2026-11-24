@@ -133,6 +133,7 @@ pub enum Command {
     Story(cmd::story::Args),
     Export(cmd::export::Args),
     Schema(cmd::schema::Args),
+    After(cmd::after::Args),
 }
 
 /// On Linux, files and folders this program creates are writable by the group (R-XOS-8): the
@@ -301,6 +302,7 @@ pub fn main_exit() -> u8 {
         Command::Story(a) => ("story", gated(&check, || cmd::story::run(a, g))),
         Command::Export(a) => ("export", gated(&check, || cmd::export::run(a, g))),
         Command::Schema(a) => ("schema", gated(&check, || cmd::schema::run(a, g))),
+        Command::After(a) => ("after", gated(&check, || cmd::after::run(a, g))),
     };
     crate::output::emit(name, g.json, &result)
 }
