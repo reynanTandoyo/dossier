@@ -4689,10 +4689,8 @@
 - note (2026-11-23, planner): added
 
 ### T-350 · team summary: the state of the team dossier
-- status: claimed
+- status: done
 - owner: haiku-T-350
-- claimed: 2026-11-24T00:55+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
@@ -4707,8 +4705,12 @@
   4. Run cargo test --test cmd_team
 - accept: team summary shows the team dossier at a glance: entries per kind and status, drafts waiting, entries due for review, the newest ten.
 - verify: cargo test --test cmd_team
+- verified: 2026-11-24
+- commit: 2ae3346
 - reqs: R-TEAM-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-350): done
 
 ### T-351 · help <command>: a description and three examples, first group
 - status: claimed
