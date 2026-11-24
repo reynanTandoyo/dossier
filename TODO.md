@@ -9302,10 +9302,8 @@
 - note (2026-11-24, haiku-T-427): done
 
 ### T-428 · approve: a failed editor keeps the answers already given
-- status: claimed
+- status: done
 - owner: haiku-T-428
-- claimed: 2026-11-24T01:55+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-058
 - why: With edit first, an editor that ends with an error ended the whole approve run and lost the answers given before it (found in T-413).
@@ -9319,8 +9317,12 @@
   3. Run cargo test --test cmd_approve
 - accept: An editor error during approve gives a warning and asks again; earlier answers in the run are written.
 - verify: cargo test --test cmd_approve
+- verified: 2026-11-24
+- commit: 8d8dcef
 - reqs: R-DRAFT-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-24, planner): added
+- note (2026-11-24, haiku-T-428): done
 
 ## Questions
 
