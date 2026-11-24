@@ -7932,10 +7932,8 @@
 - note (2026-11-23, planner): split into T-398, T-399, T-400
 
 ### T-398 · after: the command file and its place in the command list
-- status: claimed
+- status: done
 - owner: haiku-T-398
-- claimed: 2026-11-24T01:07+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-294
 - why: A rule that an agent must remember is followed only some of the time; a hook runs every time (D39).
@@ -7948,8 +7946,12 @@
   3. Run cargo build and cargo test --test smoke
 - accept: `dossier after` exists and prints nothing.
 - verify: cargo build && cargo test --test smoke
+- verified: 2026-11-24
+- commit: 9ffe3b8
 - reqs: R-AGENT-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-398): done
 
 ### T-399 · after: in the help overview, and run on the PC
 - status: open
