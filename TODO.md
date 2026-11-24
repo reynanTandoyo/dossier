@@ -7924,8 +7924,10 @@
 - note (2026-11-23, planner): split into T-398, T-399, T-400
 
 ### T-398 · after: the command file and its place in the command list
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-398
+- claimed: 2026-11-24T01:07+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P0 · difficulty: 1 · type: chore
 - milestone: T-294
 - why: A rule that an agent must remember is followed only some of the time; a hook runs every time (D39).
