@@ -17,6 +17,11 @@ pub const AFTER: &str = "dossier after";
 /// session ends (R-DRAFT-9). The full command is this text, `--run` and the quoted review command.
 pub const SESSION_END: &str = "dossier session-end";
 
+/// The `shell` of the SessionEnd hook: its command is quoted for a POSIX shell. Claude Code runs a
+/// hook on Windows in Git Bash, or in PowerShell when Git Bash is not installed, unless `shell`
+/// says which (code.claude.com/docs/en/hooks).
+const POSIX_SHELL: &str = "bash";
+
 /// The matcher of the PreToolUse hook: the tools that write a file.
 const EDIT_TOOLS: &str = "Edit|Write|MultiEdit";
 
@@ -69,10 +74,17 @@ pub fn uninstalled(existing: &str) -> Result<String> {
 }
 
 /// .claude/settings.json with a SessionEnd hook running `dossier session-end --run <command>`, the
-/// command quoted for a POSIX shell (a single quote is written as '\''). The hook is added once; a
-/// SessionEnd hook that runs SESSION_END already takes the new command in its place, and only one
-/// such hook is kept. Other keys and hooks are kept. Code::Parse as in `installed`.
+/// command quoted for a POSIX shell (a single quote is written as '\''), and the hook says
+/// `"shell": "bash"`. The hook is added once; a SessionEnd hook that runs SESSION_END takes the
+/// new command in its place, and only one such hook is kept. Other keys and hooks are kept.
+/// Code::BadValue for a command that is empty or only spaces; Code::Parse as in `installed`.
 pub fn review_installed(existing: &str, command: &str) -> Result<String> {
+    if command.trim().is_empty() {
+        return Err(Error::new(
+            Code::BadValue,
+            "the review command must not be empty",
+        ));
+    }
     let mut root = settings(existing)?;
     let hooks = object_or_new(&mut root, "hooks")?;
     let run = format!("{SESSION_END} --run {}", shell_quoted(command));
@@ -323,9 +335,9 @@ fn add_once(
 }
 
 /// Gives the SessionEnd entries the hook that runs `run`. The first hook that runs SESSION_END
-/// takes `run` as its command, in its place; any other such hook is removed, and an entry the
-/// removal leaves without hooks goes too. With no such hook, an entry running `run` is added at
-/// the end.
+/// takes `run` as its command and POSIX_SHELL as its shell, in its place; any other such hook is
+/// removed, and an entry the removal leaves without hooks goes too. With no such hook, an entry
+/// running `run` is added at the end with the same shell.
 fn set_session_end(entries: &mut Vec<Value>, run: &str) {
     let mut found = false;
     entries.retain_mut(|entry| {
@@ -343,13 +355,16 @@ fn set_session_end(entries: &mut Vec<Value>, run: &str) {
             found = true;
             if let Some(object) = hook.as_object_mut() {
                 object.insert("command".to_string(), Value::String(run.to_string()));
+                object.insert("shell".to_string(), Value::String(POSIX_SHELL.to_string()));
             }
             true
         });
         before == 0 || !hooks.is_empty()
     });
     if !found {
-        entries.push(json!({"hooks": [{"type": "command", "command": run}]}));
+        entries.push(json!({"hooks": [
+            {"type": "command", "command": run, "shell": POSIX_SHELL}
+        ]}));
     }
 }
 
@@ -988,7 +1003,11 @@ mod tests {
         assert_eq!(
             parsed(&text),
             json!({"hooks": {"SessionEnd": [
-                {"hooks": [{"type": "command", "command": "dossier session-end --run 'echo done'"}]}
+                {"hooks": [{
+                    "type": "command",
+                    "command": "dossier session-end --run 'echo done'",
+                    "shell": "bash"
+                }]}
             ]}})
         );
         assert!(text.ends_with("}\n") && !text.ends_with("\n\n"), "{text}");
@@ -1065,7 +1084,8 @@ mod tests {
         );
         let review = json!({"hooks": [{
             "type": "command",
-            "command": "dossier session-end --run 'echo new'"
+            "command": "dossier session-end --run 'echo new'",
+            "shell": "bash"
         }]});
         assert_eq!(session_end[1], review);
         assert_eq!(
@@ -1086,7 +1106,7 @@ mod tests {
             parsed(&review_installed(text, "new").unwrap()),
             json!({"hooks": {"SessionEnd": [{"hooks": [
                 {"type": "command", "command": "echo end"},
-                {"type": "command", "command": "dossier session-end --run 'new'"}
+                {"type": "command", "command": "dossier session-end --run 'new'", "shell": "bash"}
             ]}]}})
         );
     }
@@ -1101,7 +1121,11 @@ mod tests {
         assert_eq!(
             parsed(&review_installed(text, "new").unwrap()),
             json!({"hooks": {"SessionEnd": [
-                {"hooks": [{"type": "command", "command": "dossier session-end --run 'new'"}]},
+                {"hooks": [{
+                    "type": "command",
+                    "command": "dossier session-end --run 'new'",
+                    "shell": "bash"
+                }]},
                 {"hooks": [{"type": "command", "command": "echo end"}]}
             ]}})
         );
@@ -1154,5 +1178,71 @@ mod tests {
     fn uninstalling_after_the_review_into_an_empty_object_gives_an_empty_object() {
         let text = review_installed("{}", "echo done").unwrap();
         assert_eq!(uninstalled(&text).unwrap(), "{}\n");
+    }
+
+    /// The SessionEnd hook objects of a settings text that have a `shell` field.
+    fn hooks_with_shell(text: &str) -> Vec<Value> {
+        let value = parsed(text);
+        value["hooks"]["SessionEnd"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|entry| entry["hooks"].as_array().unwrap().clone())
+            .filter(|hook| hook.get("shell").is_some())
+            .collect()
+    }
+
+    #[test]
+    fn the_installed_session_end_hook_says_bash() {
+        let text = review_installed("{}", "echo done").unwrap();
+        let hooks = hooks_with_shell(&text);
+        assert_eq!(hooks.len(), 1, "{text}");
+        assert_eq!(hooks[0]["type"], "command");
+        assert_eq!(hooks[0]["shell"], "bash");
+    }
+
+    #[test]
+    fn replacing_the_review_keeps_exactly_one_hook_with_the_shell_field() {
+        // An earlier version wrote the review hook without the field; replacing it adds the field.
+        let earlier = r#"{"hooks": {"SessionEnd": [
+  {"hooks": [{"type": "command", "command": "echo end"}]},
+  {"hooks": [{"type": "command", "command": "dossier session-end --run 'old'"}]}
+]}}"#;
+        let once = review_installed(earlier, "new").unwrap();
+        let hooks = hooks_with_shell(&once);
+        assert_eq!(hooks.len(), 1, "{once}");
+        assert_eq!(hooks[0]["command"], "dossier session-end --run 'new'");
+        let again = review_installed(&once, "newer").unwrap();
+        let hooks = hooks_with_shell(&again);
+        assert_eq!(hooks.len(), 1, "{again}");
+        assert_eq!(hooks[0]["command"], "dossier session-end --run 'newer'");
+        assert_eq!(
+            parsed(&again)["hooks"]["SessionEnd"]
+                .as_array()
+                .unwrap()
+                .len(),
+            2
+        );
+    }
+
+    #[test]
+    fn the_session_start_hook_has_no_shell_field() {
+        let text = installed("{}").unwrap();
+        let value = parsed(&text);
+        let session_start = &value["hooks"]["SessionStart"][0]["hooks"][0];
+        assert_eq!(session_start["command"], BRIEF);
+        assert!(session_start.get("shell").is_none(), "{text}");
+    }
+
+    #[test]
+    fn review_refuses_a_command_that_is_empty_or_only_spaces() {
+        for command in ["", "   ", " \t "] {
+            let error = review_installed(SESSION_END_OTHER, command).unwrap_err();
+            assert_eq!(error.code, Code::BadValue, "{command:?}");
+            assert_eq!(
+                error.message, "the review command must not be empty",
+                "{command:?}"
+            );
+        }
     }
 }
