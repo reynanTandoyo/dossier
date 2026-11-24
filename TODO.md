@@ -4849,13 +4849,15 @@
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
-  1. Cargo.toml: version = "0.6.0"; run cargo build so that Cargo.lock follows.
-  2. README.md: set the status line at the top to `**Status: v0.6 (phase 6)**`; add `### What version 0.6 adds` (digests, session review, the hook after todo commands, story, search --similar, brief --budget and reasons, check --fix and unit warnings, export, schema, team summary, help with examples, the readers' guide) and remove or rewrite the `Not in version …` section so that it names only what is still not built (R-CTX-8: todo brief including the dossier's brief, which needs a change in todo).
-  3. Run cargo fmt --all -- --check, cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features; all three must pass. Do not tag and do not push: the owner does that.
+  1. Cargo.toml: version = "0.6.0"; run cargo build so that Cargo.lock follows (only the version line of the dossier package may change; otherwise stop and report).
+  2. README.md: set the status line at the top to `**Status: v0.6 (phase 6)**`. A `### What version 0.6 adds` section exists already, with the parts on milestone digests and the session review (written by T-335, T-340 and T-427). Keep it and its parts unchanged, and add after them one short part `#### More in version 0.6` with one line each for: the hook after todo commands (`dossier after`, installed by hooks install), `story`, `export`, `schema`, `search --similar`, `brief --budget` and the reasons in `brief --task --json`, `check --fix` and the warning about numbers without a unit, `team summary`, `help <command>` with three examples, `approve`'s answer `e` (edit first), and the guide for readers (docs/guide-for-readers.md). There must be exactly one `### What version 0.6 adds` heading.
+  3. README.md: replace the section `### Not in version 0.5` by `### Not in version 0.6`, placed after the 0.6 section, naming only what is still not built: R-CTX-8 (`todo brief` including the dossier's brief, which needs a change in todo). Remove its phase lines; there are no more phases after 6.
+  4. Run cargo fmt --all -- --check, cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features; all three must pass. Do not tag and do not push: the owner does that.
 - accept: Version 0.6.0 builds, passes every check, and the README says what it adds.
 - verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
 - reqs: REL-1, REL-2
 - note (2026-11-23, planner): added
+- note (2026-11-24, planner): Steps updated: the 0.6 README section exists already (T-335, T-340, T-427); the release completes it.
 
 ### T-063 · Run commands from the PC: connect, the per-user project register, forwarding through ssh, dossier todo
 - status: dropped
