@@ -4524,8 +4524,8 @@
 - note (2026-11-24, haiku-T-346): done
 
 ### T-347 · brief --task --json: why each entry was chosen
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - milestone: T-058
 - goal: brief --task --json says for every entry why it was chosen: linked, milestone, tag match or word match.
@@ -4534,8 +4534,10 @@
 - depends: T-346
 - accept: brief --task --json says for every entry why it was chosen: linked, milestone, tag match or word match.
 - reqs: R-CTX-6, TEST-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): split into T-392, T-393, T-394
+- note (2026-11-24, planner): done — brief --task --json names exactly the entries the text shows, each with why it was chosen.
 
 ### T-392 · select.rs: why an entry matched
 - status: done
