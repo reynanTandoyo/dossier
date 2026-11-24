@@ -9041,8 +9041,10 @@
 - note (2026-11-23, haiku-T-411): done
 
 ### T-414 · Readers' guide and README: the answer 'edit first' of approve
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-414
+- claimed: 2026-11-24T01:55+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-058
 - why: The readers' guide describes the answers of approve, and gains the fourth with T-413.
@@ -9292,8 +9294,10 @@
 - note (2026-11-24, haiku-T-427): done
 
 ### T-428 · approve: a failed editor keeps the answers already given
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-428
+- claimed: 2026-11-24T01:55+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-058
 - why: With edit first, an editor that ends with an error ended the whole approve run and lost the answers given before it (found in T-413).
