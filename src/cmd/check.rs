@@ -36,7 +36,7 @@ use std::path::{Path, PathBuf};
 #[derive(clap::Args, Debug)]
 pub struct Args {
     /// Repairs what is safe first: renames each entry file whose name does not match its ID and
-    /// title, then checks again. Needs a name.
+    /// title, and adds a missing format line, then checks again. Needs a name.
     #[arg(long)]
     pub fix: bool,
 }
@@ -62,6 +62,12 @@ const FIXED: &str = "fixed";
 
 /// The detail of a repaired file name, in the history line and the journal.
 const FILE_NAME: &str = "file name";
+
+/// The detail of an added format line, in the history line and the journal.
+const FORMAT_DETAIL: &str = "format line";
+
+/// The format line of version 1 (format.md §3).
+const FORMAT_LINE: &str = "<!-- dossier-format: 1 -->";
 
 /// Runs `check`. With `--fix`, the repairs of `fix` are made first, and the checks run on the
 /// dossier as they leave it; the `fixed:` lines come before the check's own text (in the message
@@ -136,13 +142,17 @@ fn report(ctx: &Ctx) -> Result<Output> {
 
 /// The repairs of `check --fix` (R-CHECK-2), made in one transaction. An entry file whose ID is
 /// the ID of no other file is renamed to the name `store::path_for` gives its kind, ID and title,
-/// unless that name exists already; its history gets a `fixed` line and the journal a `fixed`
-/// record. The text is one `fixed: <old> renamed to <new>` line per repair, and nothing on a dry
-/// run, where the warnings of `tx::write` say what would be renamed. The data lists the repairs
-/// as `fixed`. Without a name: Code::Usage.
+/// unless that name exists already. An entry file whose first line is not the format line gets
+/// one in front (format.md §2, §13). A file that needs both is written by one rename. Each repair
+/// adds a `fixed` history line to the entry, and the journal gets one `fixed` record per file
+/// whose detail names its repairs. The text is one `fixed: <old> renamed to <new>` line per
+/// rename and one `<file>: format line added` line per file that got a format line, and nothing
+/// on a dry run, where the warnings of `tx::write` say what would be written. The data lists the
+/// renames as `fixed` and the files as `format_line`. Without a name: Code::Usage.
 fn fix(ctx: &Ctx) -> Result<Output> {
     let who = ctx.writer()?.clone();
     let mut renamed: Vec<String> = Vec::new();
+    let mut formatted: Vec<String> = Vec::new();
     let output = tx::write(ctx, |tx| {
         let (items, _) = store::all(&ctx.dossier);
         let mut count: BTreeMap<String, usize> = BTreeMap::new();
@@ -152,40 +162,107 @@ fn fix(ctx: &Ctx) -> Result<Output> {
         for item in &items {
             let entry = &item.entry;
             let id = entry.id();
-            if count.get(&id) != Some(&1) {
-                continue;
-            }
-            let Some(kind) = entry.kind().or_else(|| Kind::of_id(&id)) else {
-                continue;
+            let new_path = if count.get(&id) == Some(&1) {
+                rename_target(ctx, item, &id)
+            } else {
+                None
             };
-            let new_path = store::path_for(&ctx.dossier, kind, &id, &entry.title());
-            if new_path == item.path || new_path.exists() {
+            let needs_format = !has_format_line(entry);
+            if new_path.is_none() && !needs_format {
                 continue;
             }
             let mut fixed = entry.clone();
-            fixed.add_history(tx.time(), &who, FIXED, FILE_NAME);
+            let mut details: Vec<&str> = Vec::new();
+            if new_path.is_some() {
+                fixed.add_history(tx.time(), &who, FIXED, FILE_NAME);
+                details.push(FILE_NAME);
+            }
+            if needs_format {
+                add_format_line(&mut fixed.lines);
+                fixed.add_history(tx.time(), &who, FIXED, FORMAT_DETAIL);
+                details.push(FORMAT_DETAIL);
+            }
             let change = Change {
                 id,
                 event: FIXED.to_string(),
-                detail: FILE_NAME.to_string(),
+                detail: details.join(", "),
             };
-            tx.rename(item, new_path.clone(), fixed.text(), change);
-            renamed.push(format!(
-                "{} renamed to {}",
-                relative(&ctx.root, &item.path),
-                relative(&ctx.root, &new_path)
-            ));
+            let path = match new_path {
+                Some(new_path) => {
+                    renamed.push(format!(
+                        "{} renamed to {}",
+                        relative(&ctx.root, &item.path),
+                        relative(&ctx.root, &new_path)
+                    ));
+                    tx.rename(item, new_path.clone(), fixed.text(), change);
+                    new_path
+                }
+                None => {
+                    tx.put(item.path.clone(), Some(item), fixed.text(), change);
+                    item.path.clone()
+                }
+            };
+            if needs_format {
+                formatted.push(format!("{}: format line added", relative(&ctx.root, &path)));
+            }
         }
         Ok(Output::text(""))
     })?;
-    // A dry run renames nothing: the warnings of `tx::write` say what would be renamed.
-    let done = if ctx.dry_run { Vec::new() } else { renamed };
-    let text: String = done.iter().map(|line| format!("fixed: {line}\n")).collect();
+    // A dry run writes nothing: the warnings of `tx::write` say what would be written.
+    let (renames, formats) = if ctx.dry_run {
+        (Vec::new(), Vec::new())
+    } else {
+        (renamed, formatted)
+    };
+    let mut text: String = renames
+        .iter()
+        .map(|line| format!("fixed: {line}\n"))
+        .collect();
+    text.extend(formats.iter().map(|line| format!("{line}\n")));
     Ok(Output {
         text,
-        data: json!({ "fixed": done }),
+        data: json!({ "fixed": renames, "format_line": formats }),
         warnings: output.warnings,
     })
+}
+
+/// The name that `check --fix` gives an entry file, when the file has to be renamed: the one
+/// `store::path_for` gives its kind, ID and title, when the file has another name and that name
+/// is free. None when the kind is unknown. The caller checks that the ID is unique.
+fn rename_target(ctx: &Ctx, item: &Item, id: &str) -> Option<PathBuf> {
+    let entry = &item.entry;
+    let kind = entry.kind().or_else(|| Kind::of_id(id))?;
+    let new_path = store::path_for(&ctx.dossier, kind, id, &entry.title());
+    (new_path != item.path && !new_path.exists()).then_some(new_path)
+}
+
+/// Whether the first line of an entry, after a byte-order mark, is the format line (format.md §3).
+/// A format line on a later line does not count: the repair only puts one in front.
+fn has_format_line(entry: &Entry) -> bool {
+    entry.lines.first().is_some_and(|line| {
+        line.strip_prefix(BYTE_ORDER_MARK).unwrap_or(line).trim() == FORMAT_LINE
+    })
+}
+
+/// Puts the format line in front of the lines of an entry (format.md §2). The new line ends as
+/// the line that follows it does, with CRLF or LF; a byte-order mark stays at the very start of
+/// the file, so it moves to the new line.
+fn add_format_line(lines: &mut Vec<String>) {
+    let mark = match lines
+        .first_mut()
+        .filter(|first| first.starts_with(BYTE_ORDER_MARK))
+    {
+        Some(first) => {
+            first.remove(0);
+            BYTE_ORDER_MARK.to_string()
+        }
+        None => String::new(),
+    };
+    let ending = match lines.first() {
+        Some(first) if first.ends_with("\r\n") => "\r\n",
+        _ => "\n",
+    };
+    lines.insert(0, format!("{mark}{FORMAT_LINE}{ending}"));
 }
 
 /// One problem: the file (relative to the project folder, with `/`), the line, the ID of the

@@ -1135,3 +1135,174 @@ fn check_fix_renames_an_approved_lesson_without_a_changed_mark() {
     );
     assert_eq!(project.stdout("anna", &["check"]), OK);
 }
+
+/// The format line of version 1 (format.md §3).
+const FORMAT_LINE: &str = "<!-- dossier-format: 1 -->";
+
+/// Removes the format line of the entry `id` by hand, keeping every other byte, and returns the
+/// text it had before.
+fn remove_format_line_by_hand(project: &Project, id: &str) -> String {
+    let original = text_of(project, id);
+    let without = original.replacen(&format!("{FORMAT_LINE}\n"), "", 1);
+    assert_ne!(without, original, "the format line is in the entry");
+    write_entry(project, id, &without);
+    original
+}
+
+#[test]
+fn check_fix_puts_back_a_format_line_removed_by_hand() {
+    let project = Project::new();
+    decide(&project);
+    let original = remove_format_line_by_hand(&project, "DEC-001");
+    // A file without a format line is read as version 1, so a plain check is still ok.
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+
+    let stdout = project.stdout("anna", &["check", "--fix"]);
+    let file = project.entry_file("DEC-001");
+    assert_eq!(stdout, format!("{}: format line added\n{OK}", shown(&file)));
+
+    // The only other change is the history line of the repair; every other byte is as it was.
+    let text = text_of(&project, "DEC-001");
+    let history = format!("- history: {NOW} anna: fixed — format line\n");
+    assert!(
+        text.starts_with(&format!("{FORMAT_LINE}\n# DEC-001")),
+        "{text}"
+    );
+    assert_eq!(text.replacen(&history, "", 1), original);
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+}
+
+#[test]
+fn check_fix_records_the_format_line_in_the_history_and_the_journal() {
+    let project = Project::new();
+    decide(&project);
+    remove_format_line_by_hand(&project, "DEC-001");
+
+    project.stdout("anna", &["check", "--fix"]);
+
+    let text = text_of(&project, "DEC-001");
+    assert!(
+        text.contains("- history: 2026-11-20T10:00:00+01:00 anna: fixed — format line\n"),
+        "{text}"
+    );
+    let records = project.entry_journal();
+    let last = records.last().expect("the repair is in the journal");
+    assert_eq!(last.id, "DEC-001");
+    assert_eq!(last.name, "anna");
+    assert_eq!(last.command, "check");
+    assert_eq!(last.event, "fixed");
+    assert_eq!(last.detail, "format line");
+}
+
+#[test]
+fn check_fix_gives_a_crlf_format_line_to_an_entry_saved_with_crlf() {
+    let project = Project::new();
+    decide(&project);
+    let crlf = text_of(&project, "DEC-001").replace('\n', "\r\n");
+    write_entry(
+        &project,
+        "DEC-001",
+        &crlf.replacen(&format!("{FORMAT_LINE}\r\n"), "", 1),
+    );
+
+    project.stdout("anna", &["check", "--fix"]);
+
+    let text = text_of(&project, "DEC-001");
+    assert!(
+        text.starts_with(&format!("{FORMAT_LINE}\r\n# DEC-001")),
+        "{text}"
+    );
+    assert!(
+        !text.replace("\r\n", "").contains('\n'),
+        "a bare LF in {text:?}"
+    );
+    let history = format!("- history: {NOW} anna: fixed — format line\r\n");
+    assert_eq!(text.replacen(&history, "", 1), crlf);
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+}
+
+#[test]
+fn check_fix_keeps_a_byte_order_mark_at_the_very_start() {
+    let project = Project::new();
+    decide(&project);
+    let original = remove_format_line_by_hand(&project, "DEC-001");
+    write_entry(
+        &project,
+        "DEC-001",
+        &format!("\u{feff}{}", text_of(&project, "DEC-001")),
+    );
+
+    project.stdout("anna", &["check", "--fix"]);
+
+    let text = text_of(&project, "DEC-001");
+    let history = format!("- history: {NOW} anna: fixed — format line\n");
+    assert!(
+        text.starts_with(&format!("\u{feff}{FORMAT_LINE}\n# DEC-001")),
+        "{text}"
+    );
+    assert_eq!(text.matches('\u{feff}').count(), 1, "{text}");
+    assert_eq!(
+        text.replacen(&history, "", 1),
+        format!("\u{feff}{original}")
+    );
+}
+
+#[test]
+fn check_fix_with_a_dry_run_adds_no_format_line() {
+    let project = Project::new();
+    decide(&project);
+    remove_format_line_by_hand(&project, "DEC-001");
+    let without = text_of(&project, "DEC-001");
+    let file = project.entry_file("DEC-001");
+
+    let output = project
+        .run("anna", &["check", "--fix", "--dry-run"])
+        .code(0)
+        .get_output()
+        .clone();
+
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("the standard output is UTF-8"),
+        OK
+    );
+    assert_eq!(
+        String::from_utf8(output.stderr).expect("the standard error is UTF-8"),
+        format!("warning: dry run: would write {}\n", shown(&file))
+    );
+    assert_eq!(text_of(&project, "DEC-001"), without);
+}
+
+#[test]
+fn check_fix_renames_and_adds_a_format_line_in_one_repair() {
+    let project = Project::new();
+    titled_finding(&project);
+    remove_format_line_by_hand(&project, "FND-001");
+    let wrong = rename_by_hand(&project, "FND-001", "FND-001-wrong.md");
+
+    let stdout = project.stdout("anna", &["check", "--fix"]);
+    let right = project.entry_file("FND-001");
+    assert_eq!(
+        stdout,
+        format!(
+            "fixed: {} renamed to {}\n{}: format line added\n{OK}",
+            shown(&wrong),
+            shown(&right),
+            shown(&right)
+        )
+    );
+    assert!(!wrong.exists());
+
+    let text = text_of(&project, "FND-001");
+    assert!(
+        text.starts_with(&format!("{FORMAT_LINE}\n# FND-001")),
+        "{text}"
+    );
+    assert!(text.contains(&format!("- history: {NOW} anna: fixed — file name\n")));
+    assert!(text.contains(&format!("- history: {NOW} anna: fixed — format line\n")));
+    let records = project.entry_journal();
+    let last = records.last().expect("the repair is in the journal");
+    assert_eq!(last.id, "FND-001");
+    assert_eq!(last.event, "fixed");
+    assert_eq!(last.detail, "file name, format line");
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+}
