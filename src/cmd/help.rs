@@ -1,20 +1,23 @@
-//! The `help` command: an overview of the commands, or the rules text for LLMs.
+//! The `help` command: an overview of the commands, the description and examples of one command,
+//! or the rules text for LLMs.
 
 use crate::agents;
 use crate::cli::Global;
 use crate::error::{Code, Error, Result};
+use crate::examples;
 use crate::output::Output;
 use serde_json::json;
 
 /// The arguments of `help`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
-    /// `agents` prints the rules for LLMs; without a topic, the commands in one overview
+    /// `agents` prints the rules for LLMs; a command name prints its description and examples;
+    /// without a topic, the commands in one overview
     pub topic: Option<String>,
 }
 
-/// Every command of docs/design.md sections 5, 9 and 12, in that order, each with a description of at
-/// most five words.
+/// Every command of all phases of docs/design.md, in the order of the help overview, each with a
+/// description of at most five words.
 pub const COMMANDS: [(&str, &str); 87] = [
     ("init", "Creates the dossier folder here"),
     ("where", "Shows folders and project code"),
@@ -110,11 +113,37 @@ pub fn run(args: &Args, _g: &Global) -> Result<Output> {
     match args.topic.as_deref() {
         None => Ok(overview()),
         Some("agents") => Ok(Output::with(agents::RULES, json!({"rules": agents::RULES}))),
-        Some(other) => Err(Error::new(
-            Code::Usage,
-            format!("unknown help topic '{other}'; the topics are: agents"),
-        )),
+        Some(other) => match COMMANDS.iter().find(|(name, _)| *name == other) {
+            Some((name, description)) => Ok(command_help(name, description)),
+            None => Err(Error::new(
+                Code::Usage,
+                format!(
+                    "unknown help topic '{other}'; the topics are: agents, and the command names \
+                     that `dossier help` lists"
+                ),
+            )),
+        },
     }
+}
+
+/// The description of one command, then its examples when it has them: two for PowerShell and one
+/// for a Linux shell, each indented by two spaces.
+fn command_help(name: &str, description: &str) -> Output {
+    let examples = examples::of(name);
+    let mut lines = vec![format!("{name}: {description}")];
+    if let Some([first, second, linux]) = examples {
+        lines.push("Examples (PowerShell):".to_string());
+        lines.push(format!("  {first}"));
+        lines.push(format!("  {second}"));
+        lines.push("Example (Linux shell):".to_string());
+        lines.push(format!("  {linux}"));
+    }
+    let data = json!({
+        "command": name,
+        "description": description,
+        "examples": examples.map(|three| three.to_vec()).unwrap_or_default(),
+    });
+    Output::with(lines.join("\n"), data)
 }
 
 /// One line per command: two spaces, the name padded to 12 characters, two spaces, the
