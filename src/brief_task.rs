@@ -60,18 +60,29 @@ const INVESTIGATIONS_LIMIT: usize = 5;
 /// The section of an investigation that holds its solution (format.md §28).
 const SOLUTION: &str = "Solution";
 
-/// The lines of `brief --task`: the task's title and goal lines from todo, the glossary terms that
-/// appear in the task (R-TERM-2, the team's marked `team:`), the entries whose `task` field names
-/// it, the decisions whose task is one of its milestones, the task's file list (R-FILE-14), the
-/// last usage records of its software and analysis in the team's usage index (R-CTX-2), the
-/// approved dead ends that match it (R-CTX-16), the investigations of the task and the most similar
-/// ones (design.md §15), the entries whose code pointers lie in the files todo names for it
-/// (R-CODE-4), then select::best over the remaining approved entries and the
-/// team's approved lessons and how-tos (R-CTX-2, marked `team:`), except a copy of a project entry
-/// that is listed (R-TEAM-4), with the task's machine, analysis and software fields as tags and
-/// its title as words. A decision or lesson printed with its text is followed by its pictures
-/// (R-ENTRY-17).
-pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
+/// What `brief --task` chose for one task: the lines it prints, and the entries those lines name,
+/// each with the reason it was chosen (R-CTX-6).
+pub struct Selection {
+    /// The lines of `brief --task`, at most the limit.
+    pub lines: Vec<String>,
+    /// The entries whose summary line is in `lines`, in the order of the lines, each with its
+    /// reason: `linked`, `milestone`, `tag match` or `word match`. A team entry's ID is
+    /// `team:<ID>`, as its line names it. An entry whose line the limit cut is not in this list.
+    pub chosen: Vec<(String, &'static str)>,
+}
+
+/// The lines of `brief --task` and the entries they name (`Selection`): the task's title and goal
+/// lines from todo, the glossary terms that appear in the task (R-TERM-2, the team's marked
+/// `team:`), the entries whose `task` field names it, the decisions whose task is one of its
+/// milestones, the task's file list (R-FILE-14), the last usage records of its software and
+/// analysis in the team's usage index (R-CTX-2), the approved dead ends that match it (R-CTX-16),
+/// the investigations of the task and the most similar ones (design.md §15), the entries whose code
+/// pointers lie in the files todo names for it (R-CODE-4), then select::best over the remaining
+/// approved entries and the team's approved lessons and how-tos (R-CTX-2, marked `team:`), except
+/// a copy of a project entry that is listed (R-TEAM-4), with the task's machine, analysis and
+/// software fields as tags and its title as words. A decision or lesson printed with its text is
+/// followed by its pictures (R-ENTRY-17).
+pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection> {
     let data = todo_bridge::json(&ctx.root, &["show", task]).map_err(|error| {
         if error.code == Code::TodoMissing {
             Error::new(Code::TodoMissing, NEEDS_TODO)
@@ -108,15 +119,19 @@ pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
     listed.extend(decisions.iter().map(|item| item.entry.id()));
 
     let mut out = vec![task_line(task, &about.title)];
+    // The entries named by a summary line, each with its reason, in the order of `out`.
+    let mut chosen: Vec<(String, &'static str)> = Vec::new();
     out.extend(terms_lines(ctx, &about));
     if !recorded.is_empty() {
         out.push(RECORDED.to_string());
         out.extend(recorded.iter().map(|item| summary(item)));
+        chosen.extend(recorded.iter().map(|item| (item.entry.id(), "linked")));
     }
     if !decisions.is_empty() {
         out.push(MILESTONES.to_string());
         for item in &decisions {
             out.push(summary(item));
+            chosen.push((item.entry.id(), "milestone"));
             out.extend(indented(
                 &item.entry.section("Decision").unwrap_or_default(),
             ));
@@ -143,6 +158,7 @@ pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
         out.push(DEAD_ENDS.to_string());
         for item in &found {
             out.push(summary(item));
+            chosen.push((item.entry.id(), reason_of(item, &query)));
             out.extend(section_line(item, "Observation"));
         }
     }
@@ -154,7 +170,7 @@ pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
     );
 
     let (investigation_rows, left_out) =
-        investigation_lines(investigations, task, &query, &mut listed);
+        investigation_lines(investigations, task, &query, &mut listed, &mut chosen);
     out.extend(investigation_rows);
     pool.extend(left_out);
 
@@ -168,6 +184,7 @@ pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
             out.push(CODE.to_string());
             for (item, pointers) in &code {
                 out.push(summary(item));
+                chosen.push((item.entry.id(), "linked"));
                 out.push(format!("  code: {}", pointers.join(", ")));
             }
         }
@@ -197,99 +214,30 @@ pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
         out.push(RELATED.to_string());
         for item in related {
             let line = summary(item);
+            let reason = reason_of(item, &query);
             if team_paths.contains(&item.path) {
                 out.push(format!("team:{line}"));
+                chosen.push((format!("team:{}", item.entry.id()), reason));
             } else {
                 out.push(line);
+                chosen.push((item.entry.id(), reason));
             }
             out.extend(lesson_lines(item));
         }
     }
-    Ok(cut(out, limit))
+    let lines = cut(out, limit);
+    // The data names only the entries whose summary line the limit left in (R-CTX-6): a line
+    // starts with the entry's ID, or with `team:<ID>`, and then ` · `.
+    chosen.retain(|(id, _)| {
+        let start = format!("{id} · ");
+        lines.iter().any(|line| line.starts_with(&start))
+    });
+    Ok(Selection { lines, chosen })
 }
 
-/// The entries `brief --task` chose for the task, each with the reason it was chosen (R-CTX-6), in
-/// the order they were chosen: the approved project entries whose `task` names the task, with
-/// `linked`; the approved project decisions whose task is one of its milestones, with `milestone`;
-/// then select::best over the other approved project entries and the team's approved lessons and
-/// how-tos, with the task's tags and title words, at most DEAD_ENDS_LIMIT + RELATED_LIMIT of them,
-/// each with select::reason. A team entry is named `team:<ID>`, as `lines` names it, and a team
-/// copy of a listed project entry is left out (R-TEAM-4). Each entry is listed once.
-pub fn chosen(ctx: &Ctx, task: &str) -> Result<Vec<(String, &'static str)>> {
-    let about = about_of(ctx, task)?;
-    let (items, _warnings) = store::all(&ctx.dossier);
-    let approved: Vec<Item> = items
-        .into_iter()
-        .filter(|item| item.entry.status() == Some(Status::Approved))
-        .collect();
-
-    // Only the project's own entries are linked and matched to milestones, as `lines` does: the
-    // team's `task` fields name tasks of other projects.
-    let linked: Vec<&Item> = approved.iter().filter(|item| task_is(item, task)).collect();
-    let mut listed: HashSet<String> = linked.iter().map(|item| item.entry.id()).collect();
-    let milestones: Vec<&Item> = approved
-        .iter()
-        .filter(|item| item.entry.kind() == Some(Kind::Decision))
-        .filter(|item| !listed.contains(&item.entry.id()))
-        .filter(|item| {
-            about
-                .milestones
-                .iter()
-                .any(|milestone| task_is(item, milestone))
-        })
-        .collect();
-    listed.extend(milestones.iter().map(|item| item.entry.id()));
-
-    let mut out: Vec<(String, &'static str)> = Vec::new();
-    out.extend(linked.iter().map(|item| (item.entry.id(), "linked")));
-    out.extend(milestones.iter().map(|item| (item.entry.id(), "milestone")));
-
-    let query = Query {
-        tags: about.tags(),
-        words: select::words(&about.title),
-    };
-    let mut pool: Vec<Item> = approved
-        .into_iter()
-        .filter(|item| !listed.contains(&item.entry.id()))
-        .collect();
-    let team = team_items(ctx);
-    let team_paths: HashSet<PathBuf> = team.iter().map(|item| item.path.clone()).collect();
-    pool.extend(team);
-    // As in `lines`: a team copy of a listed project entry is left out, and the choice is made
-    // again without it (R-TEAM-4).
-    let picked = loop {
-        let picked = select::best(&pool, &query, DEAD_ENDS_LIMIT + RELATED_LIMIT);
-        let left_out = copies_left_out(&picked, &team_paths, &listed, &ctx.cfg.code);
-        if left_out.is_empty() {
-            break picked;
-        }
-        pool.retain(|item| !left_out.contains(&item.path));
-    };
-    for item in picked {
-        let Some(reason) = select::reason(item, &query) else {
-            continue;
-        };
-        let id = if team_paths.contains(&item.path) {
-            format!("team:{}", item.entry.id())
-        } else {
-            item.entry.id()
-        };
-        out.push((id, reason));
-    }
-    Ok(out)
-}
-
-/// The task as `todo show <task> --json` gives it, read as `lines` reads it: Code::TodoMissing with
-/// the message `brief --task needs todo` when todo is not installed.
-fn about_of(ctx: &Ctx, task: &str) -> Result<About> {
-    let data = todo_bridge::json(&ctx.root, &["show", task]).map_err(|error| {
-        if error.code == Code::TodoMissing {
-            Error::new(Code::TodoMissing, NEEDS_TODO)
-        } else {
-            error
-        }
-    })?;
-    Ok(About::read(&data))
+/// The lines of `brief --task`, as `select` gives them.
+pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
+    select(ctx, task, limit).map(|selection| selection.lines)
 }
 
 /// The approved lessons and how-tos of the team dossier of the project (R-CTX-2), in the order of
@@ -337,6 +285,12 @@ fn copies_left_out(
         })
         .map(|item| item.path.clone())
         .collect()
+}
+
+/// Why `select::best` chose the entry, as `select::reason` says it; `word match` when that gives
+/// none (every entry `best` returns has a reason, so this is a safe default).
+fn reason_of(item: &Item, query: &Query) -> &'static str {
+    select::reason(item, query).unwrap_or("word match")
 }
 
 /// What `brief --task` reads from `todo show <task> --json`. A missing value is empty.
@@ -580,28 +534,44 @@ fn is_dead_end(item: &Item) -> bool {
 /// one indented line per attempt; any other is one line (`one_line`). At most INVESTIGATIONS_LINES
 /// lines under the heading, cut as `cut` cuts. The IDs of the investigations with a line kept go to
 /// `listed`. Returns the lines (none, with no heading, when no investigation is shown) and the
-/// investigations not shown, which the caller may still choose for Related.
+/// investigations not shown, which the caller may still choose for Related. Each investigation
+/// shown is added to `chosen` with its reason: `linked` for the task's own, else `select::reason`.
 fn investigation_lines(
     items: Vec<Item>,
     task: &str,
     query: &Query,
     listed: &mut HashSet<String>,
+    chosen: &mut Vec<(String, &'static str)>,
 ) -> (Vec<String>, Vec<Item>) {
     let (own, others): (Vec<Item>, Vec<Item>) =
         items.into_iter().partition(|item| task_is(item, task));
-    // The lines of each investigation to show, the task's first.
-    let mut shown: Vec<(String, PathBuf, Vec<String>)> = own
+    // The lines of each investigation to show, the task's first, each with its reason.
+    let mut shown: Vec<(String, PathBuf, Vec<String>, &'static str)> = own
         .iter()
-        .map(|item| (item.entry.id(), item.path.clone(), own_lines(item)))
+        .map(|item| {
+            (
+                item.entry.id(),
+                item.path.clone(),
+                own_lines(item),
+                "linked",
+            )
+        })
         .collect();
     shown.extend(
         select::best(&others, query, INVESTIGATIONS_LIMIT)
             .into_iter()
-            .map(|item| (item.entry.id(), item.path.clone(), vec![one_line(item)])),
+            .map(|item| {
+                (
+                    item.entry.id(),
+                    item.path.clone(),
+                    vec![one_line(item)],
+                    reason_of(item, query),
+                )
+            }),
     );
     // cut keeps all the lines, or the first INVESTIGATIONS_LINES - 1 of them. An investigation is
     // shown when its first line is kept.
-    let total: usize = shown.iter().map(|(_, _, lines)| lines.len()).sum();
+    let total: usize = shown.iter().map(|(_, _, lines, _)| lines.len()).sum();
     let kept = if total > INVESTIGATIONS_LINES {
         INVESTIGATIONS_LINES - 1
     } else {
@@ -610,9 +580,10 @@ fn investigation_lines(
     let mut start = 0;
     let mut shown_paths: HashSet<PathBuf> = HashSet::new();
     let mut rows: Vec<String> = Vec::new();
-    for (id, path, lines) in shown {
+    for (id, path, lines, reason) in shown {
         if start < kept {
-            listed.insert(id);
+            listed.insert(id.clone());
+            chosen.push((id, reason));
             shown_paths.insert(path);
         }
         start += lines.len();
@@ -2446,6 +2417,11 @@ mod tests {
         assert_eq!(found.expect("the lines"), expected);
     }
 
+    /// The entries `select` chose for T-132, with their reasons, when no line is cut.
+    fn chosen(ctx: &Ctx, task: &str) -> Result<Vec<(String, &'static str)>> {
+        select(ctx, task, 100).map(|selection| selection.chosen)
+    }
+
     /// The entries of the tests of `chosen` for T-132 (invented; the task of `speedline_task`).
     /// FND-001 is linked, DEC-003 is a decision of its milestone T-130, LES-011 shares a tag,
     /// LES-010 shares a title word, FND-010 shares nothing and LES-012 is a draft.
@@ -2557,6 +2533,35 @@ mod tests {
             assert!(text.contains(id.as_str()), "{id} is not in the lines");
         }
         assert!(!text.contains("FND-010"));
+    }
+
+    #[test]
+    fn chosen_leaves_out_an_entry_whose_line_the_limit_cut() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, ctx) = project();
+        write_choice_entries(&ctx);
+        let show = stand_in(dir.path(), "todo-show", &envelope(speedline_task()));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        // Eleven lines in all: with a limit of 4 the first three are kept, and the milestone
+        // decision DEC-003 and the lessons are cut.
+        let cut_short = select(&ctx, "T-132", 4);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        let cut_short = cut_short.expect("the selection");
+        assert_eq!(
+            cut_short.lines,
+            vec![
+                "Task T-132 · Speedline of the compressor",
+                "## Recorded for this task",
+                "FND-001 · finding · Steady runs stall early",
+                "8 more left out",
+            ]
+        );
+        assert_eq!(cut_short.chosen, vec![("FND-001".to_string(), "linked")]);
     }
 
     #[test]

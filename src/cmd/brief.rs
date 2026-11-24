@@ -123,16 +123,19 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
 }
 
 /// `brief --task`: the lines of `brief_task`, after the server line when the command came
-/// through ssh. The server line counts in `limit`. The data also gives `items`: each entry chosen
-/// for the task with its reason (R-CTX-6, `brief_task::chosen`). The line limit does not cut them.
+/// through ssh. The server line counts in `limit`. The data also gives `items`: each entry whose
+/// summary line is printed, with its reason (R-CTX-6). Both come from one selection, so they agree,
+/// and a line the limit cuts takes its entry out of `items` too.
 fn for_task(ctx: &Ctx, task: &str, remote: bool, limit: usize) -> Result<Output> {
     let mut lines = Vec::new();
     if remote {
         lines.push(server_line(ctx));
     }
     let room = limit.saturating_sub(lines.len());
-    lines.extend(brief_task::lines(ctx, task, room)?);
-    let items: Vec<Value> = brief_task::chosen(ctx, task)?
+    let selection = brief_task::select(ctx, task, room)?;
+    lines.extend(selection.lines);
+    let items: Vec<Value> = selection
+        .chosen
         .into_iter()
         .map(|(id, reason)| json!({"id": id, "reason": reason}))
         .collect();

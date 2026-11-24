@@ -2772,3 +2772,137 @@ fn brief_task_json_names_each_chosen_entry_with_its_reason() {
     );
     assert!(!plain.contains("reason"), "{plain}");
 }
+
+/// A project with a finding linked to T-001, a dead end and a lesson that share the word
+/// "speedline" with the task's title, and the todo stand-in that gives T-001 (invented).
+fn project_with_a_linked_dead_end_and_a_related_lesson() -> Project {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "found",
+                "The steady run stalled at the lowest mass flow.",
+                "--task",
+                "T-001",
+                "--title",
+                "Steady run stalls at low flow",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "found",
+                "Halving the time step kept the oscillation.",
+                "--dead-end",
+                "--title",
+                "Speedline time step",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "learn",
+                "Speedline runs overpredict the stall margin.",
+                "--valid-for",
+                "Transonic front stages.",
+                "--evidence",
+                "An invented speedline study.",
+                "--confidence",
+                "simulated",
+                "--title",
+                "Speedline stall margin",
+            ],
+        )
+        .success();
+    let data = serde_json::json!({"id": "T-001", "title": "Speedline check", "status": "open"});
+    let envelope = serde_json::json!({
+        "schema": "todo.show.v1",
+        "ok": true,
+        "data": data,
+        "warnings": []
+    })
+    .to_string();
+    project.write_stand_in(
+        "todo",
+        &format!("@echo off\r\necho {envelope}\r\n"),
+        &format!("#!/bin/sh\nprintf '%s\\n' '{envelope}'\n"),
+    );
+    project
+}
+
+#[test]
+fn brief_task_json_items_are_the_entries_printed_in_their_order_with_their_reasons() {
+    let project = project_with_a_linked_dead_end_and_a_related_lesson();
+
+    let text = brief(&project, &["--task", "T-001"], None);
+    let text_lines: Vec<&str> = text.lines().collect();
+    let json_text = brief(&project, &["--task", "T-001", "--json"], None);
+    let reply: serde_json::Value = serde_json::from_str(json_text.trim()).expect("one JSON line");
+
+    // The data's lines are the printed lines.
+    assert_eq!(
+        reply["data"]["lines"],
+        serde_json::json!(text_lines),
+        "{text}"
+    );
+    // Each item is printed, and the items come in the order of their lines.
+    let summaries = [
+        "FND-001 · finding · Steady run stalls at low flow",
+        "FND-002 · finding · Speedline time step",
+        "LES-001 · lesson · Speedline stall margin",
+    ];
+    let places: Vec<usize> = summaries
+        .iter()
+        .map(|summary| {
+            text_lines
+                .iter()
+                .position(|line| line == summary)
+                .expect("the summary line is printed")
+        })
+        .collect();
+    assert!(places.windows(2).all(|pair| pair[0] < pair[1]), "{text}");
+    assert_eq!(
+        reply["data"]["items"],
+        serde_json::json!([
+            {"id": "FND-001", "reason": "linked"},
+            {"id": "FND-002", "reason": "word match"},
+            {"id": "LES-001", "reason": "word match"}
+        ]),
+        "{json_text}"
+    );
+}
+
+#[test]
+fn a_budget_that_cuts_a_related_lesson_takes_it_out_of_the_items_too() {
+    let project = project_with_a_linked_dead_end_and_a_related_lesson();
+
+    // Ten lines in all: with a budget of 8 the lesson's summary line is cut.
+    let text = brief(&project, &["--task", "T-001", "--budget", "8"], None);
+    assert!(!text.contains("LES-001"), "{text}");
+    assert!(
+        text.lines()
+            .last()
+            .is_some_and(|line| line.ends_with("more left out")),
+        "{text}"
+    );
+
+    let json_text = brief(
+        &project,
+        &["--task", "T-001", "--budget", "8", "--json"],
+        None,
+    );
+    let reply: serde_json::Value = serde_json::from_str(json_text.trim()).expect("one JSON line");
+    assert_eq!(
+        reply["data"]["items"],
+        serde_json::json!([
+            {"id": "FND-001", "reason": "linked"},
+            {"id": "FND-002", "reason": "word match"}
+        ]),
+        "{json_text}"
+    );
+}
