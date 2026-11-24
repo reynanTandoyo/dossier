@@ -686,15 +686,21 @@ fn tallies(items: &[Item]) -> Vec<Tally> {
         .collect()
 }
 
-/// `<kind>: <n> approved, <n> drafts, <n> other`.
+/// `<kind>: <n> approved, <n> draft, <n> other`, or `<n> drafts` for any other number of drafts.
 fn tally_line(tally: &Tally) -> String {
     format!(
-        "{}: {} approved, {} drafts, {} other",
+        "{}: {} approved, {} {}, {} other",
         tally.kind.name(),
         tally.approved,
         tally.drafts,
+        draft_noun(tally.drafts),
         tally.other
     )
+}
+
+/// "draft" for one draft, "drafts" for any other number, as the other commands write a count.
+fn draft_noun(count: usize) -> &'static str {
+    if count == 1 { "draft" } else { "drafts" }
 }
 
 /// The data of a kind: its name and its three counts.

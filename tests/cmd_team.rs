@@ -1088,7 +1088,7 @@ fn team_summary_counts_the_entries_and_shows_the_draft_with_its_age_and_the_newe
             "team dossier: {path}\n\
              ## Entries\n\
              lesson: 2 approved, 0 drafts, 0 other\n\
-             howto: 0 approved, 1 drafts, 0 other\n\
+             howto: 0 approved, 1 draft, 0 other\n\
              ## Drafts waiting\n\
              HOW-001 · {HOW_TO_TITLE} (7 days)\n\
              ## Newest\n\
@@ -1145,7 +1145,7 @@ fn team_summary_lists_the_approved_entries_past_their_review_date_only() {
         .stdout(format!(
             "team dossier: {path}\n\
              ## Entries\n\
-             lesson: 2 approved, 1 drafts, 0 other\n\
+             lesson: 2 approved, 1 draft, 0 other\n\
              ## Drafts waiting\n\
              LES-003 · {LESSON_THREE_TITLE} (10 days)\n\
              ## Due for review\n\
@@ -1283,6 +1283,40 @@ fn team_summary_names_ten_drafts_and_counts_the_rest() {
     in_team(&project, &team, "anna", NOW, &["team", "summary"])
         .success()
         .stdout(expected)
+        .stderr("");
+}
+
+#[test]
+fn team_summary_writes_two_drafts_in_the_plural() {
+    let project = Project::new();
+    let team = team_dossier(&project);
+    let statements = [
+        "Invented statement number 01.",
+        "Invented statement number 02.",
+    ];
+    let titles = ["Draft lesson 01", "Draft lesson 02"];
+    for (statement, title) in statements.iter().zip(&titles) {
+        in_team(
+            &project,
+            &team,
+            "anna - claude",
+            "2026-11-10T10:00:00+01:00",
+            &learn_args(statement, title, &[]),
+        )
+        .success();
+    }
+
+    let path = team.dossier.display().to_string();
+    in_team(&project, &team, "anna", NOW, &["team", "summary"])
+        .success()
+        .stdout(format!(
+            "team dossier: {path}\n\
+             ## Entries\n\
+             lesson: 0 approved, 2 drafts, 0 other\n\
+             ## Drafts waiting\n\
+             LES-001 · Draft lesson 01 (10 days)\n\
+             LES-002 · Draft lesson 02 (10 days)\n"
+        ))
         .stderr("");
 }
 
