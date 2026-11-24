@@ -4831,7 +4831,7 @@
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
 - summary: The version number and the README are ready for the owner to tag release 0.6.0.
-- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417, T-418, T-419, T-421, T-422, T-423, T-424, T-425
+- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417, T-418, T-419, T-421, T-422, T-423, T-424, T-425, T-427
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -9240,6 +9240,27 @@
 - accept: check --fix never turns an approved guarded entry from unchanged into changed; it warns instead.
 - verify: cargo test --test cmd_check
 - reqs: R-CHECK-2, R-LIFE-6
+- note (2026-11-24, planner): added
+
+### T-427 · README: a review command that gives claude the material as one prompt
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: docs
+- milestone: T-057
+- why: The README example appended the material path after claude -p's prompt, which the Claude Code docs do not define (checked 2026-11-24).
+- summary: The README shows a review command for the session review that works with claude as documented.
+- depends: T-340
+- files: README.md
+- read: src/cmd/session_end.rs
+- steps:
+  1. README.md, the session review part (the example near `hooks install --yes --session-review 'claude -p "..."'`): replace that example, because `claude -p` takes one prompt and its docs do not say what it does with a word after the prompt, where session-end puts the path of the material. Show instead a small script that receives the path as its one argument and builds one prompt from it, and install that script as the review command:
+  2. Windows, a file `review-session.cmd` in the project folder: `@claude -p "Read the session review material in %1 and propose lessons with dossier learn"`, installed with `dossier hooks install --yes --session-review review-session.cmd`.
+  3. Linux, a file `review-session.sh`: `#!/bin/sh` and `exec claude -p "Read the session review material in $1 and propose lessons with dossier learn"`, made executable, installed with `dossier hooks install --yes --session-review ./review-session.sh`.
+  4. Say in one sentence that any program can be the review command: dossier only adds the path as its last argument and does not wait for it.
+  5. Run cargo test --test smoke
+- accept: The README's review command example passes the path inside a single prompt through a small script for Windows and for Linux.
+- verify: cargo test --test smoke
+- reqs: R-DRAFT-9
 - note (2026-11-24, planner): added
 
 ## Questions
