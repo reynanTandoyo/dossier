@@ -7954,8 +7954,10 @@
 - note (2026-11-24, haiku-T-398): done
 
 ### T-399 · after: in the help overview, and run on the PC
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-399
+- claimed: 2026-11-24T01:14+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: chore
 - milestone: T-294
 - why: A rule that an agent must remember is followed only some of the time; a hook runs every time (D39).
