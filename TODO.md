@@ -4820,7 +4820,7 @@
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
 - summary: The version number and the README are ready for the owner to tag release 0.6.0.
-- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417, T-418, T-419, T-421, T-422, T-423, T-424
+- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417, T-418, T-419, T-421, T-422, T-423, T-424, T-425
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -9192,6 +9192,25 @@
 - reqs: R-CTX-6
 - note (2026-11-24, planner): added
 
+### T-425 · check --fix: no format-line repair that would show an approved entry as changed
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: bug
+- milestone: T-348
+- why: The approval checksum covers every line; adding a format line to an approved lesson, how-to, tool or digest would make it show as changed (found in T-397, which guards its own repair this way).
+- summary: Repairing files never makes an approved entry look edited.
+- depends: T-397
+- files: src/cmd/check.rs, tests/cmd_check.rs
+- read: src/approval.rs
+- steps:
+  1. src/cmd/check.rs, the format-line repair of fix (T-396): before it adds the format line to an entry, compare `approval::mark(&ctx.state, id, &item.raw)` with the mark of the text with the format line, exactly as ordered_lines does for the field order (T-397). When the entry is recorded as Unchanged and would become Changed, leave the file as it is and add the warning `<file>: format line not added, because the approved entry would then show as changed`. When an entry gets both repairs, check the mark of the final text once and leave both repairs out in that case, with the same kind of warning naming both.
+  2. tests/cmd_check.rs: an approved lesson whose approval was recorded without a format line (write it by hand, approve it, remove the format line, then record the approval again with the same way the existing approval tests do, or start from a recorded checksum of the text without the line): check --fix leaves it as it is, prints the warning, and check afterwards does not report it as CHANGED.
+  3. Run cargo test --test cmd_check
+- accept: check --fix never turns an approved guarded entry from unchanged into changed; it warns instead.
+- verify: cargo test --test cmd_check
+- reqs: R-CHECK-2, R-LIFE-6
+- note (2026-11-24, planner): added
+
 ## Questions
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.
@@ -9262,6 +9281,12 @@
 - note (2026-11-24, planner): added
 
 ### T-420 · add (and the other commands that take a multi-line text) do not refuse a line starting with ## , which opens a new section in the entry file; problem and digest --write refuse it (found in T-379).
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-24, planner): added
+
+### T-426 · Entry::set_field appends a new field at the end of the field block, so approve writes approved and valid-from after the tags and check --fix later reorders most approved entries (found in T-397). Insert a new known field at its FIELD_ORDER place instead; many exact-text tests will need their expected files updated.
 - status: open
 - owner: —
 - type: idea
