@@ -4543,10 +4543,8 @@
 - note (2026-11-24, haiku-T-392): done
 
 ### T-393 · brief_task.rs: the entries chosen for a task, each with its reason
-- status: claimed
+- status: done
 - owner: haiku-T-393
-- claimed: 2026-11-24T00:56+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-347
 - why: Smaller comforts that are worth having once the daily use is settled.
@@ -4561,8 +4559,12 @@
   4. Run cargo test --lib brief_task::
 - accept: For a task, the program can list the entries it would show and the reason for each, in a fixed order.
 - verify: cargo test --lib brief_task::
+- verified: 2026-11-24
+- commit: 21d445d
 - reqs: R-CTX-6, TEST-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-393): done
 
 ### T-394 · brief --task --json: the reasons in the data
 - status: open
