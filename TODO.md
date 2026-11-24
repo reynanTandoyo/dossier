@@ -4769,8 +4769,10 @@
 - note (2026-11-24, haiku-T-352): done
 
 ### T-353 · help <command>: examples, third group, and none missing
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-353
+- claimed: 2026-11-24T01:20+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
