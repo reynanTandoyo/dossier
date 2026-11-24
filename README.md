@@ -4,7 +4,7 @@
 while doing its projects. People and their LLMs write to it and read from it, so that neither has
 to rely on memory.
 
-**Status: v0.5 (phase 5)**
+**Status: v0.6 (phase 6)**
 
 - [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the six phases it is
   built in.
@@ -988,11 +988,36 @@ command. `hooks uninstall --yes` removes this hook as well.
 The review command runs in cmd on Windows, and in sh on other systems, so each script is written for
 that shell. The scripts use `%~1` and `$1`, which keep the path one argument even when it has spaces.
 
-### Not in version 0.5
+#### More in version 0.6
 
-These come in later phases. See [`docs/requirements.md`](docs/requirements.md), section 11.
+- `hooks install` adds the hook `dossier after`: after a `todo` command it shows what the dossier
+  has for that moment.
+- `story` prints the project's decisions in the order they were made.
+- `export` writes the project's knowledge as one Markdown document; `--milestone <task>` limits it
+  to one milestone.
+- `schema` prints a machine-readable description of the commands, in JSON.
+- `search --similar <ID>` lists the entries that share the most tags and title words with one
+  entry, and says which ones they share.
+- `brief --budget <lines>` changes the line limit for one call. `brief --task <ID> --json` gives
+  the reason each entry was chosen.
+- `check --fix` repairs what is safe: file names, the format line and the order of the tool's
+  fields. `check` warns about a number written without its unit.
+- `team summary` shows the team dossier: entries per kind and status, drafts waiting, entries due
+  for review and the newest approved entries.
+- `help <command>` shows examples for the command: two in PowerShell and one in a Linux shell, as
+  in `dossier help approve`.
+- `approve` asks `a`, `e`, `r` or `s` for each draft. `e` (edit first) opens the draft in the
+  editor and asks again.
+- The one-page guide for team members who only read and approve is
+  [`docs/guide-for-readers.md`](docs/guide-for-readers.md).
 
-- **Phase 6 (v0.6):** milestone digests, session review, hooks after `todo` commands, and export.
+### Not in version 0.6
+
+Still not built. See [`docs/requirements.md`](docs/requirements.md), section 5.10.
+
+- **R-CTX-8:** `todo brief` includes the output of `dossier brief --task`. It needs a change in
+  `todo`, so it stays an idea for `todo`. For Claude Code, the hook after `todo` commands gives
+  the same result.
 
 ## What it needs
 
