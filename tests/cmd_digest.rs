@@ -469,6 +469,33 @@ fn a_summary_of_15_lines_is_written() {
 }
 
 #[test]
+fn a_summary_with_a_heading_line_is_refused_and_nothing_is_written() {
+    let project = project_with_entries();
+    let journal = project.entry_journal().len();
+    let cases = [
+        ("The first line.\n## Results\nThe third line.\n", 2),
+        ("The first line.\nThe second line.\n   ## Results\n", 3),
+    ];
+    for (summary, line) in cases {
+        write_as(&project, "anna", summary, &[])
+            .code(1)
+            .stderr(contains(format!(
+                "the summary must not contain a heading line (##): line {line}"
+            )));
+    }
+    assert_eq!(digest_files(&project), 0);
+    assert_eq!(project.entry_journal().len(), journal);
+}
+
+#[test]
+fn a_line_that_has_the_heading_mark_inside_it_is_written() {
+    let project = project_with_entries();
+    let summary = "The log says it: see ## in the log.\nThe run converged.\n";
+    let stdout = stdout_of(write_as(&project, "anna", summary, &[]));
+    assert_eq!(stdout, "DIG-001: added (approved)\n");
+}
+
+#[test]
 fn a_milestone_that_is_not_done_in_todo_is_refused() {
     let project = project_with_todo(SHOW_OPEN, LIST);
     write_as(&project, "anna", SUMMARY, &[])

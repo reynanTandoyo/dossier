@@ -218,8 +218,10 @@ fn digest_title(title: Option<&str>, milestone: &Milestone, id: &str) -> Result<
     }
 }
 
-/// The summary from standard input, trimmed. Code::BadValue when it is empty or has more than
-/// SUMMARY_LINES lines.
+/// The summary from standard input, trimmed. Code::BadValue when it is empty, has more than
+/// SUMMARY_LINES lines, or has a line that starts with the heading mark `##` after its leading
+/// spaces: such a line would open a new section in the digest's file. The line number in that
+/// message counts the lines of standard input, as the person wrote them.
 fn read_summary() -> Result<String> {
     let mut text = String::new();
     std::io::stdin()
@@ -237,6 +239,18 @@ fn read_summary() -> Result<String> {
         return Err(Error::new(
             Code::BadValue,
             format!("the summary has {lines} lines: at most {SUMMARY_LINES}"),
+        ));
+    }
+    if let Some(index) = text
+        .lines()
+        .position(|line| line.trim_start().starts_with("##"))
+    {
+        return Err(Error::new(
+            Code::BadValue,
+            format!(
+                "the summary must not contain a heading line (##): line {}",
+                index + 1
+            ),
         ));
     }
     Ok(summary.to_string())
