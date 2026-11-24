@@ -9029,10 +9029,8 @@
 - note (2026-11-23, planner): added
 
 ### T-416 · hooks.rs: the session-end hook runs in bash
-- status: claimed
+- status: done
 - owner: haiku-T-416
-- claimed: 2026-11-24T01:20+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-339
 - why: Its command is quoted for a POSIX shell; on Windows without Git Bash, Claude Code would run it in PowerShell, where that quoting breaks.
@@ -9047,8 +9045,12 @@
   4. Run cargo test --lib hooks::
 - accept: The SessionEnd hook that hooks install writes says shell: bash; the other hooks are unchanged.
 - verify: cargo test --lib hooks::
+- verified: 2026-11-24
+- commit: 44d137e
 - reqs: R-DRAFT-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-24, planner): added
+- note (2026-11-24, haiku-T-416): done
 
 ### T-417 · brief: one summed-up line per digest, pointing to dossier show
 - status: done
