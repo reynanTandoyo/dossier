@@ -7901,8 +7901,8 @@
 - note (2026-11-22, coordinator): done
 
 ### T-283 · Hooks after todo commands: brief, review material and reminders appear by themselves
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P3 · type: milestone
 - milestone: T-055
 - goal: R-AGENT-5 holds: after a task is claimed, finished or given back with todo, a Claude Code hook puts the dossier's context for that moment in front of the agent.
@@ -7910,9 +7910,11 @@
 - summary: When an LLM claims, finishes or gives back a task, the dossier's context for that moment is shown to it automatically, so it no longer depends on the LLM remembering the rules.
 - accept: R-AGENT-5 holds.
 - reqs: R-AGENT-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, planner): added
 - note (2026-11-22, planner): Split when its turn comes: needs a design in docs/design.md first (a hidden command like guard, and a change to hooks.rs). Check against Claude Code's documentation how the output of a hook that runs after a shell command reaches the agent's context. Depends on nothing in phase 4, so it may be built before it.
 - note (2026-11-22, planner): split into T-293, T-294
+- note (2026-11-24, planner): done — After a todo command the hook shows the agent the brief, the review material, and reminders to record investigations.
 
 ### T-293 · hooks.rs: the hook after shell commands, and reading a todo command from its payload
 - status: done
