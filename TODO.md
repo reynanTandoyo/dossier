@@ -4753,7 +4753,7 @@
 - why: Smaller comforts that are worth having once the daily use is settled.
 - summary: More commands show how they are typed in PowerShell.
 - depends: T-351
-- files: src/examples.rs
+- files: src/examples.rs, tests/cmd_help.rs
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
   1. Add three examples each (two PowerShell, one Linux shell, as in the first group) for: review-task, drafts, approve, reject, supersede, retire, remove, reopen, check, agents, pack, unpack, connect, projects, todo, value, values, attach, detach, reattach, files, which, used, runs, image, received, delivered, exchange, map, hooks, skill.
@@ -4763,6 +4763,8 @@
 - verify: cargo test --lib examples::
 - reqs: R-OUT-5
 - note (2026-11-23, planner): added
+- note (2026-11-24, planner): forced set (owner was haiku-T-352)
+- note (2026-11-24, planner): tests/cmd_help.rs added: its test of a command without examples used pack, which gets examples here; it now uses guard, which never gets examples (T-353 leaves out guard, after and session-end).
 
 ### T-353 · help <command>: examples, third group, and none missing
 - status: open
