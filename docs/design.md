@@ -1352,6 +1352,11 @@ pub fn of(command: &str) -> Option<[&'static str; 3]>;
 /// Which rule gave the points: Some("tag match") when a query tag matched, else
 /// Some("word match") when a word matched, else None.
 pub fn reason(item: &Item, query: &Query) -> Option<&'static str>;
+// brief_task.rs (T-424): the text and the JSON items of `brief --task` come from one selection
+pub struct Selection { pub lines: Vec<String>, pub chosen: Vec<(String, &'static str)> }
+/// The lines of `brief --task`, cut to `limit`, and the entries whose summary line is still among
+/// them, in the printed order, each with its reason (R-CTX-6). `lines` is `select(..).lines`.
+pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection>;
 ```
 
 `docs/guide-for-readers.md` (REL-4) is one page for team members who only read and approve:
