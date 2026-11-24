@@ -849,6 +849,90 @@ bring it back without overwriting a colleague's copy. The commands are described
   only when it is complete. See [Large files: take and return](#large-files-take-and-return).
 - `dossier files --taken` lists the files taken now, and `status` shows them under `## Working now`.
 
+### What version 0.6 adds
+
+Version 0.6 prepares the material for drafting lessons when a Claude Code session ends, so that
+the drafts can be waiting the next morning. Each part has one short example.
+
+#### Session review
+
+`review-session` prints the parts of a session where a decision was stated or a result was
+discussed, each with the turn before it, followed by the drafting rules. It changes nothing. The
+LLM of the session, or another LLM, drafts entries from the output, and a person approves them as
+usual.
+
+```sh
+dossier review-session session.md
+```
+
+```
+# Review of the session
+2 of 2 turns
+
+user: We go with the SST model because the test data is for attached flow.
+
+assistant: Recorded as DEC-012. The first run diverges at iteration 40.
+
+## Drafting rules
+1. Propose a lesson only for something that would change how a later project is done.
+2. Propose none when nothing was learned.
+...
+```
+
+`--limit <characters>` sets how much material is printed; the default is 20000 characters. When
+the material is longer, the oldest turns are left out.
+
+The session file is dossier's own format, so any tool or LLM can write one. It is plain text, and
+`review-session` reads it where it is, without a dossier. Five lines of a session file, with the
+example of [format.md section 34](docs/format.md):
+
+```markdown
+<!-- dossier-session: 1 -->
+# Session
+- tool: claude code
+## user
+We go with the SST model because the test data is for attached flow.
+```
+
+The first line gives the format version. A `## user` or `## assistant` line starts a turn, and the
+text of the turn runs up to the next such line.
+
+#### Claude Code sessions
+
+`--claude` reads a transcript of Claude Code instead of a session file. The transcript is converted
+first, and only the text of the turns is kept:
+
+```sh
+dossier review-session --claude transcript.jsonl
+dossier session convert --claude transcript.jsonl --to session.md
+```
+
+`session convert --claude` prints the session file, or writes it to the file given with `--to`.
+Claude Code's transcript format is internal, and it may change with a Claude Code release. Then
+only the converter in `src/claude.rs` is updated; the session file and the review stay the same.
+Until it is, `session convert --claude` warns that no turn could be read from the transcript, and
+`review-session --claude` says that nothing in the session looks like a decision or a result.
+
+#### The review at the end of a session
+
+`hooks install --session-review` also adds a hook that runs when a Claude Code session ends, next
+to the three hooks above. The hook writes the review material to `.claude/dossier-session-review.md`
+in the project folder, replacing the file of the last session. Then it starts the team's review
+command, with the path of that file as the command's last argument:
+
+```sh
+dossier hooks install --yes --session-review 'claude -p "Read the file given as the last argument and propose lessons with dossier learn"'
+```
+
+The review command is the team's own. dossier only starts it; dossier never calls a model itself.
+It does not wait for the command to finish, so Claude Code is not held up. When nothing in the
+session looks like a decision or a result, the hook writes no file and starts no command.
+`hooks uninstall --yes` removes this hook as well.
+
+The review command runs in cmd on Windows, and in sh on other systems, so it is written in the
+syntax of that shell. On Windows, put double quotes around the parts that need quotes, not single
+quotes, as the example does inside the command.
+
 ### Not in version 0.5
 
 These come in later phases. See [`docs/requirements.md`](docs/requirements.md), section 11.
