@@ -7979,8 +7979,10 @@
 - note (2026-11-23, planner): Added tests/cmd_agents.rs: its help overview test lists every command (found in T-359).
 
 ### T-400 · after: the text for a claimed, finished or given-back task
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-400
+- claimed: 2026-11-24T01:17+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-294
 - why: A rule that an agent must remember is followed only some of the time; a hook runs every time (D39).
