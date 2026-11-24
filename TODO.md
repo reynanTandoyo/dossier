@@ -3749,8 +3749,8 @@
 - note (2026-11-24, haiku-T-330): done
 
 ### T-331 · digest: the material for summing up a milestone, and writing the digest
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - milestone: T-056
 - goal: digest prints what a closed milestone decided, found, assumed and tried, with the rules for a summary, and stores the summary as an entry that a person approves.
@@ -3759,8 +3759,10 @@
 - depends: T-330
 - accept: digest prints what a closed milestone decided, found, assumed and tried, with the rules for a summary, and stores the summary the LLM writes as an entry that a person approves.
 - reqs: R-CTX-14, D7
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): split into T-376, T-377, T-378, T-379
+- note (2026-11-24, planner): done — digest prints the material for summing up a milestone and stores the summary as a digest entry.
 
 ### T-376 · digest: the command file and its place in the command list
 - status: done
