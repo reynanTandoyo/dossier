@@ -9160,10 +9160,8 @@
 - note (2026-11-24, planner): added
 
 ### T-422 · team summary: 1 draft, not 1 drafts
-- status: claimed
+- status: done
 - owner: haiku-T-422
-- claimed: 2026-11-24T01:31+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P3 · difficulty: 1 · type: feature
 - milestone: T-058
 - why: The brief of T-350 wrote the plural for every count; the other commands write the singular for one.
@@ -9176,8 +9174,12 @@
   3. Run cargo test --test cmd_team
 - accept: team summary writes 1 draft and 2 drafts.
 - verify: cargo test --test cmd_team
+- verified: 2026-11-24
+- commit: a9afa66
 - reqs: R-TEAM-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-24, planner): added
+- note (2026-11-24, haiku-T-422): done
 
 ### T-423 · add assumption: set the state open, as assume does
 - status: open
