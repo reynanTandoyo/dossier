@@ -956,20 +956,37 @@ Until it is, `session convert --claude` warns that no turn could be read from th
 `hooks install --session-review` also adds a hook that runs when a Claude Code session ends, next
 to the three hooks above. The hook writes the review material to `.claude/dossier-session-review.md`
 in the project folder, replacing the file of the last session. Then it starts the team's review
-command, with the path of that file as the command's last argument:
+command, with the path of that file as the command's last argument.
 
-```sh
-dossier hooks install --yes --session-review 'claude -p "Read the file given as the last argument and propose lessons with dossier learn"'
+The review command is a small script of the team's own. It takes the path as its one argument and
+gives Claude the material as one prompt. On Windows, save this as `review-session.cmd` in the
+project folder:
+
+```bat
+@claude -p "Read the session review material in %~1 and propose lessons with dossier learn"
 ```
 
-The review command is the team's own. dossier only starts it; dossier never calls a model itself.
-It does not wait for the command to finish, so Claude Code is not held up. When nothing in the
-session looks like a decision or a result, the hook writes no file and starts no command.
-`hooks uninstall --yes` removes this hook as well.
+Install it with:
 
-The review command runs in cmd on Windows, and in sh on other systems, so it is written in the
-syntax of that shell. On Windows, put double quotes around the parts that need quotes, not single
-quotes, as the example does inside the command.
+```sh
+dossier hooks install --yes --session-review .\review-session.cmd
+```
+
+On Linux, save this as `review-session.sh`, make it executable with `chmod +x review-session.sh`,
+and install it with `dossier hooks install --yes --session-review ./review-session.sh`:
+
+```sh
+#!/bin/sh
+exec claude -p "Read the session review material in $1 and propose lessons with dossier learn"
+```
+
+Any program can be the review command: dossier only adds the path as its last argument and does not
+wait for the command to finish, so Claude Code is not held up. dossier never calls a model itself.
+When nothing in the session looks like a decision or a result, the hook writes no file and starts no
+command. `hooks uninstall --yes` removes this hook as well.
+
+The review command runs in cmd on Windows, and in sh on other systems, so each script is written for
+that shell. The scripts use `%~1` and `$1`, which keep the path one argument even when it has spaces.
 
 ### Not in version 0.5
 
