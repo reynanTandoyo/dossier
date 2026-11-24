@@ -9023,8 +9023,10 @@
 - note (2026-11-23, planner): added
 
 ### T-416 · hooks.rs: the session-end hook runs in bash
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-416
+- claimed: 2026-11-24T01:20+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-339
 - why: Its command is quoted for a POSIX shell; on Windows without Git Bash, Claude Code would run it in PowerShell, where that quoting breaks.
