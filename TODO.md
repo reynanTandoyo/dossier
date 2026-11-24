@@ -4802,7 +4802,7 @@
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
 - summary: The version number and the README are ready for the owner to tag release 0.6.0.
-- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417, T-418, T-419, T-421
+- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417, T-418, T-419, T-421, T-422
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -9102,6 +9102,24 @@
 - accept: search --similar prints the reason after the dash and gives it in --json.
 - verify: cargo test --test cmd_search
 - reqs: R-READ-9
+- note (2026-11-24, planner): added
+
+### T-422 · team summary: 1 draft, not 1 drafts
+- status: open
+- owner: —
+- priority: P3 · difficulty: 1 · type: feature
+- milestone: T-058
+- why: The brief of T-350 wrote the plural for every count; the other commands write the singular for one.
+- summary: The team summary counts drafts in correct English.
+- depends: T-350
+- files: src/cmd/team.rs, tests/cmd_team.rs
+- steps:
+  1. src/cmd/team.rs, team summary: the counts per kind say `1 draft` and `1 approved` style singular where the number is 1 (`<kind>: <n> approved, <n> draft` / `drafts`), the same way other commands write `1 entry` and `1 file`; nothing else changes.
+  2. tests/cmd_team.rs: the test with one draft expects `1 draft`; one with two drafts expects `2 drafts`.
+  3. Run cargo test --test cmd_team
+- accept: team summary writes 1 draft and 2 drafts.
+- verify: cargo test --test cmd_team
+- reqs: R-TEAM-5
 - note (2026-11-24, planner): added
 
 ## Questions
