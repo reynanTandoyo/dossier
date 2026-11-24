@@ -2700,3 +2700,75 @@ fn a_budget_below_five_lines_is_a_usage_error_and_five_is_allowed() {
     let text = brief(&project, &["--budget", "5"], None);
     assert!(text.lines().count() <= 5, "{text}");
 }
+
+#[test]
+fn brief_task_json_names_each_chosen_entry_with_its_reason() {
+    let project = Project::new();
+    // FND-001 is linked to the task; LES-001 shares the word "speedline" with its title.
+    project
+        .run(
+            "anna",
+            &[
+                "found",
+                "The steady run stalled at the lowest mass flow.",
+                "--task",
+                "T-001",
+                "--title",
+                "Steady run stalls at low flow",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "learn",
+                "Speedline runs overpredict the stall margin.",
+                "--valid-for",
+                "Transonic front stages.",
+                "--evidence",
+                "An invented speedline study.",
+                "--confidence",
+                "simulated",
+                "--title",
+                "Speedline stall margin",
+            ],
+        )
+        .success();
+    let data = serde_json::json!({"id": "T-001", "title": "Speedline check", "status": "open"});
+    let envelope = serde_json::json!({
+        "schema": "todo.show.v1",
+        "ok": true,
+        "data": data,
+        "warnings": []
+    })
+    .to_string();
+    project.write_stand_in(
+        "todo",
+        &format!("@echo off\r\necho {envelope}\r\n"),
+        &format!("#!/bin/sh\nprintf '%s\\n' '{envelope}'\n"),
+    );
+
+    let text = brief(&project, &["--task", "T-001", "--json"], None);
+    let reply: serde_json::Value = serde_json::from_str(text.trim()).expect("one JSON line");
+    assert_eq!(
+        reply["data"]["items"],
+        serde_json::json!([
+            {"id": "FND-001", "reason": "linked"},
+            {"id": "LES-001", "reason": "word match"}
+        ]),
+        "{text}"
+    );
+
+    // The text output is as before: the entries are printed by their lines, with no reasons.
+    let plain = brief(&project, &["--task", "T-001"], None);
+    assert!(
+        plain.contains("FND-001 · finding · Steady run stalls at low flow"),
+        "{plain}"
+    );
+    assert!(
+        plain.contains("LES-001 · lesson · Speedline stall margin"),
+        "{plain}"
+    );
+    assert!(!plain.contains("reason"), "{plain}");
+}

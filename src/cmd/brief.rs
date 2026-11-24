@@ -123,7 +123,8 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
 }
 
 /// `brief --task`: the lines of `brief_task`, after the server line when the command came
-/// through ssh. The server line counts in `limit`.
+/// through ssh. The server line counts in `limit`. The data also gives `items`: each entry chosen
+/// for the task with its reason (R-CTX-6, `brief_task::chosen`). The line limit does not cut them.
 fn for_task(ctx: &Ctx, task: &str, remote: bool, limit: usize) -> Result<Output> {
     let mut lines = Vec::new();
     if remote {
@@ -131,7 +132,11 @@ fn for_task(ctx: &Ctx, task: &str, remote: bool, limit: usize) -> Result<Output>
     }
     let room = limit.saturating_sub(lines.len());
     lines.extend(brief_task::lines(ctx, task, room)?);
-    let data = json!({"code": ctx.cfg.code, "task": task, "lines": lines});
+    let items: Vec<Value> = brief_task::chosen(ctx, task)?
+        .into_iter()
+        .map(|(id, reason)| json!({"id": id, "reason": reason}))
+        .collect();
+    let data = json!({"code": ctx.cfg.code, "task": task, "lines": lines, "items": items});
     Ok(Output::with(lines.join("\n"), data))
 }
 
