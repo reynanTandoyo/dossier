@@ -9139,10 +9139,8 @@
 - note (2026-11-24, haiku-T-419): done
 
 ### T-421 · search --similar: show why each entry is similar
-- status: claimed
+- status: done
 - owner: haiku-T-421
-- claimed: 2026-11-24T01:28+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-058
 - why: Each result printed its title twice (found in T-345); the reason of select.rs says more.
@@ -9156,8 +9154,12 @@
   3. Run cargo test --test cmd_search
 - accept: search --similar prints the reason after the dash and gives it in --json.
 - verify: cargo test --test cmd_search
+- verified: 2026-11-24
+- commit: abe7f09
 - reqs: R-READ-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-24, planner): added
+- note (2026-11-24, haiku-T-421): done
 
 ### T-422 · team summary: 1 draft, not 1 drafts
 - status: done
