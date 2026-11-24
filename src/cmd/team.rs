@@ -6,10 +6,14 @@
 //! a reachable team dossier also knows the team's members and names, which `Ctx::load` adds. Linking
 //! and every member or name change rewrite dossier.toml, so each is recorded in the journal with who
 //! and when (D29), as `people` is.
+//!
+//! `team summary` shows the team dossier at a glance (R-TEAM-5): the entries per kind and status,
+//! the drafts waiting, the entries due for review and the newest approved entries. It reads only.
 
 use crate::cli::Global;
 use crate::config;
 use crate::ctx::Ctx;
+use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
 use crate::gitcommit;
 use crate::journal;
@@ -17,9 +21,12 @@ use crate::lock;
 use crate::names::{self, Who};
 use crate::output::Output;
 use crate::paths;
+use crate::store::{self, Item};
 use crate::term;
 use crate::time;
-use serde_json::json;
+use chrono::{DateTime, FixedOffset, NaiveDate};
+use serde_json::{Value, json};
+use std::cmp::Reverse;
 use std::path::{Component, Path, PathBuf};
 
 /// The settings file inside a DOSSIER folder (format.md §10).
@@ -64,6 +71,9 @@ pub enum Action {
         #[command(subcommand)]
         action: NameAction,
     },
+    /// Shows the team dossier: entries per kind and status, drafts waiting, entries due for review
+    /// and the newest approved entries (R-TEAM-5)
+    Summary,
 }
 
 /// What `team member` does.
@@ -98,8 +108,8 @@ pub enum NameAction {
 }
 
 /// Runs `team`: shows the team dossier, the members and the plain names, links the project to a
-/// team dossier with `team use`, or changes the members with `team member` or the plain names with
-/// `team name`.
+/// team dossier with `team use`, changes the members with `team member` or the plain names with
+/// `team name`, or summarises the team dossier with `team summary`.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "team")?;
     match &args.action {
@@ -107,6 +117,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         Some(Action::Use { path }) => link(&ctx, g, path),
         Some(Action::Member { action }) => member(settings_ctx(ctx)?, g, action),
         Some(Action::Name { action }) => plain_name(settings_ctx(ctx)?, g, action),
+        Some(Action::Summary) => Ok(summary(&summary_ctx(ctx)?)),
     }
 }
 
@@ -265,15 +276,36 @@ fn settings_ctx(ctx: Ctx) -> Result<Ctx> {
         return Ok(ctx);
     };
     if ctx.team.is_none() {
-        return Err(Error::new(
-            Code::NoDossier,
-            format!(
-                "{}: the team dossier cannot be reached",
-                ctx.root.join(paths::shown(&stored)).display()
-            ),
-        ));
+        return Err(unreachable(&ctx, &stored));
     }
     ctx.team_ctx()
+}
+
+/// The context `team summary` reads: the team dossier itself, or the team dossier of a project
+/// (R-TEAM-5). A project with no team dossier is refused as `team_ctx` refuses it; one whose team
+/// dossier cannot be reached is Code::NoDossier naming its path (R-PLACE-8).
+fn summary_ctx(ctx: Ctx) -> Result<Ctx> {
+    if ctx.cfg.kind == TEAM {
+        return Ok(ctx);
+    }
+    if ctx.team.is_none()
+        && let Some(stored) = ctx.cfg.team.clone()
+    {
+        return Err(unreachable(&ctx, &stored));
+    }
+    ctx.team_ctx()
+}
+
+/// Code::NoDossier for a team dossier that the project names at `stored` but cannot be reached
+/// (R-PLACE-8): the settings to change, or to read, are the team's.
+fn unreachable(ctx: &Ctx, stored: &str) -> Error {
+    Error::new(
+        Code::NoDossier,
+        format!(
+            "{}: the team dossier cannot be reached",
+            ctx.root.join(paths::shown(stored)).display()
+        ),
+    )
 }
 
 /// Runs `team member add` or `team member remove` in `ctx`. Only members write to the team
@@ -532,4 +564,298 @@ fn record_change(ctx: &Ctx, who: &Who, detail: &str) -> Result<()> {
         detail: detail.to_string(),
     };
     journal::append(&ctx.state, &record)
+}
+
+/// The most lines `team summary` prints (docs/design.md section 20): it is read on a screen.
+const SUMMARY_LINES: usize = 40;
+
+/// The most drafts waiting that the text names; a line after them counts the rest.
+const DRAFTS_SHOWN: usize = 10;
+
+/// The most entries due for review that the text names.
+const DUE_SHOWN: usize = 10;
+
+/// The newest approved entries: the data gives this many, the text as many as fit.
+const NEWEST: usize = 10;
+
+/// The entries of one kind by status: approved, drafts, and every other status.
+struct Tally {
+    kind: Kind,
+    approved: usize,
+    drafts: usize,
+    other: usize,
+}
+
+/// Runs `team summary` on the team dossier of `ctx`; nothing is changed. The text starts with the
+/// team dossier's path, then each part that has something to tell: `## Entries` (one line per kind
+/// that has entries), `## Drafts waiting` (oldest first, with the age), `## Due for review`
+/// (approved entries whose review date has passed, the earliest review first) and `## Newest`
+/// (approved entries, newest approval first). The text stays within SUMMARY_LINES lines: the
+/// newest entries give way first.
+fn summary(ctx: &Ctx) -> Output {
+    let (items, warnings) = store::all(&ctx.dossier);
+    let now = time::now();
+    let today = NaiveDate::parse_from_str(time::date(&now), "%Y-%m-%d").ok();
+    let kinds = tallies(&items);
+    let drafts = waiting_drafts(&items);
+    let due = due_entries(&items, today);
+    let newest = newest_approved(&items);
+
+    let mut lines = vec![format!("team dossier: {}", ctx.dossier.display())];
+    part(
+        &mut lines,
+        "Entries",
+        kinds.iter().map(tally_line).collect(),
+    );
+    let mut draft_lines: Vec<String> = drafts
+        .iter()
+        .take(DRAFTS_SHOWN)
+        .map(|item| draft_line(item, &now))
+        .collect();
+    let more = drafts.len().saturating_sub(DRAFTS_SHOWN);
+    if more > 0 {
+        draft_lines.push(format!("{more} more: dossier drafts --team"));
+    }
+    part(&mut lines, "Drafts waiting", draft_lines);
+    part(
+        &mut lines,
+        "Due for review",
+        due.iter()
+            .take(DUE_SHOWN)
+            .map(|(item, review)| due_line(item, review))
+            .collect(),
+    );
+    // The heading of the newest entries takes one of the lines that are left.
+    let room = SUMMARY_LINES.saturating_sub(lines.len() + 1);
+    part(
+        &mut lines,
+        "Newest",
+        newest
+            .iter()
+            .take(NEWEST.min(room))
+            .map(|(item, stamp)| newest_line(item, stamp.as_deref()))
+            .collect(),
+    );
+
+    let data = json!({
+        "counts": kinds.iter().map(tally_data).collect::<Vec<Value>>(),
+        "drafts": drafts.iter().map(|item| draft_data(item, &now)).collect::<Vec<Value>>(),
+        "due": due.iter().map(|(item, review)| due_data(item, review)).collect::<Vec<Value>>(),
+        "newest": newest
+            .iter()
+            .take(NEWEST)
+            .map(|(item, stamp)| newest_data(item, stamp.as_deref()))
+            .collect::<Vec<Value>>(),
+    });
+    let mut output = Output::with(lines.join("\n"), data);
+    for warning in warnings {
+        output = output.warn(warning);
+    }
+    output
+}
+
+/// Adds `heading` and then `body` to `lines`, unless the body is empty: an empty part is left out.
+fn part(lines: &mut Vec<String>, heading: &str, body: Vec<String>) {
+    if !body.is_empty() {
+        lines.push(format!("## {heading}"));
+        lines.extend(body);
+    }
+}
+
+/// The kinds that have entries, in the order of `Kind::all`, each with its counts by status.
+fn tallies(items: &[Item]) -> Vec<Tally> {
+    Kind::all()
+        .into_iter()
+        .filter_map(|kind| {
+            let mut tally = Tally {
+                kind,
+                approved: 0,
+                drafts: 0,
+                other: 0,
+            };
+            for item in items.iter().filter(|item| item.entry.kind() == Some(kind)) {
+                match item.entry.status() {
+                    Some(Status::Approved) => tally.approved += 1,
+                    Some(Status::Draft) => tally.drafts += 1,
+                    _ => tally.other += 1,
+                }
+            }
+            let total = tally.approved + tally.drafts + tally.other;
+            (total > 0).then_some(tally)
+        })
+        .collect()
+}
+
+/// `<kind>: <n> approved, <n> drafts, <n> other`.
+fn tally_line(tally: &Tally) -> String {
+    format!(
+        "{}: {} approved, {} drafts, {} other",
+        tally.kind.name(),
+        tally.approved,
+        tally.drafts,
+        tally.other
+    )
+}
+
+/// The data of a kind: its name and its three counts.
+fn tally_data(tally: &Tally) -> Value {
+    json!({
+        "kind": tally.kind.name(),
+        "approved": tally.approved,
+        "drafts": tally.drafts,
+        "other": tally.other,
+    })
+}
+
+/// The drafts waiting for approval, oldest `created` first (by the instant); a draft without a
+/// creation time comes last.
+fn waiting_drafts(items: &[Item]) -> Vec<&Item> {
+    let mut drafts: Vec<&Item> = items
+        .iter()
+        .filter(|item| item.entry.status() == Some(Status::Draft))
+        .collect();
+    drafts.sort_by_key(|item| {
+        let created = stamp_of(&item.entry, "created")
+            .as_deref()
+            .and_then(instant);
+        (created.is_none(), created)
+    });
+    drafts
+}
+
+/// `<ID> · <title> (<n> days)`: the age is from `created` to `now`; without a creation time there
+/// is no age.
+fn draft_line(item: &Item, now: &str) -> String {
+    let entry = &item.entry;
+    let head = format!("{} · {}", entry.id(), entry.title());
+    match stamp_of(entry, "created") {
+        Some(created) => format!("{head} ({})", days_text(time::days_between(&created, now))),
+        None => head,
+    }
+}
+
+/// The data of a draft: its ID, kind, title, creation time and age in days (null when unknown).
+fn draft_data(item: &Item, now: &str) -> Value {
+    let entry = &item.entry;
+    let created = stamp_of(entry, "created");
+    let age = created
+        .as_deref()
+        .map(|stamp| time::days_between(stamp, now));
+    json!({
+        "id": entry.id(),
+        "kind": entry.kind().map(Kind::name),
+        "title": entry.title(),
+        "created": created,
+        "age_days": age,
+    })
+}
+
+/// `1 day`, or `<n> days`, as the `drafts` command writes an age.
+fn days_text(days: i64) -> String {
+    if days == 1 {
+        "1 day".to_string()
+    } else {
+        format!("{days} days")
+    }
+}
+
+/// The approved entries whose `review` date is before `today` (R-LIFE-7), the earliest review
+/// first. No entries when `today` is not a date.
+fn due_entries(items: &[Item], today: Option<NaiveDate>) -> Vec<(&Item, NaiveDate)> {
+    let Some(today) = today else {
+        return Vec::new();
+    };
+    let mut due: Vec<(&Item, NaiveDate)> = items
+        .iter()
+        .filter(|item| item.entry.status() == Some(Status::Approved))
+        .filter_map(|item| {
+            review_of(&item.entry)
+                .filter(|review| *review < today)
+                .map(|review| (item, review))
+        })
+        .collect();
+    due.sort_by_key(|(_, review)| *review);
+    due
+}
+
+/// The `review` date of an entry (format.md §23), when it is a date of the form YYYY-MM-DD.
+fn review_of(entry: &Entry) -> Option<NaiveDate> {
+    entry
+        .field("review")
+        .and_then(|text| NaiveDate::parse_from_str(text.trim(), "%Y-%m-%d").ok())
+}
+
+/// `<ID> · <title> (review <date>)`.
+fn due_line(item: &Item, review: &NaiveDate) -> String {
+    let entry = &item.entry;
+    format!("{} · {} (review {review})", entry.id(), entry.title())
+}
+
+/// The data of an entry due for review: its ID, kind, title and review date.
+fn due_data(item: &Item, review: &NaiveDate) -> Value {
+    let entry = &item.entry;
+    json!({
+        "id": entry.id(),
+        "kind": entry.kind().map(Kind::name),
+        "title": entry.title(),
+        "review": review.to_string(),
+    })
+}
+
+/// The approved entries with the time each was approved, newest first; an entry without a time
+/// comes last, and entries with the same time keep the order of their IDs.
+fn newest_approved(items: &[Item]) -> Vec<(&Item, Option<String>)> {
+    let mut approved: Vec<(&Item, Option<String>)> = items
+        .iter()
+        .filter(|item| item.entry.status() == Some(Status::Approved))
+        .map(|item| (item, approved_at(&item.entry)))
+        .collect();
+    approved.sort_by_key(|(_, stamp)| {
+        let at = stamp.as_deref().and_then(instant);
+        (at.is_none(), Reverse(at))
+    });
+    approved
+}
+
+/// The time an entry was approved: the time before ` by ` in its `approved` field (format.md §5),
+/// or else its `created` time.
+fn approved_at(entry: &Entry) -> Option<String> {
+    entry
+        .field("approved")
+        .and_then(|value| value.split_whitespace().next().map(str::to_string))
+        .filter(|stamp| time::valid(stamp))
+        .or_else(|| stamp_of(entry, "created"))
+}
+
+/// `<date>  <ID> · <title>`, the date of the approval; `-` when the entry has no time.
+fn newest_line(item: &Item, stamp: Option<&str>) -> String {
+    let entry = &item.entry;
+    format!(
+        "{}  {} · {}",
+        stamp.map_or("-", time::date),
+        entry.id(),
+        entry.title()
+    )
+}
+
+/// The data of an approved entry: its ID, kind, title and the date of its approval (null when
+/// unknown).
+fn newest_data(item: &Item, stamp: Option<&str>) -> Value {
+    let entry = &item.entry;
+    json!({
+        "id": entry.id(),
+        "kind": entry.kind().map(Kind::name),
+        "title": entry.title(),
+        "date": stamp.map(time::date),
+    })
+}
+
+/// The value of a time-stamp field of the entry, when it is one (format.md §7).
+fn stamp_of(entry: &Entry, key: &str) -> Option<String> {
+    entry.field(key).filter(|stamp| time::valid(stamp))
+}
+
+/// The instant a time stamp (format.md §7) names, None when it is not one.
+fn instant(stamp: &str) -> Option<DateTime<FixedOffset>> {
+    DateTime::parse_from_rfc3339(stamp).ok()
 }

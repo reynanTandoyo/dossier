@@ -1,7 +1,8 @@
 //! Runs the built program for `team`: the team settings are shown, `team use` links a project to
 //! its team dossier (R-PLACE-2) and refuses a folder that is not one, `team member add|remove`
-//! changes who may write to the team dossier (R-TEAM-7), and `team name add|remove` keeps the plain
-//! names of people who are not users (D34). Each test runs in its own project folder
+//! changes who may write to the team dossier (R-TEAM-7), `team name add|remove` keeps the plain
+//! names of people who are not users (D34), and `team summary` shows the team dossier's counts,
+//! drafts, reviews and newest entries (R-TEAM-5). Each test runs in its own project folder
 //! with the clock fixed by `common::Project` (2026-11-20T10:00:00+01:00). The team dossier is made
 //! in a second folder whose name has a space and an umlaut.
 
@@ -9,7 +10,7 @@ mod common;
 
 use common::Project;
 use predicates::str::contains;
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -989,4 +990,312 @@ fn a_name_change_in_a_team_repository_is_committed_with_its_subject() {
         "team: name Dr. Weber added"
     );
     assert_eq!(git_out(folder, &["status", "--porcelain"]), "");
+}
+
+/// Invented texts for the summary tests: three lessons, and a how-to that an LLM drafts.
+const LESSON_ONE: &str = "Invented: a warm-up run stabilises the first speedline.";
+const LESSON_ONE_TITLE: &str = "Warm-up first";
+const LESSON_TWO: &str = "Invented: a coarse mesh overpredicts the stall margin.";
+const LESSON_TWO_TITLE: &str = "Coarse mesh margin";
+const LESSON_THREE: &str = "Invented: a wall function shifts the speedline.";
+const LESSON_THREE_TITLE: &str = "Wall function shift";
+const HOW_TO_TITLE: &str = "Run the invented speedline";
+const SOFTWARE: &str = "Invented Solver";
+
+/// `learn` arguments for a lesson with the invented texts, followed by `extra`.
+fn learn_args<'a>(statement: &'a str, title: &'a str, extra: &[&'a str]) -> Vec<&'a str> {
+    let mut args = vec![
+        "learn",
+        statement,
+        "--valid-for",
+        "An invented rig with a tip Mach number above 1.1.",
+        "--evidence",
+        "An invented comparison of two speedlines.",
+        "--title",
+        title,
+        "--confidence",
+        "simulated",
+    ];
+    args.extend_from_slice(extra);
+    args
+}
+
+/// `howto` arguments for a complete invented how-to.
+fn how_to_args() -> Vec<&'static str> {
+    vec![
+        "howto",
+        "--software",
+        SOFTWARE,
+        "--title",
+        HOW_TO_TITLE,
+        "--section",
+        "Purpose=Shows an invented speedline at one operating point.",
+        "--section",
+        "Steps=1. Open the invented case file.\n2. Run to convergence.",
+    ]
+}
+
+/// Runs the program in the team dossier's folder as `agent`, with the clock `now`.
+fn in_team(
+    project: &Project,
+    team: &Team,
+    agent: &str,
+    now: &str,
+    args: &[&str],
+) -> assert_cmd::assert::Assert {
+    project
+        .command(agent, now)
+        .current_dir(team.dir.path())
+        .args(args)
+        .assert()
+}
+
+#[test]
+fn team_summary_counts_the_entries_and_shows_the_draft_with_its_age_and_the_newest_two() {
+    let project = Project::new();
+    let team = team_dossier(&project);
+    in_team(
+        &project,
+        &team,
+        "anna",
+        "2026-11-10T09:00:00+01:00",
+        &learn_args(LESSON_ONE, LESSON_ONE_TITLE, &[]),
+    )
+    .success();
+    in_team(
+        &project,
+        &team,
+        "anna",
+        "2026-11-15T09:00:00+01:00",
+        &learn_args(LESSON_TWO, LESSON_TWO_TITLE, &[]),
+    )
+    .success();
+    // The LLM of anna drafts a how-to on 2026-11-13: a draft, seven days old on the fixed clock.
+    in_team(
+        &project,
+        &team,
+        "anna - claude",
+        "2026-11-13T10:00:00+01:00",
+        &how_to_args(),
+    )
+    .success();
+
+    let before = team_journal(&team).len();
+    let path = team.dossier.display().to_string();
+    in_team(&project, &team, "anna", NOW, &["team", "summary"])
+        .success()
+        .stdout(format!(
+            "team dossier: {path}\n\
+             ## Entries\n\
+             lesson: 2 approved, 0 drafts, 0 other\n\
+             howto: 0 approved, 1 drafts, 0 other\n\
+             ## Drafts waiting\n\
+             HOW-001 · {HOW_TO_TITLE} (7 days)\n\
+             ## Newest\n\
+             2026-11-15  LES-002 · {LESSON_TWO_TITLE}\n\
+             2026-11-10  LES-001 · {LESSON_ONE_TITLE}\n"
+        ))
+        .stderr("");
+    assert_eq!(
+        team_journal(&team).len(),
+        before,
+        "the summary changes nothing"
+    );
+}
+
+#[test]
+fn team_summary_lists_the_approved_entries_past_their_review_date_only() {
+    let project = Project::new();
+    let team = team_dossier(&project);
+    // Reviewed on 2026-11-01, so due; reviewed on 2026-12-01, not yet.
+    in_team(
+        &project,
+        &team,
+        "anna",
+        "2026-11-10T09:00:00+01:00",
+        &learn_args(LESSON_ONE, LESSON_ONE_TITLE, &["--review", "2026-11-01"]),
+    )
+    .success();
+    in_team(
+        &project,
+        &team,
+        "anna",
+        "2026-11-12T09:00:00+01:00",
+        &learn_args(LESSON_TWO, LESSON_TWO_TITLE, &["--review", "2026-12-01"]),
+    )
+    .success();
+    // A draft by the LLM of anna with a review date already past is not due: only approved
+    // entries are.
+    in_team(
+        &project,
+        &team,
+        "anna - claude",
+        "2026-11-10T10:00:00+01:00",
+        &learn_args(
+            LESSON_THREE,
+            LESSON_THREE_TITLE,
+            &["--review", "2026-11-01"],
+        ),
+    )
+    .success();
+
+    let path = team.dossier.display().to_string();
+    in_team(&project, &team, "anna", NOW, &["team", "summary"])
+        .success()
+        .stdout(format!(
+            "team dossier: {path}\n\
+             ## Entries\n\
+             lesson: 2 approved, 1 drafts, 0 other\n\
+             ## Drafts waiting\n\
+             LES-003 · {LESSON_THREE_TITLE} (10 days)\n\
+             ## Due for review\n\
+             LES-001 · {LESSON_ONE_TITLE} (review 2026-11-01)\n\
+             ## Newest\n\
+             2026-11-12  LES-002 · {LESSON_TWO_TITLE}\n\
+             2026-11-10  LES-001 · {LESSON_ONE_TITLE}\n"
+        ))
+        .stderr("");
+}
+
+#[test]
+fn team_summary_from_a_project_reads_its_team_dossier_and_no_team_is_refused() {
+    let project = Project::new();
+    project
+        .run("anna", &["team", "summary"])
+        .failure()
+        .code(4)
+        .stderr(contains("this project has no team dossier"));
+
+    let team = team_dossier(&project);
+    in_team(
+        &project,
+        &team,
+        "anna",
+        NOW,
+        &learn_args(LESSON_ONE, LESSON_ONE_TITLE, &[]),
+    )
+    .success();
+    let path = team.dossier.display().to_string();
+    project.run("anna", &["team", "use", &path]).success();
+    // A reading command runs without a name.
+    project
+        .run("", &["team", "summary"])
+        .success()
+        .stdout(format!(
+            "team dossier: {path}\n\
+             ## Entries\n\
+             lesson: 1 approved, 0 drafts, 0 other\n\
+             ## Newest\n\
+             2026-11-20  LES-001 · {LESSON_ONE_TITLE}\n"
+        ))
+        .stderr("");
+
+    // A team dossier that cannot be reached is refused, and the refusal names its path.
+    std::fs::remove_dir_all(&team.dossier).expect("remove the team dossier");
+    project
+        .run("anna", &["team", "summary"])
+        .failure()
+        .code(4)
+        .stderr(contains("the team dossier cannot be reached"));
+}
+
+#[test]
+fn team_summary_as_json_gives_the_counts_drafts_due_and_newest() {
+    let project = Project::new();
+    let team = team_dossier(&project);
+    in_team(
+        &project,
+        &team,
+        "anna",
+        "2026-11-10T09:00:00+01:00",
+        &learn_args(LESSON_ONE, LESSON_ONE_TITLE, &["--review", "2026-11-01"]),
+    )
+    .success();
+    in_team(
+        &project,
+        &team,
+        "anna",
+        "2026-11-12T09:00:00+01:00",
+        &learn_args(LESSON_TWO, LESSON_TWO_TITLE, &[]),
+    )
+    .success();
+    in_team(
+        &project,
+        &team,
+        "anna - claude",
+        "2026-11-13T10:00:00+01:00",
+        &how_to_args(),
+    )
+    .success();
+
+    let out = in_team(&project, &team, "anna", NOW, &["--json", "team", "summary"])
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let line: Value = serde_json::from_slice(&out).expect("one JSON line");
+    assert_eq!(line["schema"], "dossier.team.v1");
+    assert_eq!(line["ok"], true);
+    assert_eq!(
+        line["data"]["counts"],
+        json!([
+            {"kind": "lesson", "approved": 2, "drafts": 0, "other": 0},
+            {"kind": "howto", "approved": 0, "drafts": 1, "other": 0},
+        ])
+    );
+    assert_eq!(line["data"]["drafts"][0]["id"], "HOW-001");
+    assert_eq!(line["data"]["drafts"][0]["age_days"], 7);
+    assert_eq!(line["data"]["due"][0]["id"], "LES-001");
+    assert_eq!(line["data"]["due"][0]["review"], "2026-11-01");
+    assert_eq!(line["data"]["newest"][0]["id"], "LES-002");
+    assert_eq!(line["data"]["newest"][0]["date"], "2026-11-12");
+    assert_eq!(line["data"]["newest"][1]["id"], "LES-001");
+    assert_eq!(line["warnings"], json!([]));
+}
+
+#[test]
+fn team_summary_names_ten_drafts_and_counts_the_rest() {
+    let project = Project::new();
+    let team = team_dossier(&project);
+    let titles: Vec<String> = (1..=11).map(|n| format!("Draft lesson {n:02}")).collect();
+    let statements: Vec<String> = (1..=11)
+        .map(|n| format!("Invented statement number {n:02}."))
+        .collect();
+    for (statement, title) in statements.iter().zip(&titles) {
+        in_team(
+            &project,
+            &team,
+            "anna - claude",
+            "2026-11-10T10:00:00+01:00",
+            &learn_args(statement, title, &[]),
+        )
+        .success();
+    }
+
+    let mut expected = format!(
+        "team dossier: {}\n## Entries\nlesson: 0 approved, 11 drafts, 0 other\n## Drafts waiting\n",
+        team.dossier.display()
+    );
+    for (n, title) in (1..=10).zip(&titles) {
+        expected.push_str(&format!("LES-{n:03} · {title} (10 days)\n"));
+    }
+    expected.push_str("1 more: dossier drafts --team\n");
+    in_team(&project, &team, "anna", NOW, &["team", "summary"])
+        .success()
+        .stdout(expected)
+        .stderr("");
+}
+
+#[test]
+fn team_without_a_subcommand_still_prints_the_settings_and_an_empty_summary_prints_the_path() {
+    let project = Project::new();
+    let team = team_dossier(&project);
+    in_team(&project, &team, "anna", NOW, &["team"])
+        .success()
+        .stdout("team dossier: none\nmembers: anna\nnames: none\n")
+        .stderr("");
+    in_team(&project, &team, "anna", NOW, &["team", "summary"])
+        .success()
+        .stdout(format!("team dossier: {}\n", team.dossier.display()))
+        .stderr("");
 }
