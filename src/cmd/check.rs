@@ -11,6 +11,7 @@ use crate::approval::{self, Mark};
 use crate::blockfile::BlockFile;
 use crate::cli::Global;
 use crate::ctx::Ctx;
+use crate::entry::new::FIELD_ORDER;
 use crate::entry::rules;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
@@ -36,7 +37,8 @@ use std::path::{Path, PathBuf};
 #[derive(clap::Args, Debug)]
 pub struct Args {
     /// Repairs what is safe first: renames each entry file whose name does not match its ID and
-    /// title, and adds a missing format line, then checks again. Needs a name.
+    /// title, adds a missing format line, and puts the tool's own fields in order, then checks
+    /// again. Needs a name.
     #[arg(long)]
     pub fix: bool,
 }
@@ -65,6 +67,9 @@ const FILE_NAME: &str = "file name";
 
 /// The detail of an added format line, in the history line and the journal.
 const FORMAT_DETAIL: &str = "format line";
+
+/// The detail of fields put in order, in the history line and the journal.
+const FIELD_ORDER_DETAIL: &str = "field order";
 
 /// The format line of version 1 (format.md §3).
 const FORMAT_LINE: &str = "<!-- dossier-format: 1 -->";
@@ -143,22 +148,28 @@ fn report(ctx: &Ctx) -> Result<Output> {
 /// The repairs of `check --fix` (R-CHECK-2), made in one transaction. An entry file whose ID is
 /// the ID of no other file is renamed to the name `store::path_for` gives its kind, ID and title,
 /// unless that name exists already. An entry file whose first line is not the format line gets
-/// one in front (format.md §2, §13). A file that needs both is written by one rename. Each repair
-/// adds a `fixed` history line to the entry, and the journal gets one `fixed` record per file
-/// whose detail names its repairs. The text is one `fixed: <old> renamed to <new>` line per
-/// rename and one `<file>: format line added` line per file that got a format line, and nothing
-/// on a dry run, where the warnings of `tx::write` say what would be written. The data lists the
-/// renames as `fixed` and the files as `format_line`. Without a name: Code::Usage.
+/// one in front (format.md §2, §13). An entry whose known fields are out of the order of
+/// `FIELD_ORDER` has them put back in that order (`fields_in_order`). A file that needs more than
+/// one of these is written by one rename or put. Each repair adds a `fixed` history line to the
+/// entry, and the journal gets one `fixed` record per file whose detail names its repairs. The
+/// text is one `fixed: <old> renamed to <new>` line per rename, one `<file>: format line added`
+/// line per file that got a format line and one `<file>: fields put in order` line per file whose
+/// fields moved, and nothing on a dry run, where the warnings of `tx::write` say what would be
+/// written. An entry whose fields would then read as changed after approval keeps its order, and
+/// a warning says so. The data lists the renames as `fixed`, the files as `format_line` and
+/// `field_order`. Without a name: Code::Usage.
 fn fix(ctx: &Ctx) -> Result<Output> {
     let who = ctx.writer()?.clone();
     let mut renamed: Vec<String> = Vec::new();
     let mut formatted: Vec<String> = Vec::new();
+    let mut ordered: Vec<String> = Vec::new();
     let output = tx::write(ctx, |tx| {
         let (items, _) = store::all(&ctx.dossier);
         let mut count: BTreeMap<String, usize> = BTreeMap::new();
         for item in &items {
             *count.entry(item.entry.id()).or_default() += 1;
         }
+        let mut skipped: Vec<String> = Vec::new();
         for item in &items {
             let entry = &item.entry;
             let id = entry.id();
@@ -168,11 +179,16 @@ fn fix(ctx: &Ctx) -> Result<Output> {
                 None
             };
             let needs_format = !has_format_line(entry);
-            if new_path.is_none() && !needs_format {
+            let order = ordered_lines(ctx, item, &id, &mut skipped);
+            if new_path.is_none() && !needs_format && order.is_none() {
                 continue;
             }
             let mut fixed = entry.clone();
             let mut details: Vec<&str> = Vec::new();
+            let fields_moved = order.is_some();
+            if let Some(lines) = order {
+                fixed.lines = lines;
+            }
             if new_path.is_some() {
                 fixed.add_history(tx.time(), &who, FIXED, FILE_NAME);
                 details.push(FILE_NAME);
@@ -181,6 +197,10 @@ fn fix(ctx: &Ctx) -> Result<Output> {
                 add_format_line(&mut fixed.lines);
                 fixed.add_history(tx.time(), &who, FIXED, FORMAT_DETAIL);
                 details.push(FORMAT_DETAIL);
+            }
+            if fields_moved {
+                fixed.add_history(tx.time(), &who, FIXED, FIELD_ORDER_DETAIL);
+                details.push(FIELD_ORDER_DETAIL);
             }
             let change = Change {
                 id,
@@ -205,23 +225,36 @@ fn fix(ctx: &Ctx) -> Result<Output> {
             if needs_format {
                 formatted.push(format!("{}: format line added", relative(&ctx.root, &path)));
             }
+            if fields_moved {
+                ordered.push(format!(
+                    "{}: fields put in order",
+                    relative(&ctx.root, &path)
+                ));
+            }
         }
-        Ok(Output::text(""))
+        Ok(skipped
+            .into_iter()
+            .fold(Output::text(""), |output, warning| output.warn(warning)))
     })?;
     // A dry run writes nothing: the warnings of `tx::write` say what would be written.
-    let (renames, formats) = if ctx.dry_run {
-        (Vec::new(), Vec::new())
+    let (renames, formats, orders) = if ctx.dry_run {
+        (Vec::new(), Vec::new(), Vec::new())
     } else {
-        (renamed, formatted)
+        (renamed, formatted, ordered)
     };
     let mut text: String = renames
         .iter()
         .map(|line| format!("fixed: {line}\n"))
         .collect();
-    text.extend(formats.iter().map(|line| format!("{line}\n")));
+    text.extend(
+        formats
+            .iter()
+            .chain(&orders)
+            .map(|line| format!("{line}\n")),
+    );
     Ok(Output {
         text,
-        data: json!({ "fixed": renames, "format_line": formats }),
+        data: json!({ "fixed": renames, "format_line": formats, "field_order": orders }),
         warnings: output.warnings,
     })
 }
@@ -263,6 +296,116 @@ fn add_format_line(lines: &mut Vec<String>) {
         _ => "\n",
     };
     lines.insert(0, format!("{mark}{FORMAT_LINE}{ending}"));
+}
+
+/// The lines that `check --fix` puts an entry's known fields in (`fields_in_order`), or None when
+/// they stay as they are. An approved entry's checksum covers the order of its lines (approval.rs):
+/// when the new order would turn an entry that is recorded as unchanged into a changed one, the
+/// order stays and a warning says so. Such an entry keeps the order it was approved in.
+fn ordered_lines(
+    ctx: &Ctx,
+    item: &Item,
+    id: &str,
+    skipped: &mut Vec<String>,
+) -> Option<Vec<String>> {
+    let lines = fields_in_order(&item.entry.lines)?;
+    let before = approval::mark(&ctx.state, id, &item.raw);
+    let after = approval::mark(&ctx.state, id, lines.concat().as_bytes());
+    if matches!(before, Mark::Unchanged) && matches!(after, Mark::Changed) {
+        skipped.push(format!(
+            "{}: fields not put in order, because the approved entry would then show as changed",
+            relative(&ctx.root, &item.path)
+        ));
+        return None;
+    }
+    Some(lines)
+}
+
+/// The lines of an entry with its known fields in the order of `FIELD_ORDER` (format.md §5), or
+/// None when they are in that order already. The known fields are the field lines of the field
+/// block whose key is in `FIELD_ORDER`. They take each other's places in that order; every other
+/// line (an unknown key, a history line, a blank line) keeps its place. A moved line keeps its own
+/// text and line ending, and the file's last line keeps having or not having an ending.
+fn fields_in_order(lines: &[String]) -> Option<Vec<String>> {
+    let known: Vec<(usize, usize)> = field_block(lines)
+        .into_iter()
+        .filter_map(|(index, key)| order_rank(key).map(|rank| (index, rank)))
+        .collect();
+    if known.windows(2).all(|pair| pair[0].1 <= pair[1].1) {
+        return None;
+    }
+    let mut moving = known.clone();
+    moving.sort_by_key(|&(_, rank)| rank);
+    let mut ordered = lines.to_vec();
+    for (&(target, _), &(source, _)) in known.iter().zip(&moving) {
+        let (text, source_ending) = split_ending(&lines[source]);
+        let (_, target_ending) = split_ending(&lines[target]);
+        let ending = if target_ending.is_empty() {
+            ""
+        } else if source_ending.is_empty() {
+            target_ending
+        } else {
+            source_ending
+        };
+        ordered[target] = format!("{text}{ending}");
+    }
+    Some(ordered)
+}
+
+/// The field lines of the field block of an entry (format.md §3), each with its index in `lines`
+/// and its key. The block is read as `Entry` reads it: the lines from the first field line after
+/// the heading, before the first section, up to the first line that is not a field line.
+fn field_block(lines: &[String]) -> Vec<(usize, &str)> {
+    let texts: Vec<&str> = numbered_lines(lines)
+        .into_iter()
+        .map(|(_, text)| text)
+        .collect();
+    let Some(heading) = texts.iter().position(|text| text.starts_with("# ")) else {
+        return Vec::new();
+    };
+    let section = texts
+        .iter()
+        .enumerate()
+        .skip(heading + 1)
+        .find(|(_, text)| text.starts_with("## "))
+        .map_or(texts.len(), |(index, _)| index);
+    let mut block = Vec::new();
+    for (index, &text) in texts.iter().enumerate().take(section).skip(heading + 1) {
+        match field_key(text) {
+            Some(key) => block.push((index, key)),
+            None if block.is_empty() => {}
+            None => break,
+        }
+    }
+    block
+}
+
+/// The key of a field line `- <key>: <value>` (format.md §3, §5): lower-case letters, digits and
+/// `-`. None for any other line.
+fn field_key(text: &str) -> Option<&str> {
+    let (key, _) = text.strip_prefix("- ")?.split_once(':')?;
+    let valid = !key.is_empty()
+        && key
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+    valid.then_some(key)
+}
+
+/// The place of a field in `FIELD_ORDER`; None for a key the tool does not know.
+fn order_rank(key: &str) -> Option<usize> {
+    FIELD_ORDER.iter().position(|known| *known == key)
+}
+
+/// A line without its line ending, and the ending: `\r\n`, `\n`, or empty for a last line that has
+/// none.
+fn split_ending(line: &str) -> (&str, &str) {
+    if let Some(text) = line.strip_suffix("\r\n") {
+        (text, "\r\n")
+    } else if let Some(text) = line.strip_suffix('\n') {
+        (text, "\n")
+    } else {
+        (line, "")
+    }
 }
 
 /// One problem: the file (relative to the project folder, with `/`), the line, the ID of the
@@ -727,11 +870,7 @@ fn numbered_lines(lines: &[String]) -> Vec<(usize, &str)> {
         .iter()
         .enumerate()
         .map(|(index, line)| {
-            let line = line.as_str();
-            let text = line
-                .strip_suffix("\r\n")
-                .or_else(|| line.strip_suffix('\n'))
-                .unwrap_or(line);
+            let (text, _) = split_ending(line);
             let text = if index == 0 {
                 text.strip_prefix(BYTE_ORDER_MARK).unwrap_or(text)
             } else {

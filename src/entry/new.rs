@@ -13,7 +13,7 @@ const PICTURES: &str = "Pictures";
 /// `rejected-reason` and after `software`, the fields of §28 after `refuted`, and the fields of
 /// §32 after `task`. `history` is not listed: it is always written last. `kind` is listed first,
 /// but `render` writes it from `Draft::kind`.
-const FIELD_ORDER: [&str; 46] = [
+pub const FIELD_ORDER: [&str; 46] = [
     "kind",
     "status",
     "created",

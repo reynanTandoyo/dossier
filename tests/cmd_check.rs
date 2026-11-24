@@ -1306,3 +1306,243 @@ fn check_fix_renames_and_adds_a_format_line_in_one_repair() {
     assert_eq!(last.detail, "file name, format line");
     assert_eq!(project.stdout("anna", &["check"]), OK);
 }
+
+/// Moves the line that starts with `moved` of the entry `id` by hand to just after the line that
+/// starts with `anchor`, each line whole with its own ending. Returns the text before the move.
+fn move_line_after(project: &Project, id: &str, moved: &str, anchor: &str) -> String {
+    let original = text_of(project, id);
+    let mut lines: Vec<String> = original.split_inclusive('\n').map(str::to_string).collect();
+    let from = lines
+        .iter()
+        .position(|line| line.starts_with(moved))
+        .expect("the moved line is in the entry");
+    let line = lines.remove(from);
+    let to = lines
+        .iter()
+        .position(|line| line.starts_with(anchor))
+        .expect("the anchor line is in the entry");
+    lines.insert(to + 1, line);
+    write_entry(project, id, &lines.concat());
+    original
+}
+
+/// The history line that `check --fix` adds for fields put in order, as anna at the fixed time.
+fn field_order_history() -> String {
+    format!("- history: {NOW} anna: fixed — field order\n")
+}
+
+#[test]
+fn check_fix_puts_back_a_field_moved_by_hand_below_the_one_after_it() {
+    let project = Project::new();
+    decide(&project);
+    let original = move_line_after(&project, "DEC-001", "- created:", "- author:");
+    // The order of the fields is not a problem for `check`: it reports nothing.
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+
+    let stdout = project.stdout("anna", &["check", "--fix"]);
+    let file = project.entry_file("DEC-001");
+    assert_eq!(
+        stdout,
+        format!("{}: fields put in order\n{OK}", shown(&file))
+    );
+
+    // The only other change is the history line of the repair; every other line is as it was.
+    let text = text_of(&project, "DEC-001");
+    assert!(text.contains(&field_order_history()), "{text}");
+    assert_eq!(text.replacen(&field_order_history(), "", 1), original);
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+}
+
+#[test]
+fn check_fix_keeps_an_unknown_field_at_its_place_among_the_known_ones() {
+    let project = Project::new();
+    decide(&project);
+    let canonical = text_of(&project, "DEC-001");
+    let with_unknown = canonical.replacen(
+        "- status: approved\n",
+        "- status: approved\n- zeta: kept by hand\n",
+        1,
+    );
+    write_entry(&project, "DEC-001", &with_unknown);
+    move_line_after(&project, "DEC-001", "- created:", "- author:");
+
+    project.stdout("anna", &["check", "--fix"]);
+
+    // The known fields are in order again; the unknown key stays between `status` and the rest.
+    let text = text_of(&project, "DEC-001");
+    let expected = canonical.replacen(
+        "- status: approved\n",
+        "- status: approved\n- zeta: kept by hand\n",
+        1,
+    );
+    assert_eq!(text.replacen(&field_order_history(), "", 1), expected);
+}
+
+#[test]
+fn check_fix_keeps_the_history_lines_where_they_are() {
+    let project = Project::new();
+    decide(&project);
+    let canonical = text_of(&project, "DEC-001");
+    let created = format!("- history: {NOW} anna: created\n");
+    // The first history line is moved up under `kind` by hand, and `created` below `author`.
+    let moved_up = |text: &str| {
+        text.replacen(&created, "", 1).replacen(
+            "- kind: decision\n",
+            &format!("- kind: decision\n{created}"),
+            1,
+        )
+    };
+    write_entry(&project, "DEC-001", &moved_up(&canonical));
+    move_line_after(&project, "DEC-001", "- created:", "- author:");
+
+    project.stdout("anna", &["check", "--fix"]);
+
+    // The history line keeps its text and its place; only the fields around it moved back.
+    let text = text_of(&project, "DEC-001");
+    assert_eq!(
+        text.replacen(&field_order_history(), "", 1),
+        moved_up(&canonical)
+    );
+}
+
+#[test]
+fn check_fix_does_not_write_an_entry_whose_fields_are_in_order() {
+    let project = Project::new();
+    decide(&project);
+    let before = text_of(&project, "DEC-001");
+    let records = project.entry_journal().len();
+
+    assert_eq!(project.stdout("anna", &["check", "--fix"]), OK);
+
+    assert_eq!(text_of(&project, "DEC-001"), before);
+    assert_eq!(project.entry_journal().len(), records);
+}
+
+#[test]
+fn check_fix_keeps_the_crlf_endings_of_moved_fields() {
+    let project = Project::new();
+    decide(&project);
+    let crlf = text_of(&project, "DEC-001").replace('\n', "\r\n");
+    write_entry(&project, "DEC-001", &crlf);
+    move_line_after(&project, "DEC-001", "- created:", "- author:");
+
+    project.stdout("anna", &["check", "--fix"]);
+
+    let text = text_of(&project, "DEC-001");
+    assert!(
+        !text.replace("\r\n", "").contains('\n'),
+        "a bare LF in {text:?}"
+    );
+    let history = field_order_history().replace('\n', "\r\n");
+    assert_eq!(text.replacen(&history, "", 1), crlf);
+}
+
+#[test]
+fn check_fix_puts_back_the_fields_of_an_approved_lesson_and_it_is_unchanged_again() {
+    let project = Project::new();
+    learn_by(&project, "anna");
+    move_line_after(&project, "LES-001", "- created:", "- author:");
+    // The approved text is no longer the text that was approved, so `check` reports it.
+    let stderr = problems(&project);
+    assert!(
+        stderr.contains("LES-001 CHANGED approved lesson changed after approval"),
+        "{stderr}"
+    );
+
+    let stdout = project.stdout("anna", &["check", "--fix"]);
+    let file = project.entry_file("LES-001");
+    assert_eq!(
+        stdout,
+        format!("{}: fields put in order\n{OK}", shown(&file))
+    );
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+}
+
+#[test]
+fn check_fix_puts_in_order_the_approval_fields_an_approved_llm_lesson_got_after_its_tags() {
+    let project = Project::new();
+    project.stdout(
+        "ben-codex",
+        &[
+            "learn",
+            STATEMENT,
+            "--valid-for",
+            VALID_FOR,
+            "--evidence",
+            EVIDENCE,
+            "--confidence",
+            "simulated",
+            "--title",
+            "Steady mixing-plane runs overpredict stall margin",
+            "--tags",
+            "rig",
+        ],
+    );
+    // Approval adds `approved` and `valid-from` before the history lines, after the tags. Neither
+    // is part of the approval checksum, so the order can be put right without a change.
+    project
+        .command("anna", NOW)
+        .env("DOSSIER_ANSWERS", "a")
+        .args(["approve", "LES-001"])
+        .assert()
+        .success();
+
+    let stdout = project.stdout("anna", &["check", "--fix"]);
+    let file = project.entry_file("LES-001");
+    assert_eq!(
+        stdout,
+        format!("{}: fields put in order\n{OK}", shown(&file))
+    );
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+}
+
+#[test]
+fn check_fix_leaves_an_approved_entry_in_its_order_when_the_new_order_would_change_it() {
+    let project = Project::new();
+    project.stdout(
+        "ben-codex",
+        &[
+            "learn",
+            STATEMENT,
+            "--valid-for",
+            VALID_FOR,
+            "--evidence",
+            EVIDENCE,
+            "--confidence",
+            "simulated",
+            "--title",
+            "Steady mixing-plane runs overpredict stall margin",
+            "--tags",
+            "rig",
+        ],
+    );
+    // `machine` is written after `tags`, which is out of order; the approval records that text.
+    project.stdout("ben-codex", &["set", "LES-001", "--field", "machine=lab"]);
+    project
+        .command("anna", NOW)
+        .env("DOSSIER_ANSWERS", "a")
+        .args(["approve", "LES-001"])
+        .assert()
+        .success();
+    let before = text_of(&project, "LES-001");
+
+    // Putting `machine` before `tags` would make the approved lesson read as changed: it stays.
+    let output = project
+        .run("anna", &["check", "--fix"])
+        .code(0)
+        .get_output()
+        .clone();
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("the standard output is UTF-8"),
+        OK
+    );
+    let stderr = String::from_utf8(output.stderr).expect("the standard error is UTF-8");
+    assert!(
+        stderr.contains(
+            "fields not put in order, because the approved entry would then show as changed"
+        ),
+        "{stderr}"
+    );
+    assert_eq!(text_of(&project, "LES-001"), before);
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+}
