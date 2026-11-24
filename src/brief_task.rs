@@ -208,6 +208,90 @@ pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
     Ok(cut(out, limit))
 }
 
+/// The entries `brief --task` chose for the task, each with the reason it was chosen (R-CTX-6), in
+/// the order they were chosen: the approved project entries whose `task` names the task, with
+/// `linked`; the approved project decisions whose task is one of its milestones, with `milestone`;
+/// then select::best over the other approved project entries and the team's approved lessons and
+/// how-tos, with the task's tags and title words, at most DEAD_ENDS_LIMIT + RELATED_LIMIT of them,
+/// each with select::reason. A team entry is named `team:<ID>`, as `lines` names it, and a team
+/// copy of a listed project entry is left out (R-TEAM-4). Each entry is listed once.
+pub fn chosen(ctx: &Ctx, task: &str) -> Result<Vec<(String, &'static str)>> {
+    let about = about_of(ctx, task)?;
+    let (items, _warnings) = store::all(&ctx.dossier);
+    let approved: Vec<Item> = items
+        .into_iter()
+        .filter(|item| item.entry.status() == Some(Status::Approved))
+        .collect();
+
+    // Only the project's own entries are linked and matched to milestones, as `lines` does: the
+    // team's `task` fields name tasks of other projects.
+    let linked: Vec<&Item> = approved.iter().filter(|item| task_is(item, task)).collect();
+    let mut listed: HashSet<String> = linked.iter().map(|item| item.entry.id()).collect();
+    let milestones: Vec<&Item> = approved
+        .iter()
+        .filter(|item| item.entry.kind() == Some(Kind::Decision))
+        .filter(|item| !listed.contains(&item.entry.id()))
+        .filter(|item| {
+            about
+                .milestones
+                .iter()
+                .any(|milestone| task_is(item, milestone))
+        })
+        .collect();
+    listed.extend(milestones.iter().map(|item| item.entry.id()));
+
+    let mut out: Vec<(String, &'static str)> = Vec::new();
+    out.extend(linked.iter().map(|item| (item.entry.id(), "linked")));
+    out.extend(milestones.iter().map(|item| (item.entry.id(), "milestone")));
+
+    let query = Query {
+        tags: about.tags(),
+        words: select::words(&about.title),
+    };
+    let mut pool: Vec<Item> = approved
+        .into_iter()
+        .filter(|item| !listed.contains(&item.entry.id()))
+        .collect();
+    let team = team_items(ctx);
+    let team_paths: HashSet<PathBuf> = team.iter().map(|item| item.path.clone()).collect();
+    pool.extend(team);
+    // As in `lines`: a team copy of a listed project entry is left out, and the choice is made
+    // again without it (R-TEAM-4).
+    let picked = loop {
+        let picked = select::best(&pool, &query, DEAD_ENDS_LIMIT + RELATED_LIMIT);
+        let left_out = copies_left_out(&picked, &team_paths, &listed, &ctx.cfg.code);
+        if left_out.is_empty() {
+            break picked;
+        }
+        pool.retain(|item| !left_out.contains(&item.path));
+    };
+    for item in picked {
+        let Some(reason) = select::reason(item, &query) else {
+            continue;
+        };
+        let id = if team_paths.contains(&item.path) {
+            format!("team:{}", item.entry.id())
+        } else {
+            item.entry.id()
+        };
+        out.push((id, reason));
+    }
+    Ok(out)
+}
+
+/// The task as `todo show <task> --json` gives it, read as `lines` reads it: Code::TodoMissing with
+/// the message `brief --task needs todo` when todo is not installed.
+fn about_of(ctx: &Ctx, task: &str) -> Result<About> {
+    let data = todo_bridge::json(&ctx.root, &["show", task]).map_err(|error| {
+        if error.code == Code::TodoMissing {
+            Error::new(Code::TodoMissing, NEEDS_TODO)
+        } else {
+            error
+        }
+    })?;
+    Ok(About::read(&data))
+}
+
 /// The approved lessons and how-tos of the team dossier of the project (R-CTX-2), in the order of
 /// `store::all`. A project with no team dossier gives none; tools are left out.
 fn team_items(ctx: &Ctx) -> Vec<Item> {
@@ -962,10 +1046,23 @@ mod tests {
         (dir, ctx)
     }
 
-    /// Writes an entry file at the place the store finds it. Its status, created time and
-    /// author come first, then `fields`; `sections` are the bodies, by name.
+    /// Writes an entry file in the project at the place the store finds it. Its status, created
+    /// time and author come first, then `fields`; `sections` are the bodies, by name.
     fn write_entry(
         ctx: &Ctx,
+        kind: Kind,
+        id: &str,
+        title: &str,
+        status: &str,
+        fields: &[(&str, &str)],
+        sections: &[(&str, &str)],
+    ) {
+        write_entry_in(&ctx.dossier, kind, id, title, status, fields, sections);
+    }
+
+    /// `write_entry` for the entries of `dossier`, the project's or the team's.
+    fn write_entry_in(
+        dossier: &Path,
         kind: Kind,
         id: &str,
         title: &str,
@@ -988,7 +1085,7 @@ mod tests {
                 .map(|(name, body)| (name.to_string(), body.to_string()))
                 .collect(),
         };
-        let path = store::path_for(&ctx.dossier, kind, id, title);
+        let path = store::path_for(dossier, kind, id, title);
         fs::write(&path, render(&draft)).expect("write the entry");
     }
 
@@ -2347,5 +2444,195 @@ mod tests {
         expected
             .push("INV-002 · investigation · Speedline transient stalls at the outlet".to_string());
         assert_eq!(found.expect("the lines"), expected);
+    }
+
+    /// The entries of the tests of `chosen` for T-132 (invented; the task of `speedline_task`).
+    /// FND-001 is linked, DEC-003 is a decision of its milestone T-130, LES-011 shares a tag,
+    /// LES-010 shares a title word, FND-010 shares nothing and LES-012 is a draft.
+    fn write_choice_entries(ctx: &Ctx) {
+        write_entry(
+            ctx,
+            Kind::Finding,
+            "FND-001",
+            "Steady runs stall early",
+            "approved",
+            &[("task", "T-132")],
+            &[(
+                "Observation",
+                "The steady run stalled at the lowest mass flow.",
+            )],
+        );
+        write_entry(
+            ctx,
+            Kind::Decision,
+            "DEC-003",
+            "Use transient runs on the speedline",
+            "approved",
+            &[("task", "T-130"), ("machine", "axial compressor")],
+            &[
+                ("Decision", "Run the last three speedline points transient."),
+                (
+                    "Reason",
+                    "Steady runs converged where rotating stall was seen.",
+                ),
+            ],
+        );
+        write_entry(
+            ctx,
+            Kind::Lesson,
+            "LES-010",
+            "Speedline stall margin at low speed",
+            "approved",
+            &[
+                ("task", "T-042"),
+                ("machine", "radial turbine"),
+                ("analysis", "modal analysis"),
+            ],
+            &[("Statement", "Measured on a rig at low speed.")],
+        );
+        write_entry(
+            ctx,
+            Kind::Lesson,
+            "LES-011",
+            "Steady mixing-plane runs overpredict stall margin",
+            "approved",
+            &[
+                ("task", "T-042"),
+                ("machine", "axial compressor"),
+                ("analysis", "steady RANS"),
+            ],
+            &[(
+                "Statement",
+                "Steady mixing-plane runs converge at mass flows where rotating stall is seen.",
+            )],
+        );
+        write_entry(
+            ctx,
+            Kind::Lesson,
+            "LES-012",
+            "Draft lesson on the compressor",
+            "draft",
+            &[("task", "T-042"), ("machine", "axial compressor")],
+            &[("Statement", "Never chosen.")],
+        );
+        write_entry(
+            ctx,
+            Kind::Finding,
+            "FND-010",
+            "Mesh independence reached",
+            "approved",
+            &[("task", "T-050"), ("machine", "radial turbine")],
+            &[("Observation", "Grid counts were compared.")],
+        );
+    }
+
+    #[test]
+    fn chosen_gives_each_entry_its_reason_in_the_order_of_the_choice() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, ctx) = project();
+        write_choice_entries(&ctx);
+        let show = stand_in(dir.path(), "todo-show", &envelope(speedline_task()));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let first = chosen(&ctx, "T-132");
+        let second = chosen(&ctx, "T-132");
+        let text = lines(&ctx, "T-132", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        let expected = vec![
+            ("FND-001".to_string(), "linked"),
+            ("DEC-003".to_string(), "milestone"),
+            ("LES-011".to_string(), "tag match"),
+            ("LES-010".to_string(), "word match"),
+        ];
+        assert_eq!(first.expect("the choice"), expected);
+        assert_eq!(second.expect("the choice"), expected);
+        // Every entry chosen is in the text of `lines` for the task; the entry that shares
+        // nothing is in neither.
+        let text = text.expect("the lines").join("\n");
+        for (id, _) in &expected {
+            assert!(text.contains(id.as_str()), "{id} is not in the lines");
+        }
+        assert!(!text.contains("FND-010"));
+    }
+
+    #[test]
+    fn chosen_names_a_team_entry_with_its_place_and_leaves_out_a_copy_of_a_listed_entry() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, mut ctx) = project();
+        write_choice_entries(&ctx);
+        let team = dir.path().join("team").join("DOSSIER");
+        for kind in Kind::all() {
+            fs::create_dir_all(team.join(kind.folder())).expect("the team's folder");
+        }
+        // LES-001 is a copy of FND-001, which is linked in the project; LES-002 is the team's own.
+        write_entry_in(
+            &team,
+            Kind::Lesson,
+            "LES-001",
+            "Steady runs stall early",
+            "approved",
+            &[
+                ("source", "P-001:FND-001"),
+                ("machine", "axial compressor"),
+                ("analysis", "steady RANS"),
+            ],
+            &[("Statement", "A copy of a finding of the project.")],
+        );
+        write_entry_in(
+            &team,
+            Kind::Lesson,
+            "LES-002",
+            "Stall margin at the compressor inlet",
+            "approved",
+            &[("machine", "axial compressor")],
+            &[("Statement", "Checked on a rig.")],
+        );
+        ctx.team = Some(team);
+        let show = stand_in(dir.path(), "todo-show", &envelope(speedline_task()));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let found = chosen(&ctx, "T-132");
+        let text = lines(&ctx, "T-132", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        assert_eq!(
+            found.expect("the choice"),
+            vec![
+                ("FND-001".to_string(), "linked"),
+                ("DEC-003".to_string(), "milestone"),
+                ("team:LES-002".to_string(), "tag match"),
+                ("LES-011".to_string(), "tag match"),
+                ("LES-010".to_string(), "word match"),
+            ]
+        );
+        let text = text.expect("the lines").join("\n");
+        assert!(text.contains("team:LES-002"));
+        assert!(!text.contains("team:LES-001"));
+    }
+
+    #[test]
+    fn without_todo_chosen_says_brief_task_needs_todo() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, ctx) = project();
+        write_choice_entries(&ctx);
+        let missing = dir.path().join("no-such-todo");
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &missing) };
+
+        let found = chosen(&ctx, "T-132");
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        let error = found.expect_err("brief --task needs todo");
+        assert_eq!(error.code, Code::TodoMissing);
+        assert_eq!(error.message, "brief --task needs todo");
     }
 }
