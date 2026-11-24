@@ -15,15 +15,17 @@ const VALUE_OPTIONS: [&str; 3] = ["--dossier", "--agent", "--project"];
 
 /// The commands that stay on the PC: `connect` and `projects` manage the PC's files, `help`
 /// prints the text of the program on the PC, and `hooks`, `guard` and `skill` work with the
-/// Claude Code on the PC. `review-session`, `session` and `session-end` read files of this machine,
-/// which the server could not read.
-const LOCAL_COMMANDS: [&str; 9] = [
+/// Claude Code on the PC. `after` reads the payload of the Claude Code on the PC.
+/// `review-session`, `session` and `session-end` read files of this machine, which the server
+/// could not read.
+const LOCAL_COMMANDS: [&str; 10] = [
     "connect",
     "projects",
     "help",
     "hooks",
     "guard",
     "skill",
+    "after",
     "review-session",
     "session",
     "session-end",
@@ -475,13 +477,14 @@ mod tests {
         );
 
         // Commands that stay on the PC, with a pointer present.
-        let local: [&[&str]; 8] = [
+        let local: [&[&str]; 9] = [
             &["dossier", "connect", "anna@sim01:/srv/P-001"],
             &["dossier", "projects"],
             &["dossier", "help"],
             &["dossier", "hooks", "install"],
             &["dossier", "guard"],
             &["dossier", "skill", "install"],
+            &["dossier", "after"],
             &["dossier", "session-end", "--run", "review-command"],
             &["dossier", "--json"],
         ];

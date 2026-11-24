@@ -263,6 +263,7 @@ fn help_without_a_topic_lists_every_command_in_order() {
             "map",
             "hooks",
             "guard",
+            "after",
             "skill",
             "team",
             "confidential",

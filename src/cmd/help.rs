@@ -18,7 +18,7 @@ pub struct Args {
 
 /// Every command of all phases of docs/design.md, in the order of the help overview, each with a
 /// description of at most five words.
-pub const COMMANDS: [(&str, &str); 87] = [
+pub const COMMANDS: [(&str, &str); 88] = [
     ("init", "Creates the dossier folder here"),
     ("where", "Shows folders and project code"),
     ("people", "Adds or extends a person"),
@@ -78,6 +78,7 @@ pub const COMMANDS: [(&str, &str); 87] = [
     ("map", "Shows or sets the map"),
     ("hooks", "Installs or removes Claude hooks"),
     ("guard", "Blocks edits inside dossier folders"),
+    ("after", "Adds context after todo commands"),
     ("skill", "Installs the Claude Code skill"),
     ("team", "Shows or changes team settings"),
     ("confidential", "Manages confidential terms"),
