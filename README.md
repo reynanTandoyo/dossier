@@ -1078,8 +1078,8 @@ What each command does:
 - `decide`, `found` and `assume` are approved at once, because anna wrote them.
 - `learn` is run by anna's LLM (`--agent anna-claude`). A lesson from an LLM is a draft.
 - `drafts` lists the drafts.
-- `approve` shows a draft in full. Then it asks whether to approve, reject or skip it. Only a
-  person at a terminal can approve. Without a terminal, it refuses.
+- `approve` shows a draft in full. Then it asks whether to approve (`a`), edit first (`e`), reject
+  (`r`) or skip (`s`) it. Only a person at a terminal can approve. Without a terminal, it refuses.
 - `brief` prints what a new session needs to know. The output looks like this:
 
 ```

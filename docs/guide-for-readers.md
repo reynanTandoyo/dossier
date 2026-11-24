@@ -19,14 +19,14 @@ LES-005  lesson  Mesh refinement moves the choke margin  by ben via ben-claude  
 Only a person can approve, and only in a terminal; for a team dossier entry, add `--team` after the ID. The command shows the whole draft, then asks:
 
 ```
-LES-004: approve, reject or skip? (a/r/s) a
+LES-004: approve, edit first, reject or skip? (a/e/r/s) a
 LES-004: approved
 ```
 
 - `a` (or `approve`): the draft becomes approved, with your name and the time. It now counts as knowledge.
+- `e` (or `edit`): the draft opens in the editor named by `VISUAL`, else `EDITOR`, else Notepad on Windows or `vi` elsewhere. After you save and close it, the changed draft is shown again and approve asks once more, so you can still answer `a`. The change is recorded in the draft's history, and it is kept even when you then skip the draft.
 - `r` (or `reject`): the draft is rejected. It is hidden, but kept, so the same proposal can be recognised later.
-- `s`, any other answer (`e` included), or just Enter: nothing changes. The draft stays a draft and comes up again next time.
-- There is no answer for editing. If a draft needs a change, do not approve it as it is; ask the person who wrote it to change it, and read it again.
+- `s`, any other answer, or just Enter: the draft is skipped. It stays a draft and comes up again next time. An edit made with `e` before that is kept.
 
 Before you answer `a` to a lesson, check three things:
 
