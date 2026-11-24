@@ -4155,8 +4155,8 @@
 - note (2026-11-24, haiku-T-338): done
 
 ### T-339 · session-end and hooks install --session-review: start the team's review command when a session ends
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - milestone: T-057
 - goal: With the hook installed, the end of a session prepares the review material and starts the team's own command on it.
@@ -4165,8 +4165,10 @@
 - depends: T-337, T-338
 - accept: With the hook installed, the end of a session prepares the review material and starts the team's own command on it, so that drafts are waiting the next morning.
 - reqs: R-DRAFT-9, D7, D44
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): split into T-385, T-386, T-387, T-388
+- note (2026-11-24, planner): done — When a Claude Code session ends, the hook writes the session's material and starts the team's review command, in bash on every PC.
 
 ### T-385 · session-end: the command file and its place in the command list
 - status: done
