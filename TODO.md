@@ -3936,8 +3936,10 @@
 - note (2026-11-24, haiku-T-334): done
 
 ### T-335 · Agent rules and README: digests
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-335
+- claimed: 2026-11-24T01:40+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-056
 - why: The context an LLM gets must stay small as a project grows (D22).
@@ -9184,8 +9186,10 @@
 - note (2026-11-24, haiku-T-422): done
 
 ### T-423 · add assumption: set the state open, as assume does
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-423
+- claimed: 2026-11-24T01:40+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: bug
 - milestone: T-058
 - why: An assumption written with add has no state, so approve refuses it later (found in T-351 when it ran the help examples).
@@ -9202,8 +9206,10 @@
 - note (2026-11-24, planner): added
 
 ### T-424 · brief --task: one selection for the text and the JSON items
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-424
+- claimed: 2026-11-24T01:40+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-347
 - why: R-CTX-6 wants --json to return the same selection as the text; chosen() picked from one pool while lines() picks per heading, so the items could differ from the printed entries (found in T-394).
