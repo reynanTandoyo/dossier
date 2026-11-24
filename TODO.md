@@ -4698,10 +4698,8 @@
 - note (2026-11-24, haiku-T-397): done
 
 ### T-349 · check: warn about numbers without a unit
-- status: claimed
+- status: done
 - owner: haiku-T-349
-- claimed: 2026-11-24T01:57+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
@@ -4716,8 +4714,12 @@
   4. Run cargo test --test cmd_check
 - accept: check warns about a bare number in the Settings of a how-to or the Statement of a lesson.
 - verify: cargo test --test cmd_check
+- verified: 2026-11-24
+- commit: 3d317c0
 - reqs: R-ENTRY-11
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-349): done
 
 ### T-350 · team summary: the state of the team dossier
 - status: done
