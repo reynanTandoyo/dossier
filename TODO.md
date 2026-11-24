@@ -3936,10 +3936,8 @@
 - note (2026-11-24, haiku-T-334): done
 
 ### T-335 · Agent rules and README: digests
-- status: claimed
+- status: done
 - owner: haiku-T-335
-- claimed: 2026-11-24T01:40+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-056
 - why: The context an LLM gets must stay small as a project grows (D22).
@@ -3954,8 +3952,12 @@
   4. Run cargo test --lib agents:: and cargo test --test cmd_agents --test cmd_skill; update an expected rules text where a test compares it.
 - accept: The agent rules tell an LLM to sum up a closed milestone, and the README explains digests.
 - verify: cargo test --lib agents:: && cargo test --test cmd_agents --test cmd_skill
+- verified: 2026-11-24
+- commit: 105bb60
 - reqs: R-CTX-14, R-AGENT-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-335): done
 
 ### T-057 · Session review (R-DRAFT-7, R-DRAFT-9)
 - status: open
