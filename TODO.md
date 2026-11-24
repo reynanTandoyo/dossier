@@ -4812,7 +4812,7 @@
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
 - summary: The version number and the README are ready for the owner to tag release 0.6.0.
-- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417, T-418, T-419, T-421, T-422, T-423
+- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417, T-418, T-419, T-421, T-422, T-423, T-424
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -9154,6 +9154,28 @@
 - accept: add assumption writes state: open unless a state is given, and the entry can be approved.
 - verify: cargo test --test cmd_add
 - reqs: R-WRITE-1
+- note (2026-11-24, planner): added
+
+### T-424 · brief --task: one selection for the text and the JSON items
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-347
+- why: R-CTX-6 wants --json to return the same selection as the text; chosen() picked from one pool while lines() picks per heading, so the items could differ from the printed entries (found in T-394).
+- summary: The JSON of brief --task names exactly the entries the text shows, each with why it was chosen.
+- depends: T-394
+- files: src/brief_task.rs, src/cmd/brief.rs, tests/cmd_brief.rs
+- read: docs/requirements.md, src/select.rs
+- steps:
+  1. src/brief_task.rs: add `pub struct Selection { pub lines: Vec<String>, pub chosen: Vec<(String, &'static str)> }` and turn the body of `lines` into `pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection>`. Keep `pub fn lines(ctx, task, limit) -> Result<Vec<String>>` as `select(ctx, task, limit).map(|s| s.lines)` so nothing else changes for callers of lines.
+  2. src/brief_task.rs, in select: every time a summary line of an entry is pushed, also push (ID, reason) to `chosen`, in the same order: the entries of RECORDED `linked`; the decisions under MILESTONES `milestone`; the dead ends `select::reason(item, &query)`; the investigations: `linked` when their task is the task, else `select::reason`; the entries under CODE `linked` (their code lies in the task's files); the related entries `select::reason`. A team entry's ID is `team:<ID>`, as its line. When select::reason gives None, use `word match`. Pass `chosen` into investigation_lines if it needs to add to it.
+  3. src/brief_task.rs, at the end of select: after `cut(out, limit)`, keep in `chosen` only the entries whose summary line is still among the lines (a line that starts with `<ID> · ` or `team:<ID> · `), so that the data names exactly the entries that are printed (R-CTX-6). Then remove `pub fn chosen` and any helper only it used (about_of if nothing else calls it), and update the doc comments.
+  4. src/cmd/brief.rs: where brief --task now calls brief_task::lines and, for the data, brief_task::chosen, call brief_task::select once and use `.lines` for the text and `.chosen` for the `items` of the JSON data, so todo is asked once.
+  5. tests/cmd_brief.rs: a task with a linked finding, a matching dead end and a related lesson: the `items` of --json are exactly the entries printed, in the printed order, with the reasons linked, tag match or word match; with `--budget` so small that the related lesson is cut, the lesson is not in `items` either.
+  6. Run cargo test --test cmd_brief and cargo test --lib brief_task::
+- accept: brief --task --json gives as items exactly the entries the text prints, in order, each with its reason; todo is asked once.
+- verify: cargo test --test cmd_brief && cargo test --lib brief_task::
+- reqs: R-CTX-6
 - note (2026-11-24, planner): added
 
 ## Questions
