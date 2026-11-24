@@ -4804,7 +4804,7 @@
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
 - summary: The version number and the README are ready for the owner to tag release 0.6.0.
-- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417, T-418, T-419, T-421, T-422
+- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417, T-418, T-419, T-421, T-422, T-423
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -9124,6 +9124,24 @@
 - accept: team summary writes 1 draft and 2 drafts.
 - verify: cargo test --test cmd_team
 - reqs: R-TEAM-5
+- note (2026-11-24, planner): added
+
+### T-423 · add assumption: set the state open, as assume does
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: bug
+- milestone: T-058
+- why: An assumption written with add has no state, so approve refuses it later (found in T-351 when it ran the help examples).
+- summary: An assumption written with add can be approved like one written with assume.
+- files: src/cmd/add.rs, tests/cmd_add.rs
+- read: src/cmd/assume.rs, src/entry/rules.rs
+- steps:
+  1. src/cmd/add.rs, in run, after the task is added to `fields`: when `kind` is Kind::Assumption and no field `state` with a value was given, push ("state", "open"), as the assume command does (its OPEN). A state given with --field state=... is kept as given.
+  2. tests/cmd_add.rs: `add assumption --title "..." --section ...` with the sections an assumption needs writes `state: open`, and `approve` (DOSSIER_ANSWERS a, as anna) approves it afterwards; `--field state=confirmed` is kept.
+  3. Run cargo test --test cmd_add
+- accept: add assumption writes state: open unless a state is given, and the entry can be approved.
+- verify: cargo test --test cmd_add
+- reqs: R-WRITE-1
 - note (2026-11-24, planner): added
 
 ## Questions
