@@ -5,8 +5,10 @@
 mod common;
 
 use common::Project;
+use dossier::approval::{self, Mark};
 use dossier::entry::{Entry, Status};
 use predicates::str::contains;
+use std::path::Path;
 
 /// The fixed clock of `common::Project`.
 const NOW: &str = "2026-11-20T10:00:00+01:00";
@@ -15,6 +17,15 @@ const NOW: &str = "2026-11-20T10:00:00+01:00";
 const STATEMENT: &str = "Steady runs with a mixing-plane interface overpredict the stall margin.";
 const VALID_FOR: &str = "An invented test rig with a tip Mach number above 1.1.";
 const EVIDENCE: &str = "An invented comparison of two speedlines, section 1.";
+
+/// The stand-in editor that appends one line to the file it is given (as in tests/cmd_edit.rs).
+const APPENDS_A_LINE: (&str, &str) = (
+    "@echo off\r\necho Added by the editor.>> %1\r\n",
+    "#!/bin/sh\necho \"Added by the editor.\" >> \"$1\"\n",
+);
+
+/// The stand-in editor that saves the file as it was (as in tests/cmd_edit.rs).
+const CHANGES_NOTHING: (&str, &str) = ("@echo off\r\n", "#!/bin/sh\nexit 0\n");
 
 /// Runs `learn` as anna-claude with a complete lesson: a draft, with the next lesson ID.
 fn draft_lesson(project: &Project) {
@@ -50,10 +61,14 @@ fn approve_with(
         .assert()
 }
 
+/// The text of the entry file with `id`.
+fn text_of(project: &Project, id: &str) -> String {
+    std::fs::read_to_string(project.entry_file(id)).expect("the entry file is read")
+}
+
 /// The entry file with `id`, read and parsed.
 fn entry_of(project: &Project, id: &str) -> Entry {
-    let text = std::fs::read_to_string(project.entry_file(id)).expect("the entry file is read");
-    Entry::parse(&text).expect("the entry parses")
+    Entry::parse(&text_of(project, id)).expect("the entry parses")
 }
 
 #[test]
@@ -330,6 +345,111 @@ fn an_id_given_twice_is_handled_once() {
     assert_eq!(
         entry_of(&project, "LES-001").status(),
         Some(Status::Approved)
+    );
+}
+
+/// Runs `approve` with `ids` as anna, answering `answers`, with `editor` as the editor (VISUAL).
+/// The editor's temporary file goes into the project's `.test/tmp` folder, as in tests/cmd_edit.rs.
+fn approve_with_editor(
+    project: &Project,
+    answers: &str,
+    editor: &Path,
+    ids: &[&str],
+) -> assert_cmd::assert::Assert {
+    let tmp = project.root().join(".test").join("tmp");
+    std::fs::create_dir_all(&tmp).expect("the temporary folder of the test");
+    project
+        .command("anna", NOW)
+        .env("DOSSIER_ANSWERS", answers)
+        .env("VISUAL", editor)
+        .env("TMPDIR", &tmp)
+        .env("TMP", &tmp)
+        .env("TEMP", &tmp)
+        .arg("approve")
+        .args(ids)
+        .assert()
+}
+
+#[test]
+fn an_edit_before_approval_is_kept_and_its_history_line_comes_before_the_approval() {
+    let project = Project::new();
+    draft_lesson(&project);
+    let (windows, unix) = APPENDS_A_LINE;
+    let editor = project.write_stand_in("editor", windows, unix);
+
+    approve_with_editor(&project, "e|a", &editor, &["LES-001"])
+        .success()
+        .stdout("LES-001: approved\n");
+
+    let entry = entry_of(&project, "LES-001");
+    assert_eq!(entry.status(), Some(Status::Approved));
+    assert_eq!(
+        entry.section("Evidence").as_deref(),
+        Some("An invented comparison of two speedlines, section 1.\nAdded by the editor.")
+    );
+    assert_eq!(
+        entry.history(),
+        [
+            format!("{NOW} anna via anna-claude: created"),
+            format!("{NOW} anna: changed — edited before approval"),
+            format!("{NOW} anna: approved"),
+        ]
+    );
+    // The checksum is that of the edited text, the text that was approved.
+    let state = project.root().join("DOSSIER").join(".state");
+    let text = text_of(&project, "LES-001");
+    assert!(matches!(
+        approval::mark(&state, "LES-001", text.as_bytes()),
+        Mark::Unchanged
+    ));
+}
+
+#[test]
+fn an_edit_followed_by_a_skip_is_kept_and_the_draft_stays_a_draft() {
+    let project = Project::new();
+    draft_lesson(&project);
+    let (windows, unix) = APPENDS_A_LINE;
+    let editor = project.write_stand_in("editor", windows, unix);
+
+    approve_with_editor(&project, "e|s", &editor, &["LES-001"])
+        .success()
+        .stdout("LES-001: skipped\n");
+
+    let entry = entry_of(&project, "LES-001");
+    assert_eq!(entry.status(), Some(Status::Draft));
+    assert_eq!(
+        entry.section("Evidence").as_deref(),
+        Some("An invented comparison of two speedlines, section 1.\nAdded by the editor.")
+    );
+    assert_eq!(
+        entry.history(),
+        [
+            format!("{NOW} anna via anna-claude: created"),
+            format!("{NOW} anna: changed — edited before approval"),
+        ]
+    );
+    assert!(!project.root().join("DOSSIER/.state/approved.json").exists());
+}
+
+#[test]
+fn an_editor_that_saves_the_draft_unchanged_is_asked_again_and_leaves_no_change_line() {
+    let project = Project::new();
+    draft_lesson(&project);
+    let (windows, unix) = CHANGES_NOTHING;
+    let editor = project.write_stand_in("editor", windows, unix);
+
+    approve_with_editor(&project, "e|r", &editor, &["LES-001"])
+        .success()
+        .stdout("LES-001: rejected\n");
+
+    let entry = entry_of(&project, "LES-001");
+    assert_eq!(entry.status(), Some(Status::Rejected));
+    assert_eq!(
+        entry.history(),
+        [
+            format!("{NOW} anna via anna-claude: created"),
+            format!("{NOW} anna: rejected"),
+        ]
     );
 }
 

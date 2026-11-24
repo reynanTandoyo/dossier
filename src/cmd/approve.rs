@@ -1,13 +1,16 @@
-//! The `approve` command: a person at a terminal approves or rejects drafts, one by one (R-DRAFT-4,
-//! D5, D6). Each draft is shown in full on standard error and the person answers: `a` or `approve`
-//! approves it, `r` or `reject` rejects it, and anything else skips it. An LLM cannot approve, and
-//! nothing is asked without a terminal. The answers are written together, in one transaction.
+//! The `approve` command: a person at a terminal approves, edits, rejects or skips drafts, one by
+//! one (R-DRAFT-4, D5, D6). Each draft is shown in full on standard error and the person answers:
+//! `a` or `approve` approves it, `e` or `edit` opens it in the editor first (then it is shown and
+//! asked about again), `r` or `reject` rejects it, and anything else skips it. An LLM cannot
+//! approve, and nothing is asked without a terminal. The answers are written together, in one
+//! transaction.
 
 use crate::approval;
 use crate::cli::Global;
+use crate::cmd::edit;
 use crate::ctx::Ctx;
-use crate::entry::Status;
 use crate::entry::rules;
+use crate::entry::{Entry, Status};
 use crate::error::{Code, Error, Result};
 use crate::names::Who;
 use crate::output::Output;
@@ -106,9 +109,11 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     })
 }
 
-/// Shows one draft and records what the person answers for it. Anything that is not a draft, and
-/// a draft that is missing something, is skipped with a warning and no question is asked. An ID
-/// given a second time is left alone with a warning.
+/// Shows one draft and records what the person answers for it (R-DRAFT-4): `a` approves it, `e`
+/// edits it first and asks again, `r` rejects it, and anything else skips it. Anything that is not
+/// a draft, and a draft that is missing something, is skipped with a warning and no question is
+/// asked. An edit is kept when the draft is then skipped. An ID given a second time is left alone
+/// with a warning.
 fn review(tx: &mut Tx, item: &Item, who: &Who, tally: &mut Tally) -> Result<()> {
     let entry = &item.entry;
     let id = entry.id();
@@ -129,36 +134,84 @@ fn review(tx: &mut Tx, item: &Item, who: &Who, tally: &mut Tally) -> Result<()> 
             return Ok(());
         }
     }
-    show(&entry.text());
-    let problems = rules::problems(entry);
-    if !problems.is_empty() {
-        let what: Vec<String> = problems.into_iter().map(|problem| problem.what).collect();
-        tally.verdict(&id, Verdict::Skipped);
-        tally.warn(format!("{id} cannot be approved yet: {}", what.join("; ")));
+    let mut current = item.entry.clone();
+    show(&current.text());
+    // Whether the person has edited the draft: an edited draft that is then skipped keeps its edit.
+    let mut edited = false;
+    loop {
+        let problems = rules::problems(&current);
+        if !problems.is_empty() {
+            let what: Vec<String> = problems.into_iter().map(|problem| problem.what).collect();
+            keep_edit(tx, item, &current, edited);
+            tally.verdict(&id, Verdict::Skipped);
+            tally.warn(format!("{id} cannot be approved yet: {}", what.join("; ")));
+            return Ok(());
+        }
+        let answer = term::ask(&format!(
+            "{id}: approve, edit first, reject or skip? (a/e/r/s) "
+        ))?;
+        let verdict = match answer.to_lowercase().as_str() {
+            "a" | "approve" => {
+                approve(tx, item, &current, who)?;
+                Verdict::Approved
+            }
+            "r" | "reject" => {
+                reject(tx, item, &current, who);
+                Verdict::Rejected
+            }
+            "e" | "edit" => {
+                if edit_draft(tx.time(), who, &id, &mut current)? {
+                    edited = true;
+                    show(&current.text());
+                }
+                continue;
+            }
+            _ => {
+                keep_edit(tx, item, &current, edited);
+                Verdict::Skipped
+            }
+        };
+        tally.verdict(&id, verdict);
         return Ok(());
     }
-    let answer = term::ask(&format!("{id}: approve, reject or skip? (a/r/s) "))?;
-    let verdict = match answer.to_lowercase().as_str() {
-        "a" | "approve" => {
-            approve(tx, item, who)?;
-            Verdict::Approved
-        }
-        "r" | "reject" => {
-            reject(tx, item, who);
-            Verdict::Rejected
-        }
-        _ => Verdict::Skipped,
-    };
-    tally.verdict(&id, verdict);
-    Ok(())
 }
 
-/// Queues the approval of a draft: status, who approved it and when, and the history line. The
-/// checksum of an approved lesson, how-to or tool is recorded now, unless this is a dry run
-/// (R-LIFE-6).
-fn approve(tx: &mut Tx, item: &Item, who: &Who) -> Result<()> {
+/// Opens the draft in the editor, as `edit` does (R-EDIT-2), and returns whether its text changed.
+/// A changed text is checked as `edit` checks it, gets the history line of the edit before the
+/// approval, and replaces `current`. When the editor saves the text as it was, nothing changes.
+fn edit_draft(time: &str, who: &Who, id: &str, current: &mut Entry) -> Result<bool> {
+    let before = current.text();
+    let after = edit::edit_in_temp_file(&edit::editor_program(), id, &before)?;
+    if after == before {
+        return Ok(false);
+    }
+    let mut edited = Entry::parse(&after)?;
+    edit::refuse_tool_lines(current, &edited)?;
+    edited.add_history(time, who, "changed", "edited before approval");
+    *current = edited;
+    Ok(true)
+}
+
+/// Queues the draft as the person left it when it was edited: a draft skipped after an edit, or an
+/// edited draft that cannot be approved yet, keeps its edit and stays a draft. Without an edit
+/// nothing is queued.
+fn keep_edit(tx: &mut Tx, item: &Item, current: &Entry, edited: bool) {
+    if edited {
+        tx.put(
+            item.path.clone(),
+            Some(item),
+            current.text(),
+            change(current.id(), "changed"),
+        );
+    }
+}
+
+/// Queues the approval of `entry`, the draft as the person left it (edited or not): status, who
+/// approved it and when, and the history line. The checksum of an approved lesson, how-to or tool
+/// is recorded now, unless this is a dry run (R-LIFE-6).
+fn approve(tx: &mut Tx, item: &Item, entry: &Entry, who: &Who) -> Result<()> {
     let time = tx.time().to_string();
-    let mut entry = item.entry.clone();
+    let mut entry = entry.clone();
     entry.set_field("status", Status::Approved.name());
     entry.set_field("approved", &format!("{time} by {}", who.person));
     entry.set_field("valid-from", &time);
@@ -172,10 +225,10 @@ fn approve(tx: &mut Tx, item: &Item, who: &Who) -> Result<()> {
     Ok(())
 }
 
-/// Queues the rejection of a draft: status and the history line.
-fn reject(tx: &mut Tx, item: &Item, who: &Who) {
+/// Queues the rejection of `entry`, the draft as the person left it: status and the history line.
+fn reject(tx: &mut Tx, item: &Item, entry: &Entry, who: &Who) {
     let time = tx.time().to_string();
-    let mut entry = item.entry.clone();
+    let mut entry = entry.clone();
     entry.set_field("status", Status::Rejected.name());
     entry.add_history(&time, who, "rejected", "");
     let id = entry.id();

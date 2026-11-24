@@ -117,7 +117,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
 
 /// The editor program: VISUAL, else EDITOR, each when it is not blank; else notepad on Windows
 /// and vi elsewhere.
-fn editor_program() -> OsString {
+pub(crate) fn editor_program() -> OsString {
     ["VISUAL", "EDITOR"]
         .into_iter()
         .find_map(|name| {
@@ -129,7 +129,7 @@ fn editor_program() -> OsString {
 /// Writes `text` to a temporary file named for the entry (`<ID>-<process id>.md`, so that tests
 /// running in parallel do not share it), runs the editor on it and waits, then reads the file back
 /// and deletes it. Returns the text as the editor saved it.
-fn edit_in_temp_file(editor: &OsStr, id: &str, text: &str) -> Result<String> {
+pub(crate) fn edit_in_temp_file(editor: &OsStr, id: &str, text: &str) -> Result<String> {
     let path = std::env::temp_dir().join(format!("{id}-{}.md", std::process::id()));
     std::fs::write(&path, text)?;
     let edited = run_editor(editor, &path);
@@ -163,7 +163,7 @@ fn run_editor(editor: &OsStr, path: &Path) -> Result<String> {
 
 /// Code::Refused when the edit changed the ID or a line the tool writes (format.md §5), naming
 /// them. A changed kind is refused too: the folder and the ID prefix depend on it.
-fn refuse_tool_lines(before: &Entry, after: &Entry) -> Result<()> {
+pub(crate) fn refuse_tool_lines(before: &Entry, after: &Entry) -> Result<()> {
     let mut changed: Vec<&str> = Vec::new();
     if before.id() != after.id() {
         changed.push("ID");
