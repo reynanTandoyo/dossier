@@ -9045,10 +9045,8 @@
 - note (2026-11-23, haiku-T-411): done
 
 ### T-414 · Readers' guide and README: the answer 'edit first' of approve
-- status: claimed
+- status: done
 - owner: haiku-T-414
-- claimed: 2026-11-24T01:55+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-058
 - why: The readers' guide describes the answers of approve, and gains the fourth with T-413.
@@ -9062,8 +9060,12 @@
   3. Run cargo test --test smoke
 - accept: The guide and the README name the four answers of approve.
 - verify: cargo test --test smoke
+- verified: 2026-11-24
+- commit: f119b38
 - reqs: R-DRAFT-4, REL-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-414): done
 
 ### T-416 · hooks.rs: the session-end hook runs in bash
 - status: done
