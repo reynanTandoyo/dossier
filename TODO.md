@@ -9192,10 +9192,8 @@
 - note (2026-11-24, haiku-T-422): done
 
 ### T-423 · add assumption: set the state open, as assume does
-- status: claimed
+- status: done
 - owner: haiku-T-423
-- claimed: 2026-11-24T01:40+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: bug
 - milestone: T-058
 - why: An assumption written with add has no state, so approve refuses it later (found in T-351 when it ran the help examples).
@@ -9208,8 +9206,12 @@
   3. Run cargo test --test cmd_add
 - accept: add assumption writes state: open unless a state is given, and the entry can be approved.
 - verify: cargo test --test cmd_add
+- verified: 2026-11-24
+- commit: b4b7acb
 - reqs: R-WRITE-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-24, planner): added
+- note (2026-11-24, haiku-T-423): done
 
 ### T-424 · brief --task: one selection for the text and the JSON items
 - status: claimed
