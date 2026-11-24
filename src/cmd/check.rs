@@ -155,9 +155,9 @@ fn report(ctx: &Ctx) -> Result<Output> {
 /// text is one `fixed: <old> renamed to <new>` line per rename, one `<file>: format line added`
 /// line per file that got a format line and one `<file>: fields put in order` line per file whose
 /// fields moved, and nothing on a dry run, where the warnings of `tx::write` say what would be
-/// written. An entry whose fields would then read as changed after approval keeps its order, and
-/// a warning says so. The data lists the renames as `fixed`, the files as `format_line` and
-/// `field_order`. Without a name: Code::Usage.
+/// written. An approved entry whose repairs would then read as changed keeps its lines, and a
+/// warning says so (`approved_repairs`). The data lists the renames as `fixed`, the files as
+/// `format_line` and `field_order`. Without a name: Code::Usage.
 fn fix(ctx: &Ctx) -> Result<Output> {
     let who = ctx.writer()?.clone();
     let mut renamed: Vec<String> = Vec::new();
@@ -178,9 +178,15 @@ fn fix(ctx: &Ctx) -> Result<Output> {
             } else {
                 None
             };
-            let needs_format = !has_format_line(entry);
-            let order = ordered_lines(ctx, item, &id, &mut skipped);
-            if new_path.is_none() && !needs_format && order.is_none() {
+            let (order, format) = approved_repairs(
+                ctx,
+                item,
+                &id,
+                fields_in_order(&entry.lines),
+                !has_format_line(entry),
+                &mut skipped,
+            );
+            if new_path.is_none() && !format && order.is_none() {
                 continue;
             }
             let mut fixed = entry.clone();
@@ -193,7 +199,7 @@ fn fix(ctx: &Ctx) -> Result<Output> {
                 fixed.add_history(tx.time(), &who, FIXED, FILE_NAME);
                 details.push(FILE_NAME);
             }
-            if needs_format {
+            if format {
                 add_format_line(&mut fixed.lines);
                 fixed.add_history(tx.time(), &who, FIXED, FORMAT_DETAIL);
                 details.push(FORMAT_DETAIL);
@@ -222,7 +228,7 @@ fn fix(ctx: &Ctx) -> Result<Output> {
                     item.path.clone()
                 }
             };
-            if needs_format {
+            if format {
                 formatted.push(format!("{}: format line added", relative(&ctx.root, &path)));
             }
             if fields_moved {
@@ -298,27 +304,42 @@ fn add_format_line(lines: &mut Vec<String>) {
     lines.insert(0, format!("{mark}{FORMAT_LINE}{ending}"));
 }
 
-/// The lines that `check --fix` puts an entry's known fields in (`fields_in_order`), or None when
-/// they stay as they are. An approved entry's checksum covers the order of its lines (approval.rs):
-/// when the new order would turn an entry that is recorded as unchanged into a changed one, the
-/// order stays and a warning says so. Such an entry keeps the order it was approved in.
-fn ordered_lines(
+/// The text repairs of an entry that `check --fix` may make: the lines with the tool's own fields
+/// in order (`order`, None when they stay as they are) and whether a format line goes in front
+/// (`format`). An approved entry's checksum covers its lines (approval.rs). When the entry is
+/// recorded as unchanged and the repairs would turn it into a changed one, none of them is made and
+/// a warning names the repairs left out, so the entry keeps its lines until a person approves it
+/// again. Repairs made together are checked once, on the final text.
+fn approved_repairs(
     ctx: &Ctx,
     item: &Item,
     id: &str,
+    order: Option<Vec<String>>,
+    format: bool,
     skipped: &mut Vec<String>,
-) -> Option<Vec<String>> {
-    let lines = fields_in_order(&item.entry.lines)?;
+) -> (Option<Vec<String>>, bool) {
+    if order.is_none() && !format {
+        return (None, false);
+    }
+    let mut lines = order.clone().unwrap_or_else(|| item.entry.lines.clone());
+    if format {
+        add_format_line(&mut lines);
+    }
     let before = approval::mark(&ctx.state, id, &item.raw);
     let after = approval::mark(&ctx.state, id, lines.concat().as_bytes());
     if matches!(before, Mark::Unchanged) && matches!(after, Mark::Changed) {
+        let what = match (order.is_some(), format) {
+            (true, true) => "fields not put in order and format line not added",
+            (true, false) => "fields not put in order",
+            _ => "format line not added",
+        };
         skipped.push(format!(
-            "{}: fields not put in order, because the approved entry would then show as changed",
+            "{}: {what}, because the approved entry would then show as changed",
             relative(&ctx.root, &item.path)
         ));
-        return None;
+        return (None, false);
     }
-    Some(lines)
+    (order, format)
 }
 
 /// The lines of an entry with its known fields in the order of `FIELD_ORDER` (format.md §5), or

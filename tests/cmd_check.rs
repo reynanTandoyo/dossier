@@ -1546,3 +1546,81 @@ fn check_fix_leaves_an_approved_entry_in_its_order_when_the_new_order_would_chan
     assert_eq!(text_of(&project, "LES-001"), before);
     assert_eq!(project.stdout("anna", &["check"]), OK);
 }
+
+#[test]
+fn check_fix_leaves_an_approved_lesson_without_a_format_line_as_it_is() {
+    let project = Project::new();
+    learn_by(&project, "anna");
+    // The approval is recorded for the text without a format line, so adding one would change it.
+    remove_format_line_by_hand(&project, "LES-001");
+    record_approval(&project, "LES-001", &text_of(&project, "LES-001"));
+    let without = text_of(&project, "LES-001");
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+
+    let output = project
+        .run("anna", &["check", "--fix"])
+        .code(0)
+        .get_output()
+        .clone();
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("the standard output is UTF-8"),
+        OK
+    );
+    assert_eq!(
+        String::from_utf8(output.stderr).expect("the standard error is UTF-8"),
+        format!(
+            "warning: {}: format line not added, because the approved entry would then show as changed\n",
+            shown(&project.entry_file("LES-001"))
+        )
+    );
+    assert_eq!(text_of(&project, "LES-001"), without);
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+}
+
+#[test]
+fn check_fix_leaves_an_approved_lesson_with_both_repairs_as_it_is() {
+    let project = Project::new();
+    learn_by(&project, "anna");
+    // The fields are out of order and there is no format line; the approval records that text.
+    move_line_after(&project, "LES-001", "- created:", "- author:");
+    remove_format_line_by_hand(&project, "LES-001");
+    record_approval(&project, "LES-001", &text_of(&project, "LES-001"));
+    let before = text_of(&project, "LES-001");
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+
+    let output = project
+        .run("anna", &["check", "--fix"])
+        .code(0)
+        .get_output()
+        .clone();
+    assert_eq!(
+        String::from_utf8(output.stdout).expect("the standard output is UTF-8"),
+        OK
+    );
+    assert_eq!(
+        String::from_utf8(output.stderr).expect("the standard error is UTF-8"),
+        format!(
+            "warning: {}: fields not put in order and format line not added, because the approved entry would then show as changed\n",
+            shown(&project.entry_file("LES-001"))
+        )
+    );
+    assert_eq!(text_of(&project, "LES-001"), before);
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+}
+
+#[test]
+fn check_fix_puts_back_the_format_line_of_an_approved_lesson_and_it_is_unchanged_again() {
+    let project = Project::new();
+    learn_by(&project, "anna");
+    remove_format_line_by_hand(&project, "LES-001");
+    // The approved text had the format line, so the text without it reads as changed.
+    assert!(
+        problems(&project).contains("LES-001 CHANGED approved lesson changed after approval"),
+        "the entry reads as changed"
+    );
+
+    let stdout = project.stdout("anna", &["check", "--fix"]);
+    let file = project.entry_file("LES-001");
+    assert_eq!(stdout, format!("{}: format line added\n{OK}", shown(&file)));
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+}
