@@ -4653,10 +4653,8 @@
 - note (2026-11-24, haiku-T-396): done
 
 ### T-397 · check --fix: put the tool's own fields in order
-- status: claimed
+- status: done
 - owner: haiku-T-397
-- claimed: 2026-11-24T01:05+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-348
 - why: Smaller comforts that are worth having once the daily use is settled.
@@ -4671,8 +4669,12 @@
   4. Run cargo test --test cmd_check
 - accept: check --fix puts the tool's own field lines back in their order without touching unknown keys or history lines.
 - verify: cargo test --test cmd_check
+- verified: 2026-11-24
+- commit: b8e49ed
 - reqs: R-CHECK-2, R-EDIT-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-397): done
 
 ### T-349 · check: warn about numbers without a unit
 - status: open
