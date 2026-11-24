@@ -44,7 +44,11 @@ fn read_payload() -> String {
 fn text_of(event: &TodoEvent) -> String {
     let parts = match event {
         TodoEvent::Claimed(id) => vec![own(&["brief", "--task", id.as_str()])],
-        TodoEvent::Done(id) => vec![own(&["review-task", id.as_str()]), usage_reminder(id)],
+        TodoEvent::Done(id) => vec![
+            own(&["review-task", id.as_str()]),
+            usage_reminder(id),
+            open_investigations(id),
+        ],
         TodoEvent::Stuck(id) => vec![Some(stuck_text(id))],
     };
     parts
@@ -71,22 +75,104 @@ fn own(args: &[&str]) -> Option<String> {
         .then(|| String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
+/// The `data` member of the JSON standard output of this program run with `args`. None unless the
+/// run ends with exit 0 and its output is JSON with that member.
+fn data_of(args: &[&str]) -> Option<Value> {
+    let text = own(args)?;
+    let mut value: Value = serde_json::from_str(&text).ok()?;
+    value.get_mut("data").map(Value::take)
+}
+
 /// The reminder that a finished task has no usage record: given when `list --kind usage` answers
 /// with an empty `data` for the task. None when it does not answer or the task has a record.
 fn usage_reminder(id: &str) -> Option<String> {
-    let text = own(&["list", "--kind", "usage", "--task", id, "--all", "--json"])?;
-    let value: Value = serde_json::from_str(&text).ok()?;
-    let entries = value.get("data")?.as_array()?;
-    entries.is_empty().then(|| {
+    let data = data_of(&["list", "--kind", "usage", "--task", id, "--all", "--json"])?;
+    data.as_array()?.is_empty().then(|| {
         format!(
             "No usage record for {id}: if software was used, record it with dossier used <software> --version <v> --task {id}"
         )
     })
 }
 
+/// The lines for the investigations of a finished task that are still open (design.md section 15,
+/// R-INV-9): one for each open investigation whose `task` is the task, then one for each other
+/// open investigation that has an attempt naming the task. Each investigation is named once.
+/// None when there is none.
+fn open_investigations(id: &str) -> Option<String> {
+    let mut chosen = list_ids(&[
+        "list",
+        "--kind",
+        "investigation",
+        "--task",
+        id,
+        "--state",
+        "open",
+        "--json",
+    ]);
+    let open = list_ids(&[
+        "list",
+        "--kind",
+        "investigation",
+        "--state",
+        "open",
+        "--json",
+    ]);
+    for attempted in attempted_ids(id) {
+        if open.contains(&attempted) && !chosen.contains(&attempted) {
+            chosen.push(attempted);
+        }
+    }
+    (!chosen.is_empty()).then(|| {
+        chosen
+            .iter()
+            .map(|investigation| open_line(investigation))
+            .collect::<Vec<String>>()
+            .join("\n")
+    })
+}
+
+/// The `id` of each row of the listing run with `args`, in the order it gives. Empty when the run
+/// fails or its data is not an array.
+fn list_ids(args: &[&str]) -> Vec<String> {
+    data_of(args)
+        .as_ref()
+        .and_then(Value::as_array)
+        .map(|rows| rows.iter().filter_map(id_of).collect())
+        .unwrap_or_default()
+}
+
+/// The IDs of the investigations that have an attempt naming `task`: the rows of its history that
+/// have an attempt number, in the order of the history (a row may repeat an ID). Empty when
+/// `history` fails.
+fn attempted_ids(task: &str) -> Vec<String> {
+    data_of(&["history", task, "--json"])
+        .as_ref()
+        .and_then(|data| data.get("entries"))
+        .and_then(Value::as_array)
+        .map(|rows| {
+            rows.iter()
+                .filter(|row| row.get("attempt").is_some_and(Value::is_number))
+                .filter_map(id_of)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The `id` text of a row of a listing or of the history, when it has one.
+fn id_of(row: &Value) -> Option<String> {
+    row.get("id")?.as_str().map(str::to_string)
+}
+
+/// The line that asks for the result of an open investigation (design.md section 15).
+fn open_line(id: &str) -> String {
+    format!(
+        "{id} is still open: record the result with dossier tried {id} \"<what was tried>\" --worked, --failed or --unclear, or close it with dossier solved {id} \"<what solved it>\""
+    )
+}
+
 /// The text for a task that was given back: what to record, so that the planner finds it.
 fn stuck_text(id: &str) -> String {
     format!(
-        "{id} was given back. Record what was missing or did not work, so that the planner finds it: dossier found \"<what was tried>\" --dead-end --task {id}, or dossier assume \"<what was assumed>\" --reason \"<why>\" --task {id}"
+        "{id} was given back. Record what was missing or did not work, so that the planner finds it: dossier found \"<what was tried>\" --dead-end --task {id}, or dossier assume \"<what was assumed>\" --reason \"<why>\" --task {id}, or open an investigation: dossier problem \"<what goes wrong>\" --task {id}"
     )
 }

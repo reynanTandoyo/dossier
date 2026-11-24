@@ -17,6 +17,9 @@ const SHOW_T001: &str = r#"{"schema":"todo.show.v1","ok":true,"data":{"id":"T-00
 /// The title of the finding that every test with a claimed or finished task records for T-001.
 const FINDING: &str = "The invented mixer converged at low flow.";
 
+/// The problem of the investigations that the tests open with `problem`.
+const PROBLEM: &str = "The invented mixer stalls at high flow.";
+
 /// Writes the stand-in for todo: it prints `envelope` and exits with 0, whatever it is given.
 fn write_todo(project: &Project, envelope: &str) {
     let windows = format!("@echo off\r\necho {envelope}\r\nexit /b 0\r\n");
@@ -127,6 +130,12 @@ fn a_given_back_task_gives_the_text_for_recording_what_went_wrong() {
     assert!(context.starts_with("T-001 was given back."), "{context}");
     assert!(context.contains("--dead-end"), "{context}");
     assert!(context.contains("--task T-001"), "{context}");
+    assert!(
+        context.contains(
+            "or open an investigation: dossier problem \"<what goes wrong>\" --task T-001"
+        ),
+        "{context}"
+    );
 }
 
 #[test]
@@ -169,4 +178,77 @@ fn a_finished_task_without_todo_still_exits_0_and_gives_the_usage_reminder() {
         "No usage record for T-001: if software was used, record it with dossier used <software> --version <v> --task T-001",
         "{context}"
     );
+}
+
+#[test]
+fn a_finished_task_names_its_open_investigations_until_one_is_solved() {
+    let project = Project::new();
+    write_todo(&project, SHOW_T001);
+    project.stdout("anna", &["problem", PROBLEM, "--task", "T-001"]);
+    project.stdout(
+        "anna",
+        &["problem", "The invented pump runs dry.", "--task", "T-002"],
+    );
+    let payload = shell("todo done T-001 --commit HEAD --agent haiku", "");
+    let output = run_after(&project, &payload).success();
+    let context = context_of(&output.get_output().stdout);
+    assert!(
+        context.contains("INV-001 is still open: record the result with dossier tried INV-001"),
+        "{context}"
+    );
+    assert!(context.contains("dossier solved INV-001"), "{context}");
+    assert!(!context.contains("INV-002"), "{context}");
+
+    project.stdout(
+        "anna",
+        &["solved", "INV-001", "The invented valve was stuck open."],
+    );
+    let output = run_after(&project, &payload).success();
+    let context = context_of(&output.get_output().stdout);
+    assert!(!context.contains("is still open"), "{context}");
+}
+
+#[test]
+fn an_open_investigation_with_an_attempt_of_the_task_is_named_once() {
+    let project = Project::new();
+    write_todo(&project, SHOW_T001);
+    project.stdout("anna", &["problem", PROBLEM, "--task", "T-002"]);
+    project.stdout(
+        "anna",
+        &[
+            "tried",
+            "INV-001",
+            "The invented gasket was replaced.",
+            "--failed",
+            "--task",
+            "T-001",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "tried",
+            "INV-001",
+            "The invented gasket was tightened.",
+            "--unclear",
+            "--task",
+            "T-001",
+        ],
+    );
+    let payload = shell("todo done T-001 --commit HEAD --agent haiku", "");
+    let output = run_after(&project, &payload).success();
+    let context = context_of(&output.get_output().stdout);
+    assert_eq!(
+        context.matches("INV-001 is still open").count(),
+        1,
+        "{context}"
+    );
+
+    project.stdout(
+        "anna",
+        &["solved", "INV-001", "The invented gasket was the cause."],
+    );
+    let output = run_after(&project, &payload).success();
+    let context = context_of(&output.get_output().stdout);
+    assert!(!context.contains("is still open"), "{context}");
 }
