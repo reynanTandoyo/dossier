@@ -4171,6 +4171,7 @@
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): split into T-385, T-386, T-387, T-388
 - note (2026-11-24, planner): done — When a Claude Code session ends, the hook writes the session's material and starts the team's review command, in bash on every PC.
+- note (2026-11-24, planner): Correction: the hook itself runs in bash (T-416); the review command it starts runs in cmd on Windows and in sh elsewhere (session_end.rs), as the README says (T-340).
 
 ### T-385 · session-end: the command file and its place in the command list
 - status: done
