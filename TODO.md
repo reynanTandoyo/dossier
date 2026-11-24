@@ -4271,10 +4271,8 @@
 - note (2026-11-24, haiku-T-388): done
 
 ### T-340 · README: the session review
-- status: claimed
+- status: done
 - owner: haiku-T-340
-- claimed: 2026-11-24T01:30+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-057
 - why: Capture only becomes a habit when the routine steps happen by themselves.
@@ -4288,8 +4286,12 @@
   3. Run cargo test --test smoke
 - accept: The README explains the session review and how to switch it on.
 - verify: cargo test --test smoke
+- verified: 2026-11-24
+- commit: 35f351f
 - reqs: R-DRAFT-7, R-DRAFT-9, REL-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-340): done
 
 ### T-058 · Extras: story, search --similar, brief --budget, check --fix, export, schema, unit warnings, team summary, readers' guide; release 0.6.0
 - status: open
