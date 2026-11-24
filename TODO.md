@@ -4609,8 +4609,8 @@
 - note (2026-11-24, haiku-T-394): done
 
 ### T-348 · check --fix: repair what is safe
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - milestone: T-058
 - goal: check --fix repairs file names, missing format lines and the order of the tool's own fields, and nothing else.
@@ -4619,8 +4619,10 @@
 - depends: T-341
 - accept: check --fix repairs file names, missing format lines and the order of the tool's fields, and nothing else.
 - reqs: R-CHECK-2, R-EDIT-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): split into T-395, T-396, T-397
+- note (2026-11-24, planner): done — check --fix renames files, adds a missing format line and puts fields in order, and never makes an approved entry look changed.
 
 ### T-395 · check --fix: rename files whose name does not match
 - status: done
