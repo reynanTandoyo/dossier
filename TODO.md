@@ -7958,10 +7958,8 @@
 - note (2026-11-24, haiku-T-398): done
 
 ### T-399 · after: in the help overview, and run on the PC
-- status: claimed
+- status: done
 - owner: haiku-T-399
-- claimed: 2026-11-24T01:14+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: chore
 - milestone: T-294
 - why: A rule that an agent must remember is followed only some of the time; a hook runs every time (D39).
@@ -7976,9 +7974,13 @@
   4. Run cargo test --lib remote::forward:: and cargo test --test smoke
 - accept: The overview lists `after`, and in a connected folder it runs on the PC and is not sent to the server.
 - verify: cargo test --lib remote::forward:: && cargo test --test smoke
+- verified: 2026-11-24
+- commit: 6b01107
 - reqs: R-AGENT-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): Added tests/cmd_agents.rs: its help overview test lists every command (found in T-359).
+- note (2026-11-24, haiku-T-399): done
 
 ### T-400 · after: the text for a claimed, finished or given-back task
 - status: claimed
