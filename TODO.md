@@ -3962,8 +3962,8 @@
 - note (2026-11-24, haiku-T-335): done
 
 ### T-057 · Session review (R-DRAFT-7, R-DRAFT-9)
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P3 · type: milestone
 - milestone: T-055
 - goal: R-DRAFT-7 and R-DRAFT-9 hold: the decisive parts of a session are printed as material for drafting from a session file in dossier's own versioned format (D44), a Claude Code transcript is converted to it, and a hook can start the team's own review command when a session ends.
@@ -3972,9 +3972,11 @@
 - depends: T-054
 - accept: R-DRAFT-7, R-DRAFT-9, R-AGENT-3, R-AGENT-4, R-CTX-7 hold.
 - reqs: R-DRAFT-7, R-DRAFT-9, R-AGENT-3, R-AGENT-4, R-CTX-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Claude Code hooks and the skill (R-AGENT-3, R-AGENT-4, R-CTX-7) moved to phase 2 by the owner (D33): T-163 to T-167. What stays here is the session review (R-DRAFT-7, R-DRAFT-9).
 - note (2026-11-23, planner): split into T-336, T-337, T-338, T-339, T-340
+- note (2026-11-24, planner): done — When a Claude Code session ends, its decisive turns become review material, and the team's review command drafts lessons from it.
 
 ### T-336 · session.rs and claude.rs: dossier's own session format, and the converter from a Claude Code transcript
 - status: done
