@@ -9120,8 +9120,10 @@
 - note (2026-11-24, planner): added
 
 ### T-421 · search --similar: show why each entry is similar
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-421
+- claimed: 2026-11-24T01:28+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-058
 - why: Each result printed its title twice (found in T-345); the reason of select.rs says more.
