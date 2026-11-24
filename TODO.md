@@ -4713,10 +4713,8 @@
 - note (2026-11-24, haiku-T-350): done
 
 ### T-351 · help <command>: a description and three examples, first group
-- status: claimed
+- status: done
 - owner: haiku-T-351
-- claimed: 2026-11-24T00:56+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
@@ -4732,8 +4730,12 @@
   5. Run cargo test --test cmd_help and cargo test --lib examples::
 - accept: help <command> shows what a command does with two PowerShell examples and one for a Linux shell, for the first group of commands.
 - verify: cargo test --test cmd_help && cargo test --lib examples::
+- verified: 2026-11-24
+- commit: 632354b
 - reqs: R-OUT-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-351): done
 
 ### T-352 · help <command>: examples, second group
 - status: open
