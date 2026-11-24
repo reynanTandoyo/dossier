@@ -9248,10 +9248,8 @@
 - note (2026-11-24, haiku-T-424): done
 
 ### T-425 · check --fix: no format-line repair that would show an approved entry as changed
-- status: claimed
+- status: done
 - owner: haiku-T-425
-- claimed: 2026-11-24T01:43+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: bug
 - milestone: T-348
 - why: The approval checksum covers every line; adding a format line to an approved lesson, how-to, tool or digest would make it show as changed (found in T-397, which guards its own repair this way).
@@ -9265,8 +9263,12 @@
   3. Run cargo test --test cmd_check
 - accept: check --fix never turns an approved guarded entry from unchanged into changed; it warns instead.
 - verify: cargo test --test cmd_check
+- verified: 2026-11-24
+- commit: 1779cd9
 - reqs: R-CHECK-2, R-LIFE-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-24, planner): added
+- note (2026-11-24, haiku-T-425): done
 
 ### T-427 · README: a review command that gives claude the material as one prompt
 - status: done
