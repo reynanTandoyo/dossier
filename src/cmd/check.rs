@@ -5,7 +5,8 @@
 //! A dossier without problems says
 //! `DOSSIER: ok (0 problems)`; otherwise the command fails with exit code 1, with or without
 //! `--json`. A SHOULD report, such as a TERM report of an abbreviation that no glossary explains
-//! (R-TERM-3), is a warning: it does not fail the command.
+//! (R-TERM-3) or a UNIT report of a number written without its unit (R-ENTRY-11), is a warning: it
+//! does not fail the command.
 
 use crate::approval::{self, Mark};
 use crate::blockfile::BlockFile;
@@ -127,6 +128,7 @@ fn report(ctx: &Ctx) -> Result<Output> {
     found.extend(secret_problems(ctx, &items)?);
     let (glossary_problems, mut should) = glossary_check(ctx, &items);
     found.extend(glossary_problems);
+    should.extend(unit_reports(&ctx.root, &items));
 
     found.sort();
     should.sort();
@@ -1112,4 +1114,74 @@ fn glossary_names(terms: &[Term]) -> HashSet<String> {
         })
         .map(|name| name.trim().to_lowercase())
         .collect()
+}
+
+/// The section whose numbers need a unit (R-ENTRY-11): Statement for a lesson, Settings for a
+/// how-to. None for any other entry, and for an entry that is not approved.
+fn unit_section(entry: &Entry) -> Option<&'static str> {
+    if entry.status() != Some(Status::Approved) {
+        return None;
+    }
+    match entry.kind()? {
+        Kind::Lesson => Some("Statement"),
+        Kind::Howto => Some("Settings"),
+        _ => None,
+    }
+}
+
+/// The UNIT reports (R-ENTRY-11): each line of the Statement of an approved lesson, or of the
+/// Settings of an approved how-to, that is `<name>: <value>` or `<name> = <value>` with a value
+/// that is only a number (`is_bare_number`). Each is on its line in the file.
+fn unit_reports(root: &Path, items: &[Item]) -> Vec<Found> {
+    let mut found = Vec::new();
+    for item in items {
+        let entry = &item.entry;
+        let Some(section) = unit_section(entry) else {
+            continue;
+        };
+        let file = relative(root, &item.path);
+        let id = entry.id();
+        let mut current = "";
+        for (number, text) in numbered_lines(&entry.lines) {
+            if let Some(title) = text.strip_prefix("## ") {
+                current = title.trim();
+            } else if current == section && bare_number_line(text) {
+                let message = format!(
+                    "a number without a unit: \"{}\"; write the unit, or say that it is dimensionless",
+                    text.trim()
+                );
+                found.push(Found::new(&file, number, &id, "UNIT", message));
+            }
+        }
+    }
+    found
+}
+
+/// Whether a line is `<name>: <value>` or `<name> = <value>` (R-ENTRY-11) with a name and a value
+/// that is only a number. The line is split at its first `:` or `=`, and the value is trimmed.
+fn bare_number_line(text: &str) -> bool {
+    text.split_once([':', '='])
+        .is_some_and(|(name, value)| !name.trim().is_empty() && is_bare_number(value.trim()))
+}
+
+/// Whether a value is only a number (R-ENTRY-11): an optional sign, digits with at most one `.` or
+/// `,` and at least one digit, and an optional exponent such as `1e-5` or `2.5E+3`. Anything else,
+/// such as `5 kg` or `second order`, is not.
+fn is_bare_number(value: &str) -> bool {
+    let (mantissa, exponent) = match value.split_once(['e', 'E']) {
+        Some((mantissa, exponent)) => (mantissa, Some(exponent)),
+        None => (value, None),
+    };
+    let digits = mantissa.strip_prefix(['+', '-']).unwrap_or(mantissa);
+    let separators = digits.chars().filter(|c| matches!(c, '.' | ',')).count();
+    let mantissa_ok = separators <= 1
+        && digits
+            .chars()
+            .all(|c| c.is_ascii_digit() || matches!(c, '.' | ','))
+        && digits.bytes().any(|byte| byte.is_ascii_digit());
+    let exponent_ok = exponent.is_none_or(|exponent| {
+        let digits = exponent.strip_prefix(['+', '-']).unwrap_or(exponent);
+        !digits.is_empty() && digits.bytes().all(|byte| byte.is_ascii_digit())
+    });
+    mantissa_ok && exponent_ok
 }

@@ -1624,3 +1624,98 @@ fn check_fix_puts_back_the_format_line_of_an_approved_lesson_and_it_is_unchanged
     assert_eq!(stdout, format!("{}: format line added\n{OK}", shown(&file)));
     assert_eq!(project.stdout("anna", &["check"]), OK);
 }
+
+/// Writes the how-to HOW-001 with the lines `settings` in its Settings section, as `agent`
+/// writes it: approved at once for a person, a draft for an LLM.
+fn how_to_with_settings(project: &Project, agent: &str, settings: &str) {
+    let settings = format!("Settings={settings}");
+    project.stdout(
+        agent,
+        &[
+            "howto",
+            "--software",
+            "Invented Solver",
+            "--title",
+            "Warm the solver before a run",
+            "--section",
+            "Purpose=Prepares an invented solver run.",
+            "--section",
+            "Steps=Start the invented run with one iteration.",
+            "--section",
+            &settings,
+        ],
+    );
+}
+
+/// The UNIT warning (R-ENTRY-11) of the line `text` of the entry `id`, on `line` of `file`.
+fn unit_warning(file: &str, line: usize, id: &str, text: &str) -> String {
+    format!(
+        "{file}:{line}: {id} UNIT a number without a unit: \"{text}\"; write the unit, or say that it is dimensionless"
+    )
+}
+
+#[test]
+fn a_number_without_a_unit_in_an_approved_how_to_setting_is_a_warning() {
+    let project = Project::new();
+    how_to_with_settings(&project, "anna", "CFL: 5");
+    let file = project.entry_file("HOW-001");
+    let line = line_of(&text_of(&project, "HOW-001"), "CFL: 5");
+
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+    assert_eq!(
+        warnings(&project),
+        format!(
+            "warning: {}\n",
+            unit_warning(&shown(&file), line, "HOW-001", "CFL: 5")
+        )
+    );
+}
+
+#[test]
+fn a_setting_with_a_unit_or_a_word_and_an_exponent_is_not_a_warning() {
+    let project = Project::new();
+    how_to_with_settings(&project, "anna", "time step: 1e-5 s\nscheme: second order");
+
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+    assert_eq!(warnings(&project), "");
+}
+
+#[test]
+fn a_number_without_a_unit_in_a_draft_how_to_is_not_a_warning() {
+    let project = Project::new();
+    how_to_with_settings(&project, "anna-claude", "CFL: 5");
+
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+    assert_eq!(warnings(&project), "");
+}
+
+#[test]
+fn a_number_without_a_unit_in_an_approved_lesson_statement_is_a_warning() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &[
+            "learn",
+            "Wall mesh size = 0.5",
+            "--valid-for",
+            VALID_FOR,
+            "--evidence",
+            EVIDENCE,
+            "--confidence",
+            "simulated",
+            "--title",
+            "Wall mesh size",
+        ],
+    );
+    let file = project.entry_file("LES-001");
+    let line = line_of(&text_of(&project, "LES-001"), "Wall mesh size = 0.5");
+
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+    assert_eq!(
+        warnings(&project),
+        format!(
+            "warning: {}\n",
+            unit_warning(&shown(&file), line, "LES-001", "Wall mesh size = 0.5")
+        )
+    );
+}
