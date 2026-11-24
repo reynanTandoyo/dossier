@@ -9261,10 +9261,8 @@
 - note (2026-11-24, planner): added
 
 ### T-427 · README: a review command that gives claude the material as one prompt
-- status: claimed
+- status: done
 - owner: haiku-T-427
-- claimed: 2026-11-24T01:46+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-057
 - why: The README example appended the material path after claude -p's prompt, which the Claude Code docs do not define (checked 2026-11-24).
@@ -9280,8 +9278,12 @@
   5. Run cargo test --test smoke
 - accept: The README's review command example passes the path inside a single prompt through a small script for Windows and for Linux.
 - verify: cargo test --test smoke
+- verified: 2026-11-24
+- commit: 51857c4
 - reqs: R-DRAFT-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-24, planner): added
+- note (2026-11-24, haiku-T-427): done
 
 ## Questions
 
