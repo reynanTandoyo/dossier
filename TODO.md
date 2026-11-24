@@ -3685,8 +3685,8 @@
 - note (2026-11-23, planner): Owner, 2026-11-23 (D45): moved from phase 5 to phase 6; it is released as 0.6.0 (T-355), after 0.5.0.
 
 ### T-056 · Milestone digests: digest, and digests in brief and status
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P3 · type: milestone
 - milestone: T-055
 - goal: R-CTX-14 and R-CTX-15 hold: a closed milestone is summed up in a digest that a person approves, and brief and status show the digest in place of the entries it covers.
@@ -3695,8 +3695,10 @@
 - depends: T-054
 - accept: R-CTX-14 and R-CTX-15 hold.
 - reqs: R-CTX-14, R-CTX-15, D22
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-23, planner): split into T-329, T-330, T-331, T-332, T-333, T-334, T-335
+- note (2026-11-24, planner): done — A closed milestone is summed up in a digest, and brief and status show the digest in place of the entries it covers.
 
 ### T-329 · Entry kinds: the digest (DIG)
 - status: done
