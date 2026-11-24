@@ -8740,10 +8740,8 @@
 - note (2026-11-23, haiku-T-365): done
 
 ### T-309 · after: point to investigations after stuck and done
-- status: claimed
+- status: done
 - owner: haiku-T-309
-- claimed: 2026-11-24T01:31+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-283
 - why: Single dead ends lose the order of the attempts and the link to what finally worked (D41).
@@ -8758,8 +8756,12 @@
   4. Run cargo test --test cmd_after
 - accept: The hook reminds the agent to open an investigation for a stuck task and to record the result of an open one when its task is done.
 - verify: cargo test --test cmd_after
+- verified: 2026-11-24
+- commit: f37f5b0
 - reqs: R-INV-9, R-AGENT-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-309): done
 
 ### T-310 · Agent rules and README: investigations
 - status: done
