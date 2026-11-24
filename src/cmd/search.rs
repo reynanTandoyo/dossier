@@ -9,7 +9,8 @@
 //! statuses follow the filter rules, so a draft is found only with `--drafts` (R-DRAFT-6) and is
 //! marked. Each result carries the marks `show` gives (cmd/show.rs), in the same order.
 //! With `--similar <ID>` no words are needed: the entries that share the most tags and title words
-//! with that entry are listed instead, under the same filter rules (R-READ-9, `similar`).
+//! with that entry are listed instead, under the same filter rules (R-READ-9, `similar`). Each
+//! says why it was chosen, `tag match` or `word match`, after the dash.
 
 use crate::approval::{self, Mark};
 use crate::cli::Global;
@@ -71,7 +72,11 @@ struct Hit {
     created: Option<DateTime<FixedOffset>>,
     mark: Option<String>,
     /// The first line of the entry that contains the first word, trimmed; empty when none does.
+    /// For `--similar` it is the title.
     line: String,
+    /// For `--similar`: why the entry was chosen (select::reason), shown after the dash in place
+    /// of the line. None for a word search.
+    reason: Option<&'static str>,
 }
 
 /// Runs `search`: finds the entries that pass the filter and hold every word, or one of its
@@ -131,8 +136,9 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
 
 /// Runs `search --similar <ID>` (R-READ-9): lists the entries of the project and of its team that
 /// pass the filter and share the most tags and title words with the entry, the entry itself left
-/// out, at most `SIMILAR_LIMIT`, highest score first (select::best). The entry is read from the team dossier when
-/// its ID has the place `team:`. The matched line of each result is its title.
+/// out, at most `SIMILAR_LIMIT`, highest score first (select::best). The entry is read from the
+/// team dossier when its ID has the place `team:`. Each result has its reason (select::reason) in
+/// place of a matched line; its `line` in JSON is its title.
 fn similar(id: &str, args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "search")?;
     let team = if ctx.team.is_some() || team_id(id).is_some() {
@@ -190,6 +196,7 @@ fn similar(id: &str, args: &Args, g: &Global) -> Result<Output> {
                 created: created(&item.entry),
                 mark: mark(place, &item, today),
                 line: item.entry.title(),
+                reason: select::reason(picked, &query),
                 item,
             })
         })
@@ -309,6 +316,7 @@ fn hit(ctx: &Ctx, item: Item, words: &[Vec<String>], today: &str) -> Option<Hit>
         created: created(entry),
         mark: mark(ctx, &item, today),
         line: matched_line(entry, &words[0]),
+        reason: None,
         item,
     })
 }
@@ -480,9 +488,10 @@ fn matched_line(entry: &Entry, spellings: &[String]) -> String {
         .to_string()
 }
 
-/// One line per result, each ending with a line break: `<ID>  [mark] <title>  — <line>`, the ID
-/// with `team:` before it for a team entry, the mark only when there is one and the line only when
-/// it is not empty.
+/// One line per result, each ending with a line break: `<ID>  [mark] <title>  — <shown>`, the ID
+/// with `team:` before it for a team entry, the mark only when there is one and the part after the
+/// dash only when it is not empty. The part after the dash is the reason of a `--similar` result,
+/// else the matched line.
 fn result_lines(hits: &[Hit]) -> String {
     let mut text = String::new();
     for hit in hits {
@@ -492,10 +501,14 @@ fn result_lines(hits: &[Hit]) -> String {
             Some(mark) => format!("{id}  {mark} {title}"),
             None => format!("{id}  {title}"),
         };
-        if hit.line.is_empty() {
+        let shown = match hit.reason {
+            Some(reason) => reason,
+            None => hit.line.as_str(),
+        };
+        if shown.is_empty() {
             text.push_str(&head);
         } else {
-            text.push_str(&format!("{head}  — {}", hit.line));
+            text.push_str(&format!("{head}  — {shown}"));
         }
         text.push('\n');
     }
@@ -530,16 +543,21 @@ fn count_line(count: usize) -> String {
 }
 
 /// The data of one result: its ID, title, status, matched line and place (`project` or `team`).
-/// The ID is the entry's own, without `team:`; the place says where it is.
+/// The ID is the entry's own, without `team:`; the place says where it is. A `--similar` result
+/// also has its `reason`.
 fn result_data(hit: &Hit) -> Value {
     let entry = &hit.item.entry;
-    json!({
+    let mut data = json!({
         "id": entry.id(),
         "title": entry.title(),
         "status": entry.status().map_or("", Status::name),
         "line": hit.line,
         "place": hit.place,
-    })
+    });
+    if let Some(reason) = hit.reason {
+        data["reason"] = json!(reason);
+    }
+    data
 }
 
 #[cfg(test)]

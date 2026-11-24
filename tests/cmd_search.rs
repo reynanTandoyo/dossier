@@ -954,10 +954,11 @@ fn similar_lists_the_entries_that_share_a_tag_or_a_title_word_and_not_the_entry_
         ],
     );
 
+    // LES-002 shares the machine, a tag, so the reason is `tag match` (not the title word).
     let stdout = project.stdout("", &["search", "--similar", "LES-001"]);
     assert_eq!(
         stdout,
-        "LES-002  Transient runs at high speed  — Transient runs at high speed\n1 match\n"
+        "LES-002  Transient runs at high speed  — tag match\n1 match\n"
     );
 
     let json = project.stdout("", &["--json", "search", "--similar", "LES-001"]);
@@ -971,9 +972,54 @@ fn similar_lists_the_entries_that_share_a_tag_or_a_title_word_and_not_the_entry_
             "status": "approved",
             "line": "Transient runs at high speed",
             "place": "project",
+            "reason": "tag match",
         },
     ]);
     assert_eq!(value["data"], expected);
+}
+
+#[test]
+fn similar_says_why_each_entry_is_similar_and_a_word_search_gives_no_reason() {
+    let project = Project::new();
+    learn(
+        &project,
+        "Steady runs overpredict stall margin",
+        &["--machine", "axial compressor"],
+    );
+    // A tag match: the machine. The title word `runs` also matches, but a tag match is the reason.
+    learn(
+        &project,
+        "Transient runs at high speed",
+        &["--machine", "axial compressor"],
+    );
+    // A word match only: it shares the title words `stall` and `margin` and no tag.
+    project
+        .run("anna", &["found", "Stall margin reading"])
+        .success();
+
+    let stdout = project.stdout("", &["search", "--similar", "LES-001"]);
+    assert_eq!(
+        stdout,
+        "FND-001  Stall margin reading  — word match\n\
+        LES-002  Transient runs at high speed  — tag match\n\
+        2 matches\n"
+    );
+
+    let json = project.stdout("", &["--json", "search", "--similar", "LES-001"]);
+    let value: serde_json::Value = serde_json::from_str(&json).expect("one JSON line");
+    assert_eq!(value["data"][0]["id"], "FND-001");
+    assert_eq!(value["data"][0]["reason"], "word match");
+    assert_eq!(value["data"][1]["id"], "LES-002");
+    assert_eq!(value["data"][1]["reason"], "tag match");
+
+    // A word search keeps its matched line and gives no reason, in text or in JSON.
+    let plain = project.stdout("", &["search", "stall"]);
+    assert!(!plain.contains("word match"), "{plain}");
+    let json = project.stdout("", &["--json", "search", "stall"]);
+    let value: serde_json::Value = serde_json::from_str(&json).expect("one JSON line");
+    let hits = value["data"].as_array().expect("an array of results");
+    assert!(!hits.is_empty(), "{json}");
+    assert!(hits.iter().all(|hit| hit.get("reason").is_none()), "{json}");
 }
 
 #[test]
@@ -1041,7 +1087,7 @@ fn similar_applies_the_filter_so_a_draft_is_listed_only_with_drafts() {
         .stdout("0 matches\n");
     assert_eq!(
         project.stdout("", &["search", "--similar", "LES-001", "--drafts"]),
-        "FND-001  [draft] Stall margin read by hand  — Stall margin read by hand\n1 match\n"
+        "FND-001  [draft] Stall margin read by hand  — word match\n1 match\n"
     );
 }
 
