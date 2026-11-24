@@ -3676,13 +3676,15 @@
 - note (2026-11-23, haiku-T-328): done
 
 ### T-055 · Growing projects: the context stays small and routine steps run by themselves
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P3 · type: milestone
 - goal: In a long project brief still fits its limit and still holds what the LLM needs, and session review, hooks and export take routine work off the people. Requirements: docs/requirements.md section 11, Phase 6 (v0.6; phase 5 before D45). Each task here is split when the phase starts.
 - summary: In a long project the context for an LLM stays small, and routine steps happen by themselves.
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-23, planner): Owner, 2026-11-23 (D45): moved from phase 5 to phase 6; it is released as 0.6.0 (T-355), after 0.5.0.
+- note (2026-11-24, planner): done — In a long project brief stays small through digests, and session review, hooks and the extras take routine work off the people; version 0.6.0.
 
 ### T-056 · Milestone digests: digest, and digests in brief and status
 - status: done
@@ -4302,8 +4304,8 @@
 - note (2026-11-24, haiku-T-340): done
 
 ### T-058 · Extras: story, search --similar, brief --budget, check --fix, export, schema, unit warnings, team summary, readers' guide; release 0.6.0
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P3 · type: milestone
 - milestone: T-055
 - goal: R-READ-7, R-READ-9, R-CTX-6, R-CHECK-2, R-OUT-5 to R-OUT-7, R-ENTRY-11, R-TEAM-5 and REL-4 hold; version 0.6.0 is ready to tag. R-CTX-8 is not built: it needs a change in todo, and R-AGENT-5 gives the same result for Claude Code.
@@ -4312,9 +4314,11 @@
 - depends: T-054
 - accept: R-READ-7, R-READ-9, R-CTX-6, R-CTX-8, R-CHECK-2, R-OUT-5 to R-OUT-7, R-ENTRY-11, R-TEAM-5 and REL-4 hold; version 0.6.0 is released.
 - reqs: R-READ-7, R-READ-9, R-CTX-6, R-CTX-8, R-CHECK-2, R-OUT-5 to R-OUT-7, R-ENTRY-11, R-TEAM-5, REL-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-20, planner): added
 - note (2026-11-21, planner): Owner 2026-11-21 (D33): export writes Markdown only.
 - note (2026-11-23, planner): split into T-341, T-342, T-343, T-344, T-345, T-346, T-347, T-348, T-349, T-350, T-351, T-352, T-353, T-354, T-355
+- note (2026-11-24, planner): done — story, export, schema, search --similar, brief --budget and reasons, check --fix and unit warnings, team summary, help with examples, the readers' guide and approve's edit-first answer.
 
 ### T-341 · v0.6 skeleton: stubs for story, export, schema and examples.rs
 - status: done
@@ -4841,8 +4845,8 @@
 - note (2026-11-23, haiku-T-354): done
 
 ### T-355 · Release 0.6.0
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-355
 - priority: P1 · difficulty: 1 · type: chore
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
@@ -4857,9 +4861,13 @@
   4. Run cargo fmt --all -- --check, cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features; all three must pass. Do not tag and do not push: the owner does that.
 - accept: Version 0.6.0 builds, passes every check, and the README says what it adds.
 - verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
+- verified: 2026-11-24
+- commit: d1ccfde
 - reqs: REL-1, REL-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-24, planner): Steps updated: the 0.6 README section exists already (T-335, T-340, T-427); the release completes it.
+- note (2026-11-24, haiku-T-355): done
 
 ### T-063 · Run commands from the PC: connect, the per-user project register, forwarding through ssh, dossier todo
 - status: dropped

@@ -1228,7 +1228,7 @@ lines:
 
 ```
 ssh: ok
-dossier on the server: 0.5.0
+dossier on the server: 0.6.0
 todo on the server: 0.8.0
 dossier folder: ok (P-001)
 ```
