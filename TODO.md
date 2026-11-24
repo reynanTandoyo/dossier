@@ -9257,8 +9257,10 @@
 - note (2026-11-24, planner): added
 
 ### T-427 · README: a review command that gives claude the material as one prompt
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-427
+- claimed: 2026-11-24T01:46+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-057
 - why: The README example appended the material path after claude -p's prompt, which the Claude Code docs do not define (checked 2026-11-24).
