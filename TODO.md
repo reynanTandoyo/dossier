@@ -7991,10 +7991,8 @@
 - note (2026-11-24, haiku-T-399): done
 
 ### T-400 · after: the text for a claimed, finished or given-back task
-- status: claimed
+- status: done
 - owner: haiku-T-400
-- claimed: 2026-11-24T01:17+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-294
 - why: A rule that an agent must remember is followed only some of the time; a hook runs every time (D39).
@@ -8011,8 +8009,12 @@
   6. Run cargo test --test cmd_after
 - accept: After a claim the agent's context gets brief --task, after done the review material and the usage reminder, after stuck the reminder; every other command gives nothing.
 - verify: cargo test --test cmd_after
+- verified: 2026-11-24
+- commit: 80295e8
 - reqs: R-AGENT-5, D39, D38
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-400): done
 
 ### T-284 · Credentials are never stored in a dossier
 - status: done
