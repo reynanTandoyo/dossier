@@ -1,7 +1,8 @@
 //! The examples shown by `help <command>` (docs/design.md section 20, R-OUT-5). This file holds
-//! the first and second groups of commands: for each, two PowerShell lines and one Linux shell
-//! line. The data is invented (project P-017, tasks such as T-042, an axial compressor). Every
-//! line starts with `dossier <command>`.
+//! the examples of every command of `cmd::help::COMMANDS` except guard, after and session-end,
+//! which a person never types: for each, two PowerShell lines and one Linux shell line. The data
+//! is invented (project P-017, tasks such as T-042, an axial compressor). Every line starts with
+//! `dossier <command>`.
 
 /// Two PowerShell examples and one for a Linux shell; None for a command without examples.
 pub fn of(command: &str) -> Option<[&'static str; 3]> {
@@ -291,6 +292,146 @@ pub fn of(command: &str) -> Option<[&'static str; 3]> {
             "dossier skill install --yes",
             "dossier skill install --json",
         ],
+        "people" => [
+            "dossier people add anna --llm anna-claude",
+            "dossier people add ben --llm ben-claude --llm ben-helper",
+            "dossier people list",
+        ],
+        "help" => [
+            "dossier help problem",
+            "dossier help agents",
+            "dossier help tried",
+        ],
+        "team" => [
+            "dossier team use C:\\shared\\team-dossier",
+            "dossier team member add tony",
+            "dossier team summary",
+        ],
+        "confidential" => [
+            "dossier confidential add NT-450",
+            "dossier confidential add 'Example Customer'",
+            "dossier confidential scan",
+        ],
+        "promote" => [
+            "dossier promote LES-004",
+            "dossier promote FND-007 --as lesson",
+            "dossier promote inv-003 --as howto",
+        ],
+        "close" => [
+            "dossier close",
+            "dossier close --dry-run",
+            "dossier close --dossier ~/work/P-017",
+        ],
+        "howto" => [
+            "dossier howto --software 'ExampleSolver 2406' --title 'Transient run of the speedline points' --section 'Purpose=The last three speedline points, run transient.'",
+            "dossier howto --software 'ExampleSolver 2406' --title 'Tip mesh at two million cells' --from notes\\tip-mesh.md --review 2027-06-01 --machine 'axial compressor'",
+            "dossier howto --software 'ExampleSolver 2406' --title 'Restart from a converged run' --section 'Steps=Copy the converged solution, then set the time step to 0.001.' --tags restart",
+        ],
+        "tool" => [
+            "dossier tool add --title 'Mesh check script' --type script --location scripts\\mesh_check.py --language Python --section 'Purpose=Checks the tip mesh before a run.'",
+            "dossier tool update TOOL-001",
+            "dossier tool add --title 'Speedline plot' --type command --location plot-speedline --software 'ExampleSolver 2406' --section 'Purpose=Plots the speedline from a results file.'",
+        ],
+        "where-used" => [
+            "dossier where-used ExampleSolver",
+            "dossier where-used ExampleSolver --analysis 'steady RANS'",
+            "dossier where-used ExampleSolver --machine 'axial compressor' --analysis transient",
+        ],
+        "term" => [
+            "dossier term add 'mass flow' 'Mass of air through the inlet per second.' --symbol m-dot --unit kg/s",
+            "dossier term add 'surge margin' 'Distance from the operating point to the surge line.' --also 'stall margin, SM'",
+            "dossier term 'mass flow'",
+        ],
+        "glossary" => [
+            "dossier glossary",
+            "dossier glossary --json",
+            "dossier glossary --dossier ~/work/P-017",
+        ],
+        "reviewed" => [
+            "dossier reviewed DEC-012 --next 2027-06-01",
+            "dossier reviewed LES-004 --next 2027-09-30",
+            "dossier reviewed fnd-007 --next 2027-03-01",
+        ],
+        "review-folder" => [
+            "dossier review-folder",
+            "dossier review-folder 'D:\\old-projects\\P-017' --depth 2",
+            "dossier review-folder ~/old-projects/P-017",
+        ],
+        "review-document" => [
+            "dossier review-document notes\\old-report.docx",
+            "dossier review-document 'notes\\rig survey 2019.pdf'",
+            "dossier review-document notes/rig-survey.pdf",
+        ],
+        "reviewed-document" => [
+            "dossier reviewed-document notes\\old-report.docx",
+            "dossier reviewed-document notes\\cover-letter.docx --nothing",
+            "dossier reviewed-document notes/rig-survey.pdf",
+        ],
+        "import" => [
+            "dossier import status",
+            "dossier import status --json",
+            "dossier import status --dossier ~/work/P-017",
+        ],
+        "problem" => [
+            "dossier problem 'Residual rises again after 40 iterations' --observed 'Run 21 stops at iteration 40' --task T-042",
+            "dossier problem 'Stall margin differs from the rig' --machine 'axial compressor' --analysis 'steady RANS' --software 'ExampleSolver 2406'",
+            "dossier problem 'Tip losses are off by 4 percent' --title 'Tip losses off' --tags 'mesh, tip' --task T-043",
+        ],
+        "tried" => [
+            "dossier tried INV-003 'Halve the time step' --worked --did 'Time step 0.0005 instead of 0.001' --result 'Residual flat up to 40 iterations' --run USE-007 --task T-042",
+            "dossier tried INV-003 'Refine the tip mesh' --failed --result 'Residual unchanged' --task T-043",
+            "dossier tried inv-003 'Raise the damping factor' --unclear --did 'Damping 0.5 to 0.8'",
+        ],
+        "solved" => [
+            "dossier solved INV-003 'The smaller time step removes the oscillation' --attempt 1",
+            "dossier solved INV-004 'The refined tip mesh with the new wall function' --attempt 2 --attempt 3",
+            "dossier solved inv-005 'Restart from the converged run' --attempt 4",
+        ],
+        "gave-up" => [
+            "dossier gave-up INV-004 --reason 'The rig data cannot separate the two causes.'",
+            "dossier gave-up INV-005 --reason 'The solver vendor did not answer the question.'",
+            "dossier gave-up inv-006 --reason 'Two runs did not settle the cause.'",
+        ],
+        "take" => [
+            "dossier take results\\speedline.csv --task T-042",
+            "dossier take results\\speedline.csv models\\compressor.cfd --task T-042",
+            "dossier take models/compressor.cfd --task T-043",
+        ],
+        "return" => [
+            "dossier return results\\speedline.csv --check",
+            "dossier return results\\speedline.csv --done",
+            "dossier return results/speedline.csv --abandon",
+        ],
+        "review-session" => [
+            "dossier review-session notes\\session-2026-11-20.md",
+            "dossier review-session C:\\Temp\\transcript.jsonl --claude --limit 12000",
+            "dossier review-session ~/transcripts/transcript.jsonl --claude",
+        ],
+        "session" => [
+            "dossier session convert --claude C:\\Temp\\transcript.jsonl --to notes\\session-2026-11-20.md",
+            "dossier session convert --claude C:\\Temp\\transcript.jsonl",
+            "dossier session convert --claude ~/transcripts/transcript.jsonl --to ~/notes/session-2026-11-20.md",
+        ],
+        "digest" => [
+            "dossier digest T-130",
+            "dossier digest T-130 --write --stdin --title 'Speedline milestone done'",
+            "dossier digest T-131",
+        ],
+        "story" => [
+            "dossier story",
+            "dossier story --milestone T-130",
+            "dossier story --json",
+        ],
+        "export" => [
+            "dossier export",
+            "dossier export --milestone T-130 --to report\\P-017-speedline.md",
+            "dossier export --to reports/P-017.md",
+        ],
+        "schema" => [
+            "dossier schema",
+            "dossier schema --json",
+            "dossier schema > ~/work/dossier-schema.json",
+        ],
         _ => return None,
     };
     Some(examples)
@@ -299,57 +440,22 @@ pub fn of(command: &str) -> Option<[&'static str; 3]> {
 #[cfg(test)]
 mod tests {
     use super::of;
+    use crate::cmd::help::COMMANDS;
 
-    /// The commands of the first group.
-    const FIRST_GROUP: [&str; 26] = [
-        "init", "where", "add", "decide", "found", "learn", "assume", "propose", "accept",
-        "decline", "confirm", "refute", "cleared", "set", "retitle", "link", "edit", "show",
-        "list", "search", "history", "diff", "restore", "log", "brief", "status",
-    ];
+    /// The commands without examples: hooks run them, and a person never types them.
+    const WITHOUT_EXAMPLES: [&str; 3] = ["guard", "after", "session-end"];
 
-    /// The commands of the second group.
-    const SECOND_GROUP: [&str; 31] = [
-        "review-task",
-        "drafts",
-        "approve",
-        "reject",
-        "supersede",
-        "retire",
-        "remove",
-        "reopen",
-        "check",
-        "agents",
-        "pack",
-        "unpack",
-        "connect",
-        "projects",
-        "todo",
-        "value",
-        "values",
-        "attach",
-        "detach",
-        "reattach",
-        "files",
-        "which",
-        "used",
-        "runs",
-        "image",
-        "received",
-        "delivered",
-        "exchange",
-        "map",
-        "hooks",
-        "skill",
-    ];
-
-    /// The commands of both groups.
-    fn all_groups() -> impl Iterator<Item = &'static str> {
-        FIRST_GROUP.into_iter().chain(SECOND_GROUP)
+    /// Every command of COMMANDS that has examples, in the order of the help overview.
+    fn commands_with_examples() -> impl Iterator<Item = &'static str> {
+        COMMANDS
+            .iter()
+            .map(|(name, _)| *name)
+            .filter(|name| !WITHOUT_EXAMPLES.contains(name))
     }
 
     #[test]
-    fn every_command_of_both_groups_has_three_examples_that_start_with_its_name() {
-        for name in all_groups() {
+    fn every_command_has_three_examples_that_start_with_its_name() {
+        for name in commands_with_examples() {
             let examples = of(name).unwrap_or_else(|| panic!("no examples for {name}"));
             for example in examples {
                 let words: Vec<&str> = example.split_whitespace().collect();
@@ -362,7 +468,7 @@ mod tests {
 
     #[test]
     fn the_examples_of_a_command_are_three_different_lines() {
-        for name in all_groups() {
+        for name in commands_with_examples() {
             let examples = of(name).unwrap_or_else(|| panic!("no examples for {name}"));
             assert_ne!(examples[0], examples[1], "{name}");
             assert_ne!(examples[0], examples[2], "{name}");
