@@ -4841,7 +4841,7 @@
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
 - summary: The version number and the README are ready for the owner to tag release 0.6.0.
-- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417, T-418, T-419, T-421, T-422, T-423, T-424, T-425, T-427
+- depends: T-328, T-342, T-343, T-344, T-345, T-347, T-349, T-350, T-353, T-354, T-335, T-340, T-294, T-309, T-413, T-414, T-416, T-417, T-418, T-419, T-421, T-422, T-423, T-424, T-425, T-427, T-428
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
@@ -9290,6 +9290,25 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-24, planner): added
 - note (2026-11-24, haiku-T-427): done
+
+### T-428 · approve: a failed editor keeps the answers already given
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-058
+- why: With edit first, an editor that ends with an error ended the whole approve run and lost the answers given before it (found in T-413).
+- summary: If the editor fails during approve, only that one edit is lost; the drafts already approved stay approved.
+- depends: T-413
+- files: src/cmd/approve.rs, tests/cmd_approve.rs
+- read: src/cmd/edit.rs
+- steps:
+  1. src/cmd/approve.rs, the `e` answer: when edit_in_temp_file returns an error (the editor could not start or ended with an error) or refuse_tool_lines refuses the saved text, do not end the command: add a warning `<ID>: <the error's message>; the draft is unchanged`, keep `current` as it was, and ask the same question again. The answers already given in this run stay and are written at the end as now.
+  2. tests/cmd_approve.rs: with two drafts and an editor stand-in that exits with code 1 (a Windows and a Unix text, written with Project::write_stand_in), answers `a|e|s` approve the first draft, leave the second unchanged as a draft, exit 0, and the output has the warning naming the second ID.
+  3. Run cargo test --test cmd_approve
+- accept: An editor error during approve gives a warning and asks again; earlier answers in the run are written.
+- verify: cargo test --test cmd_approve
+- reqs: R-DRAFT-4
+- note (2026-11-24, planner): added
 
 ## Questions
 
