@@ -7930,8 +7930,8 @@
 - note (2026-11-24, haiku-T-293): done
 
 ### T-294 · after: show the agent what the dossier has after a todo command
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - milestone: T-283
 - goal: The command `after` exists, runs locally, and after a claimed, finished or given-back task prints the context of docs/design.md section 14; it never fails.
@@ -7940,8 +7940,10 @@
 - depends: T-293
 - accept: After a claim the agent's context gets brief --task, after done the review material and the usage reminder, after stuck the reminder; every other command gives nothing, and the command never fails.
 - reqs: R-AGENT-5, D39, D38
+- by: Reynan Henry Tandoyo
 - note (2026-11-22, planner): added
 - note (2026-11-23, planner): split into T-398, T-399, T-400
+- note (2026-11-24, planner): done — After todo claim, done or stuck, the hook shows the agent what the dossier has for that moment.
 
 ### T-398 · after: the command file and its place in the command list
 - status: done
