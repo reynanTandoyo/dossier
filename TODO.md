@@ -9097,8 +9097,10 @@
 - note (2026-11-24, haiku-T-418): done
 
 ### T-419 · digest --write: refuse a heading line in the summary
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-419
+- claimed: 2026-11-24T01:24+01:00
+- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-331
 - why: A summary line starting with ## would open a new section in the digest's file (found in T-379); problem refuses headings the same way.
