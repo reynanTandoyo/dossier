@@ -4744,10 +4744,8 @@
 - note (2026-11-24, haiku-T-351): done
 
 ### T-352 · help <command>: examples, second group
-- status: claimed
+- status: done
 - owner: haiku-T-352
-- claimed: 2026-11-24T01:09+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-058
 - why: Smaller comforts that are worth having once the daily use is settled.
@@ -4761,10 +4759,14 @@
   3. Run cargo test --lib examples::
 - accept: The second group of commands has its three examples.
 - verify: cargo test --lib examples::
+- verified: 2026-11-24
+- commit: a037cee
 - reqs: R-OUT-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
 - note (2026-11-24, planner): forced set (owner was haiku-T-352)
 - note (2026-11-24, planner): tests/cmd_help.rs added: its test of a command without examples used pack, which gets examples here; it now uses guard, which never gets examples (T-353 leaves out guard, after and session-end).
+- note (2026-11-24, haiku-T-352): done
 
 ### T-353 · help <command>: examples, third group, and none missing
 - status: open
