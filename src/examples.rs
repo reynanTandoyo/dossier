@@ -1,7 +1,7 @@
 //! The examples shown by `help <command>` (docs/design.md section 20, R-OUT-5). This file holds
-//! the first group of commands: for each, two PowerShell lines and one Linux shell line. The data
-//! is invented (project P-017, tasks such as T-042, an axial compressor). Every line starts with
-//! `dossier <command>`.
+//! the first and second groups of commands: for each, two PowerShell lines and one Linux shell
+//! line. The data is invented (project P-017, tasks such as T-042, an axial compressor). Every
+//! line starts with `dossier <command>`.
 
 /// Two PowerShell examples and one for a Linux shell; None for a command without examples.
 pub fn of(command: &str) -> Option<[&'static str; 3]> {
@@ -136,6 +136,161 @@ pub fn of(command: &str) -> Option<[&'static str; 3]> {
             "dossier status --milestone T-130",
             "dossier status --since last --keep",
         ],
+        "review-task" => [
+            "dossier review-task T-042",
+            "dossier review-task T-043 --json",
+            "dossier review-task T-044",
+        ],
+        "drafts" => [
+            "dossier drafts",
+            "dossier drafts --mine",
+            "dossier drafts --json",
+        ],
+        "approve" => [
+            "dossier approve DEC-013",
+            "dossier approve DEC-013 LES-008",
+            "dossier approve dec-014",
+        ],
+        "reject" => [
+            "dossier reject LES-005 --reason 'The stall margin figure comes from one run only.'",
+            "dossier reject dec-016",
+            "dossier reject LES-006 --reason 'Its evidence is the report of another project.'",
+        ],
+        "supersede" => [
+            "dossier supersede DEC-012 --by DEC-018",
+            "dossier supersede les-004 --by LES-007",
+            "dossier supersede dec-013 --by DEC-019",
+        ],
+        "retire" => [
+            "dossier retire LES-004 --reason 'The rig was rebuilt, so the old runs are not comparable.'",
+            "dossier retire ASM-003 --reason 'The inlet profile was measured in report 4.'",
+            "dossier retire dec-015 --reason 'The campaign ended.'",
+        ],
+        "remove" => [
+            "dossier remove FND-009 --yes",
+            "dossier remove dec-016 --yes",
+            "dossier remove ASM-004 --yes",
+        ],
+        "reopen" => [
+            "dossier reopen DEC-013",
+            "dossier reopen dec-014",
+            "dossier reopen LES-004",
+        ],
+        "check" => [
+            "dossier check",
+            "dossier check --json",
+            "dossier check --fix",
+        ],
+        "agents" => [
+            "dossier agents install",
+            "dossier agents install --yes",
+            "dossier agents check",
+        ],
+        "pack" => [
+            "dossier pack --to backup\\P-017.tar",
+            "dossier pack --to backup\\P-017-team.tar --team",
+            "dossier pack --to ~/backup/P-017.tar",
+        ],
+        "unpack" => [
+            "dossier unpack backup\\P-017.tar --into restore\\P-017",
+            "dossier unpack backup\\P-017-team.tar --into C:\\restore\\P-017",
+            "dossier unpack ~/backup/P-017.tar --into ~/restore/P-017",
+        ],
+        "connect" => [
+            "dossier connect anna@rig-server:/srv/dossiers/P-017 --code P-017",
+            "dossier connect anna@rig-server:/srv/dossiers/P-017 --check",
+            "dossier connect ben@rig-server:/srv/dossiers/P-017",
+        ],
+        "projects" => [
+            "dossier projects",
+            "dossier projects remove P-017",
+            "dossier projects --json",
+        ],
+        "todo" => [
+            "dossier todo show T-042",
+            "dossier todo brief T-042",
+            "dossier todo next --brief",
+        ],
+        "value" => [
+            "dossier value set design.massflow '12.4 kg/s' --source 'Rig report 3, section 2' --key",
+            "dossier value show design.massflow",
+            "dossier value approve design.tip_mach",
+        ],
+        "values" => [
+            "dossier values",
+            "dossier values design",
+            "dossier values --on 2026-11-20",
+        ],
+        "attach" => [
+            "dossier attach T-042 results/speedline.csv --role result --note 'Speedline points of runs 14 to 16.'",
+            "dossier attach T-042 models/compressor.cfd --role model",
+            "dossier attach T-042 --moved models/old.cfd models/compressor.cfd",
+        ],
+        "detach" => [
+            "dossier detach T-042 results/speedline_old.csv",
+            "dossier detach T-042 setup\\inlet.cfg",
+            "dossier detach T-043 models/compressor_v1.cfd",
+        ],
+        "reattach" => [
+            "dossier reattach T-042 results/speedline.csv",
+            "dossier reattach T-042 setup\\inlet.cfg",
+            "dossier reattach T-043 models/compressor.cfd",
+        ],
+        "files" => [
+            "dossier files --task T-042",
+            "dossier files --task T-043 --role result",
+            "dossier files speedline --json",
+        ],
+        "which" => [
+            "dossier which results\\speedline.csv",
+            "dossier which models\\compressor.cfd",
+            "dossier which results/speedline.csv",
+        ],
+        "used" => [
+            "dossier used ExampleSolver --version 2406 --task T-042 --model models/compressor.cfd --param 'time_step=0.001' --output results/speedline.csv --note 'Transient run, 40 iterations per step.'",
+            "dossier used ExampleSolver --version 2406 --task T-043 --howto HOW-001 --deviations 'Tip mesh at two million cells instead of three.'",
+            "dossier used ExampleSolver --version 2406 --task T-044 --output results/residuals.csv",
+        ],
+        "runs" => [
+            "dossier runs --task T-042",
+            "dossier runs --software ExampleSolver --model models/compressor.cfd",
+            "dossier runs --compare USE-012 USE-014",
+        ],
+        "image" => [
+            "dossier image add FND-007 figures/speedline.png --caption 'Speedline with the transient points.'",
+            "dossier image remove FND-007 figures/speedline.png",
+            "dossier image add LES-004 figures/tip_mesh.png --caption 'Tip mesh at two million cells.'",
+        ],
+        "received" => [
+            "dossier received notes/rig_survey.pdf --from 'rig team' --date 2026-11-20 --task T-042",
+            "dossier received data/inlet_survey.csv data/roughness.csv --from ben --note 'Inlet survey and roughness data.'",
+            "dossier received notes/rig_survey.pdf --from anna --date 2026-11-21",
+        ],
+        "delivered" => [
+            "dossier delivered reports/speedline.pdf --to 'customer office' --date 2026-11-22 --based-on T-042",
+            "dossier delivered reports/speedline.pdf reports/inlet.pdf --to anna --based-on T-042 --note 'Final figures for the review.'",
+            "dossier delivered reports/speedline.pdf --to 'rig team' --based-on FND-007",
+        ],
+        "exchange" => [
+            "dossier exchange",
+            "dossier exchange --received",
+            "dossier exchange --delivered --json",
+        ],
+        "map" => [
+            "dossier map",
+            "dossier map set models 'Compressor models and their setup files.' --start models/README.md",
+            "dossier map remove scripts/old",
+        ],
+        "hooks" => [
+            "dossier hooks install",
+            "dossier hooks install --yes",
+            "dossier hooks uninstall --yes",
+        ],
+        "skill" => [
+            "dossier skill install",
+            "dossier skill install --yes",
+            "dossier skill install --json",
+        ],
         _ => return None,
     };
     Some(examples)
@@ -152,9 +307,49 @@ mod tests {
         "list", "search", "history", "diff", "restore", "log", "brief", "status",
     ];
 
+    /// The commands of the second group.
+    const SECOND_GROUP: [&str; 31] = [
+        "review-task",
+        "drafts",
+        "approve",
+        "reject",
+        "supersede",
+        "retire",
+        "remove",
+        "reopen",
+        "check",
+        "agents",
+        "pack",
+        "unpack",
+        "connect",
+        "projects",
+        "todo",
+        "value",
+        "values",
+        "attach",
+        "detach",
+        "reattach",
+        "files",
+        "which",
+        "used",
+        "runs",
+        "image",
+        "received",
+        "delivered",
+        "exchange",
+        "map",
+        "hooks",
+        "skill",
+    ];
+
+    /// The commands of both groups.
+    fn all_groups() -> impl Iterator<Item = &'static str> {
+        FIRST_GROUP.into_iter().chain(SECOND_GROUP)
+    }
+
     #[test]
-    fn every_command_of_the_first_group_has_three_examples_that_start_with_its_name() {
-        for name in FIRST_GROUP {
+    fn every_command_of_both_groups_has_three_examples_that_start_with_its_name() {
+        for name in all_groups() {
             let examples = of(name).unwrap_or_else(|| panic!("no examples for {name}"));
             for example in examples {
                 let words: Vec<&str> = example.split_whitespace().collect();
@@ -167,7 +362,7 @@ mod tests {
 
     #[test]
     fn the_examples_of_a_command_are_three_different_lines() {
-        for name in FIRST_GROUP {
+        for name in all_groups() {
             let examples = of(name).unwrap_or_else(|| panic!("no examples for {name}"));
             assert_ne!(examples[0], examples[1], "{name}");
             assert_ne!(examples[0], examples[2], "{name}");

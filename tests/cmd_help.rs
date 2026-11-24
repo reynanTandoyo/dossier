@@ -42,9 +42,9 @@ fn help_decide_prints_the_description_and_three_example_lines() {
 #[test]
 fn help_of_a_command_without_examples_prints_only_its_description() {
     let folder = tempfile::tempdir().unwrap();
-    help(folder.path(), &["pack"])
+    help(folder.path(), &["guard"])
         .success()
-        .stdout("pack: Writes a dossier archive file\n");
+        .stdout("guard: Blocks edits inside dossier folders\n");
 }
 
 #[test]
