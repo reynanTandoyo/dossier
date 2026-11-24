@@ -2,7 +2,7 @@
 
 A dossier is a `DOSSIER` folder in each project, next to its tasks. It keeps what the team decided, found, assumed and learned, as one short file per item, each with an ID such as `DEC-012`. What an LLM (an AI assistant) proposes waits as a **draft** until a person approves it, and only approved entries count as knowledge.
 
-You never write an entry. Run the commands in a terminal: PowerShell on your PC, or a shell on the server.
+You never write an entry from scratch; at most you correct a draft while you approve it (the answer `e`, below). Run the commands in a terminal: PowerShell on your PC, or a shell on the server.
 
 ## What waits for me: `dossier drafts`
 
