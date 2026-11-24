@@ -9333,10 +9333,8 @@
 - note (2026-11-23, planner): added
 
 ### T-413 · approve: the answer 'edit first'
-- status: claimed
+- status: done
 - owner: haiku-T-413
-- claimed: 2026-11-24T01:47+01:00
-- session: 04041e34-c8d2-4889-bbd5-daa3a4d9a285
 - priority: P1
 - difficulty: 1
 - type: feature
@@ -9353,8 +9351,12 @@
   5. Run cargo test --test cmd_approve
 - accept: approve asks a/e/r/s; e opens the editor, shows the changed draft and asks again; the edit is kept with a history line, whatever the answer after it.
 - verify: cargo test --test cmd_approve
+- verified: 2026-11-24
+- commit: 1c0e914
 - reqs: R-DRAFT-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-23, planner): added
+- note (2026-11-24, haiku-T-413): done
 
 ### T-415 · src/digest.rs copies the date rule and the newest-first sort of filter.rs and cmd/brief.rs (T-330, three-file limit); share them in one place.
 - status: open
