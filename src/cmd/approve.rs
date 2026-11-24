@@ -112,8 +112,9 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
 /// Shows one draft and records what the person answers for it (R-DRAFT-4): `a` approves it, `e`
 /// edits it first and asks again, `r` rejects it, and anything else skips it. Anything that is not
 /// a draft, and a draft that is missing something, is skipped with a warning and no question is
-/// asked. An edit is kept when the draft is then skipped. An ID given a second time is left alone
-/// with a warning.
+/// asked. An edit is kept when the draft is then skipped; an edit that fails leaves the draft as it
+/// was, with a warning, and is asked about again. An ID given a second time is left alone with a
+/// warning.
 fn review(tx: &mut Tx, item: &Item, who: &Who, tally: &mut Tally) -> Result<()> {
     let entry = &item.entry;
     let id = entry.id();
@@ -160,9 +161,15 @@ fn review(tx: &mut Tx, item: &Item, who: &Who, tally: &mut Tally) -> Result<()> 
                 Verdict::Rejected
             }
             "e" | "edit" => {
-                if edit_draft(tx.time(), who, &id, &mut current)? {
-                    edited = true;
-                    show(&current.text());
+                // A failed edit (the editor cannot start or ends with an error, or the saved text is
+                // refused) ends only this edit: the draft stays as it was and is asked about again.
+                match edit_draft(tx.time(), who, &id, &mut current) {
+                    Ok(true) => {
+                        edited = true;
+                        show(&current.text());
+                    }
+                    Ok(false) => {}
+                    Err(error) => tally.warn(format!("{id}: {error}; the draft is unchanged")),
                 }
                 continue;
             }

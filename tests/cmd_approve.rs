@@ -8,7 +8,7 @@ use common::Project;
 use dossier::approval::{self, Mark};
 use dossier::entry::{Entry, Status};
 use predicates::str::contains;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// The fixed clock of `common::Project`.
 const NOW: &str = "2026-11-20T10:00:00+01:00";
@@ -26,6 +26,9 @@ const APPENDS_A_LINE: (&str, &str) = (
 
 /// The stand-in editor that saves the file as it was (as in tests/cmd_edit.rs).
 const CHANGES_NOTHING: (&str, &str) = ("@echo off\r\n", "#!/bin/sh\nexit 0\n");
+
+/// The stand-in editor that ends with an error (exit code 1) and saves nothing.
+const EXITS_WITH_ERROR: (&str, &str) = ("@echo off\r\nexit /b 1\r\n", "#!/bin/sh\nexit 1\n");
 
 /// Runs `learn` as anna-claude with a complete lesson: a draft, with the next lesson ID.
 fn draft_lesson(project: &Project) {
@@ -441,6 +444,75 @@ fn an_editor_that_saves_the_draft_unchanged_is_asked_again_and_leaves_no_change_
     approve_with_editor(&project, "e|r", &editor, &["LES-001"])
         .success()
         .stdout("LES-001: rejected\n");
+
+    let entry = entry_of(&project, "LES-001");
+    assert_eq!(entry.status(), Some(Status::Rejected));
+    assert_eq!(
+        entry.history(),
+        [
+            format!("{NOW} anna via anna-claude: created"),
+            format!("{NOW} anna: rejected"),
+        ]
+    );
+}
+
+#[test]
+fn a_failed_editor_keeps_the_answers_given_before_it_and_the_draft_is_asked_again() {
+    let project = Project::new();
+    draft_lesson(&project);
+    draft_lesson(&project);
+    let (windows, unix) = EXITS_WITH_ERROR;
+    let editor = project.write_stand_in("editor", windows, unix);
+    let before = std::fs::read(project.entry_file("LES-002")).expect("the entry file is read");
+
+    approve_with_editor(&project, "a|e|s", &editor, &["LES-001", "LES-002"])
+        .success()
+        .stdout("LES-001: approved\nLES-002: skipped\n")
+        .stderr(contains("warning: LES-002: the editor ended with"))
+        .stderr(contains("; nothing was changed; the draft is unchanged"));
+
+    assert_eq!(
+        entry_of(&project, "LES-001").status(),
+        Some(Status::Approved)
+    );
+    assert_eq!(
+        std::fs::read(project.entry_file("LES-002")).expect("the entry file is read"),
+        before
+    );
+    assert_eq!(entry_of(&project, "LES-002").status(), Some(Status::Draft));
+    let state = project.read("DOSSIER/.state/approved.json");
+    assert!(state.contains("LES-001"));
+    assert!(!state.contains("LES-002"));
+}
+
+/// Writes `replacement` as the text that the stand-in editor saves: a copy of a file in the
+/// project's `.test` folder (as in tests/cmd_edit.rs).
+fn copying_editor(project: &Project, replacement: &str) -> PathBuf {
+    let source = project.root().join(".test").join("replacement.md");
+    project.write(".test/replacement.md", replacement);
+    let source = source.display();
+    project.write_stand_in(
+        "editor",
+        &format!("@echo off\r\ncopy /Y \"{source}\" \"%~1\" >nul\r\n"),
+        &format!("#!/bin/sh\ncp \"{source}\" \"$1\"\n"),
+    )
+}
+
+#[test]
+fn an_edit_the_tool_refuses_keeps_the_draft_and_asks_again() {
+    let project = Project::new();
+    draft_lesson(&project);
+    let before = text_of(&project, "LES-001");
+    let changed = before.replace("- status: draft", "- status: approved");
+    assert_ne!(changed, before, "the example has a draft status line");
+    let editor = copying_editor(&project, &changed);
+
+    approve_with_editor(&project, "e|r", &editor, &["LES-001"])
+        .success()
+        .stdout("LES-001: rejected\n")
+        .stderr(contains(
+            "warning: LES-001: these lines are written by the tool: status; the draft is unchanged",
+        ));
 
     let entry = entry_of(&project, "LES-001");
     assert_eq!(entry.status(), Some(Status::Rejected));
