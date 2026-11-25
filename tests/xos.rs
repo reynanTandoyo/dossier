@@ -40,10 +40,11 @@ const AT_5: &str = "2026-11-20T10:05:00+01:00";
 /// with `/`, a line break, its bytes and a line break, in path order. The journal holds the lines
 /// of init and of the two people adds that Project::new runs, all naming anna (Project::new runs
 /// as anna), so the value does not depend on the user of the machine.
-const EXPECTED_DIGEST: &str = "f6389caf930907ef5fcf587f40a4a0bd27a740220bbba7c73c31e833524a17ab";
+const EXPECTED_DIGEST: &str = "e06c2d59164f77cf03bdce7fc6be4c920b59676dfff51c0e39b52a371e49d57a";
 
 /// The paths of the files that the digest covers, in path order.
 const EXPECTED_FILES: &[&str] = &[
+    ".state/.gitignore",
     ".state/approved.json",
     ".state/history/FND-001/000001.md",
     ".state/history/FND-001/index.jsonl",

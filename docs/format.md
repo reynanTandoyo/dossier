@@ -223,6 +223,7 @@ DOSSIER/
   dossier.toml
   decisions/  assumptions/  findings/  lessons/
   .state/
+    .gitignore        lists the lines write.lock, holder.json and shown/ (§20, §36)
     write.lock        target of the operating-system lock; stays empty
     holder.json       who holds the lock: name, command, process ID, start time
     ids.json          highest number ever given out per prefix: {"DEC":12,"ASM":3}
@@ -230,6 +231,7 @@ DOSSIER/
     approved.json     checksum of each approved lesson: {"LES-031":"<sha256 hex>"}
     history/<ID>/000001.md …   snapshots of an entry before each change
     history/<ID>/index.jsonl   one line per snapshot: {"n":1,"time":"…","name":"…","command":"…"}
+    shown/            one file per Claude Code session, the entries shown in it (§36)
 ```
 
 ## 10. dossier.toml
@@ -493,8 +495,9 @@ assumptions, findings or usage records, R-TEAM-1), and these block files:
 | `glossary.md` | `Glossary of <code>` | term | `meaning`, `symbol`, `unit`, `also` (comma list of other spellings), `history` |
 | `usage-index.md` | `Usage of <code>` | `<project code>:<USE-ID>` | `date`, `code`, `software`, `version`, `analysis`, `machine`, `howto`, `person` |
 
-A project dossier may have a `glossary.md` of its own, same format. `.state/.gitignore` holds the
-two lines `write.lock` and `holder.json`.
+A project dossier may have a `glossary.md` of its own, same format. Every dossier, team or project,
+has the ignore file `.state/.gitignore`, which lists the three lines `write.lock`, `holder.json` and
+`shown/` (§36).
 
 ## 21. People and names (D34)
 
@@ -784,4 +787,5 @@ The folder `.state/shown/` holds one file per Claude Code session, `<session>.tx
 entry ID per line: the entries that the PreToolUse hook `dossier guard` has shown in that session
 (D51). The session name is used only when it consists of ASCII letters, digits and `-`. Files
 older than 30 days are removed. `which <path> --binding --session <id>` leaves out the entries
-listed in that session's file (R-CODE-8).
+listed in that session's file (R-CODE-8). The folder is listed in .state/.gitignore, so the files
+of a session never reach git.

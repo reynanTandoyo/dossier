@@ -309,7 +309,7 @@ fn team_dossier_settings_say_kind_team_right_after_the_code() {
 }
 
 #[test]
-fn team_dossier_state_folder_has_a_gitignore_for_the_lock_and_the_holder() {
+fn team_dossier_state_folder_has_a_gitignore_for_the_lock_the_holder_and_shown() {
     let folder = tempfile::tempdir().unwrap();
     init(folder.path(), &["--code", "P-001", "--team-dossier"]).success();
     let ignore = folder
@@ -319,7 +319,7 @@ fn team_dossier_state_folder_has_a_gitignore_for_the_lock_and_the_holder() {
         .join(".gitignore");
     assert_eq!(
         std::fs::read_to_string(ignore).unwrap(),
-        "write.lock\nholder.json\n"
+        "write.lock\nholder.json\nshown/\n"
     );
 }
 
@@ -390,12 +390,15 @@ fn a_refused_team_dossier_as_json_gives_the_bad_value_name() {
 }
 
 #[test]
-fn a_project_dossier_has_no_kind_line_and_no_state_gitignore() {
+fn a_project_dossier_has_no_kind_line_and_a_state_gitignore_for_the_session_files() {
     let folder = tempfile::tempdir().unwrap();
     init(folder.path(), &["--code", "P-001"]).success();
     let dossier = folder.path().join("DOSSIER");
     assert!(!settings(folder.path()).contains("kind ="));
-    assert!(!dossier.join(".state").join(".gitignore").exists());
+    assert_eq!(
+        std::fs::read_to_string(dossier.join(".state").join(".gitignore")).unwrap(),
+        "write.lock\nholder.json\nshown/\n"
+    );
     let cfg = dossier::config::load(&dossier).unwrap();
     assert_eq!(cfg.kind, "project");
 }

@@ -46,12 +46,12 @@ const JOURNAL: &str = "journal.jsonl";
 /// usage records.
 const TEAM_FOLDERS: [&str; 3] = ["lessons", "howtos", "tools"];
 
-/// The ignore file of the state folder of a team dossier (format.md §20): the lock and the holder
-/// file are not shared through git.
+/// The ignore file of the state folder of every dossier (format.md §20, §36): the lock, the holder
+/// file and the session files of `shown/` are not shared through git.
 const IGNORE: &str = ".gitignore";
 
-/// The text of the ignore file of a team dossier.
-const IGNORE_TEXT: &str = "write.lock\nholder.json\n";
+/// The text of the ignore file of the state folder of every dossier (format.md §20, §36).
+const IGNORE_TEXT: &str = "write.lock\nholder.json\nshown/\n";
 
 /// The mode of each created folder on Linux: group-writable, with the setgid bit, so that new
 /// folders and files keep the group of the dossier folder (R-XOS-8).
@@ -491,10 +491,8 @@ fn dry_run(dossier: &Path, args: &Args, plan: Option<&TeamPlan>) -> Output {
         warnings.push(format!("dry run: would create {}", path.display()));
     }
     warnings.push(format!("dry run: would create {}", state.display()));
-    if args.team_dossier {
-        let ignore = state.join(IGNORE);
-        warnings.push(format!("dry run: would write {}", ignore.display()));
-    }
+    let ignore = state.join(IGNORE);
+    warnings.push(format!("dry run: would write {}", ignore.display()));
     warnings.push(format!(
         "dry run: would write {}",
         dossier.join(SETTINGS).display()
@@ -543,7 +541,7 @@ fn create(dossier: &Path, args: &Args, lines: &[String], record: &journal::Recor
 
 /// Sets the mode of the dossier folder, makes the folders and the state folder, writes
 /// dossier.toml with the code and the `lines` after it, and appends the journal line that records
-/// the creation. A team dossier's state folder also gets its ignore file.
+/// the creation. The state folder also gets its ignore file, in every dossier (format.md §20, §36).
 fn build(dossier: &Path, args: &Args, lines: &[String], record: &journal::Record) -> Result<()> {
     set_mode(dossier, FOLDER_MODE)?;
     for folder in folders(args.team_dossier) {
@@ -551,11 +549,9 @@ fn build(dossier: &Path, args: &Args, lines: &[String], record: &journal::Record
     }
     let state = dossier.join(STATE);
     make_dir(&state)?;
-    if args.team_dossier {
-        let ignore = state.join(IGNORE);
-        atomic::replace(&ignore, IGNORE_TEXT.as_bytes(), Some(&None))?;
-        set_mode(&ignore, FILE_MODE)?;
-    }
+    let ignore = state.join(IGNORE);
+    atomic::replace(&ignore, IGNORE_TEXT.as_bytes(), Some(&None))?;
+    set_mode(&ignore, FILE_MODE)?;
     let settings = dossier.join(SETTINGS);
     atomic::replace(
         &settings,
