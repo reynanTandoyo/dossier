@@ -8,7 +8,7 @@
 mod common;
 
 use common::Project;
-use predicates::str::{contains, is_empty};
+use predicates::str::{contains, is_empty, starts_with};
 use serde_json::json;
 
 /// The fixed clock of `common::Project`.
@@ -44,7 +44,9 @@ fn an_edit_of_an_entry_file_is_blocked_with_exit_2() {
     run_guard(&project, &edit("DOSSIER/findings/FND-001-x.md"))
         .code(2)
         .stdout(is_empty())
-        .stderr(contains("DOSSIER"));
+        .stderr(starts_with(
+            "DOSSIER/findings/FND-001-x.md is inside DOSSIER:",
+        ));
 }
 
 #[test]
@@ -72,7 +74,9 @@ fn a_windows_path_with_spaces_and_non_ascii_letters_is_blocked() {
         &edit(r"C:\Projekte\Mein Ordner\DOSSIER\findings\FND-001-ä.md"),
     )
     .code(2)
-    .stderr(contains("DOSSIER"));
+    .stderr(starts_with(
+        r"C:\Projekte\Mein Ordner\DOSSIER\findings\FND-001-ä.md is inside DOSSIER:",
+    ));
 }
 
 #[test]
@@ -83,7 +87,9 @@ fn a_payload_that_starts_with_a_byte_order_mark_is_read() {
         &format!("\u{feff}{}", edit("DOSSIER/findings/FND-001-x.md")),
     )
     .code(2)
-    .stderr(contains("DOSSIER"));
+    .stderr(starts_with(
+        "DOSSIER/findings/FND-001-x.md is inside DOSSIER:",
+    ));
 }
 
 /// A Claude Code PreToolUse payload for the Edit tool on `path` in `session`, as JSON text; without
@@ -130,7 +136,7 @@ fn the_first_edit_of_a_bound_file_in_a_session_is_refused_with_its_entries() {
     )
     .code(2)
     .stdout(is_empty())
-    .stderr(contains(
+    .stderr(starts_with(
         "Entries in force for src/pump/seal.rs; read them, then make your edit again (dossier show <ID> prints one in full):\n",
     ))
     .stderr(contains("DEC-001 · decision · Seal gap"))
@@ -154,6 +160,9 @@ fn the_refusal_names_the_approved_entry_linked_under_the_bound_decision() {
     run_guard(&project, &edit_in_session("src/pump/seal.rs", Some("s1")))
         .code(2)
         .stdout(is_empty())
+        .stderr(starts_with(
+            "Entries in force for src/pump/seal.rs; read them, then make your edit again",
+        ))
         .stderr(contains("DEC-001 · decision · Seal gap"))
         .stderr(contains(
             "  Keep the seal gap at 0.2 mm.\n  linked: FND-001 · Seal leak\n",
@@ -180,6 +189,9 @@ fn a_different_session_is_refused_again_for_the_same_file() {
     run_guard(&project, &edit_in_session("src/pump/seal.rs", Some("s2")))
         .code(2)
         .stdout(is_empty())
+        .stderr(starts_with(
+            "Entries in force for src/pump/seal.rs; read them, then make your edit again",
+        ))
         .stderr(contains("DEC-001 · decision · Seal gap"));
 }
 

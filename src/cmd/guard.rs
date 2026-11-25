@@ -16,19 +16,19 @@ use std::process::{Command, Stdio};
 #[derive(clap::Args, Debug)]
 pub struct Args {}
 
-/// Runs `guard`. A payload that edits a file inside DOSSIER fails with Code::Usage, so the exit
-/// code is 2, which Claude Code treats as a block, and the message goes to standard error. An edit
-/// of a file that entries in force bind, in a session that has not been shown them yet, fails the
-/// same way and names those entries. Any other payload, or text that is not one, exits 0 with
-/// nothing printed.
+/// Runs `guard`. A payload that edits a file inside DOSSIER fails with Code::Blocked, so the exit
+/// code is 2, which Claude Code treats as a block, and the message goes to standard error alone,
+/// without an `error:` prefix. An edit of a file that entries in force bind, in a session that has
+/// not been shown them yet, fails the same way and names those entries. Any other payload, or text
+/// that is not one, exits 0 with nothing printed.
 pub fn run(_args: &Args, _g: &Global) -> Result<Output> {
     let mut payload = String::new();
     std::io::Read::read_to_string(&mut std::io::stdin(), &mut payload)?;
     if let Some(message) = hooks::guard(&payload) {
-        return Err(Error::new(Code::Usage, message));
+        return Err(Error::new(Code::Blocked, message));
     }
     if let Some(message) = binding_message(&payload) {
-        return Err(Error::new(Code::Usage, message));
+        return Err(Error::new(Code::Blocked, message));
     }
     Ok(Output::text(""))
 }
