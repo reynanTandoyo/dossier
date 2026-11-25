@@ -6,6 +6,17 @@ use std::collections::HashSet;
 /// The entry fields whose comma-separated values are tags.
 const TAG_FIELDS: [&str; 4] = ["machine", "analysis", "software", "tags"];
 
+/// The words of the COMMON_WORDS lists of decide.rs and learn.rs, each once, in alphabetical order.
+pub const COMMON_WORDS: &[&str] = &[
+    "about", "after", "all", "also", "although", "and", "any", "are", "been", "before", "being",
+    "between", "both", "but", "can", "could", "did", "does", "during", "each", "for", "from",
+    "had", "has", "have", "here", "into", "its", "less", "may", "more", "most", "must", "new",
+    "not", "off", "one", "only", "our", "out", "over", "per", "should", "some", "such", "than",
+    "that", "the", "their", "them", "then", "there", "these", "they", "this", "those", "through",
+    "two", "under", "use", "used", "uses", "using", "very", "via", "was", "were", "what", "when",
+    "where", "which", "while", "who", "will", "with", "without", "would", "you", "your",
+];
+
 /// The lower-case words of `text`, split at non-alphanumerics; words under 3 characters are
 /// dropped. Each word is listed once, at its first place in the text.
 pub fn words(text: &str) -> Vec<String> {
@@ -18,6 +29,34 @@ pub fn words(text: &str) -> Vec<String> {
         }
     }
     found
+}
+
+/// The lower-case word stemmed with the Snowball English stemmer; a word with a non-ASCII
+/// character is only lower-cased.
+pub fn stem(word: &str) -> String {
+    let lower = word.to_lowercase();
+    if !lower.is_ascii() {
+        return lower;
+    }
+    rust_stemmers::Stemmer::create(rust_stemmers::Algorithm::English)
+        .stem(&lower)
+        .into_owned()
+}
+
+/// True when the lower-case word is one of COMMON_WORDS.
+pub fn is_common(word: &str) -> bool {
+    COMMON_WORDS.contains(&word.to_lowercase().as_str())
+}
+
+/// The stems of the words of `text` that are not common, each once, at its first place.
+pub fn stems(text: &str) -> Vec<String> {
+    let mut seen = HashSet::new();
+    words(text)
+        .into_iter()
+        .filter(|word| !is_common(word))
+        .map(|word| stem(&word))
+        .filter(|stem| seen.insert(stem.clone()))
+        .collect()
 }
 
 /// What to look for: tags and words.
@@ -218,6 +257,26 @@ mod tests {
         );
         assert!(words("").is_empty());
         assert!(words("a b cd -- !!").is_empty());
+    }
+
+    #[test]
+    fn word_forms_share_a_stem() {
+        assert_eq!(stem("reuse"), stem("reusing"));
+        assert_eq!(stem("reuse"), stem("reused"));
+        assert_eq!(stem("connections"), stem("connection"));
+        assert_eq!(stem("ÉTÉ"), "été");
+    }
+
+    #[test]
+    fn common_words_are_known_in_any_case() {
+        assert!(is_common("And"));
+        assert!(!is_common("pump"));
+    }
+
+    #[test]
+    fn stems_keep_the_first_stem_of_each_meaningful_word() {
+        assert_eq!(stems("The pump and the pumps"), vec![stem("pump")]);
+        assert!(stems("").is_empty());
     }
 
     #[test]
