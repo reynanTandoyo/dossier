@@ -9336,6 +9336,984 @@
 - note (2026-11-24, planner): added
 - note (2026-11-24, haiku-T-428): done
 
+### T-431 · Finding: an LLM is shown the entries that matter for its work, also when they are worded differently
+- status: open
+- owner: —
+- priority: P1 · type: milestone
+- goal: search finds entries by word stems and lists entries that hold only some of the words; related entries are chosen by rare words, never by common ones; entries name a topic from the project's list and may point to code; an LLM that edits a file is shown the entries that bind it; a fixed set of questions proves it (TEST-12). Version 1.0.0 is ready to tag. No model is called and no embeddings are stored (D7, D11).
+- why: In the project's own dossier `search connection reuse` found nothing although two entries are about it, and brief --task listed entries that share only the word `and` with the task.
+- summary: The tool gets better at putting the right entries in front of an LLM: by word stems, by rare words, by topics and by the files being changed.
+- note (2026-11-25, planner): added
+
+### T-432 · Rules for finding: requirements, format and design of version 1.0
+- status: open
+- owner: —
+- priority: P1 · type: milestone
+- milestone: T-431
+- goal: requirements.md holds R-FIND-1 to R-FIND-4, the new R-READ-3, R-TOPIC-1 to R-TOPIC-5, R-CODE-6 to R-CODE-8 and TEST-12; format.md and design.md fix the fields, files and signatures the tasks of this version name.
+- why: Every code task of this version takes its signatures from design.md, so the documents come first.
+- summary: The three documents say what version 1.0 builds, before any code is written.
+- note (2026-11-25, planner): added
+
+### T-433 · Ranking: related entries are chosen by word stems and rare words
+- status: open
+- owner: —
+- priority: P1 · type: milestone
+- milestone: T-431
+- goal: R-FIND-1 to R-FIND-4 hold in decide, learn, problem, brief --task and search --similar: common words never relate two entries, a rare word counts more than a frequent one, weak matches are left out, and a glossary spelling widens the query.
+- why: Related entries were scored on raw title words, so `and` counted as much as `ssh`.
+- summary: The lists of related entries stop showing noise and start seeing through different word forms.
+- depends: T-432
+- note (2026-11-25, planner): added
+
+### T-434 · Search: different wording still finds the entry
+- status: open
+- owner: —
+- priority: P1 · type: milestone
+- milestone: T-431
+- goal: R-READ-3 holds in its new form: a word matches by its stem too, and after the entries that hold every word, search lists the best entries that hold some of them.
+- why: A search that needs every word exactly answers `0 matches` to an LLM that used another word form, and the LLM concludes that nothing is recorded.
+- summary: A search with slightly different words no longer comes back empty.
+- depends: T-433
+- note (2026-11-25, planner): added
+
+### T-435 · Topics: every entry names what it is about, from one list
+- status: open
+- owner: —
+- priority: P1 · type: milestone
+- milestone: T-431
+- goal: R-TOPIC-1 to R-TOPIC-5 hold: a project keeps a list of topics, entries carry a topic field, an LLM's entry without a topic is refused once the list is not empty, list and search filter by topic, and brief shows the topics.
+- why: Only 7 of the 72 entries of the project's own dossier carry a tag, because nothing asks for one; a lookup by tag is exact where a lookup by words is a guess.
+- summary: Each entry says what it is about with a word from a short list the project keeps, so entries can be looked up exactly.
+- depends: T-432
+- note (2026-11-25, planner): added
+
+### T-436 · Code pointers: an LLM that changes a file is shown the entries that bind it
+- status: open
+- owner: —
+- priority: P1 · type: milestone
+- milestone: T-431
+- goal: R-CODE-6 to R-CODE-8 hold: a pointer to a folder covers the files in it, decide, found and learn take --code, which --binding lists the entries in force for a path, and a hook prints them after an edit, once per session.
+- why: The file an LLM is changing is known exactly, so the decisions about that file can be found without guessing at words.
+- summary: When an LLM edits a file, it is shown the decisions, findings and lessons recorded for that file or its folder.
+- depends: T-432
+- note (2026-11-25, planner): added
+
+### T-437 · Proof and release 1.0.0
+- status: open
+- owner: —
+- priority: P1 · type: milestone
+- milestone: T-431
+- goal: TEST-12 passes, the agent rules tell an LLM to give a topic and a code pointer, version 1.0.0 builds and passes every check, and the project's own dossier uses topics and code pointers.
+- why: Without a fixed set of questions nobody notices when a later change makes finding worse.
+- summary: A test with fixed questions guards the finding, the rules for LLMs are updated, and version 1.0.0 is ready for the owner to tag.
+- depends: T-433, T-434, T-435, T-436
+- note (2026-11-25, planner): added
+
+### T-438 · requirements.md: finding, topics and code pointers of version 1.0
+- status: open
+- owner: —
+- priority: P1 · difficulty: 3 · type: docs
+- milestone: T-432
+- why: The requirement IDs R-FIND, R-TOPIC, R-CODE-6 to 8 and TEST-12 are named by every task of this version.
+- summary: The requirements document says what version 1.0 adds: better ranking and search, topics, and entries shown for the file being edited.
+- final: Writing requirements needs the owner's answers and judgment on wording; the planner does it.
+- files: docs/requirements.md
+- read: docs/requirements.md, DOSSIER/decisions
+- steps:
+  1. Section 3 (Decisions): add the owner's decisions for this version with the next free numbers after D47, once the owner has answered the questions asked about this milestone: ranking by stems and rare words stays inside D7 and D11; the stemmer; who may add a topic.
+  2. New section `5.9a Finding related entries — FIND` after 5.9. R-FIND-1 MUST: wherever entries are chosen as related to a text (decide, learn, problem, brief --task, search --similar), words are compared by their English word stem, and common English words never count. R-FIND-2 MUST: a word or tag that few entries hold counts more: its weight is 1 + floor(log2(entries / entries that hold it)); a title match counts 5 times the weight, a tag match 3 times, a match in the text once. R-FIND-3 MUST: an entry is listed only when it shares a tag with the query or its score reaches a third of the sum of the weights of the query's words, so a list may be empty. R-FIND-4 MUST: when the query holds a spelling of a glossary term (R-TERM-4), the words of the term's other spellings join the query.
+  3. R-READ-3: replace the text. search <words…> lists first the entries that hold every word, in the three groups as before; a word is held when the entry holds it, a glossary spelling of it, or a word with the same stem. When more than one word is given, it then lists up to 10 entries that hold only some of the words, best first (R-FIND-2), under the line `some of the words:`. The same filters as list. R-READ-4: add that the JSON marks each result with `match`: `all` or `some`.
+  4. R-CTX-2 and R-CTX-13: say that the matching follows R-FIND-1 to R-FIND-4.
+  5. New section `5.11i Topics — TOPIC`. R-TOPIC-1 MUST: the project settings hold a list `topics`; `topics` prints each with the number of entries in force that name it; `topics add <name>` adds one and needs a person. R-TOPIC-2 MUST: an entry may carry a field `topic` (one or more, comma-separated), given with --topic on decide, propose, found, learn, assume, problem and howto, or with --field on add and set; when the list is not empty a value that is not on it is refused, naming the list. R-TOPIC-3 MUST: when the list is not empty, a decision, assumption, finding, lesson, how-to or investigation written by an LLM without a topic is refused; entries written from a document (R-IMPORT-3) are exempt. R-TOPIC-4 MUST: list and search take --topic <name>; a topic counts as a tag for R-FIND-2. R-TOPIC-5 MUST: brief prints one line with the topics and the number of decisions in force of each, and each decision line names its topics.
+  6. Section 5.11e: add R-CODE-6 MUST: a code pointer to a folder covers every file in it, in which and in brief --task. R-CODE-7 MUST: decide, found and learn take --code <pointers>. R-CODE-8 MUST: `which <path> --binding` prints only the approved entries in force whose pointers cover the path, and `hooks install` adds a hook that prints them after an LLM edits a file, each entry once per session.
+  7. Section 9 (Testing): add TEST-12: a test dossier of invented entries and a fixed list of searches, each with the entry that must be among the first three results.
+  8. Section 11 (Releases): add `### Phase 7 — Finding (v1.0)` naming the requirements above. Section 13: at I-2 add that version 1.0 improves full-text finding first and that embeddings stay an idea.
+  9. Check that no requirement ID is used twice: every new ID appears exactly once as a definition.
+- accept: requirements.md defines R-FIND-1 to 4, the new R-READ-3, R-TOPIC-1 to 5, R-CODE-6 to 8, TEST-12 and phase 7, with no ID defined twice.
+- reqs: R-FIND-1 to R-FIND-4, R-READ-3, R-TOPIC-1 to R-TOPIC-5, R-CODE-6 to R-CODE-8, TEST-12
+- note (2026-11-25, planner): added
+
+### T-439 · format.md: the topic field, the topics setting, folder pointers and the shown file
+- status: open
+- owner: —
+- priority: P1 · difficulty: 2 · type: docs
+- milestone: T-432
+- why: Workers follow format.md exactly, so the new field and files must be fixed there.
+- summary: The format document gets the new field, the new setting and the small state file of version 1.0.
+- final: The format text has to fit the existing sections of format.md; the planner does it.
+- depends: T-438
+- files: docs/format.md
+- read: docs/format.md, docs/requirements.md
+- steps:
+  1. Add section 35 `Topics (R-TOPIC-1 to R-TOPIC-3)`: dossier.toml may hold a top-level key `topics = ["…"]`, written before the first table; a missing key is an empty list. A topic is one to three words in lower case, without commas. An entry field `- topic: a, b` holds one or more topics; it is written directly after `tags` in the field order.
+  2. In the section on code pointers (the `code` field): add that the path of a pointer may be a folder; it then covers every file below it (R-CODE-6). A trailing slash and a leading `./` are ignored.
+  3. Add section 36 `Entries shown in a session (R-CODE-8)`: the folder `.state/shown/` holds one file per Claude Code session, `<session>.txt`, with one entry ID per line: the entries the edit hook has shown in that session. The session name is used only when it consists of ASCII letters, digits and `-`. Files older than 30 days are removed.
+  4. State in section 35 what an older program does: version 0.6 refuses a settings file that has `topics` (unknown key); PC and server run the same version (R-XOS-9), so the format number stays 1.
+- accept: format.md describes the topics setting, the topic field, folder pointers and the shown files, each with one example.
+- reqs: R-TOPIC-1 to R-TOPIC-3, R-CODE-6, R-CODE-8
+- note (2026-11-25, planner): added
+
+### T-440 · design.md: section 21, the modules and signatures of version 1.0
+- status: open
+- owner: —
+- priority: P1 · difficulty: 3 · type: docs
+- milestone: T-432
+- why: One task fills in one file, and every signature a worker uses is fixed in design.md.
+- summary: The design document fixes the functions of version 1.0, so that each code task only fills them in.
+- final: Design work: signatures and outputs for all tasks of this version; the planner does it.
+- depends: T-438, T-439
+- files: docs/design.md
+- read: docs/design.md, docs/requirements.md, docs/format.md, src/select.rs, src/hooks.rs
+- steps:
+  1. Add section `21. Finding (R-FIND, R-TOPIC, R-CODE-6 to 8)`. Copy every signature from the steps of the tasks under the milestones of this version (todo show <id>); where a task and this document would differ, change the task with todo set, never only one of the two.
+  2. select.rs: `pub fn stem(word: &str) -> String`, `pub const COMMON_WORDS`, `pub fn is_common(word: &str) -> bool`, `pub fn stems(text: &str) -> Vec<String>`, `pub struct Index` with `pub fn of(items: &[Item]) -> Index` and `pub fn weight(&self, holders: usize) -> u32`, `pub fn weighted(item: &Item, query: &Query, index: &Index) -> u32`, `pub fn needed(query: &Query, index: &Index) -> u32`, `pub fn ranked<'a>(items: &'a [Item], query: &Query) -> Vec<(u32, &'a Item)>`, `pub fn top<'a>(items: &'a [Item], query: &Query, limit: usize) -> Vec<&'a Item>`, `pub fn why(item: &Item, query: &Query) -> Option<&'static str>`, `pub fn widened(query: &Query, terms: &[Term]) -> Query`. Say that score, reason and best are removed at the end, and that TAG_FIELDS gains `topic`.
+  3. config.rs: `Config.topics: Vec<String>`. create.rs: the two topic rules of create::create. codeptr.rs: `path_of`, `covers`, `lies_in`. shown.rs: `unseen`. hooks.rs: `edited_path`, `session_of`, and the second PostToolUse entry of `installed`. Commands: `topics` and `topics add`, `which --binding [--session]`, the --topic and --code options, the edit event of `after`.
+  4. State the outputs exactly as the tasks give them: the lines of search with `some of the words:`, the lines of `which --binding`, the context text of the edit hook, the `Topics:` line of brief.
+  5. Section 2 or wherever the dependencies are listed: add `rust-stemmers` with its reason.
+- accept: design.md section 21 holds every signature and output text the tasks of this version name, and no task differs from it.
+- reqs: R-FIND-1 to R-FIND-4, R-TOPIC-1 to R-TOPIC-5, R-CODE-6 to R-CODE-8
+- note (2026-11-25, planner): added
+
+### T-441 · select.rs: word stems and common words
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-433
+- why: reuse, reusing and reused must count as one word, and `and` as none, before entries can be compared.
+- summary: Adds the two building blocks of better matching: the stem of a word, and the list of words too common to mean anything.
+- depends: T-440
+- files: Cargo.toml, Cargo.lock, src/select.rs
+- read: docs/design.md, src/cmd/decide.rs, src/cmd/learn.rs
+- steps:
+  1. Cargo.toml, [dependencies]: add the line `rust-stemmers = "1.2"` in alphabetical order. Run cargo build so that Cargo.lock follows. The commit message names the reason: word stems for finding related entries (R-FIND-1).
+  2. src/select.rs: add `pub fn stem(word: &str) -> String`. It returns the word in lower case when the word holds a character that is not ASCII; otherwise the lower-case word stemmed with `rust_stemmers::Stemmer::create(rust_stemmers::Algorithm::English).stem(&lower).into_owned()`.
+  3. src/select.rs: add `pub const COMMON_WORDS: &[&str]` holding every word of the COMMON_WORDS lists of src/cmd/decide.rs and src/cmd/learn.rs, each once, in alphabetical order, and `pub fn is_common(word: &str) -> bool`, true when the lower-case word is in the list. Do not change decide.rs or learn.rs.
+  4. src/select.rs: add `pub fn stems(text: &str) -> Vec<String>`: the words of `words(text)` that are not common, each as its `stem`, each stem once, at its first place.
+  5. Tests in src/select.rs: stem("reuse"), stem("reusing") and stem("reused") are equal; stem("connections") equals stem("connection"); stem("ÉTÉ") is "été"; is_common("And") is true and is_common("pump") is false; stems("The pump and the pumps") is vec![stem("pump")]; stems("") is empty.
+  6. Leave words, score, reason and best and their tests as they are. Run cargo test --lib select::
+- accept: select::stem, is_common and stems exist with their tests; nothing else behaves differently.
+- verify: cargo test --lib select::
+- reqs: R-FIND-1
+- note (2026-11-25, planner): added
+
+### T-442 · select.rs: weights for rare words, and the functions top, ranked and why
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-433
+- why: A word that half the entries hold says little; a word that one entry holds says a lot. Weak matches must be left out so that a list of related entries can be empty.
+- summary: Adds the new ranking beside the old one: rare words count more, and an entry that shares too little is not listed.
+- depends: T-441
+- files: src/select.rs
+- read: docs/design.md, docs/requirements.md
+- steps:
+  1. TAG_FIELDS becomes `["machine", "analysis", "software", "tags", "topic"]`.
+  2. Add `pub struct Index { entries: usize, stems: HashMap<String, usize>, tags: HashMap<String, usize> }` with `pub fn of(items: &[Item]) -> Index`: `entries` is items.len(); `stems` counts for each stem the items that hold it in the title or in a section body (`stems` of the title, and `stems` of all section bodies joined with a space; an item counts once per stem); `tags` counts for each lower-case value of the TAG_FIELDS the items that carry it.
+  3. Add `pub fn weight(&self, holders: usize) -> u32` on Index: 0 when holders is 0; otherwise `1 + (self.entries / holders).ilog2()` with integer division (use holders.min(self.entries) so the quotient is at least 1).
+  4. Add `pub fn weighted(item: &Item, query: &Query, index: &Index) -> u32`. For each distinct stem of `stems(&query.words.join(" "))`: w = index.weight(number of holders of the stem); add 5 * w when the stem is among the stems of the item's title, and 1 * w when it is among the stems of its section bodies. For each distinct query tag (trimmed, lower case, not empty) that the item carries in a TAG_FIELDS field: add 3 * index.weight(holders of that tag).
+  5. Add `pub fn needed(query: &Query, index: &Index) -> u32`: the sum of the weights of the query's distinct stems, then `(sum + 2) / 3`.
+  6. Add `pub fn ranked<'a>(items: &'a [Item], query: &Query) -> Vec<(u32, &'a Item)>`: build Index::of(items); keep each item whose weighted score is above 0 and that either carries a query tag or has a score of at least `needed`; sort exactly as `best` does: score highest first, then `created` newest first, then ID, then path.
+  7. Add `pub fn top<'a>(items: &'a [Item], query: &Query, limit: usize) -> Vec<&'a Item>`: the items of the first `limit` rows of `ranked`.
+  8. Add `pub fn why(item: &Item, query: &Query) -> Option<&'static str>`: Some("tag match") when the item carries a query tag; else Some("word match") when a stem of the query words is among the stems of its title or sections; else None.
+  9. Tests, built with the `item` helper of the test module: (a) eight items whose titles all hold `pump`, one of them `Pump seal`: for the query words pump and seal the index gives pump the weight 1 and seal the weight 4, and `top` puts `Pump seal` first; (b) a query of only `and` and `the` gives an empty `ranked`; (c) with the query words valve, rotor, casing, nozzle (each held by one of eight items), an item that holds only `valve` in a section is left out and an item with `valve` in its title is kept; (d) the query word `reuse` finds a title with `Reusing`; (e) an item that shares only a tag is kept; (f) `top` gives the same order when the items are reversed; (g) an empty query gives nothing; (h) `why` gives tag match, word match and None.
+  10. Leave words, score, reason and best and their tests as they are. Run cargo test --lib select::
+- accept: select::top, ranked and why rank by stems and rarity and leave weak matches out; the old functions still work.
+- verify: cargo test --lib select::
+- reqs: R-FIND-1, R-FIND-2, R-FIND-3, R-TOPIC-4
+- note (2026-11-25, planner): added
+
+### T-443 · select.rs: a query is widened by the glossary's spellings
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-433
+- why: `connection reuse` and a product name for the same thing share no word; the glossary knows they are one term.
+- summary: When a query names a glossary term, the term's other spellings join the query, so entries that use another name are found.
+- depends: T-442
+- files: src/select.rs
+- read: docs/design.md, src/glossary.rs
+- steps:
+  1. Add `pub fn widened(query: &Query, terms: &[crate::glossary::Term]) -> Query`.
+  2. A term is named by the query when one of its spellings (its `term`, or one of its `also`) has at least one stem and every stem of `stems(spelling)` is among `stems(&query.words.join(" "))`, or when a query tag equals a spelling ignoring case.
+  3. The result keeps the query's tags and words in their order. For each named term, in the order of `terms`, it adds to the words every word of `words(spelling)` of every spelling of that term that is not yet among the words (compared in lower case).
+  4. Tests with invented terms: a term `ControlLine` with also `valve connection`: the query words `valve`, `connection`, `check` gain `controlline`; the query word `valve` alone gains nothing; a query with no named term comes back unchanged; widening twice adds nothing new.
+  5. Run cargo test --lib select::
+- accept: select::widened adds the other spellings of every glossary term the query names.
+- verify: cargo test --lib select::
+- reqs: R-FIND-4
+- note (2026-11-25, planner): added
+
+### T-444 · decide: related decisions are chosen with the new ranking
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-433
+- why: decide refuses an LLM's decision when related decisions are in force, so a related list of noise costs the LLM a wrong --besides.
+- summary: The check for related decisions before a new decision is written uses word stems, rare words and the glossary.
+- depends: T-443
+- files: src/cmd/decide.rs, tests/cmd_decide_related.rs, tests/cmd_decide.rs
+- read: docs/design.md, src/select.rs, src/glossary.rs
+- steps:
+  1. src/cmd/decide.rs: remove the constant COMMON_WORDS and the filter on it in `search_query`; the query words are `select::words(&format!("{title} {}", args.decision))`.
+  2. src/cmd/decide.rs, `find_related`: load the glossary of the dossier with `glossary::load(dossier, code)` and `glossary::terms` (pass the project code in; when loading fails, use no terms), widen the query with `select::widened`, and choose with `select::top(&approved, &widened, RELATED_LIMIT)` in place of `select::best`. Update the doc comments that name select::best.
+  3. tests/cmd_decide_related.rs: add (a) a decision in force titled `Reusing one valve connection is not built` is listed as related to a new decision `Connection reuse for the rig`; (b) a decision that shares only `and`, `the` and `for` with the new one is not listed, and an LLM's decision is then written without --replaces or --besides; (c) with a glossary term `ControlLine` (also `valve connection`), a decision in force titled `ControlLine stays closed` is related to a new decision about the `valve connection`.
+  4. Run the tests of both test files. Where an existing test fails because a weak match is no longer listed (R-FIND-3), change its expectation and say so in the commit message; do not change the rule.
+- accept: decide lists related decisions by stems, rarity and glossary; decisions that share only common words are not related.
+- verify: cargo test --test cmd_decide_related && cargo test --test cmd_decide
+- reqs: R-CTX-13, R-FIND-1 to R-FIND-4
+- note (2026-11-25, planner): added
+
+### T-445 · learn: similar lessons are chosen with the new ranking
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-433
+- why: learn warns about similar lessons so that a lesson is not written twice; the warning must name the right ones.
+- summary: The warning about similar lessons uses word stems, rare words and the glossary.
+- depends: T-443
+- files: src/cmd/learn.rs, tests/cmd_learn_similar.rs
+- read: docs/design.md, src/select.rs, src/glossary.rs
+- steps:
+  1. src/cmd/learn.rs: remove the constant COMMON_WORDS and the filter on it in `similarity_query`.
+  2. src/cmd/learn.rs: where `select::best(&candidates, &query, SIMILAR_LIMIT)` is called, load the glossary terms of the dossier written to (`glossary::load` and `glossary::terms`; no terms when loading fails), widen the query with `select::widened`, and call `select::top`. Update the doc comments.
+  3. tests/cmd_learn_similar.rs: add (a) a lesson titled `Mixing planes overpredict the stall margin` is named as similar to a new lesson `Stall margins are overpredicted by a mixing plane`; (b) a lesson that shares only `the`, `and` and `are` with the new one is not named.
+  4. Run cargo test --test cmd_learn_similar. Where an existing test fails because a weak match is no longer named (R-FIND-3), change its expectation and say so in the commit message.
+- accept: learn names similar lessons by stems and rarity, and none that share only common words.
+- verify: cargo test --test cmd_learn_similar
+- reqs: R-FIND-1 to R-FIND-4
+- note (2026-11-25, planner): added
+
+### T-446 · problem: similar investigations are chosen with the new ranking
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-433
+- why: problem shows earlier investigations of the same kind, so that a solved problem is not investigated again.
+- summary: The list of similar investigations shown when a problem is opened uses the new ranking.
+- depends: T-443
+- files: src/cmd/problem.rs, tests/cmd_problem.rs
+- read: docs/design.md, src/select.rs, src/glossary.rs
+- steps:
+  1. src/cmd/problem.rs, `similar_to`: load the glossary terms of the dossier (`glossary::load` and `glossary::terms`; no terms when loading fails), widen the query with `select::widened`, and call `select::top(&investigations, &widened, SIMILAR)` in place of `select::best`. Update the doc comments.
+  2. tests/cmd_problem.rs: add (a) an investigation titled `Transfers fail for paths with spaces` is shown as similar when a problem `A transfer failed for a path with a space` is opened; (b) an investigation that shares only `the`, `for` and `with` with the new problem is not shown.
+  3. Run cargo test --test cmd_problem. Where an existing test fails because a weak match is no longer shown (R-FIND-3), change its expectation and say so in the commit message.
+- accept: problem shows similar investigations by stems and rarity.
+- verify: cargo test --test cmd_problem
+- reqs: R-FIND-1 to R-FIND-4
+- note (2026-11-25, planner): added
+
+### T-447 · brief --task: dead ends, investigations and related entries with the new ranking
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-433
+- why: For a task titled `Remote mode: connection reuse and connection check`, brief --task listed entries that share only the word `and`.
+- summary: The context an LLM gets for a task lists entries that really share its subject, or none.
+- depends: T-443
+- files: src/brief_task.rs, tests/cmd_brief.rs, tests/cmd_after.rs
+- read: docs/design.md, src/select.rs, src/glossary.rs
+- steps:
+  1. src/brief_task.rs: after the Query of the task is built (`words: select::words(&about.title)`), widen it with `select::widened` and the glossary terms the function already loads for the `## Terms` heading (project and team); with no glossary, keep the query.
+  2. src/brief_task.rs: replace the three calls of `select::best` (dead ends, other investigations, related) by `select::top` with the same arguments, and in `reason_of` call `select::why` in place of `select::reason`. Update the doc comments that name select::best and select::reason.
+  3. Unit tests in src/brief_task.rs: add a task titled `Pump seal and bearing check`: an entry titled `Rig and valve` is not under Related; an entry titled `Bearings checked after the run` is.
+  4. tests/cmd_brief.rs: add the same case through the command, with --json: the item of the related entry has the reason `word match`, and the entry sharing only `and` is not among the items.
+  5. Run cargo test --lib brief_task::, cargo test --test cmd_brief and cargo test --test cmd_after. Where an existing test fails because a weak match is no longer listed (R-FIND-3), change its expectation and say so in the commit message.
+- accept: brief --task lists dead ends, investigations and related entries by stems, rarity and glossary; common words relate nothing.
+- verify: cargo test --lib brief_task:: && cargo test --test cmd_brief && cargo test --test cmd_after
+- reqs: R-CTX-2, R-FIND-1 to R-FIND-4
+- note (2026-11-25, planner): added
+
+### T-448 · search --similar: the new ranking
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-433
+- why: search --similar is the same question as the related lists and must give the same kind of answer.
+- summary: The list of entries similar to one entry uses the new ranking.
+- depends: T-442
+- files: src/cmd/search.rs, tests/cmd_search.rs
+- read: docs/design.md, src/select.rs
+- steps:
+  1. src/cmd/search.rs, `similar`: call `select::top(&items, &query, SIMILAR_LIMIT)` in place of `select::best`, and `select::why` in place of `select::reason`. Add `topic` to the constant TAG_FIELDS of this file. Update the doc comments.
+  2. tests/cmd_search.rs: add (a) --similar of an entry titled `Reusing one valve connection` lists an entry titled `Connection reuse on the rig`; (b) an entry that shares only `the` and `and` with it is not listed.
+  3. Run cargo test --test cmd_search. Where an existing test fails because a weak match is no longer listed (R-FIND-3), change its expectation and say so in the commit message.
+- accept: search --similar ranks by stems and rarity.
+- verify: cargo test --test cmd_search
+- reqs: R-READ-9, R-FIND-1 to R-FIND-3
+- note (2026-11-25, planner): added
+
+### T-449 · select.rs: remove score, reason and best
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-433
+- why: Two rankings side by side would let a later command pick the old one by mistake.
+- summary: Removes the old ranking once nothing uses it.
+- depends: T-444, T-445, T-446, T-447, T-448
+- files: src/select.rs
+- read: docs/design.md, docs/requirements.md
+- steps:
+  1. Check with a search over src and tests that nothing outside src/select.rs calls select::score, select::reason or select::best. If something does, stop and give the task back with todo stuck, naming the place.
+  2. Remove `score`, `reason` and `best` and the tests that only test them. Keep every test of words, stem, stems, Index, weighted, needed, ranked, top, why and widened. Update the module comment and the comments that name the removed functions.
+  3. Run cargo test --lib select:: and cargo build --all-targets.
+- accept: select.rs has one ranking; the program and all tests build.
+- verify: cargo test --lib select:: && cargo build --all-targets
+- reqs: R-FIND-1 to R-FIND-3
+- note (2026-11-25, planner): added
+
+### T-450 · search: a word also matches by its stem
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-434
+- why: `search connection reuse` found nothing although an entry is titled `Reusing one ssh connection`.
+- summary: A search word finds an entry that holds another form of the same word.
+- depends: T-448
+- files: src/cmd/search.rs, tests/cmd_search.rs
+- read: docs/design.md, src/select.rs
+- steps:
+  1. src/cmd/search.rs: find where `hit` decides whether an entry holds a typed word (the entry's text is searched for the word and for its glossary spellings). Add a third way: the word is held when `select::stem(word)` equals the stem of one of `select::words(text)` of the entry's title, field values and section bodies. Common words are not left out here: a typed word is always looked for.
+  2. The matched line of such a result is the first line of the entry that holds a word with that stem; the three groups (title, tag field, rest) are decided as before, with a title or tag word counting when its stem matches.
+  3. tests/cmd_search.rs: add (a) `search connection reuse` finds an entry titled `Reusing one valve connection` and puts it in the title group; (b) `search replaced` finds an entry whose text says `the seal is replaced` and one that says `seal replacement`; (c) every existing test still passes unchanged.
+  4. Update the module comment: a word is present when the text holds it, a glossary spelling of it, or a word with the same stem. Run cargo test --test cmd_search.
+- accept: search finds an entry through another form of a typed word; results that matched before still match, in the same order.
+- verify: cargo test --test cmd_search
+- reqs: R-READ-3
+- note (2026-11-25, planner): added
+
+### T-451 · search: entries that hold only some of the words are listed after the full matches
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-434
+- why: `0 matches` tells an LLM that nothing is recorded, when one of its words was merely too many.
+- summary: After the entries that hold every word, search lists the best entries that hold some of the words.
+- depends: T-450, T-442
+- files: src/cmd/search.rs, tests/cmd_search.rs, src/cmd/schema.rs
+- read: docs/design.md, src/select.rs
+- steps:
+  1. src/cmd/search.rs: add `const PARTIAL_LIMIT: usize = 10;`. After the full matches are found, and only when more than one word was typed: take the items of all places that pass the filter and are not full matches, and rank them with `select::ranked(&rest, &Query { tags: Vec::new(), words })`, where `words` are the typed words and their glossary spellings. Keep the first PARTIAL_LIMIT. The line of such a result is its title.
+  2. Text output: the full matches as before. When there are results with some of the words: the line `some of the words:`, then their lines in ranked order, and the last line is `<n> matches, <m> with some of the words` (with `1 match` when n is 1). Without such results the last line stays as it is today. With --full only the full matches are printed whole.
+  3. JSON: every result gets `"match": "all"` or `"match": "some"`; the results with some of the words follow the full matches.
+  4. src/cmd/schema.rs: only if it describes the fields of a search result, add `match` there; otherwise leave the file unchanged.
+  5. tests/cmd_search.rs: add (a) `search valve rotor` with one entry holding both words and one holding only `rotor` in its title: the first is a match, the second comes after `some of the words:`, the last line is `1 match, 1 with some of the words`; (b) `search rotor nozzle` with no entry holding both prints `some of the words:` and `0 matches, 1 with some of the words`; (c) one typed word never prints `some of the words:`; (d) --json marks the results with `all` and `some`; (e) a draft is listed among them only with --drafts.
+  6. Update the module comment. Run cargo test --test cmd_search and cargo test --test cmd_schema.
+- accept: search lists up to 10 ranked entries that hold only some of the typed words, marked as such in text and JSON.
+- verify: cargo test --test cmd_search && cargo test --test cmd_schema
+- reqs: R-READ-3, R-READ-4
+- note (2026-11-25, planner): added
+
+### T-452 · config.rs: the project's list of topics
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-435
+- why: The topics an entry may name are kept in the project settings.
+- summary: The settings of a project can hold a list of topics.
+- depends: T-440
+- files: src/config.rs, src/filelist.rs, src/names.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. src/config.rs: add `pub topics: Vec<String>` to Config (doc comment: the topics an entry may name, R-TOPIC-1) and a field `topics: Vec<String>` with `#[serde(default)]` to the struct the file is read into, as a top-level key; `parse` copies it into Config with each value trimmed, empty values dropped. `default_text` stays unchanged: a missing key is an empty list.
+  2. src/filelist.rs and src/names.rs: their tests build a Config as a literal; add `topics: Vec::new()` there.
+  3. Tests in src/config.rs: a settings text with `topics = ["pumps", "rig"]` before the first table loads with those two topics; one without the key loads with none; `config::set_list(dossier, "topics", …)` followed by `load` gives the list back and keeps every other line.
+  4. Run cargo test --lib config:: and cargo build --all-targets.
+- accept: Config.topics holds the top-level `topics` list of dossier.toml, empty when the key is missing.
+- verify: cargo test --lib config:: && cargo build --all-targets
+- reqs: R-TOPIC-1
+- note (2026-11-25, planner): added
+
+### T-453 · The topic field: its place in an entry, and list --topic and search --topic
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-435
+- why: A topic is only useful when entries can be listed by it.
+- summary: An entry can carry a topic, and list and search can be limited to one topic.
+- depends: T-440
+- files: src/entry/new.rs, src/filter.rs, tests/cmd_list.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. src/entry/new.rs: in the list that gives the order of the fields, add `"topic"` directly after `"tags"`. Add a unit test: a draft with the fields tags and topic renders `- topic:` on the line after `- tags:`.
+  2. src/filter.rs: add the option `--topic <name>` to Filter, directly after `tag`, with the help text `Only entries that name this topic`. It matches as `--tag` does, on the comma-separated values of the field `topic`, ignoring case.
+  3. tests/cmd_list.rs: an entry written with `add … --field 'topic=pumps, rig'` is listed by `list --topic rig` and by `list --topic PUMPS`, and not by `list --topic valves`; `search pump --topic rig` finds it too.
+  4. Run cargo test --lib entry::new::, cargo test --lib filter:: and cargo test --test cmd_list.
+- accept: An entry's topic field is written after tags, and list and search filter by --topic.
+- verify: cargo test --lib filter:: && cargo test --test cmd_list
+- reqs: R-TOPIC-2, R-TOPIC-4
+- note (2026-11-25, planner): added
+
+### T-454 · create.rs: unknown topics are refused, and an LLM's entry must name a topic
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-435
+- why: An LLM tags an entry only when the tool asks for it; this is the one place every new entry passes.
+- summary: Once a project has topics, an entry cannot name a topic that is not on the list, and an LLM cannot write an entry without one.
+- depends: T-452
+- files: src/create.rs
+- read: docs/design.md, docs/requirements.md
+- steps:
+  1. In `create::create`, before anything is queued: let `topics` be `tx.ctx().cfg.topics`. When it is empty, nothing is checked.
+  2. Rule 1 (everyone): split the value of the field `topic` of `new.fields` at commas and trim each value. A value that equals no topic of the list ignoring case fails with Code::Usage and the message `unknown topic <value>; the topics of this project: <a, b, c> (dossier topics)`.
+  3. Rule 2 (LLMs): when the writer is an LLM (`who.is_llm`), `tx.ctx().from_document` is None, the kind is Decision, Assumption, Finding, Lesson, Howto or Investigation, and the entry has no topic value, fail with Code::Refused and the message `an entry written by an LLM names its topic: --topic <one of a, b, c>`.
+  4. Unit tests in src/create.rs, built as the existing tests of this file build their Tx: with topics [pumps, rig]: an LLM's finding without topic is refused; with `topic` = `Pumps` it is written; with `topic` = `valves` it is a usage error that names both topics; a person's finding without topic is written; an LLM's tool entry without topic is written; an LLM's finding from a document is written. With no topics in the settings, an LLM's finding without topic is written.
+  5. Update the doc comment of `create` (the sentence `Refusing unknown tag values is not part of v0.1` gets the two rules added after it). Run cargo test --lib create::
+- accept: create::create refuses an unknown topic for everyone and a missing topic for an LLM, only when the project has topics.
+- verify: cargo test --lib create::
+- reqs: R-TOPIC-2, R-TOPIC-3
+- note (2026-11-25, planner): added
+
+### T-455 · decide: the option --topic
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-435
+- why: An LLM that is refused for a missing topic needs an option to give one.
+- summary: The decide command takes the topic of the new entry.
+- depends: T-454, T-444
+- files: src/cmd/decide.rs, tests/cmd_decide.rs
+- read: docs/design.md, src/create.rs
+- steps:
+  1. src/cmd/decide.rs: add to Args, after the option `tags`: `/// The topics it is about, from the project's list (dossier topics), comma-separated` `#[arg(long)] pub topic: Option<String>`.
+  2. src/cmd/decide.rs: where the tag options machine, analysis, software and tags are turned into fields, add `topic` the same way, so a value that is not empty is written as the field `topic`.
+  3. src/cmd/decide.rs, `search_query`: the values of --topic join the query's tags, as the values of the four tag options do.
+  4. tests/cmd_decide.rs: with `topics = ["pumps", "rig"]` written as a top-level line at the start of the test project's dossier.toml: (a) an LLM's `decide` without --topic is refused with the message that names both topics, and nothing is written; (b) with `--topic pumps` the entry has the line `- topic: pumps`; (c) with `--topic valves` it is a usage error; (d) a person's `decide` without --topic is written; (e) without the topics line, an LLM's `decide` without --topic is written as before.
+  5. Run cargo test --test cmd_decide.
+- accept: decide --topic writes the topic field; the rules of create apply.
+- verify: cargo test --test cmd_decide
+- reqs: R-TOPIC-2, R-TOPIC-3
+- note (2026-11-25, planner): added
+
+### T-456 · propose: the option --topic
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-435
+- why: An LLM that is refused for a missing topic needs an option to give one.
+- summary: The propose command takes the topic of the new entry.
+- depends: T-454
+- files: src/cmd/propose.rs, tests/cmd_propose.rs
+- read: docs/design.md, src/create.rs
+- steps:
+  1. src/cmd/propose.rs: add to Args, after the option `tags`: `/// The topics it is about, from the project's list (dossier topics), comma-separated` `#[arg(long)] pub topic: Option<String>`.
+  2. src/cmd/propose.rs: where the tag options machine, analysis, software and tags are turned into fields, add `topic` the same way, so a value that is not empty is written as the field `topic`.
+  3. tests/cmd_propose.rs: with `topics = ["pumps", "rig"]` written as a top-level line at the start of the test project's dossier.toml: (a) an LLM's `propose` without --topic is refused with the message that names both topics, and nothing is written; (b) with `--topic pumps` the entry has the line `- topic: pumps`; (c) with `--topic valves` it is a usage error; (d) a person's `propose` without --topic is written; (e) without the topics line, an LLM's `propose` without --topic is written as before.
+  4. Run cargo test --test cmd_propose.
+- accept: propose --topic writes the topic field; the rules of create apply.
+- verify: cargo test --test cmd_propose
+- reqs: R-TOPIC-2, R-TOPIC-3
+- note (2026-11-25, planner): added
+
+### T-457 · found: the option --topic
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-435
+- why: An LLM that is refused for a missing topic needs an option to give one.
+- summary: The found command takes the topic of the new entry.
+- depends: T-454
+- files: src/cmd/found.rs, tests/cmd_found.rs
+- read: docs/design.md, src/create.rs
+- steps:
+  1. src/cmd/found.rs: add to Args, after the option `tags`: `/// The topics it is about, from the project's list (dossier topics), comma-separated` `#[arg(long)] pub topic: Option<String>`.
+  2. src/cmd/found.rs: where the tag options machine, analysis, software and tags are turned into fields, add `topic` the same way, so a value that is not empty is written as the field `topic`.
+  3. tests/cmd_found.rs: with `topics = ["pumps", "rig"]` written as a top-level line at the start of the test project's dossier.toml: (a) an LLM's `found` without --topic is refused with the message that names both topics, and nothing is written; (b) with `--topic pumps` the entry has the line `- topic: pumps`; (c) with `--topic valves` it is a usage error; (d) a person's `found` without --topic is written; (e) without the topics line, an LLM's `found` without --topic is written as before.
+  4. Run cargo test --test cmd_found.
+- accept: found --topic writes the topic field; the rules of create apply.
+- verify: cargo test --test cmd_found
+- reqs: R-TOPIC-2, R-TOPIC-3
+- note (2026-11-25, planner): added
+
+### T-458 · learn: the option --topic
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-435
+- why: An LLM that is refused for a missing topic needs an option to give one.
+- summary: The learn command takes the topic of the new entry.
+- depends: T-454, T-445
+- files: src/cmd/learn.rs, tests/cmd_learn.rs
+- read: docs/design.md, src/create.rs
+- steps:
+  1. src/cmd/learn.rs: add to Args, after the option `tags`: `/// The topics it is about, from the project's list (dossier topics), comma-separated` `#[arg(long)] pub topic: Option<String>`.
+  2. src/cmd/learn.rs: where the tag options machine, analysis, software and tags are turned into fields, add `topic` the same way, so a value that is not empty is written as the field `topic`.
+  3. src/cmd/learn.rs, `similarity_query`: the values of --topic join the query's tags.
+  4. tests/cmd_learn.rs: with `topics = ["pumps", "rig"]` written as a top-level line at the start of the test project's dossier.toml: (a) an LLM's `learn` without --topic is refused with the message that names both topics, and nothing is written; (b) with `--topic pumps` the entry has the line `- topic: pumps`; (c) with `--topic valves` it is a usage error; (d) a person's `learn` without --topic is written; (e) without the topics line, an LLM's `learn` without --topic is written as before.
+  5. Run cargo test --test cmd_learn.
+- accept: learn --topic writes the topic field; the rules of create apply.
+- verify: cargo test --test cmd_learn
+- reqs: R-TOPIC-2, R-TOPIC-3
+- note (2026-11-25, planner): added
+
+### T-459 · assume: the option --topic
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-435
+- why: An LLM that is refused for a missing topic needs an option to give one.
+- summary: The assume command takes the topic of the new entry.
+- depends: T-454
+- files: src/cmd/assume.rs, tests/cmd_assume.rs
+- read: docs/design.md, src/create.rs
+- steps:
+  1. src/cmd/assume.rs: add to Args, after the option `tags`: `/// The topics it is about, from the project's list (dossier topics), comma-separated` `#[arg(long)] pub topic: Option<String>`.
+  2. src/cmd/assume.rs: where the tag options machine, analysis, software and tags are turned into fields, add `topic` the same way, so a value that is not empty is written as the field `topic`.
+  3. tests/cmd_assume.rs: with `topics = ["pumps", "rig"]` written as a top-level line at the start of the test project's dossier.toml: (a) an LLM's `assume` without --topic is refused with the message that names both topics, and nothing is written; (b) with `--topic pumps` the entry has the line `- topic: pumps`; (c) with `--topic valves` it is a usage error; (d) a person's `assume` without --topic is written; (e) without the topics line, an LLM's `assume` without --topic is written as before.
+  4. Run cargo test --test cmd_assume.
+- accept: assume --topic writes the topic field; the rules of create apply.
+- verify: cargo test --test cmd_assume
+- reqs: R-TOPIC-2, R-TOPIC-3
+- note (2026-11-25, planner): added
+
+### T-460 · problem: the option --topic
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-435
+- why: An LLM that is refused for a missing topic needs an option to give one.
+- summary: The problem command takes the topic of the new entry.
+- depends: T-454, T-446
+- files: src/cmd/problem.rs, tests/cmd_problem.rs
+- read: docs/design.md, src/create.rs
+- steps:
+  1. src/cmd/problem.rs: add to Args, after the option `tags`: `/// The topics it is about, from the project's list (dossier topics), comma-separated` `#[arg(long)] pub topic: Option<String>`.
+  2. src/cmd/problem.rs: where the tag options machine, analysis, software and tags are turned into fields, add `topic` the same way, so a value that is not empty is written as the field `topic`.
+  3. src/cmd/problem.rs, `tag_values`: the values of --topic join the query's tags.
+  4. tests/cmd_problem.rs: with `topics = ["pumps", "rig"]` written as a top-level line at the start of the test project's dossier.toml: (a) an LLM's `problem` without --topic is refused with the message that names both topics, and nothing is written; (b) with `--topic pumps` the entry has the line `- topic: pumps`; (c) with `--topic valves` it is a usage error; (d) a person's `problem` without --topic is written; (e) without the topics line, an LLM's `problem` without --topic is written as before.
+  5. Run cargo test --test cmd_problem.
+- accept: problem --topic writes the topic field; the rules of create apply.
+- verify: cargo test --test cmd_problem
+- reqs: R-TOPIC-2, R-TOPIC-3
+- note (2026-11-25, planner): added
+
+### T-461 · howto: the option --topic
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-435
+- why: An LLM that is refused for a missing topic needs an option to give one.
+- summary: The howto command takes the topic of the new entry.
+- depends: T-454
+- files: src/cmd/howto.rs, tests/cmd_howto.rs
+- read: docs/design.md, src/create.rs
+- steps:
+  1. src/cmd/howto.rs: add to Args, after the option `tags`: `/// The topics it is about, from the project's list (dossier topics), comma-separated` `#[arg(long)] pub topic: Option<String>`.
+  2. src/cmd/howto.rs: where the tag options machine, analysis, software and tags are turned into fields, add `topic` the same way, so a value that is not empty is written as the field `topic`.
+  3. tests/cmd_howto.rs: with `topics = ["pumps", "rig"]` written as a top-level line at the start of the test project's dossier.toml: (a) an LLM's `howto` without --topic is refused with the message that names both topics, and nothing is written; (b) with `--topic pumps` the entry has the line `- topic: pumps`; (c) with `--topic valves` it is a usage error; (d) a person's `howto` without --topic is written; (e) without the topics line, an LLM's `howto` without --topic is written as before.
+  4. Run cargo test --test cmd_howto.
+- accept: howto --topic writes the topic field; the rules of create apply.
+- verify: cargo test --test cmd_howto
+- reqs: R-TOPIC-2, R-TOPIC-3
+- note (2026-11-25, planner): added
+
+### T-462 · set: a topic that is not on the list is refused
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-435
+- why: set --field topic=… would otherwise write a topic the project does not have.
+- summary: Changing an entry's topic follows the same list as writing a new entry.
+- depends: T-452
+- files: src/cmd/set.rs, tests/cmd_set.rs
+- read: docs/design.md, src/create.rs
+- steps:
+  1. src/cmd/set.rs: where the --field values are checked before the write: when the key is `topic` and `ctx.cfg.topics` is not empty, each comma-separated value, trimmed, must equal a topic of the list ignoring case; otherwise Code::Usage with the message `unknown topic <value>; the topics of this project: <a, b, c> (dossier topics)`. An empty value (removing the field) is allowed.
+  2. tests/cmd_set.rs: with `topics = ["pumps", "rig"]` in dossier.toml: `set <ID> --field topic=rig` writes `- topic: rig` with a history line; `--field topic=valves` is a usage error and the file is unchanged; without the topics line any value is written.
+  3. Run cargo test --test cmd_set.
+- accept: set refuses a topic that is not on the project's list.
+- verify: cargo test --test cmd_set
+- reqs: R-TOPIC-2
+- note (2026-11-25, planner): added
+
+### T-463 · The topics command: registered, with its help line and examples
+- status: open
+- owner: —
+- priority: P1 · difficulty: 2 · type: feature
+- milestone: T-435
+- why: A new command touches the shared lists of commands, which only one task may change at a time.
+- summary: Adds the empty topics command to the program, its help and its examples, ready to be filled in.
+- final: A new command is registered in seven shared files; it cannot be cut to three.
+- depends: T-452
+- files: src/cli.rs, src/cmd/mod.rs, src/cmd/topics.rs, src/cmd/help.rs, src/examples.rs, tests/cmd_agents.rs, tests/cmd_help.rs
+- read: docs/design.md, src/cmd/which.rs
+- steps:
+  1. src/cmd/topics.rs: `#[derive(clap::Args, Debug)] pub struct Args { #[command(subcommand)] pub action: Option<Action> }`, `#[derive(clap::Subcommand, Debug)] pub enum Action { /// Adds a topic to the project's list; needs a person  Add { name: String } }`, and `pub fn run(args: &Args, g: &Global) -> Result<Output>` that loads the Ctx with the command name `topics` and returns Output::text of the topics of the settings, one per line.
+  2. Register the command as `which` is registered: src/cmd/mod.rs, the Command enum and the dispatch in src/cli.rs, the overview line in src/cmd/help.rs (`topics`, `Lists or adds project topics`, placed after `glossary`), and three examples in src/examples.rs (`dossier topics`, `dossier topics add pumps`, `dossier list --topic pumps`).
+  3. tests/cmd_agents.rs: add `topics` to the expected list of `help_without_a_topic_lists_every_command_in_order`, after `glossary`. tests/cmd_help.rs: add `topics` wherever every command with examples is listed.
+  4. Run cargo test --test cmd_agents and cargo test --test cmd_help.
+- accept: dossier topics exists, prints the settings' topics, and appears in help with examples.
+- verify: cargo test --test cmd_agents && cargo test --test cmd_help
+- reqs: R-TOPIC-1
+- note (2026-11-25, planner): added
+
+### T-464 · topics: the list with the number of entries per topic
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-435
+- why: A list of topics that nobody sees grows without anyone noticing which ones are used.
+- summary: The topics command shows each topic with how many entries in force name it.
+- depends: T-463, T-453
+- files: src/cmd/topics.rs, tests/cmd_topics.rs
+- read: docs/design.md, src/store.rs, tests/cmd_which.rs
+- steps:
+  1. src/cmd/topics.rs, `run` without an action: read the entries with `store::all(&ctx.dossier)`; count for each topic of `ctx.cfg.topics` the approved entries (status approved) whose field `topic` holds it, ignoring case. Print one line per topic, in the order of the settings: `<topic>  <n>`. After them, when approved decisions, findings or lessons have no topic: `(no topic)  <n>`. With no topics in the settings print `no topics: dossier topics add <name>`.
+  2. JSON data: `{"topics": [{"name": …, "entries": n}], "without": n}`. Warnings of store::all are passed on as warnings.
+  3. tests/cmd_topics.rs (new file, using tests/common as tests/cmd_which.rs does): two topics, three approved entries naming them and one draft: the counts leave the draft out; an entry without topic is counted under `(no topic)`; no topics prints the hint; --json has the same numbers.
+  4. Run cargo test --test cmd_topics.
+- accept: topics prints each topic of the project with the number of approved entries that name it.
+- verify: cargo test --test cmd_topics
+- reqs: R-TOPIC-1
+- note (2026-11-25, planner): added
+
+### T-465 · topics add: a person adds a topic to the project's list
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-435
+- why: The list stays short only when a person decides what goes on it.
+- summary: A person adds a topic to the project's list; an LLM is told to ask its person.
+- depends: T-464
+- files: src/cmd/topics.rs, tests/cmd_topics.rs
+- read: docs/design.md, src/cmd/team.rs, src/config.rs
+- steps:
+  1. src/cmd/topics.rs, action Add: the writer comes from `ctx.writer()`. An LLM (`who.is_llm`) is refused with Code::NeedsPerson and the message `a person adds a topic: dossier topics add <name>`.
+  2. The name is trimmed and put in lower case. It is a usage error when it is empty, holds a comma or a line break, or has more than three words. A name that is already on the list (ignoring case) changes nothing and prints `<name> is already a topic`.
+  3. Write the list with the new name at its end exactly as `write_list` in src/cmd/team.rs writes a settings list: with --dry-run only the warning `dry run: would write <file>`; otherwise take the lock (`lock::acquire` with the command name `topics`), `config::set_list(&ctx.dossier, "topics", &values)`, and a journal line with the detail `topic added: <name>` (D29). Print `added topic <name>`.
+  4. tests/cmd_topics.rs: a person adds `Pumps`: dossier.toml holds `topics = ["pumps"]`, every other line is unchanged, and `log` shows the change with the person's name; adding it again changes nothing; an LLM is refused and the file is unchanged; `a, b` is a usage error; --dry-run writes nothing.
+  5. Run cargo test --test cmd_topics.
+- accept: topics add writes the topic into dossier.toml with a journal line, for a person only.
+- verify: cargo test --test cmd_topics
+- reqs: R-TOPIC-1
+- note (2026-11-25, planner): added
+
+### T-466 · brief: one line with the topics and their decisions in force
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-435
+- why: When brief has to leave decisions out, the LLM needs to know which groups exist and how to list one.
+- summary: The session brief names the project's topics with the number of decisions in force of each.
+- depends: T-452, T-447
+- files: src/cmd/brief.rs, tests/cmd_brief.rs
+- read: docs/design.md
+- steps:
+  1. src/cmd/brief.rs: in `head` (the project line and the tags line), add a third line when `ctx.cfg.topics` is not empty: `Topics: <a> (<n>), <b> (<n>) · dossier list --topic <name>`, with the topics in the order of the settings and n the number of decisions in force (the same decisions the brief counts under `## Decisions in force`, including those a digest sums up) that name the topic. A topic with no decision is printed with (0).
+  2. `head` needs the items for this: pass them in from `Brief::collect`. The JSON data gets `"topics": [{"name": …, "decisions": n}]`; without topics the key is an empty list.
+  3. tests/cmd_brief.rs: a project with the topics pumps and rig, two decisions naming pumps and one without topic: the brief has the line `Topics: pumps (2), rig (0) · dossier list --topic <name>` directly after the tags line (or after the project line when there is no tags line); a project without topics has no such line.
+  4. Run cargo test --test cmd_brief.
+- accept: brief prints the topics line when the project has topics, and the same numbers in JSON.
+- verify: cargo test --test cmd_brief
+- reqs: R-TOPIC-5
+- note (2026-11-25, planner): added
+
+### T-467 · brief: each decision line names its topics
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-435
+- why: A flat list of 45 titles gives no handle to skip what does not concern the work at hand.
+- summary: In the session brief every decision shows its topic in front of its title.
+- depends: T-466
+- files: src/cmd/brief.rs, tests/cmd_brief.rs
+- read: docs/design.md
+- steps:
+  1. src/cmd/brief.rs, `decision_of`: when the decision has a `topic` field, its summary line becomes `<ID> · [<topic>, <topic>] <title> (<author>, <date>)`, with the topics as written in the entry. A decision without topic keeps its line.
+  2. The order of the decisions and the cut at the line limit are not changed.
+  3. tests/cmd_brief.rs: a decision with `topic: pumps, rig` is printed as `DEC-001 · [pumps, rig] …`; one without topic is printed as before; the shortened form (title only, when the limit is reached) carries the topics too.
+  4. Run cargo test --test cmd_brief.
+- accept: A decision line in brief starts with the decision's topics in square brackets.
+- verify: cargo test --test cmd_brief
+- reqs: R-TOPIC-5
+- note (2026-11-25, planner): added
+
+### T-468 · codeptr.rs: what a code pointer covers
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-436
+- why: which and brief --task each had their own rule for when a pointer matches a path, and they differed.
+- summary: One place decides whether an entry's pointer to code covers a given file.
+- depends: T-440
+- files: src/codeptr.rs, src/lib.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. src/lib.rs: add `pub mod codeptr;` in alphabetical order.
+  2. src/codeptr.rs: `pub fn path_of(pointer: &str) -> String`: the part before the first `::` (the whole text when there is none), trimmed, every backslash replaced by a slash, a leading `./` removed, trailing slashes removed.
+  3. `pub fn covers(pointer: &str, stored: &str) -> bool`: true when `path_of(pointer)` is not empty and equals `stored`, or `stored` starts with `path_of(pointer)` followed by `/` (the pointer names a folder and the file lies in it).
+  4. `pub fn lies_in(pointer: &str, folder: &str) -> bool`: true when `path_of(pointer)` equals `folder`, or starts with `folder` followed by `/`.
+  5. Unit tests: path_of(" src\\pump\\seal.rs::leak_model ") is `src/pump/seal.rs`; path_of("./src/pump/") is `src/pump`; covers("src/pump", "src/pump/seal.rs") is true; covers("src/pum", "src/pump/seal.rs") is false; covers("src/pump/seal.rs::f", "src/pump/seal.rs") is true; covers("", "a") is false; lies_in("src/pump/seal.rs", "src/pump") is true and lies_in("src/pump/seal.rs", "src/pum") is false; a path with spaces and one with non-ASCII letters work.
+  6. Run cargo test --lib codeptr::
+- accept: codeptr::path_of, covers and lies_in exist with their tests.
+- verify: cargo test --lib codeptr::
+- reqs: R-CODE-6
+- note (2026-11-25, planner): added
+
+### T-469 · which: a pointer to a folder covers the files in it
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-436
+- why: A decision about a whole part of the code points to its folder, and which did not find it for a file inside.
+- summary: Asking where a file belongs also finds the entries recorded for the folder it lies in.
+- depends: T-468
+- files: src/cmd/which.rs, tests/cmd_which.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. src/cmd/which.rs, `points_at`: true when any pointer of the entry's `code` field satisfies `codeptr::covers(pointer, stored)`. Remove the path handling that codeptr now does.
+  2. tests/cmd_which.rs: an entry with `code: src/pump` is listed for `which src/pump/seal.rs` and for `which src/pump`; an entry with `code: src/pum` is not; an entry with `code: src/pump/seal.rs::leak_model` is listed for the file as before.
+  3. Run cargo test --test cmd_which.
+- accept: which lists an entry for every file below a folder the entry points to.
+- verify: cargo test --test cmd_which
+- reqs: R-CODE-6, R-CODE-2
+- note (2026-11-25, planner): added
+
+### T-470 · brief --task: code pointers are matched by codeptr
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-436
+- why: brief --task and which must agree on what a pointer covers.
+- summary: The task context uses the same rule for code pointers as which does.
+- depends: T-468, T-447
+- files: src/brief_task.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. src/brief_task.rs, `pointers_in`: keep a pointer when, for one of `paths`, `codeptr::lies_in(pointer, wanted)` is true (the pointer lies in a file or folder of the task) or `codeptr::covers(pointer, wanted)` is true (the pointer names a folder that holds a file of the task). Remove the helper that only this function used for cleaning the path, if nothing else calls it.
+  2. Unit tests in src/brief_task.rs: the existing tests of pointers_in pass unchanged; add: a pointer `src/pump` is kept for the task file `src/pump/seal.rs`.
+  3. Run cargo test --lib brief_task::
+- accept: pointers_in uses codeptr, and a folder pointer is found for a task file inside the folder.
+- verify: cargo test --lib brief_task::
+- reqs: R-CODE-4, R-CODE-6
+- note (2026-11-25, planner): added
+
+### T-471 · decide: the option --code
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-436
+- why: A pointer to code is only recorded when the command that writes the entry offers it.
+- summary: The decide command records which files or folders of the code the entry is about.
+- depends: T-455, T-469
+- files: src/cmd/decide.rs, tests/cmd_decide.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. src/cmd/decide.rs: add to Args, after the option `topic`: `/// The code it is about: paths, each optionally with ::name, comma-separated (src/pump or src/pump/seal.rs::leak_model)` `#[arg(long)] pub code: Option<String>`. A value that is not empty is written as the field `code`, each pointer trimmed and with backslashes replaced by slashes, joined with `, `.
+  2. tests/cmd_decide.rs: `decide … --code 'src\pump, src/rig/valve.rs::open'` writes `- code: src/pump, src/rig/valve.rs::open`; `which src/pump/seal.rs` then lists the entry; without --code no `code` line is written.
+  3. Run cargo test --test cmd_decide.
+- accept: decide --code writes the code field, and which finds the entry for a file it covers.
+- verify: cargo test --test cmd_decide
+- reqs: R-CODE-7
+- note (2026-11-25, planner): added
+
+### T-472 · found: the option --code
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-436
+- why: A pointer to code is only recorded when the command that writes the entry offers it.
+- summary: The found command records which files or folders of the code the entry is about.
+- depends: T-457, T-469
+- files: src/cmd/found.rs, tests/cmd_found.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. src/cmd/found.rs: add to Args, after the option `topic`: `/// The code it is about: paths, each optionally with ::name, comma-separated (src/pump or src/pump/seal.rs::leak_model)` `#[arg(long)] pub code: Option<String>`. A value that is not empty is written as the field `code`, each pointer trimmed and with backslashes replaced by slashes, joined with `, `.
+  2. tests/cmd_found.rs: `found … --code 'src\pump, src/rig/valve.rs::open'` writes `- code: src/pump, src/rig/valve.rs::open`; `which src/pump/seal.rs` then lists the entry; without --code no `code` line is written.
+  3. Run cargo test --test cmd_found.
+- accept: found --code writes the code field, and which finds the entry for a file it covers.
+- verify: cargo test --test cmd_found
+- reqs: R-CODE-7
+- note (2026-11-25, planner): added
+
+### T-473 · learn: the option --code
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-436
+- why: A pointer to code is only recorded when the command that writes the entry offers it.
+- summary: The learn command records which files or folders of the code the entry is about.
+- depends: T-458, T-469
+- files: src/cmd/learn.rs, tests/cmd_learn.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. src/cmd/learn.rs: add to Args, after the option `topic`: `/// The code it is about: paths, each optionally with ::name, comma-separated (src/pump or src/pump/seal.rs::leak_model)` `#[arg(long)] pub code: Option<String>`. A value that is not empty is written as the field `code`, each pointer trimmed and with backslashes replaced by slashes, joined with `, `.
+  2. tests/cmd_learn.rs: `learn … --code 'src\pump, src/rig/valve.rs::open'` writes `- code: src/pump, src/rig/valve.rs::open`; `which src/pump/seal.rs` then lists the entry; without --code no `code` line is written.
+  3. Run cargo test --test cmd_learn.
+- accept: learn --code writes the code field, and which finds the entry for a file it covers.
+- verify: cargo test --test cmd_learn
+- reqs: R-CODE-7
+- note (2026-11-25, planner): added
+
+### T-474 · shown.rs: which entries a session has been shown already
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-436
+- why: A hook that repeats the same decisions at every edit of a file would be ignored after the third time.
+- summary: Remembers per session which entries the edit hook has shown, so each is shown once.
+- depends: T-468
+- files: src/shown.rs, src/lib.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. src/lib.rs: add `pub mod shown;` in alphabetical order.
+  2. src/shown.rs: `pub fn unseen(state: &Path, session: &str, ids: &[String]) -> Result<Vec<String>>`. When `session` is empty or holds a character that is not an ASCII letter, a digit or `-`, return all of `ids` and write nothing. Otherwise the file is `<state>/shown/<session>.txt` with one ID per line: return the IDs of `ids` that are not in the file, in their order, and add them to the file (create the folder and the file when missing). An error of reading or writing is an Error with Code::Io that names the path.
+  3. In the same call, remove every other file in `<state>/shown/` whose modified time is more than 30 days before the system time; an error while doing so is ignored.
+  4. Unit tests in a temporary folder: the first call returns both IDs and the file holds them; the second call with one old and one new ID returns only the new one; another session name starts empty; a session name `a/b` returns everything and creates no file; a file given a modified time 31 days back (File::set_modified) is removed by the next call for another session.
+  5. Run cargo test --lib shown::
+- accept: shown::unseen returns the IDs a session has not been shown yet and records them.
+- verify: cargo test --lib shown::
+- reqs: R-CODE-8
+- note (2026-11-25, planner): added
+
+### T-475 · which --binding: only the entries in force that bind a path
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-436
+- why: The hook needs a short answer: which decisions, findings and lessons hold for this file, and nothing else.
+- summary: A short form of which that prints only the entries in force recorded for a file or its folder.
+- depends: T-469, T-474
+- files: src/cmd/which.rs, tests/cmd_which.rs
+- read: docs/design.md, docs/format.md, src/hooks.rs
+- steps:
+  1. src/cmd/which.rs: add to Args `/// Prints only the approved entries in force whose code pointers cover the path` `#[arg(long)] pub binding: bool` and `/// With --binding: leaves out the entries this session was shown before` `#[arg(long, value_name = "ID", requires = "binding")] pub session: Option<String>`.
+  2. With --binding: take the entries with status approved for which `points_at` is true, in the order of the store. With --session, keep only the IDs that `shown::unseen(&ctx.state, session, &ids)` returns. Print for each entry the line `<ID> · <kind> · <title>` and, when the entry has a section named Decision, Statement or Observation, the first line of the first of these that it has, indented by two spaces. Print nothing else: no tasks, no `not attached` line. With no entry the output is empty.
+  3. JSON data with --binding: `{"path": <stored path>, "entries": [{"id", "kind", "title", "text"}]}`.
+  4. tests/cmd_which.rs: an approved decision with `code: src/pump` and a draft lesson with the same pointer: `which --binding src/pump/seal.rs` prints the decision's two lines only; a superseded decision is not printed; a path nothing points to prints nothing and succeeds; with `--session s1` the second call prints nothing, and a call with `--session s2` prints the decision again; --session without --binding is a usage error.
+  5. Run cargo test --test cmd_which.
+- accept: which --binding prints the approved entries that cover a path, each once per session with --session.
+- verify: cargo test --test cmd_which
+- reqs: R-CODE-8
+- note (2026-11-25, planner): added
+
+### T-476 · hooks.rs: the hook after an edit
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-436
+- why: Claude Code must run dossier after an LLM changes a file, and dossier must read which file it was.
+- summary: hooks install adds a hook that runs after every file edit, and the payload of that hook can be read.
+- depends: T-440
+- files: src/hooks.rs, tests/cmd_hooks.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. src/hooks.rs: add `pub fn edited_path(payload: &str) -> Option<String>`: the payload is parsed as `guard` parses it; Some(path) when `tool_name` is Edit, Write or MultiEdit and `tool_input.file_path` (or `tool_input.path`) is a text; None when the path has a part named DOSSIER, and for anything else.
+  2. src/hooks.rs: add `pub fn session_of(payload: &str) -> Option<String>`: the text of the payload's `session_id`.
+  3. src/hooks.rs, `installed`: after the PostToolUse entry for the shell tools, add once a PostToolUse entry with the matcher EDIT_TOOLS that runs AFTER with the same timeout. `uninstalled` removes it as it removes the other dossier hooks; check with a test that it does.
+  4. Unit tests in src/hooks.rs: edited_path for an Edit payload, a Write payload with `path`, a Bash payload (None), a file inside DOSSIER (None), text that is not JSON (None); session_of with and without the key; `installed` on empty settings has two PostToolUse entries, and running it twice adds nothing; `uninstalled` leaves no dossier hook and keeps a foreign hook.
+  5. tests/cmd_hooks.rs: `hooks install` writes the PostToolUse entry with the matcher `Edit|Write|MultiEdit`; change the existing expectations of the installed settings accordingly.
+  6. Run cargo test --lib hooks:: and cargo test --test cmd_hooks.
+- accept: hooks install adds the hook after edits, and hooks::edited_path and session_of read its payload.
+- verify: cargo test --lib hooks:: && cargo test --test cmd_hooks
+- reqs: R-CODE-8
+- note (2026-11-25, planner): added
+
+### T-477 · after: the entries that bind an edited file
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-436
+- why: This is the step that puts a decision in front of the LLM at the moment it changes the code the decision is about.
+- summary: After an LLM edits a file, it is shown the decisions, findings and lessons recorded for that file, once per session.
+- depends: T-475, T-476, T-447
+- files: src/cmd/after.rs, tests/cmd_after.rs
+- read: docs/design.md, src/hooks.rs, src/cmd/which.rs
+- steps:
+  1. src/cmd/after.rs, `run`: when `hooks::todo_event` gives None, ask `hooks::edited_path(&payload)`. With a path, run this program again as the other parts do (`own`) with the arguments `which`, `--binding`, the path, and, when `hooks::session_of` gives a session, `--session` and the session.
+  2. When that prints text, the context is: the line `Entries in force for <path> (dossier show <ID> prints one in full):`, then the text. Return it through `hooks::context`. When it prints nothing or fails, print nothing and succeed: `after` never fails.
+  3. tests/cmd_after.rs: a project with an approved decision that has `code: src/pump`: an Edit payload for `src/pump/seal.rs` with `session_id` `s1` gives one line of JSON whose additionalContext holds the heading line and the decision's ID and title; the same payload again gives no output; a payload for a file nothing points to gives no output; an Edit payload outside any dossier gives no output and exit code 0; the existing tests of the todo events pass unchanged.
+  4. Update the module comment: the command now also reacts to an edit. Run cargo test --test cmd_after.
+- accept: dossier after answers an edit payload with the entries in force for that file, once per session, and never fails.
+- verify: cargo test --test cmd_after
+- reqs: R-CODE-8
+- note (2026-11-25, planner): added
+
+### T-478 · tests/retrieval.rs: fixed questions that the search must answer (TEST-12)
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: test
+- milestone: T-437
+- why: Without a fixed set of questions nobody notices when a later change makes finding worse.
+- summary: A test with invented entries and fixed searches fails when the right entry is no longer among the first three results.
+- depends: T-451, T-449
+- files: tests/retrieval.rs
+- read: docs/design.md, docs/requirements.md, tests/cmd_search.rs, tests/common/mod.rs
+- steps:
+  1. Create tests/retrieval.rs with the helpers of tests/common, as tests/cmd_search.rs uses them. One function builds the dossier: a person writes these approved entries, in this order, with the fixed clock one minute apart. Decisions (decide <text> --reason <reason>): D1 `Each rig command opens its own valve connection` / `Keeping a connection open needs a helper process.`; D2 `Pump seals are replaced every 500 hours` / `Two seals leaked after 600 hours.`; D3 `Speedline runs use the transient mode above 90 percent speed` / `Steady runs did not converge there.`; D4 `Results are stored as one file per run` / `One large file was lost twice.`; D5 `The bearing temperature limit is 95 degrees` / `The supplier names 100 degrees.`; D6 `The controller firmware is not updated during a campaign` / `An update changed the valve timing once.`; D7 `Every report names the rig and the date` / `Reports were mixed up.`. Findings (found <text>): F1 `Reusing one valve connection fails on the old controller`; F2 `Cavitation starts below 2 bar inlet pressure`; F3 `The rig log and the controller clock differ by two seconds`; F4 `The spare pump has a different impeller`. A glossary term: `term ControlLine --also 'valve connection' --meaning 'The line that opens the rig valve.'` (check the options with dossier help term).
+  2. One table of questions: the words of a search and the title of the entry that must be among the first three results (full matches and those with some of the words taken together, in printed order): `connection reuse` → F1; `reused connections` → F1; `seal replacement` → D2; `storing results` → D4; `bearing temperature` → D5; `cavitation pressure` → F2; `firmware updates` → D6; `ControlLine` → D1; `impeller of the spare pumps` → F4; `transient speedline` → D3.
+  3. One test runs every question with search --json and collects the failures; it fails with one message that lists each failed question and the three titles it got instead.
+  4. A second test: `search --similar` of F1 lists D1 first.
+  5. A third test: `search xylophone marimba` prints `0 matches` and no line `some of the words:`.
+  6. Run cargo test --test retrieval. If a question fails, do not change the question or the entries: give the task back with todo stuck and the failure message.
+- accept: tests/retrieval.rs passes: every fixed question finds its entry among the first three results.
+- verify: cargo test --test retrieval
+- reqs: TEST-12, R-READ-3, R-FIND-1 to R-FIND-4
+- note (2026-11-25, planner): added
+
+### T-479 · The agent rules: topics, code pointers and searching again
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: docs
+- milestone: T-437
+- why: An LLM uses --topic and --code only when the rules it reads tell it to and say why.
+- summary: The rules text for LLMs explains topics, pointers to code, and what to do when a search finds only part of the words.
+- depends: T-465, T-477, T-451
+- files: src/agents/rules.md, tests/cmd_agents.rs
+- read: docs/design.md, docs/requirements.md
+- steps:
+  1. src/agents/rules.md, in the part about writing entries, add these rules in the style of the text around them: (1) `Give every entry its topic with --topic. dossier topics lists the project's topics; if none fits, ask your person to add one. You cannot add a topic yourself.` (2) `When an entry is about particular code, name it with --code: a file, a file::name, or the folder when it holds for a whole part. Whoever edits that code later is then shown your entry.` (3) in the part about reading: `dossier search lists entries that hold only some of your words after the line some of the words:. Before you conclude that nothing is recorded, search once more with other words, and look at dossier list --topic <name>.` (4) `After you edit a file, dossier may show entries in force for it. They bind your change: read them with dossier show <ID> before you go on.`
+  2. If the rules text has a part that is left out for code projects (R-CODE-5), these four rules stay in for both.
+  3. tests/cmd_agents.rs: where the installed rules are checked for particular sentences, add a check for `--topic` and `--code`; adjust any expectation of the rules' length or checksum.
+  4. Run cargo test --test cmd_agents.
+- accept: The rules that dossier agents installs tell an LLM to give --topic and --code and how to search again.
+- verify: cargo test --test cmd_agents
+- reqs: R-AGENT-1, R-TOPIC-2, R-CODE-7, R-CODE-8
+- note (2026-11-25, planner): added
+
+### T-480 · Release 1.0.0
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: chore
+- milestone: T-437
+- why: The owner tags a release only from a version that builds, passes every check and says what it adds.
+- summary: The version number and the README are ready for the owner to tag release 1.0.0.
+- depends: T-478, T-479, T-449, T-451, T-455, T-456, T-457, T-458, T-459, T-460, T-461, T-462, T-465, T-467, T-470, T-471, T-472, T-473, T-477
+- files: Cargo.toml, Cargo.lock, README.md
+- read: docs/design.md, docs/format.md, docs/requirements.md
+- steps:
+  1. Cargo.toml: version = "1.0.0"; run cargo build so that Cargo.lock follows (only the version line of the dossier package may change; otherwise stop and report).
+  2. README.md: set the status line at the top to `**Status: v1.0**`. Add after the section `### What version 0.6 adds` a section `### What version 1.0 adds` with one short part each for: search by word stems and the list of entries with some of the words; related entries chosen by rare words; topics (`dossier topics`, `--topic`, `list --topic`, the Topics line of brief); pointers to code (`--code`, folder pointers, `which --binding`) and the hook after edits installed by `hooks install`. Say in one sentence that no model is called and no embeddings are stored. Update the sample output in the README where it shows the version.
+  3. README.md: after an upgrade from 0.6, tell the reader to run `dossier hooks install` once more (it adds the hook after edits) and `dossier agents` (it updates the rules).
+  4. Run cargo fmt --all -- --check, cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features; all three must pass. Do not tag and do not push: the owner does that.
+- accept: Version 1.0.0 builds, passes every check, and the README says what it adds.
+- verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
+- reqs: REL-1, REL-2
+- note (2026-11-25, planner): added
+
+### T-481 · This project's own dossier gets topics and code pointers
+- status: open
+- owner: —
+- priority: P1 · difficulty: 3 · type: chore
+- milestone: T-437
+- why: The 72 entries of the project's own dossier were written before topics existed; without them the new lookups find nothing here.
+- summary: The project's own entries are given topics and pointers to the code they are about, proposed by an LLM and settled by the owner.
+- final: Choosing topics and pointers for 72 entries needs judgment and the owner's approval.
+- depends: T-480
+- files: DOSSIER, AGENTS.md, .claude/settings.json
+- read: DOSSIER, docs/requirements.md
+- steps:
+  1. With dossier 1.0.0 installed: run `dossier agents` and `dossier hooks install` in this repository.
+  2. Propose to the owner a list of at most twelve topics for this project (for example: entries, approval, search, remote, files, team, hooks, todo, release). The owner adds the ones they accept with `dossier topics add <name>`.
+  3. For every approved entry, propose a topic and, where the entry is about particular code, a pointer (a folder of src where it holds for a whole module). Show the owner the whole table before anything is written.
+  4. Write what the owner accepted with `dossier set <ID> --field topic=… --field code=…`, as the owner or with --said-by where the command asks for it. Never edit a file in DOSSIER directly.
+  5. Run `dossier check` and `dossier topics`: no dead code pointer, and `(no topic)` is 0 or every entry left there is named to the owner.
+  6. Search the dossier for `connection reuse`: FND-011 and DEC-043 are among the first three results.
+- accept: Every approved entry of this project's dossier has a topic, the entries about particular code point to it, and dossier check reports nothing new.
+- reqs: R-TOPIC-1 to R-TOPIC-3, R-CODE-7
+- note (2026-11-25, planner): added
+
 ## Questions
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.
@@ -9362,6 +10340,27 @@
 - about: T-057
 - note (2026-11-23, planner): added
 - note (2026-11-23, planner): answer — Owner, 2026-11-23 (D44): dossier gets its own session file format with a version number (format.md section 34). review-session reads that; a Claude Code transcript is converted first, and only the converter (src/claude.rs) knows Claude Code's format. T-336, T-337, T-339 and T-340 were changed accordingly.
+
+### T-482 · Version 1.0 would add the dependency rust-stemmers (the Snowball English stemmer, MIT/BSD) so that reuse, reusing and reused count as one word (T-441). Is the new dependency accepted, or should dossier carry its own, smaller and less exact stemmer?
+- status: open
+- owner: —
+- priority: P1 · type: question
+- about: T-431
+- note (2026-11-25, planner): added
+
+### T-483 · Who may add a topic to a project's list (T-465)? Planned: only a person, so the list stays short; an LLM is told to ask. The alternative is that an LLM may add one too, as with confidential terms (D32).
+- status: open
+- owner: —
+- priority: P1 · type: question
+- about: T-431
+- note (2026-11-25, planner): added
+
+### T-484 · The hook shows the entries in force for a file after the LLM's edit (PostToolUse, the mechanism dossier after already uses; T-477). Is after the edit enough for 1.0, or must the entries be shown before the edit, which needs a test of what Claude Code's PreToolUse hook can pass to the model?
+- status: open
+- owner: —
+- priority: P2 · type: question
+- about: T-431
+- note (2026-11-25, planner): added
 
 ## Ideas
 
@@ -9426,3 +10425,9 @@
 - owner: —
 - type: idea
 - note (2026-11-24, planner): added
+
+### T-430 · init of a project dossier does not write .state/.gitignore (write.lock, holder.json); only init --team-dossier does, although project folders are git repositories too (D36). Found when the dossier project got its own DOSSIER, 2026-11-25.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-25, planner): added
