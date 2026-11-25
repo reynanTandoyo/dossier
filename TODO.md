@@ -10893,7 +10893,7 @@
 - milestone: T-503
 - why: The guard hook writes one file per Claude session into .state/shown/ (R-CODE-8); without an ignore line these files end up in every commit, and init of a project dossier writes no .state/.gitignore at all although project folders are git repositories (D36, idea T-430).
 - summary: The files of each Claude session and the lock files stay out of git in every dossier, not only in a team dossier.
-- files: src/cmd/init.rs, tests/cmd_init.rs, docs/format.md
+- files: src/cmd/init.rs, tests/cmd_init.rs, docs/format.md, tests/xos.rs
 - read: docs/format.md, src/cmd/init.rs
 - steps:
   1. src/cmd/init.rs: IGNORE_TEXT becomes `write.lock\nholder.json\nshown/\n`. Write the ignore file of the state folder for a project dossier too, in the same way and at the same point as for a team dossier, and update the doc comments of IGNORE and IGNORE_TEXT (format.md §20 and §36).
@@ -10904,6 +10904,8 @@
 - verify: cargo test --test cmd_init
 - reqs: R-CODE-8, D36
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): forced set (owner was haiku-T-511)
+- note (2026-11-25, planner): Coordinator: tests/xos.rs joins the files: its fixed project dossier now has .state/.gitignore, so EXPECTED_FILES gains it and EXPECTED_DIGEST is updated to the value the test reports.
 
 ### T-512 · requirements.md and design.md: D52, an LLM adds a topic after its person agrees
 - status: done
