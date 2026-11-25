@@ -9346,14 +9346,16 @@
 - note (2026-11-25, planner): added
 
 ### T-432 · Rules for finding: requirements, format and design of version 1.0
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - milestone: T-431
 - goal: requirements.md holds R-FIND-1 to R-FIND-4, the new R-READ-3, R-TOPIC-1 to R-TOPIC-5, R-CODE-6 to R-CODE-8 and TEST-12; format.md and design.md fix the fields, files and signatures the tasks of this version name.
 - why: Every code task of this version takes its signatures from design.md, so the documents come first.
 - summary: The three documents say what version 1.0 builds, before any code is written.
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): done — Requirements, format and design of version 1.0 are written.
 
 ### T-433 · Ranking: related entries are chosen by word stems and rare words
 - status: open
@@ -9411,8 +9413,8 @@
 - note (2026-11-25, planner): added
 
 ### T-438 · requirements.md: finding, topics and code pointers of version 1.0
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - milestone: T-432
 - goal: requirements.md defines D48 to D51, R-FIND-1 to 4, the new R-READ-3, R-TOPIC-1 to 5, R-CODE-6 to 8, TEST-12 and phase 7, with no ID defined twice.
@@ -9420,14 +9422,16 @@
 - summary: The requirements document says what version 1.0 adds: better ranking and search, topics, and entries shown for the file being edited.
 - accept: requirements.md defines R-FIND-1 to 4, the new R-READ-3, R-TOPIC-1 to 5, R-CODE-6 to 8, TEST-12 and phase 7, with no ID defined twice.
 - reqs: R-FIND-1 to R-FIND-4, R-READ-3, R-TOPIC-1 to R-TOPIC-5, R-CODE-6 to R-CODE-8, TEST-12
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
 - note (2026-11-25, planner): T-484 answered 2026-11-25: the owner wants the entries shown BEFORE the edit (PreToolUse), not after. The steps below still describe the hook after the edit and must be changed by the planner before this task is worked on.
 - note (2026-11-25, planner): T-482 and T-483 answered 2026-11-25: the stemmer is rust-stemmers; only a person adds a topic. Step 1 adds these as decisions.
 - note (2026-11-25, planner): split into T-485, T-486, T-487, T-488
+- note (2026-11-25, planner): done — requirements.md defines D48 to D51, R-FIND, R-TOPIC, R-CODE-6 to 8, TEST-12 and phase 7.
 
 ### T-485 · requirements.md: the owner's decisions D48 to D51
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-485
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-438
 - why: Every requirement of version 1.0 rests on these four decisions; they must be on record before the requirements name them.
@@ -9444,12 +9448,16 @@
   7. Check that the table still renders: every new row starts with `| D` and has exactly three cells, like the row of D47.
 - accept: requirements.md is draft 12 and its decision table ends with D48 to D51 as the owner decided them.
 - verify: git grep -q -F "| D51 | An LLM is shown" -- docs/requirements.md && git grep -q -F "Draft 12, 2026-11-25" -- docs/requirements.md
+- verified: 2026-11-25
+- commit: 0295abb
 - reqs: D48, D49, D50, D51
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-485): done
 
 ### T-486 · requirements.md: finding related entries (R-FIND) and search by word stems
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-486
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-438
 - why: The ranking and search tasks of version 1.0 name R-FIND-1 to R-FIND-4 and the new R-READ-3.
@@ -9469,12 +9477,16 @@
   9. R-CTX-2: after its last sentence (ending `from the usage index.`) add `The words of the title are matched as R-FIND-1 to R-FIND-4 say.` R-CTX-13: after its last sentence (ending `shows the list.`) add `Shared title words are found as R-FIND-1 to R-FIND-4 say.` Keep the wrapping at 100 characters.
 - accept: requirements.md defines R-FIND-1 to R-FIND-4 in section 5.9a, and R-READ-3, R-READ-4, R-CTX-2 and R-CTX-13 refer to them.
 - verify: git grep -q -F "### 5.9a Finding related entries" -- docs/requirements.md && git grep -q -F "**R-FIND-4 MUST**" -- docs/requirements.md && git grep -q -F "some of the words:" -- docs/requirements.md
+- verified: 2026-11-25
+- commit: b3e3ce8
 - reqs: R-FIND-1 to R-FIND-4, R-READ-3, R-READ-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-486): done
 
 ### T-487 · requirements.md: topics (R-TOPIC-1 to R-TOPIC-5)
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-487
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-438
 - why: The topic tasks of version 1.0 name R-TOPIC-1 to R-TOPIC-5.
@@ -9492,12 +9504,16 @@
   7. Item: `- **R-TOPIC-5 MUST** ``brief`` prints one line with the topics and the number of decisions in force of each, and each decision line names its topics.`
 - accept: requirements.md defines R-TOPIC-1 to R-TOPIC-5 in section 5.11i.
 - verify: git grep -q -F "### 5.11i Topics" -- docs/requirements.md && git grep -q -F "**R-TOPIC-5 MUST**" -- docs/requirements.md
+- verified: 2026-11-25
+- commit: faa26d1
 - reqs: R-TOPIC-1 to R-TOPIC-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-487): done
 
 ### T-488 · requirements.md: code pointers (R-CODE-6 to 8), TEST-12, phase 7 and idea I-2
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-488
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-438
 - why: The code pointer tasks name R-CODE-6 to R-CODE-8, the retrieval test names TEST-12, and the release names phase 7.
@@ -9516,12 +9532,16 @@
   8. Check that no ID is defined twice: `git grep -n -E "\*\*(R-FIND-[0-9]|R-TOPIC-[0-9]|R-CODE-[0-9]|R-READ-3|TEST-12) " -- docs/requirements.md` must show each ID exactly once.
 - accept: requirements.md defines R-CODE-6 to R-CODE-8 and TEST-12, names phase 7, and no requirement ID is defined twice.
 - verify: git grep -q -F "**R-CODE-8 MUST**" -- docs/requirements.md && git grep -q -F "**TEST-12 MUST**" -- docs/requirements.md && git grep -q -F "### Phase 7 — Finding (v1.0)" -- docs/requirements.md
+- verified: 2026-11-25
+- commit: 3dc56b9
 - reqs: R-CODE-6 to R-CODE-8, TEST-12
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-488): done
 
 ### T-439 · format.md: the topic field, the topics setting, folder pointers and the shown file
-- status: open
-- owner: —
+- status: done
+- owner: sonnet-T-439
 - priority: P1 · difficulty: 2 · type: docs
 - milestone: T-432
 - why: Workers follow format.md exactly, so the new field and files must be fixed there.
@@ -9536,12 +9556,15 @@
   3. Add section 36 `Entries shown in a session (R-CODE-8)`: the folder `.state/shown/` holds one file per Claude Code session, `<session>.txt`, with one entry ID per line: the entries the edit hook has shown in that session. The session name is used only when it consists of ASCII letters, digits and `-`. Files older than 30 days are removed.
   4. State in section 35 what an older program does: version 0.6 refuses a settings file that has `topics` (unknown key); PC and server run the same version (R-XOS-9), so the format number stays 1.
 - accept: format.md describes the topics setting, the topic field, folder pointers and the shown files, each with one example.
+- commit: 80ca721
 - reqs: R-TOPIC-1 to R-TOPIC-3, R-CODE-6, R-CODE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, sonnet-T-439): done
 
 ### T-440 · design.md: section 21, the modules and signatures of version 1.0
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - milestone: T-432
 - goal: design.md section 21 holds every signature and output text the tasks of version 1.0 name, and no task differs from it.
@@ -9550,13 +9573,15 @@
 - depends: T-438, T-439
 - accept: design.md section 21 holds every signature and output text the tasks of this version name, and no task differs from it.
 - reqs: R-FIND-1 to R-FIND-4, R-TOPIC-1 to R-TOPIC-5, R-CODE-6 to R-CODE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
 - note (2026-11-25, planner): T-484 answered 2026-11-25: the owner wants the entries shown BEFORE the edit (PreToolUse), not after. The steps below still describe the hook after the edit and must be changed by the planner before this task is worked on.
 - note (2026-11-25, planner): split into T-489, T-490, T-491
+- note (2026-11-25, planner): done — design.md section 21 fixes the signatures and outputs of version 1.0.
 
 ### T-489 · design.md: section 21 begins; 21.1 ranking and search
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-489
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-440
 - why: One task fills in one file, and every signature a ranking or search task uses must be fixed in design.md first.
@@ -9572,12 +9597,16 @@
   5. Do not choose between differing texts: when two tasks give a signature or an output line differently, or a task uses a function that is not listed here, give this task back with `todo stuck <id> --note "<which tasks differ and how>"`.
 - accept: design.md section 21.1 holds every signature and output line of the ranking and search tasks T-441 to T-451, and none of those tasks differs from it.
 - verify: git grep -q -F "### 21.1 Ranking and search" -- docs/design.md && git grep -q -F "pub fn widened" -- docs/design.md && git grep -q -F "rust-stemmers" -- docs/design.md
+- verified: 2026-11-25
+- commit: 4e82166
 - reqs: R-FIND-1 to R-FIND-4, R-READ-3, R-READ-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-489): done
 
 ### T-490 · design.md: section 21.2 topics
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-490
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-440
 - why: Every signature and output text a topic task uses must be fixed in design.md first.
@@ -9593,12 +9622,16 @@
   5. Do not choose between differing texts: when two tasks give a signature or an output line differently, or a task uses a function that is not listed here, give this task back with `todo stuck <id> --note "<which tasks differ and how>"`.
 - accept: design.md section 21.2 holds every signature and output line of the topic tasks T-452 to T-467, and none of those tasks differs from it.
 - verify: git grep -q -F "### 21.2 Topics" -- docs/design.md && git grep -q -F "a person adds a topic" -- docs/design.md
+- verified: 2026-11-25
+- commit: 3711334
 - reqs: R-TOPIC-1 to R-TOPIC-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-490): done
 
 ### T-491 · design.md: section 21.3 code pointers and the check before an edit
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-491
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-440
 - why: Every signature and output text a code pointer task uses must be fixed in design.md first, including the refusal that guard gives before an edit (D51).
@@ -9614,8 +9647,12 @@
   5. Do not choose between differing texts: when two tasks give a signature or an output line differently, or a task uses a function that is not listed here, give this task back with `todo stuck <id> --note "<which tasks differ and how>"`.
 - accept: design.md section 21.3 holds every signature and output line of the code pointer tasks T-468 to T-477, including guard's refusal, and none of those tasks differs from it.
 - verify: git grep -q -F "### 21.3 Code pointers" -- docs/design.md && git grep -q -F "pub fn unseen" -- docs/design.md && git grep -q -F "make your edit again" -- docs/design.md
+- verified: 2026-11-25
+- commit: 423ca26
 - reqs: R-CODE-6 to R-CODE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-491): done
 
 ### T-441 · select.rs: word stems and common words
 - status: open
@@ -10432,8 +10469,8 @@
 - read: docs/design.md, docs/format.md, docs/requirements.md
 - steps:
   1. Cargo.toml: version = "1.0.0"; run cargo build so that Cargo.lock follows (only the version line of the dossier package may change; otherwise stop and report).
-  2. README.md: set the status line at the top to `**Status: v1.0**`. Add after the section `### What version 0.6 adds` a section `### What version 1.0 adds` with one short part each for: search by word stems and the list of entries with some of the words; related entries chosen by rare words; topics (`dossier topics`, `--topic`, `list --topic`, the Topics line of brief); pointers to code (`--code`, folder pointers, `which --binding`) and the hook after edits installed by `hooks install`. Say in one sentence that no model is called and no embeddings are stored. Update the sample output in the README where it shows the version.
-  3. README.md: after an upgrade from 0.6, tell the reader to run `dossier hooks install` once more (it adds the hook after edits) and `dossier agents` (it updates the rules).
+  2. README.md: set the status line at the top to `**Status: v1.0**`. Add after the section `### What version 0.6 adds` a section `### What version 1.0 adds` with one short part each for: search by word stems and the list of entries with some of the words; related entries chosen by rare words; topics (`dossier topics`, `--topic`, `list --topic`, the Topics line of brief); pointers to code (`--code`, folder pointers, `which --binding`) and the check before an edit: the first edit of a file in a session is refused once with the entries that bind it (the guard hook, D51). Say in one sentence that no model is called and no embeddings are stored. Update the sample output in the README where it shows the version.
+  3. README.md: after an upgrade from 0.6, tell the reader to run `dossier agents` (it updates the rules); the hooks need no change, because the check before an edit runs in the guard hook that `hooks install` already added.
   4. Run cargo fmt --all -- --check, cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features; all three must pass. Do not tag and do not push: the owner does that.
 - accept: Version 1.0.0 builds, passes every check, and the README says what it adds.
 - verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
