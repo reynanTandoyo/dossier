@@ -3137,3 +3137,175 @@ fn the_shortened_decision_line_names_its_topics_too() {
         "{text}"
     );
 }
+
+/// A todo stand-in that gives the task T-001 the title "Speedline check" (invented).
+fn task_speedline_check(project: &Project) {
+    let data = serde_json::json!({"id": "T-001", "title": "Speedline check", "status": "open"});
+    let envelope = serde_json::json!({
+        "schema": "todo.show.v1",
+        "ok": true,
+        "data": data,
+        "warnings": []
+    })
+    .to_string();
+    project.write_stand_in(
+        "todo",
+        &format!("@echo off\r\necho {envelope}\r\n"),
+        &format!("#!/bin/sh\nprintf '%s\n' '{envelope}'\n"),
+    );
+}
+
+/// The index of the line `wanted` in the lines of `text`.
+fn line_index(text: &str, wanted: &str) -> usize {
+    text.lines()
+        .position(|line| line == wanted)
+        .unwrap_or_else(|| panic!("no line {wanted:?} in:\n{text}"))
+}
+
+#[test]
+fn a_related_decision_is_followed_by_the_finding_it_links_to() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "found",
+                "The steady run stalled at the lowest mass flow.",
+                "--title",
+                "Steady run stalls at low flow",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Use the speedline runs for the stall margin.",
+                "--reason",
+                "An invented reason.",
+                "--title",
+                "Speedline stall margin",
+            ],
+        )
+        .success();
+    project
+        .run("anna", &["link", "DEC-001", "FND-001"])
+        .success();
+    task_speedline_check(&project);
+
+    let text = brief(&project, &["--task", "T-001"], None);
+
+    let lines: Vec<&str> = text.lines().collect();
+    let decision = line_index(&text, "DEC-001 · decision · Speedline stall margin");
+    assert_eq!(
+        lines.get(decision + 1).copied(),
+        Some("  linked: FND-001 · Steady run stalls at low flow"),
+        "{text}"
+    );
+    // The task does not name the finding, so it is not listed under a heading of its own.
+    assert!(!text.contains("FND-001 · finding"), "{text}");
+}
+
+#[test]
+fn a_linked_entry_that_the_brief_already_lists_is_not_repeated() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "found",
+                "Halving the time step kept the oscillation.",
+                "--dead-end",
+                "--title",
+                "Speedline time step",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Use the speedline runs for the stall margin.",
+                "--reason",
+                "An invented reason.",
+                "--title",
+                "Speedline stall margin",
+            ],
+        )
+        .success();
+    project
+        .run("anna", &["link", "DEC-001", "FND-001"])
+        .success();
+    task_speedline_check(&project);
+
+    let text = brief(&project, &["--task", "T-001"], None);
+
+    assert!(
+        text.contains("FND-001 · finding · Speedline time step"),
+        "{text}"
+    );
+    assert!(
+        text.contains("DEC-001 · decision · Speedline stall margin"),
+        "{text}"
+    );
+    assert!(!text.contains("linked: FND-001"), "{text}");
+}
+
+#[test]
+fn a_linked_entry_that_is_superseded_is_not_shown_under_the_decision() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Run the early plan.",
+                "--reason",
+                "It was the first plan.",
+                "--title",
+                "Early plan",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Run the speedline plan.",
+                "--reason",
+                "It follows the early plan.",
+                "--title",
+                "Speedline plan",
+            ],
+        )
+        .success();
+    project
+        .run("anna", &["link", "DEC-002", "DEC-001"])
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Replace the early plan.",
+                "--reason",
+                "The early plan failed.",
+                "--title",
+                "Replacement plan",
+            ],
+        )
+        .success();
+    project
+        .run("anna", &["supersede", "DEC-001", "--by", "DEC-003"])
+        .success();
+    task_speedline_check(&project);
+
+    let text = brief(&project, &["--task", "T-001"], None);
+
+    line_index(&text, "DEC-002 · decision · Speedline plan");
+    assert!(!text.contains("linked: DEC-001"), "{text}");
+    assert!(!text.contains("Early plan"), "{text}");
+}

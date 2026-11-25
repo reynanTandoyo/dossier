@@ -9,6 +9,7 @@ use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
 use crate::filelist;
 use crate::glossary::{self, Term};
+use crate::links;
 use crate::select::{self, Query};
 use crate::store::{self, Item};
 use crate::teamfiles;
@@ -72,6 +73,14 @@ pub struct Selection {
     pub chosen: Vec<(String, &'static str)>,
 }
 
+/// A line of the brief that names one project entry, and where the linked lines of that entry go
+/// (R-FIND-5): `insert_at` is the index in the brief's lines at which they are inserted, which is
+/// the line right after the entry's summary line, or after the whole block of an investigation.
+struct Anchor {
+    id: String,
+    insert_at: usize,
+}
+
 /// The lines of `brief --task` and the entries they name (`Selection`): the task's title and goal
 /// lines from todo, the glossary terms that appear in the task (R-TERM-2, the team's marked
 /// `team:`), the entries whose `task` field names it, the decisions whose task is one of its
@@ -123,16 +132,28 @@ pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection> {
     let mut out = vec![task_line(task, &about.title)];
     // The entries named by a summary line, each with its reason, in the order of `out`.
     let mut chosen: Vec<(String, &'static str)> = Vec::new();
+    // The project entry lines, in the order of `out`, each with where its linked lines go.
+    let mut anchors: Vec<Anchor> = Vec::new();
     out.extend(term_rows);
     if !recorded.is_empty() {
         out.push(RECORDED.to_string());
-        out.extend(recorded.iter().map(|item| summary(item)));
+        for item in &recorded {
+            out.push(summary(item));
+            anchors.push(Anchor {
+                id: item.entry.id(),
+                insert_at: out.len(),
+            });
+        }
         chosen.extend(recorded.iter().map(|item| (item.entry.id(), "linked")));
     }
     if !decisions.is_empty() {
         out.push(MILESTONES.to_string());
         for item in &decisions {
             out.push(summary(item));
+            anchors.push(Anchor {
+                id: item.entry.id(),
+                insert_at: out.len(),
+            });
             chosen.push((item.entry.id(), "milestone"));
             out.extend(indented(
                 &item.entry.section("Decision").unwrap_or_default(),
@@ -162,6 +183,10 @@ pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection> {
         out.push(DEAD_ENDS.to_string());
         for item in &found {
             out.push(summary(item));
+            anchors.push(Anchor {
+                id: item.entry.id(),
+                insert_at: out.len(),
+            });
             chosen.push((item.entry.id(), reason_of(item, &query)));
             out.extend(section_line(item, "Observation"));
         }
@@ -173,9 +198,14 @@ pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection> {
             .filter(|item| !listed.contains(&item.entry.id())),
     );
 
-    let (investigation_rows, left_out) =
+    let (investigation_rows, left_out, investigation_anchors) =
         investigation_lines(investigations, task, &query, &mut listed, &mut chosen);
+    let base = out.len();
     out.extend(investigation_rows);
+    anchors.extend(investigation_anchors.into_iter().map(|anchor| Anchor {
+        insert_at: anchor.insert_at + base,
+        ..anchor
+    }));
     pool.extend(left_out);
 
     if let Some(paths) = &about.files {
@@ -188,6 +218,10 @@ pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection> {
             out.push(CODE.to_string());
             for (item, pointers) in &code {
                 out.push(summary(item));
+                anchors.push(Anchor {
+                    id: item.entry.id(),
+                    insert_at: out.len(),
+                });
                 chosen.push((item.entry.id(), "linked"));
                 out.push(format!("  code: {}", pointers.join(", ")));
             }
@@ -224,11 +258,17 @@ pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection> {
                 chosen.push((format!("team:{}", item.entry.id()), reason));
             } else {
                 out.push(line);
+                anchors.push(Anchor {
+                    id: item.entry.id(),
+                    insert_at: out.len(),
+                });
                 chosen.push((item.entry.id(), reason));
             }
             out.extend(lesson_lines(item));
         }
     }
+    // The linked lines count against the limit like any other line, so they go in before the cut.
+    insert_linked(ctx, &mut out, &anchors);
     let lines = cut(out, limit);
     // The data names only the entries whose summary line the limit left in (R-CTX-6): a line
     // starts with the entry's ID, or with `team:<ID>`, and then ` · `.
@@ -242,6 +282,29 @@ pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection> {
 /// The lines of `brief --task`, as `select` gives them.
 pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
     select(ctx, task, limit).map(|selection| selection.lines)
+}
+
+/// Inserts the linked lines (`links::linked`, `links::line`, R-FIND-5) of each anchored entry into
+/// `out` at its anchor. An ID that the brief lists as a line of its own anywhere is left out. The
+/// anchors are taken from the last to the first, so each position still holds when it is used. A
+/// team entry has no anchor and gets no linked lines.
+fn insert_linked(ctx: &Ctx, out: &mut Vec<String>, anchors: &[Anchor]) {
+    if anchors.is_empty() {
+        return;
+    }
+    let listed: HashSet<String> = anchors.iter().map(|anchor| anchor.id.clone()).collect();
+    let (all, _warnings) = store::all(&ctx.dossier);
+    for anchor in anchors.iter().rev() {
+        let Some(item) = all.iter().find(|item| item.entry.id() == anchor.id) else {
+            continue;
+        };
+        let linked: Vec<String> = links::linked(&item.entry, &all, links::LINKED_LIMIT)
+            .into_iter()
+            .filter(|found| !listed.contains(&found.entry.id()))
+            .map(links::line)
+            .collect();
+        out.splice(anchor.insert_at..anchor.insert_at, linked);
+    }
 }
 
 /// The approved lessons and how-tos of the team dossier of the project (R-CTX-2), in the order of
@@ -540,13 +603,15 @@ fn is_dead_end(item: &Item) -> bool {
 /// `listed`. Returns the lines (none, with no heading, when no investigation is shown) and the
 /// investigations not shown, which the caller may still choose for Related. Each investigation
 /// shown is added to `chosen` with its reason: `linked` for the task's own, else `select::why`.
+/// The anchors of the investigations shown give the index in the returned lines after which their
+/// linked lines go: after the whole block, or after the last line of the block that the cut kept.
 fn investigation_lines(
     items: Vec<Item>,
     task: &str,
     query: &Query,
     listed: &mut HashSet<String>,
     chosen: &mut Vec<(String, &'static str)>,
-) -> (Vec<String>, Vec<Item>) {
+) -> (Vec<String>, Vec<Item>, Vec<Anchor>) {
     let (own, others): (Vec<Item>, Vec<Item>) =
         items.into_iter().partition(|item| task_is(item, task));
     // The lines of each investigation to show, the task's first, each with its reason.
@@ -584,11 +649,17 @@ fn investigation_lines(
     let mut start = 0;
     let mut shown_paths: HashSet<PathBuf> = HashSet::new();
     let mut rows: Vec<String> = Vec::new();
+    let mut anchors: Vec<Anchor> = Vec::new();
     for (id, path, lines, reason) in shown {
         if start < kept {
             listed.insert(id.clone());
-            chosen.push((id, reason));
+            chosen.push((id.clone(), reason));
             shown_paths.insert(path);
+            // The rows follow the heading, which is line 0 of the result.
+            anchors.push(Anchor {
+                id,
+                insert_at: (start + lines.len()).min(kept) + 1,
+            });
         }
         start += lines.len();
         rows.extend(lines);
@@ -599,11 +670,11 @@ fn investigation_lines(
         .filter(|item| !shown_paths.contains(&item.path))
         .collect();
     if rows.is_empty() {
-        return (Vec::new(), not_shown);
+        return (Vec::new(), not_shown, Vec::new());
     }
     let mut out = vec![INVESTIGATIONS.to_string()];
     out.extend(cut(rows, INVESTIGATIONS_LINES));
-    (out, not_shown)
+    (out, not_shown, anchors)
 }
 
 /// The lines of an investigation of the task (design.md §15): an open one is its title with
