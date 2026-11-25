@@ -1,7 +1,9 @@
 //! The `which` command (docs/design.md section 9, R-FILE-15, R-CODE-2): what a file belongs to.
 //! It prints each task whose file list has the path, with the role and marks of that block and
 //! what the block was made from; each block of any task that was made from the path; and each
-//! entry whose `code` field points at the path or at a folder that holds it. Nothing is written.
+//! entry whose `code` field points at the path or at a folder that holds it. Nothing is written,
+//! except the list of entries shown in a session (`--binding --session`, R-CODE-8): with
+//! `--binding` only the approved entries in force that bind the path are printed (R-CODE-6).
 
 use crate::approval::{self, Mark};
 use crate::blockfile::BlockFile;
@@ -13,6 +15,7 @@ use crate::error::{Code, Error, Result};
 use crate::filelist;
 use crate::output::Output;
 use crate::paths;
+use crate::shown;
 use crate::store::{self, Item};
 use serde_json::json;
 use std::path::Path;
@@ -22,6 +25,12 @@ use std::path::Path;
 pub struct Args {
     /// The path of the file or folder, relative to the current folder or absolute
     pub path: String,
+    /// Prints only the approved entries in force whose code pointers cover the path
+    #[arg(long)]
+    pub binding: bool,
+    /// With --binding: leaves out the entries this session was shown before
+    #[arg(long, value_name = "ID", requires = "binding")]
+    pub session: Option<String>,
 }
 
 /// A block of a task's list that is the path.
@@ -56,6 +65,9 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "which")?;
     let cwd = std::env::current_dir()?;
     let stored = stored_path(&ctx, &cwd, &args.path)?;
+    if args.binding {
+        return binding(&ctx, &stored, args.session.as_deref());
+    }
 
     let mut warnings = Vec::new();
     let mut belongings = Vec::new();
@@ -134,6 +146,53 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         .fold(Output::with(text, data), |output, warning| {
             output.warn(warning)
         }))
+}
+
+/// The `--binding` form (R-CODE-6, R-CODE-8): the approved entries in force whose `code` covers
+/// `stored`, in the order of the store, each as `<ID> · <kind> · <title>` and, when it has one, the
+/// first line of its statement (`statement_line`) indented by two spaces. With `session`, the
+/// entries that session has not been shown yet are kept (`shown::unseen`). Nothing else is printed.
+fn binding(ctx: &Ctx, stored: &str, session: Option<&str>) -> Result<Output> {
+    let (items, warnings) = store::all(&ctx.dossier);
+    let mut binding: Vec<&Item> = items
+        .iter()
+        .filter(|item| item.entry.status() == Some(Status::Approved))
+        .filter(|item| points_at(&item.entry, stored))
+        .collect();
+    if let Some(session) = session {
+        let ids: Vec<String> = binding.iter().map(|item| item.entry.id()).collect();
+        let fresh = shown::unseen(&ctx.state, session, &ids)?;
+        binding.retain(|item| fresh.contains(&item.entry.id()));
+    }
+
+    let mut lines: Vec<String> = Vec::new();
+    let mut entries: Vec<serde_json::Value> = Vec::new();
+    for item in &binding {
+        let entry = &item.entry;
+        let kind = entry.kind().map_or("", Kind::name);
+        let title = entry.title();
+        let text = statement_line(entry);
+        lines.push(format!("{} · {kind} · {title}", entry.id()));
+        if let Some(text) = &text {
+            lines.push(format!("  {text}"));
+        }
+        entries.push(json!({"id": entry.id(), "kind": kind, "title": title, "text": text}));
+    }
+    let data = json!({"path": stored, "entries": entries});
+    Ok(warnings
+        .into_iter()
+        .fold(Output::with(lines.join("\n"), data), |output, warning| {
+            output.warn(warning)
+        }))
+}
+
+/// The first line of the Decision, Statement or Observation section of an entry: of the first of
+/// these names the entry has, in that order. None when it has none of them, or the body is empty.
+fn statement_line(entry: &Entry) -> Option<String> {
+    ["Decision", "Statement", "Observation"]
+        .into_iter()
+        .find_map(|name| entry.section(name))
+        .and_then(|body| body.lines().next().map(str::to_string))
 }
 
 /// The text: the task lines, each with its made-from line under it; then the made-into lines;

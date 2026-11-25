@@ -376,3 +376,148 @@ fn a_path_outside_the_project_folder_is_refused() {
         .code(1)
         .stderr(contains("the path is outside the project folder"));
 }
+
+/// Writes the invented approved decision DEC-001, whose code pointer is the folder `src/pump`.
+fn decide_about_pump(project: &Project) {
+    project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Keep the seal gap at 0.2 mm.",
+            "--reason",
+            "Invented tests leaked above it.",
+            "--title",
+            "Seal gap",
+        ],
+    );
+    project.stdout("anna", &["set", "DEC-001", "--field", "code=src/pump"]);
+}
+
+#[test]
+fn binding_prints_only_the_approved_entry_in_force_with_its_first_decision_line() {
+    let project = Project::new();
+    decide_about_pump(&project);
+    project.stdout(
+        "anna-claude",
+        &[
+            "learn",
+            "The pump seal wears quickly.",
+            "--valid-for",
+            "An invented rig.",
+            "--evidence",
+            "An invented test.",
+            "--confidence",
+            "guess",
+            "--title",
+            "Draft lesson",
+        ],
+    );
+    project.stdout("anna", &["set", "LES-001", "--field", "code=src/pump"]);
+
+    assert_eq!(
+        project.stdout("", &["which", "src/pump/seal.rs", "--binding"]),
+        "DEC-001 · decision · Seal gap\n  Keep the seal gap at 0.2 mm.\n"
+    );
+    assert_eq!(
+        project.stdout("", &["which", "src/valve/gate.rs", "--binding"]),
+        ""
+    );
+}
+
+#[test]
+fn binding_leaves_out_a_superseded_decision() {
+    let project = Project::new();
+    decide_about_pump(&project);
+    project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Use the new seal.",
+            "--reason",
+            "It replaces the old one.",
+            "--title",
+            "New seal",
+        ],
+    );
+    project.stdout("anna", &["supersede", "DEC-001", "--by", "DEC-002"]);
+
+    assert_eq!(
+        project.stdout("", &["which", "src/pump/seal.rs", "--binding"]),
+        ""
+    );
+}
+
+#[test]
+fn binding_json_gives_the_path_and_each_entry_with_its_kind_and_first_line() {
+    let project = Project::new();
+    decide_about_pump(&project);
+    project.stdout(
+        "anna",
+        &[
+            "found",
+            "The seal leaks above 40 bar.",
+            "--title",
+            "Seal leak",
+        ],
+    );
+    project.stdout("anna", &["set", "FND-001", "--field", "code=src/pump"]);
+
+    let output = project.stdout("", &["which", "src/pump/seal.rs", "--binding", "--json"]);
+    let value: serde_json::Value =
+        serde_json::from_str(output.trim_end()).expect("one line of JSON");
+    assert_eq!(value["schema"], "dossier.which.v1");
+    assert_eq!(value["ok"], true);
+    assert_eq!(
+        value["data"],
+        json!({
+            "path": "src/pump/seal.rs",
+            "entries": [
+                {
+                    "id": "DEC-001",
+                    "kind": "decision",
+                    "title": "Seal gap",
+                    "text": "Keep the seal gap at 0.2 mm.",
+                },
+                {
+                    "id": "FND-001",
+                    "kind": "finding",
+                    "title": "Seal leak",
+                    "text": "The seal leaks above 40 bar.",
+                },
+            ],
+        })
+    );
+}
+
+#[test]
+fn binding_with_session_leaves_out_what_the_session_was_shown_before() {
+    let project = Project::new();
+    decide_about_pump(&project);
+    let shown = |session: &str| {
+        project.stdout(
+            "",
+            &[
+                "which",
+                "src/pump/seal.rs",
+                "--binding",
+                "--session",
+                session,
+            ],
+        )
+    };
+
+    let first = "DEC-001 · decision · Seal gap\n  Keep the seal gap at 0.2 mm.\n";
+    assert_eq!(shown("s1"), first);
+    assert_eq!(shown("s1"), "");
+    assert_eq!(shown("s2"), first);
+}
+
+#[test]
+fn session_without_binding_is_a_usage_error() {
+    let project = Project::new();
+    project
+        .run("", &["which", "src/pump/seal.rs", "--session", "s1"])
+        .failure()
+        .code(2)
+        .stderr(contains("--binding"));
+}
