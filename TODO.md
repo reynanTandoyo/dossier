@@ -11009,8 +11009,10 @@
 - note (2026-11-25, haiku-T-517): done
 
 ### T-518 · search: the linked entries under each result
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-518
+- claimed: 2026-11-25T21:12+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-515
 - why: An LLM that finds an entry with search must also see the entries linked to it (R-FIND-5).
@@ -11028,8 +11030,10 @@
 - note (2026-11-25, planner): added
 
 ### T-519 · brief --task: the linked entries under each entry line
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-519
+- claimed: 2026-11-25T21:12+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-515
 - why: The entries brief --task gives for a task must bring their linked entries along (R-FIND-5).
@@ -11048,8 +11052,10 @@
 - note (2026-11-25, planner): added
 
 ### T-520 · which --binding and guard: the linked entries under each binding entry
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-520
+- claimed: 2026-11-25T21:12+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-515
 - why: Before an edit the LLM must see the reason behind a binding rule as well, for example the finding a decision is linked to (R-FIND-5, D51).
