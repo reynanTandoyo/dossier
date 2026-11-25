@@ -96,17 +96,48 @@ pub fn review_installed(existing: &str, command: &str) -> Result<String> {
 /// named DOSSIER; None to allow.
 pub fn guard(payload: &str) -> Option<String> {
     let value: Value = serde_json::from_str(without_mark(payload)).ok()?;
-    let input = value.get("tool_input")?;
-    let path = input
-        .get("file_path")
-        .and_then(Value::as_str)
-        .or_else(|| input.get("path").and_then(Value::as_str))?;
-    if !path.split(['/', '\\']).any(|part| part == "DOSSIER") {
+    let path = input_path(&value)?;
+    if !in_dossier(path) {
         return None;
     }
     Some(format!(
         "{path} is inside DOSSIER: change entries with the dossier commands, for example dossier set or dossier edit"
     ))
+}
+
+/// The file that an Edit, Write or MultiEdit payload is about; None for another tool, for a path
+/// inside a folder named DOSSIER (guard blocks those) and for anything that is not such a payload.
+pub fn edited_path(payload: &str) -> Option<String> {
+    let value: Value = serde_json::from_str(without_mark(payload)).ok()?;
+    let tool = value.get("tool_name")?.as_str()?;
+    if !matches!(tool, "Edit" | "Write" | "MultiEdit") {
+        return None;
+    }
+    let path = input_path(&value)?;
+    if in_dossier(path) {
+        return None;
+    }
+    Some(path.to_owned())
+}
+
+/// The text of the payload's `session_id`; None when the key is missing or not a text.
+pub fn session_of(payload: &str) -> Option<String> {
+    let value: Value = serde_json::from_str(without_mark(payload)).ok()?;
+    value.get("session_id")?.as_str().map(str::to_owned)
+}
+
+/// The `file_path` text of the payload's tool input, or else its `path` text.
+fn input_path(value: &Value) -> Option<&str> {
+    let input = value.get("tool_input")?;
+    input
+        .get("file_path")
+        .and_then(Value::as_str)
+        .or_else(|| input.get("path").and_then(Value::as_str))
+}
+
+/// True when a part of the path is a folder named DOSSIER.
+fn in_dossier(path: &str) -> bool {
+    path.split(['/', '\\']).any(|part| part == "DOSSIER")
 }
 
 /// A `todo` command that the hook after shell commands reacts to, with its task ID in upper case.
@@ -694,6 +725,68 @@ mod tests {
         for text in texts {
             assert_eq!(guard(text), None, "{text}");
         }
+    }
+
+    #[test]
+    fn edited_path_gives_the_file_of_an_edit() {
+        assert_eq!(
+            edited_path(&payload("src/main.rs")).as_deref(),
+            Some("src/main.rs")
+        );
+    }
+
+    #[test]
+    fn edited_path_reads_the_path_field_of_a_write() {
+        let text = json!({"tool_name": "Write", "tool_input": {"path": "src/lib.rs"}});
+        assert_eq!(
+            edited_path(&text.to_string()).as_deref(),
+            Some("src/lib.rs")
+        );
+    }
+
+    #[test]
+    fn edited_path_keeps_windows_separators_and_non_ascii_names() {
+        assert_eq!(
+            edited_path(&payload(r"C:\Projekte\Ärger\My App\src\x.rs")).as_deref(),
+            Some(r"C:\Projekte\Ärger\My App\src\x.rs")
+        );
+    }
+
+    #[test]
+    fn edited_path_is_none_for_a_shell_command() {
+        let text = json!({"tool_name": "Bash", "tool_input": {"command": "cargo test"}});
+        assert_eq!(edited_path(&text.to_string()), None);
+    }
+
+    #[test]
+    fn edited_path_is_none_for_a_file_inside_dossier() {
+        assert_eq!(
+            edited_path(&payload("DOSSIER/decisions/DEC-001-x.md")),
+            None
+        );
+        assert_eq!(edited_path(&payload(r"C:\My App\DOSSIER\x.md")), None);
+    }
+
+    #[test]
+    fn edited_path_is_none_for_text_that_is_not_json() {
+        assert_eq!(edited_path("not json"), None);
+        assert_eq!(edited_path(""), None);
+    }
+
+    #[test]
+    fn session_of_gives_the_session_id() {
+        let text = json!({"session_id": "invented-session-1", "tool_name": "Edit"});
+        assert_eq!(
+            session_of(&text.to_string()).as_deref(),
+            Some("invented-session-1")
+        );
+    }
+
+    #[test]
+    fn session_of_is_none_without_the_key_or_for_a_non_text() {
+        assert_eq!(session_of(&payload("src/main.rs")), None);
+        assert_eq!(session_of(r#"{"session_id": 3}"#), None);
+        assert_eq!(session_of("not json"), None);
     }
 
     /// A PostToolUse payload of the Bash tool that ran `command` and printed `stdout`.
