@@ -299,6 +299,8 @@ files too. Every change of every file carries who and when (D29).
   `confirmed` and `refuted` (assumptions: `<time> by <person>`), `rests-on` (comma-separated IDs
   of wrong assumptions this entry rests on), `code` (comma-separated pointers `path` or
   `path::name`).
+- A `code` pointer's path may be a folder (R-CODE-6): it then covers every file below it. A
+  trailing `/` and a leading `./` are ignored.
 - An assumption that is confirmed gets `state: confirmed`, `confirmed`, and the `--by` text as
   its *Confirmation* section. A refuted one gets `state: wrong`, `refuted`, `valid-until`, and the
   `--by` text as *Confirmation*.
@@ -751,3 +753,35 @@ Recorded as DEC-012. The first run diverges at iteration 40.
 
 `session convert --claude` and `review-session --claude` make this file from a transcript of
 Claude Code; only `src/claude.rs` knows that format.
+
+---
+
+# Phase 7 (v1.0) additions
+
+Still format version 1. Every rule of §2 to §34 holds; every change carries who and when (D29).
+
+## 35. Topics (R-TOPIC-1 to R-TOPIC-3)
+
+`dossier.toml` may hold a top-level key, written before the first table:
+
+```toml
+topics = ["solver", "mesh", "boundary conditions"]
+```
+
+A missing key is an empty list. A topic is one to three words in lower case, without commas.
+An entry may carry the field `topic` with one or more topics, comma-separated, such as
+`- topic: solver, mesh`. It is written directly after `tags` in the field order (§5). When the
+list is not empty, every topic of an entry is on the list.
+
+Version 0.6 refuses a `dossier.toml` that has `topics`, because it is an unknown key (§10). The
+format number stays 1: a PC and a server on different program versions only get the warning of
+R-XOS-9, and the refusal comes from the key, not from the number. An older program keeps an
+entry's `topic` line as written (§3).
+
+## 36. Entries shown in a session (R-CODE-8)
+
+The folder `.state/shown/` holds one file per Claude Code session, `<session>.txt`, with one
+entry ID per line: the entries that the PreToolUse hook `dossier guard` has shown in that session
+(D51). The session name is used only when it consists of ASCII letters, digits and `-`. Files
+older than 30 days are removed. `which <path> --binding --session <id>` leaves out the entries
+listed in that session's file (R-CODE-8).
