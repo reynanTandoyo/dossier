@@ -10716,7 +10716,6 @@
 - why: The other 25 entries of the project's dossier need topics too, and the owner reviews the whole table at once.
 - summary: An LLM adds the project's other entries to the proposal table and asks the owner to check it.
 - final: Choosing a topic and a code pointer for each entry needs judgment about what the entry is about; the owner checks every row before anything is written.
-- depends: T-494
 - files: topics-proposal.md
 - read: DOSSIER, src, docs/requirements.md
 - steps:
