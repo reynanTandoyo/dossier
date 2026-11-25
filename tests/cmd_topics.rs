@@ -1,6 +1,7 @@
 //! Runs the built program for `topics` (docs/design.md section 21.2, R-TOPIC-4): each topic of the
 //! project's list with the number of approved entries that name it, then the approved decisions,
-//! findings and lessons that name no topic. Also `topics add`, which only a person may run. Each
+//! findings and lessons that name no topic. Also `topics add`, which a person runs, or an LLM with
+//! `--said-by <person>` (D52). Each
 //! test runs in its own temporary project folder with the clock fixed by `common::Project`
 //! (2026-11-20T10:00:00+01:00).
 
@@ -189,7 +190,51 @@ fn an_llm_is_refused_and_the_settings_stay_as_they_are() {
         .run("anna-claude", &["topics", "add", "rig"])
         .failure()
         .code(1)
-        .stderr(contains("a person adds a topic: dossier topics add <name>"));
+        .stderr(contains(
+            "ask your person; with their yes: dossier topics add <name> --said-by <person>",
+        ));
+
+    assert_eq!(project.read("DOSSIER/dossier.toml"), before);
+}
+
+#[test]
+fn an_llm_adds_a_topic_with_said_by_and_the_journal_names_the_person() {
+    let project = Project::new();
+
+    project
+        .run(
+            "anna-claude",
+            &["topics", "add", "rig", "--said-by", "anna"],
+        )
+        .success()
+        .stdout("added topic rig\n");
+
+    let after = project.read("DOSSIER/dossier.toml");
+    assert!(
+        after.lines().any(|line| line == "topics = [\"rig\"]"),
+        "{after}"
+    );
+    assert!(
+        project
+            .stdout("", &["log"])
+            .contains("topic added: rig (said by anna)"),
+        "the journal names the person who agreed"
+    );
+}
+
+#[test]
+fn an_llm_naming_a_person_who_is_not_in_the_settings_is_refused() {
+    let project = Project::new();
+    let before = project.read("DOSSIER/dossier.toml");
+
+    project
+        .run(
+            "anna-claude",
+            &["topics", "add", "rig", "--said-by", "nobody"],
+        )
+        .failure()
+        .code(1)
+        .stderr(contains("no person nobody in dossier.toml"));
 
     assert_eq!(project.read("DOSSIER/dossier.toml"), before);
 }

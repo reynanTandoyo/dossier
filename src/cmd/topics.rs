@@ -1,7 +1,7 @@
 //! The `topics` command (docs/design.md section 21.2, R-TOPIC-1 to 5): prints the topics of the
 //! project's list, one per line, each with the number of approved entries that name it, and adds
-//! a topic to it with `topics add` (a person only). The list is the top-level `topics` key of
-//! dossier.toml.
+//! a topic to it with `topics add` (a person, or an LLM with `--said-by <person>`). The list is the
+//! top-level `topics` key of dossier.toml.
 
 use crate::cli::Global;
 use crate::config;
@@ -36,6 +36,9 @@ pub enum Action {
     Add {
         /// The name of the topic, such as pumps
         name: String,
+        /// The person who agreed to the topic; needed when an LLM adds it (D52)
+        #[arg(long, value_name = "PERSON")]
+        said_by: Option<String>,
     },
 }
 
@@ -45,7 +48,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "topics")?;
     match &args.action {
         None => list(&ctx),
-        Some(Action::Add { name }) => add(&ctx, name),
+        Some(Action::Add { name, said_by }) => add(&ctx, name, said_by.as_deref()),
     }
 }
 
@@ -114,18 +117,23 @@ fn is_counted_without_topic(entry: &Entry) -> bool {
     )
 }
 
-/// Adds `name` at the end of the topics of the settings. Only a person may do it: an LLM is
-/// Code::NeedsPerson. A name on the list already (ignoring case) changes nothing and is said so.
-/// With --dry-run nothing is written.
-fn add(ctx: &Ctx, name: &str) -> Result<Output> {
+/// Adds `name` at the end of the topics of the settings. An LLM adds a topic only with `said_by`,
+/// the person who agreed to it (D52), else it is Code::NeedsPerson; a person may name one too. The
+/// person is resolved as decide resolves --said-by. A name on the list already (ignoring case)
+/// changes nothing and is said so. With --dry-run nothing is written.
+fn add(ctx: &Ctx, name: &str, said_by: Option<&str>) -> Result<Output> {
     let who = ctx.writer()?;
-    if who.is_llm {
+    let said_by = said_by.map(str::trim).filter(|person| !person.is_empty());
+    if who.is_llm && said_by.is_none() {
         return Err(Error::new(
             Code::NeedsPerson,
-            "a person adds a topic: dossier topics add <name>",
+            "ask your person; with their yes: dossier topics add <name> --said-by <person>",
         ));
     }
     let name = check_name(name)?;
+    let said_by = said_by
+        .map(|person| said_by_name(&ctx.cfg, person))
+        .transpose()?;
     if ctx
         .cfg
         .topics
@@ -149,8 +157,27 @@ fn add(ctx: &Ctx, name: &str) -> Result<Output> {
     }
     let _guard = lock::acquire(&ctx.state, ctx.cfg.lock_wait_seconds, &who.name, "topics")?;
     config::set_list(&ctx.dossier, "topics", &topics)?;
-    record_change(ctx, who, &name)?;
+    record_change(ctx, who, &name, said_by.as_deref())?;
     Ok(output)
+}
+
+/// The person named with --said-by, written as the settings write it: a person, a member or a
+/// plain name, as decide resolves --said-by (create::create). Code::UnknownName for any other name.
+fn said_by_name(cfg: &config::Config, name: &str) -> Result<String> {
+    let wanted = name.to_lowercase();
+    cfg.people
+        .iter()
+        .map(|entry| entry.name.as_str())
+        .chain(cfg.members.iter().map(String::as_str))
+        .chain(cfg.names.iter().map(String::as_str))
+        .find(|known| known.to_lowercase() == wanted)
+        .map(str::to_string)
+        .ok_or_else(|| {
+            Error::new(
+                Code::UnknownName,
+                format!("no person {name} in dossier.toml"),
+            )
+        })
 }
 
 /// A topic name as it is written: trimmed and in lower case. Code::Usage when it is empty, holds a
@@ -176,8 +203,13 @@ fn check_name(name: &str) -> Result<String> {
 }
 
 /// Appends the journal line of an added topic: the settings event `changed`, with who and when
-/// (D29) and `topic added: <name>` as its detail.
-fn record_change(ctx: &Ctx, who: &Who, name: &str) -> Result<()> {
+/// (D29) and `topic added: <name>` as its detail, with ` (said by <person>)` after the name when
+/// a person is named.
+fn record_change(ctx: &Ctx, who: &Who, name: &str, said_by: Option<&str>) -> Result<()> {
+    let detail = match said_by {
+        Some(person) => format!("topic added: {name} (said by {person})"),
+        None => format!("topic added: {name}"),
+    };
     let record = journal::Record {
         time: time::now(),
         name: who.name.clone(),
@@ -186,7 +218,7 @@ fn record_change(ctx: &Ctx, who: &Who, name: &str) -> Result<()> {
         command: "topics".to_string(),
         id: SETTINGS_ID.to_string(),
         event: "changed".to_string(),
-        detail: format!("topic added: {name}"),
+        detail,
     };
     journal::append(&ctx.state, &record)
 }
