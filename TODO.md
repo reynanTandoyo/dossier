@@ -10963,8 +10963,8 @@
 - note (2026-11-25, planner): added
 
 ### T-516 · requirements.md and design.md: D53 and R-FIND-5, linked entries come along
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-516
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-515
 - why: The owner decided on 2026-11-25 that linked entries are shown with the entries an LLM is given; every task of this milestone names R-FIND-5 and the function links::linked.
@@ -10977,12 +10977,16 @@
   3. docs/design.md: after section 21.4 (or at the end when there is none) add `### 21.5 Linked entries (R-FIND-5, D53)` and a rust block: `// links.rs` `/// The most linked entries shown under one entry.` `pub const LINKED_LIMIT: usize = 3;` `/// The approved entries that "entry" names in its related field, in that order, at most limit, each once; IDs that name no entry, and the entry itself, are left out.` `pub fn linked<'a>(entry: &Entry, items: &'a [Item], limit: usize) -> Vec<&'a Item>;` `/// The line of a linked entry: two spaces, "linked: ", the ID, " · " and the title.` `pub fn line(item: &Item) -> String;` Then a table `| Command | Arguments | Result |` with rows for search (text: the linked lines under each result; JSON: each result gets linked, a list of {id, title}), brief --task (the linked lines under each entry line, except IDs that the brief already lists as their own line; they count against the brief's line limit) and which --binding (the linked lines under each entry; JSON: each entry gets linked; guard's refusal therefore shows them too).
 - accept: requirements.md defines D53 and R-FIND-5, and design.md 21.5 fixes links::linked, LINKED_LIMIT and the outputs.
 - verify: git grep -q -F "**R-FIND-5 MUST**" -- docs/requirements.md && git grep -q -F "### 21.5 Linked entries" -- docs/design.md
+- verified: 2026-11-25
+- commit: 4a9724f
 - reqs: R-FIND-5, D53
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-516): done
 
 ### T-517 · links.rs: the linked entries of an entry
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-517
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-515
 - why: search, brief --task and which --binding need one shared rule for which linked entries to show (R-FIND-5).
@@ -10997,8 +11001,12 @@
   4. Run cargo test --lib links::
 - accept: links::linked returns the approved related entries in order, at most the limit, and links::line formats one of them.
 - verify: cargo test --lib links::
+- verified: 2026-11-25
+- commit: da08534
 - reqs: R-FIND-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-517): done
 
 ### T-518 · search: the linked entries under each result
 - status: open
