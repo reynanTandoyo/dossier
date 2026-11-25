@@ -9433,6 +9433,8 @@
 - accept: requirements.md defines R-FIND-1 to 4, the new R-READ-3, R-TOPIC-1 to 5, R-CODE-6 to 8, TEST-12 and phase 7, with no ID defined twice.
 - reqs: R-FIND-1 to R-FIND-4, R-READ-3, R-TOPIC-1 to R-TOPIC-5, R-CODE-6 to R-CODE-8, TEST-12
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): T-484 answered 2026-11-25: the owner wants the entries shown BEFORE the edit (PreToolUse), not after. The steps below still describe the hook after the edit and must be changed by the planner before this task is worked on.
+- note (2026-11-25, planner): T-482 and T-483 answered 2026-11-25: the stemmer is rust-stemmers; only a person adds a topic. Step 1 adds these as decisions.
 
 ### T-439 · format.md: the topic field, the topics setting, folder pointers and the shown file
 - status: open
@@ -9474,6 +9476,7 @@
 - accept: design.md section 21 holds every signature and output text the tasks of this version name, and no task differs from it.
 - reqs: R-FIND-1 to R-FIND-4, R-TOPIC-1 to R-TOPIC-5, R-CODE-6 to R-CODE-8
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): T-484 answered 2026-11-25: the owner wants the entries shown BEFORE the edit (PreToolUse), not after. The steps below still describe the hook after the edit and must be changed by the planner before this task is worked on.
 
 ### T-441 · select.rs: word stems and common words
 - status: open
@@ -10209,6 +10212,7 @@
 - verify: cargo test --lib hooks:: && cargo test --test cmd_hooks
 - reqs: R-CODE-8
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): T-484 answered 2026-11-25: the owner wants the entries shown BEFORE the edit (PreToolUse), not after. The steps below still describe the hook after the edit and must be changed by the planner before this task is worked on.
 
 ### T-477 · after: the entries that bind an edited file
 - status: open
@@ -10229,6 +10233,7 @@
 - verify: cargo test --test cmd_after
 - reqs: R-CODE-8
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): T-484 answered 2026-11-25: the owner wants the entries shown BEFORE the edit (PreToolUse), not after. The steps below still describe the hook after the edit and must be changed by the planner before this task is worked on.
 
 ### T-478 · tests/retrieval.rs: fixed questions that the search must answer (TEST-12)
 - status: open
@@ -10271,6 +10276,7 @@
 - verify: cargo test --test cmd_agents
 - reqs: R-AGENT-1, R-TOPIC-2, R-CODE-7, R-CODE-8
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): T-484 answered 2026-11-25: the owner wants the entries shown BEFORE the edit (PreToolUse), not after. The steps below still describe the hook after the edit and must be changed by the planner before this task is worked on.
 
 ### T-480 · Release 1.0.0
 - status: open
@@ -10342,25 +10348,28 @@
 - note (2026-11-23, planner): answer — Owner, 2026-11-23 (D44): dossier gets its own session file format with a version number (format.md section 34). review-session reads that; a Claude Code transcript is converted first, and only the converter (src/claude.rs) knows Claude Code's format. T-336, T-337, T-339 and T-340 were changed accordingly.
 
 ### T-482 · Version 1.0 would add the dependency rust-stemmers (the Snowball English stemmer, MIT/BSD) so that reuse, reusing and reused count as one word (T-441). Is the new dependency accepted, or should dossier carry its own, smaller and less exact stemmer?
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: question
 - about: T-431
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): answer — Owner, 2026-11-25: use rust-stemmers (Snowball English stemmer, MIT/BSD) as the new dependency for T-441; dossier does not carry its own stemmer. The commit of T-441 names this answer as the reason for the dependency.
 
 ### T-483 · Who may add a topic to a project's list (T-465)? Planned: only a person, so the list stays short; an LLM is told to ask. The alternative is that an LLM may add one too, as with confidential terms (D32).
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: question
 - about: T-431
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): answer — Owner, 2026-11-25: only a person adds a topic to a project's list (topics add, T-465), so the list stays short. An LLM that thinks a topic is missing asks a person; it never adds one itself.
 
 ### T-484 · The hook shows the entries in force for a file after the LLM's edit (PostToolUse, the mechanism dossier after already uses; T-477). Is after the edit enough for 1.0, or must the entries be shown before the edit, which needs a test of what Claude Code's PreToolUse hook can pass to the model?
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P2 · type: question
 - about: T-431
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): answer — Owner, 2026-11-25: before. 1.0 must show the entries that bind a file before the LLM edits it, not only after. This needs a test first of what Claude Code's PreToolUse hook can pass to the model; T-476, T-477 and the requirements (R-CODE-8) must be changed accordingly before they are worked on.
 
 ## Ideas
 
