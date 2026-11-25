@@ -35,6 +35,7 @@ pub mod hooks;
 pub mod ids;
 pub mod imports;
 pub mod journal;
+pub mod links;
 pub mod lock;
 pub mod mapfile;
 pub mod names;
