@@ -11042,14 +11042,17 @@
 - files: src/brief_task.rs, tests/cmd_brief.rs
 - read: docs/design.md, src/brief_task.rs, src/links.rs
 - steps:
-  1. src/brief_task.rs: after each line that names one entry (the summary lines of the sections: linked to the task, dead ends, code, investigations, related), add the lines of `links::linked(&item.entry, &approved, links::LINKED_LIMIT)` formatted with `links::line`, leaving out IDs the brief lists as their own entry line anywhere. The added lines count against the brief's line limit like any other line; the cut keeps its existing rule.
-  2. In the JSON data, each chosen entry gets `"linked": [ids]`, an empty list when there are none.
-  3. tests/cmd_brief.rs: a task whose related section lists a decision linked to a finding: the decision's line is followed by `  linked: FND-001 · <title>`; when that finding is itself listed in the brief, no linked line repeats it; a linked superseded entry is not shown. Adjust exact-output tests only where they now gain linked lines or the JSON field, and say so in the commit message.
-  4. Run cargo test --test cmd_brief and cargo test --lib brief_task::.
-- accept: brief --task shows the approved linked entries under each entry line, without repeating entries it lists.
+  1. src/brief_task.rs: while building the sections, record for every line that names one project entry (the summary lines of: linked to the task, dead ends, code, investigations, related) its index in `out` and the entry's ID. Lines of team entries (marked `team:`) are not recorded: they get no linked lines.
+  2. For the lookup, load the project's entries once more with `store::all(&ctx.dossier)` (the approved list is partitioned and moved at the split into dead ends and the rest); pass that list to `links::linked(&item.entry, &all, links::LINKED_LIMIT)`.
+  3. After all sections are built and before the brief's line limit (`cut`) is applied: collect the IDs of all recorded lines; then, going through the recorded lines from the last to the first, insert after each line the `links::line` of its linked entries, leaving out IDs in that collected set. For an investigation, insert the linked lines after the investigation's whole block; they do not count against INVESTIGATIONS_LINES. The inserted lines count against the brief's line limit like any other line.
+  4. The JSON data is not changed in this task.
+  5. tests/cmd_brief.rs: a task whose related section lists a decision linked (dossier link) to a finding that brief --task does not list otherwise: the decision's line is followed by `  linked: FND-001 · <title>`; when that finding is itself listed in the brief (for example as a dead end), no linked line repeats it; a linked superseded entry is not shown. Adjust exact-output tests only where they now gain linked lines, and say so in the commit message.
+  6. Run cargo test --test cmd_brief and cargo test --lib brief_task::.
+- accept: brief --task shows the approved linked entries under each project entry line, without repeating entries it lists; the JSON is unchanged.
 - verify: cargo test --test cmd_brief && cargo test --lib brief_task::
 - reqs: R-FIND-5, R-CTX-2
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): forced set (owner was haiku-T-519)
 
 ### T-520 · which --binding and guard: the linked entries under each binding entry
 - status: claimed
