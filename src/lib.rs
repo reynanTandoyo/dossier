@@ -45,6 +45,7 @@ pub mod remote;
 pub mod secret;
 pub mod select;
 pub mod session;
+pub mod shown;
 pub mod snapshot;
 pub mod store;
 pub mod taken;
