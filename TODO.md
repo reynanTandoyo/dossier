@@ -10783,10 +10783,8 @@
 - note (2026-11-25, haiku-T-504): done
 
 ### T-505 · select.rs: ranked_in and top_in weigh words with a given Index
-- status: claimed
+- status: done
 - owner: haiku-T-505
-- claimed: 2026-11-25T22:37+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: fix
 - milestone: T-503
 - why: A small pool of candidates makes every word rare; the weights must come from the whole dossier (R-FIND-2).
@@ -10801,12 +10799,18 @@
   4. Run cargo test --lib select::
 - accept: select::ranked_in and top_in rank with the weights of a given Index; ranked and top behave as before.
 - verify: cargo test --lib select::
+- verified: 2026-11-25
+- commit: 0dd29d0
 - reqs: R-FIND-2, R-FIND-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-505): done
 
 ### T-506 · search: the list of entries with some of the words is weighed against every entry searched
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-506
+- claimed: 2026-11-25T22:45+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: fix
 - milestone: T-503
 - why: With weights from the partial matches alone, search connection reuse ranked DEC-011 (never reused) above DEC-043 (its own ssh connection) in the project's dossier.
@@ -10824,8 +10828,10 @@
 - note (2026-11-25, planner): added
 
 ### T-507 · brief --task: dead ends, investigations and related entries are weighed against every approved entry, at most 5 related
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-507
+- claimed: 2026-11-25T22:45+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: fix
 - milestone: T-503
 - why: brief --task ranked its one or two dead ends and investigations among themselves, so every word was rare and the same unrelated FND-010 and INV-001 were listed for every task; and 10 related entries were mostly weak.
