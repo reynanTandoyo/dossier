@@ -1362,3 +1362,55 @@ pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection>;
 `docs/guide-for-readers.md` (REL-4) is one page for team members who only read and approve:
 `drafts`, `approve`, `search`, `show`. R-CTX-8 needs a change in `todo` and is not built here;
 R-AGENT-5 gives the same result for Claude Code.
+
+# Version 1.0
+
+Formats: format.md §35 and §36.
+
+## 21. Finding (R-FIND, R-TOPIC, R-CODE-6 to 8, D48 to D51)
+
+New dependency: rust-stemmers (D49), the Snowball English stemmer, used only in src/select.rs.
+
+### 21.1 Ranking and search (R-FIND-1 to 4, R-READ-3, R-READ-4)
+
+```rust
+// select.rs
+// Term is crate::glossary::Term.
+/// The lower-case word stemmed with the Snowball English stemmer; a word with a non-ASCII character is only lower-cased.
+pub fn stem(word: &str) -> String;
+/// The words of the COMMON_WORDS lists of decide.rs and learn.rs, each once, in alphabetical order.
+pub const COMMON_WORDS: &[&str];
+/// True when the lower-case word is one of COMMON_WORDS.
+pub fn is_common(word: &str) -> bool;
+/// The stems of the words of `text` that are not common, each once, at its first place.
+pub fn stems(text: &str) -> Vec<String>;
+/// Entries counted, and for each stem and each tag value the entries that hold it (see `of`).
+pub struct Index { entries: usize, stems: HashMap<String, usize>, tags: HashMap<String, usize> }
+/// Counts the stems of each title and section body, and the TAG_FIELDS values, once per entry.
+pub fn of(items: &[Item]) -> Index;
+/// 0 when no entry holds the word; else 1 + log2(entries / holders), so a rare word weighs more.
+pub fn weight(&self, holders: usize) -> u32;
+/// Points for a query: 5 per weighted stem in the title, 1 in the sections, 3 per weighted tag.
+pub fn weighted(item: &Item, query: &Query, index: &Index) -> u32;
+/// The points an item must reach: (sum of the weights of the query's stems + 2) / 3.
+pub fn needed(query: &Query, index: &Index) -> u32;
+/// The items with a score above 0 that carry a query tag or reach `needed`, highest first, then newest `created`, then ID, then path.
+pub fn ranked<'a>(items: &'a [Item], query: &Query) -> Vec<(u32, &'a Item)>;
+/// The items of the first `limit` rows of `ranked`.
+pub fn top<'a>(items: &'a [Item], query: &Query, limit: usize) -> Vec<&'a Item>;
+/// Some("tag match") when a query tag is carried, else Some("word match") when a query stem is in the title or sections, else None.
+pub fn why(item: &Item, query: &Query) -> Option<&'static str>;
+/// The query with the other spellings of every glossary term it names added to its words.
+pub fn widened(query: &Query, terms: &[Term]) -> Query;
+// TAG_FIELDS gains "topic".
+// score, reason and best are removed (T-449).
+```
+
+| Command | Arguments | Result |
+|---|---|---|
+| `decide` | — | decide lists related decisions by stems, rarity and glossary; decisions that share only common words are not related |
+| `learn` | — | learn names similar lessons by stems and rarity, and none that share only common words |
+| `problem` | — | problem shows similar investigations by stems and rarity |
+| `brief --task` | — | brief --task lists dead ends, investigations and related entries by stems, rarity and glossary; common words relate nothing |
+| `search --similar` | `<ID>` | search --similar ranks by stems and rarity |
+| `search` | `<words…>` | a typed word also finds an entry holding another form of it (same stem); entries holding every word are listed as before, in the same order; then, when more than one word was typed, the line `some of the words:`, then up to 10 ranked entries that hold only some of the words, each as its title, and the last line `<n> matches, <m> with some of the words` (`1 match` when n is 1); without such entries the last line stays as it is today; `--full` prints only the full matches; `--json` gives each result `"match": "all"` or `"match": "some"`, the partial ones after the full ones; a draft is among the partial ones only with `--drafts` |
