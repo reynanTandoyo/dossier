@@ -11165,8 +11165,8 @@
 - note (2026-11-25, planner): Checked on Windows (2411 tests), WSL Fedora 44 (2415) and CI; tagged v1.1.0 and published: https://github.com/reynanTandoyo/dossier/releases/tag/v1.1.0
 
 ### T-523 · Release 1.1.1: the fixes from testing 1.0 on the project dossier
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · difficulty: 1 · type: chore
 - why: Milestone T-503 is finished on main and the owner wants it released.
 - summary: Version 1.1.1 is built, checked on Windows and Linux, tagged and published on GitHub.
@@ -11178,8 +11178,13 @@
   3. Run fmt, clippy and all tests on Windows and in WSL; after CI passes, tag v1.1.1.
 - accept: Version 1.1.1 builds, passes every check, and the README says what it changes.
 - verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
+- verified: 2026-11-25
+- commit: 47874b7
 - reqs: REL-1, REL-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): done
+- note (2026-11-25, planner): Checked on Windows (2420 tests), WSL Fedora 44 (2424) and CI; tagged v1.1.1 and published: https://github.com/reynanTandoyo/dossier/releases/tag/v1.1.1
 
 ## Questions
 
