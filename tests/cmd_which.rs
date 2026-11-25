@@ -196,6 +196,72 @@ fn an_entry_whose_code_points_at_the_path_is_named_with_its_marks() {
 }
 
 #[test]
+fn an_entry_whose_code_points_at_a_folder_is_named_for_the_files_in_it_and_for_the_folder() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &[
+            "found",
+            "The seal leaks at high pressure",
+            "--title",
+            "Seal leak",
+        ],
+    );
+    project.stdout("anna", &["set", "FND-001", "--field", "code=src/pump"]);
+
+    assert_eq!(
+        project.stdout("anna", &["which", "src/pump/seal.rs"]),
+        "not attached to any task\nentries: FND-001 Seal leak\n"
+    );
+    assert_eq!(
+        project.stdout("anna", &["which", "src/pump"]),
+        "not attached to any task\nentries: FND-001 Seal leak\n"
+    );
+}
+
+#[test]
+fn an_entry_whose_code_names_a_name_that_only_starts_like_the_path_is_not_named() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &["found", "The pump is loud", "--title", "Loud pump"],
+    );
+    project.stdout("anna", &["set", "FND-001", "--field", "code=src/pum"]);
+
+    assert_eq!(
+        project.stdout("anna", &["which", "src/pump/seal.rs"]),
+        "not attached to any task\n"
+    );
+}
+
+#[test]
+fn an_entry_whose_code_names_a_file_and_symbol_is_named_for_that_file_only() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &["found", "The leak model is wrong", "--title", "Leak model"],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "set",
+            "FND-001",
+            "--field",
+            "code=src/pump/seal.rs::leak_model",
+        ],
+    );
+
+    assert_eq!(
+        project.stdout("anna", &["which", "src/pump/seal.rs"]),
+        "not attached to any task\nentries: FND-001 Leak model\n"
+    );
+    assert_eq!(
+        project.stdout("anna", &["which", "src/pump"]),
+        "not attached to any task\n"
+    );
+}
+
+#[test]
 fn json_gives_the_same_parts_as_the_text() {
     let project = Project::new();
     attach_model(&project, "T-001");

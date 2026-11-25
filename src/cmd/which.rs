@@ -1,11 +1,12 @@
 //! The `which` command (docs/design.md section 9, R-FILE-15, R-CODE-2): what a file belongs to.
 //! It prints each task whose file list has the path, with the role and marks of that block and
 //! what the block was made from; each block of any task that was made from the path; and each
-//! entry whose `code` field points at the path. Nothing is written.
+//! entry whose `code` field points at the path or at a folder that holds it. Nothing is written.
 
 use crate::approval::{self, Mark};
 use crate::blockfile::BlockFile;
 use crate::cli::Global;
+use crate::codeptr;
 use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
@@ -199,15 +200,13 @@ fn made_from(file: &BlockFile, key: &str) -> Vec<String> {
         .collect()
 }
 
-/// Whether an entry's `code` field has a pointer whose path part is `stored` (R-CODE-2). A pointer
-/// is `path` or `path::name`; a backslash in its path counts as a slash.
+/// Whether an entry's `code` field has a pointer that covers `stored` (R-CODE-2, R-CODE-6): the
+/// pointer's path is the stored path, or a folder that holds it (`codeptr::covers`).
 fn points_at(entry: &Entry, stored: &str) -> bool {
-    entry.list("code").iter().any(|pointer| {
-        let path = pointer
-            .split_once("::")
-            .map_or(pointer.as_str(), |(path, _)| path);
-        path.trim().replace('\\', "/") == stored
-    })
+    entry
+        .list("code")
+        .iter()
+        .any(|pointer| codeptr::covers(pointer, stored))
 }
 
 /// The marks of an entry, without brackets: its status, then `changed after approval` for an
