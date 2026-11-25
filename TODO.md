@@ -10783,8 +10783,10 @@
 - note (2026-11-25, haiku-T-504): done
 
 ### T-505 · select.rs: ranked_in and top_in weigh words with a given Index
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-505
+- claimed: 2026-11-25T22:37+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: fix
 - milestone: T-503
 - why: A small pool of candidates makes every word rare; the weights must come from the whole dossier (R-FIND-2).
@@ -10842,8 +10844,10 @@
 - note (2026-11-25, planner): added
 
 ### T-508 · error.rs and output.rs: Code::Blocked, a refusal printed without error:
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-508
+- claimed: 2026-11-25T22:37+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: fix
 - milestone: T-503
 - why: guard's refusal before an edit is a note for the LLM to read; the `error:` prefix makes it look like dossier failed.
