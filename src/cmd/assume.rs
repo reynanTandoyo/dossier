@@ -46,6 +46,9 @@ pub struct Args {
     /// Other tags, as a comma-separated list
     #[arg(long)]
     pub tags: Option<String>,
+    /// The topics it is about, from the project's list (dossier topics), comma-separated
+    #[arg(long)]
+    pub topic: Option<String>,
 }
 
 /// Runs `assume`: writes the assumption and prints its ID and its status.
@@ -94,8 +97,8 @@ fn default_title(text: &str) -> String {
         .join(" ")
 }
 
-/// The fields of the assumption: its state, then the task (upper-cased) and the tag lists as
-/// given. `entry::new::render` leaves out a field whose value is empty.
+/// The fields of the assumption: its state, then the task (upper-cased) and the tag lists and the
+/// topic as given. `entry::new::render` leaves out a field whose value is empty.
 fn fields(args: &Args) -> Vec<(String, String)> {
     let mut fields = vec![pair("state", OPEN)];
     if let Some(task) = &args.task {
@@ -106,6 +109,7 @@ fn fields(args: &Args) -> Vec<(String, String)> {
         ("analysis", &args.analysis),
         ("software", &args.software),
         ("tags", &args.tags),
+        ("topic", &args.topic),
     ];
     for (key, value) in tags {
         if let Some(value) = value {

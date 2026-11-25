@@ -271,3 +271,104 @@ fn an_empty_assumption_cannot_be_approved_and_nothing_is_written() {
         .stderr(contains("missing section Assumption"));
     assert!(no_assumption_written(&project));
 }
+
+/// Writes `topics = [...]` into DOSSIER/dossier.toml, after the `code` line, so that it is a
+/// top-level key before the tables (format.md §35).
+fn project_has_topics(project: &Project, names: &[&str]) {
+    let list = names
+        .iter()
+        .map(|name| format!("\"{name}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let text = project.read("DOSSIER/dossier.toml");
+    let mut edited = String::new();
+    for line in text.split_inclusive('\n') {
+        edited.push_str(line);
+        if line.starts_with("code = ") {
+            edited.push_str(&format!("topics = [{list}]\n"));
+        }
+    }
+    assert!(edited.contains("topics = ["), "{edited}");
+    project.write("DOSSIER/dossier.toml", &edited);
+}
+
+#[test]
+fn an_llms_assumption_without_a_topic_is_refused_when_the_project_has_topics() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+
+    project
+        .run("anna-claude", &["assume", TEXT, "--reason", "No profile."])
+        .code(1)
+        .stderr(contains(
+            "an entry written by an LLM names its topic: --topic <one of pumps, rig>",
+        ));
+    assert!(no_assumption_written(&project));
+}
+
+#[test]
+fn an_llms_assumption_with_a_topic_on_the_list_gets_the_topic_line() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+
+    let stdout = project.stdout(
+        "anna-claude",
+        &[
+            "assume",
+            TEXT,
+            "--reason",
+            "No profile.",
+            "--topic",
+            "pumps",
+        ],
+    );
+    assert_eq!(stdout, "ASM-001: added (approved, open)\n");
+    assert!(entry_text(&project, "ASM-001").contains("- topic: pumps\n"));
+    assert_eq!(
+        entry_of(&project, "ASM-001").field("topic").as_deref(),
+        Some("pumps")
+    );
+}
+
+#[test]
+fn a_topic_off_the_list_is_a_usage_error_and_nothing_is_written() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+
+    project
+        .run(
+            "anna-claude",
+            &[
+                "assume",
+                TEXT,
+                "--reason",
+                "No profile.",
+                "--topic",
+                "valves",
+            ],
+        )
+        .code(2)
+        .stderr(contains(
+            "unknown topic valves; the topics of this project: pumps, rig (dossier topics)",
+        ));
+    assert!(no_assumption_written(&project));
+}
+
+#[test]
+fn a_persons_assumption_without_a_topic_is_written_when_the_project_has_topics() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+
+    let stdout = project.stdout("anna", &["assume", TEXT, "--reason", "No profile."]);
+    assert_eq!(stdout, "ASM-001: added (approved, open)\n");
+    assert_eq!(entry_of(&project, "ASM-001").field("topic"), None);
+}
+
+#[test]
+fn without_topics_in_the_settings_an_llms_assumption_without_a_topic_is_written() {
+    let project = Project::new();
+
+    let stdout = project.stdout("anna-claude", &["assume", TEXT, "--reason", "No profile."]);
+    assert_eq!(stdout, "ASM-001: added (approved, open)\n");
+    assert_eq!(entry_of(&project, "ASM-001").field("topic"), None);
+}
