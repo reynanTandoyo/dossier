@@ -9393,7 +9393,7 @@
 - owner: —
 - priority: P1 · type: milestone
 - milestone: T-431
-- goal: R-CODE-6 to R-CODE-8 hold: a pointer to a folder covers the files in it, decide, found and learn take --code, which --binding lists the entries in force for a path, and a hook prints them after an edit, once per session.
+- goal: R-CODE-6 to R-CODE-8 hold: a pointer to a folder covers the files in it, decide, found and learn take --code, which --binding lists the entries in force for a path, and the first edit of a file in a session is refused once with the entries that bind it, so the LLM reads them before it changes the file (D51).
 - why: The file an LLM is changing is known exactly, so the decisions about that file can be found without guessing at words.
 - summary: When an LLM edits a file, it is shown the decisions, findings and lessons recorded for that file or its folder.
 - depends: T-432
@@ -9413,28 +9413,111 @@
 ### T-438 · requirements.md: finding, topics and code pointers of version 1.0
 - status: open
 - owner: —
-- priority: P1 · difficulty: 3 · type: docs
+- priority: P1 · type: milestone
 - milestone: T-432
+- goal: requirements.md defines D48 to D51, R-FIND-1 to 4, the new R-READ-3, R-TOPIC-1 to 5, R-CODE-6 to 8, TEST-12 and phase 7, with no ID defined twice.
 - why: The requirement IDs R-FIND, R-TOPIC, R-CODE-6 to 8 and TEST-12 are named by every task of this version.
 - summary: The requirements document says what version 1.0 adds: better ranking and search, topics, and entries shown for the file being edited.
-- final: Writing requirements needs the owner's answers and judgment on wording; the planner does it.
-- files: docs/requirements.md
-- read: docs/requirements.md, DOSSIER/decisions
-- steps:
-  1. Section 3 (Decisions): add the owner's decisions for this version with the next free numbers after D47, once the owner has answered the questions asked about this milestone: ranking by stems and rare words stays inside D7 and D11; the stemmer; who may add a topic.
-  2. New section `5.9a Finding related entries — FIND` after 5.9. R-FIND-1 MUST: wherever entries are chosen as related to a text (decide, learn, problem, brief --task, search --similar), words are compared by their English word stem, and common English words never count. R-FIND-2 MUST: a word or tag that few entries hold counts more: its weight is 1 + floor(log2(entries / entries that hold it)); a title match counts 5 times the weight, a tag match 3 times, a match in the text once. R-FIND-3 MUST: an entry is listed only when it shares a tag with the query or its score reaches a third of the sum of the weights of the query's words, so a list may be empty. R-FIND-4 MUST: when the query holds a spelling of a glossary term (R-TERM-4), the words of the term's other spellings join the query.
-  3. R-READ-3: replace the text. search <words…> lists first the entries that hold every word, in the three groups as before; a word is held when the entry holds it, a glossary spelling of it, or a word with the same stem. When more than one word is given, it then lists up to 10 entries that hold only some of the words, best first (R-FIND-2), under the line `some of the words:`. The same filters as list. R-READ-4: add that the JSON marks each result with `match`: `all` or `some`.
-  4. R-CTX-2 and R-CTX-13: say that the matching follows R-FIND-1 to R-FIND-4.
-  5. New section `5.11i Topics — TOPIC`. R-TOPIC-1 MUST: the project settings hold a list `topics`; `topics` prints each with the number of entries in force that name it; `topics add <name>` adds one and needs a person. R-TOPIC-2 MUST: an entry may carry a field `topic` (one or more, comma-separated), given with --topic on decide, propose, found, learn, assume, problem and howto, or with --field on add and set; when the list is not empty a value that is not on it is refused, naming the list. R-TOPIC-3 MUST: when the list is not empty, a decision, assumption, finding, lesson, how-to or investigation written by an LLM without a topic is refused; entries written from a document (R-IMPORT-3) are exempt. R-TOPIC-4 MUST: list and search take --topic <name>; a topic counts as a tag for R-FIND-2. R-TOPIC-5 MUST: brief prints one line with the topics and the number of decisions in force of each, and each decision line names its topics.
-  6. Section 5.11e: add R-CODE-6 MUST: a code pointer to a folder covers every file in it, in which and in brief --task. R-CODE-7 MUST: decide, found and learn take --code <pointers>. R-CODE-8 MUST: `which <path> --binding` prints only the approved entries in force whose pointers cover the path, and `hooks install` adds a hook that prints them after an LLM edits a file, each entry once per session.
-  7. Section 9 (Testing): add TEST-12: a test dossier of invented entries and a fixed list of searches, each with the entry that must be among the first three results.
-  8. Section 11 (Releases): add `### Phase 7 — Finding (v1.0)` naming the requirements above. Section 13: at I-2 add that version 1.0 improves full-text finding first and that embeddings stay an idea.
-  9. Check that no requirement ID is used twice: every new ID appears exactly once as a definition.
 - accept: requirements.md defines R-FIND-1 to 4, the new R-READ-3, R-TOPIC-1 to 5, R-CODE-6 to 8, TEST-12 and phase 7, with no ID defined twice.
 - reqs: R-FIND-1 to R-FIND-4, R-READ-3, R-TOPIC-1 to R-TOPIC-5, R-CODE-6 to R-CODE-8, TEST-12
 - note (2026-11-25, planner): added
 - note (2026-11-25, planner): T-484 answered 2026-11-25: the owner wants the entries shown BEFORE the edit (PreToolUse), not after. The steps below still describe the hook after the edit and must be changed by the planner before this task is worked on.
 - note (2026-11-25, planner): T-482 and T-483 answered 2026-11-25: the stemmer is rust-stemmers; only a person adds a topic. Step 1 adds these as decisions.
+- note (2026-11-25, planner): split into T-485, T-486, T-487, T-488
+
+### T-485 · requirements.md: the owner's decisions D48 to D51
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: docs
+- milestone: T-438
+- why: Every requirement of version 1.0 rests on these four decisions; they must be on record before the requirements name them.
+- summary: The requirements document records the owner's four decisions for version 1.0: finding by word stems and rare words, the stemmer library, who adds a topic, and showing rules before an edit.
+- files: docs/requirements.md
+- read: docs/requirements.md
+- steps:
+  1. Line 3: replace `Draft 11, 2026-11-23 (owner's decisions: D28 to D47).` with `Draft 12, 2026-11-25 (owner's decisions: D28 to D51).` and keep the rest of the line.
+  2. Section 3 (Decisions): directly after the table row of D47, add the four rows below, each exactly as given and each on one line.
+  3. Row D48: `| D48 | Finding by word stems and rare words: wherever entries are chosen as related to a text, and in search, words are compared by their English word stem, and a word that few entries hold counts more than a common one (R-FIND-1 to R-FIND-4). This is still full-text search: no model is called and nothing is stored next to the entries, as D7 and D11 require. (Owner, 2026-11-25.) | In the project's own dossier, ``search connection reuse`` found nothing although two entries are about it, and ``brief --task`` listed entries that shared only the word "and" with the task. |` (the doubled backticks stand for single ones in the file).
+  4. Row D49: `| D49 | Word stems come from the library rust-stemmers (the Snowball English stemmer, MIT/BSD licence); dossier carries no stemmer of its own. (Owner, 2026-11-25.) | A tested stemmer handles English endings correctly; an own one would be smaller but make more mistakes, and finding is what version 1.0 is for. |`
+  5. Row D50: `| D50 | Each project has one short list of topics, and entries name their topics from it. Only a person adds a topic (``topics add``); an LLM that finds no fitting topic asks its person. (Owner, 2026-11-25.) | A short list stays useful for finding; LLMs adding topics would fill it with near-duplicates. |`
+  6. Row D51: `| D51 | An LLM is shown the entries in force that bind a file before it changes the file: its first edit of the file in a session is refused once, naming those entries, and its next edit goes through (R-CODE-8). (Owner, 2026-11-25.) | Shown after the edit, a rule comes too late, and the LLM can at best repair its change. A test with Claude Code 2.1.331 on 2026-11-25 showed that the reason of a refused edit reaches the model before the file changes, while text added to an allowed edit only arrives with the edit's result. |`
+  7. Check that the table still renders: every new row starts with `| D` and has exactly three cells, like the row of D47.
+- accept: requirements.md is draft 12 and its decision table ends with D48 to D51 as the owner decided them.
+- verify: git grep -q -F "| D51 | An LLM is shown" -- docs/requirements.md && git grep -q -F "Draft 12, 2026-11-25" -- docs/requirements.md
+- reqs: D48, D49, D50, D51
+- note (2026-11-25, planner): added
+
+### T-486 · requirements.md: finding related entries (R-FIND) and search by word stems
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: docs
+- milestone: T-438
+- why: The ranking and search tasks of version 1.0 name R-FIND-1 to R-FIND-4 and the new R-READ-3.
+- summary: The requirements say how related entries are chosen (word stems, rare words count more) and that search also lists entries that hold only some of the words.
+- depends: T-485
+- files: docs/requirements.md
+- read: docs/requirements.md
+- steps:
+  1. Directly before the heading `### 5.10 Context for a session or task — CTX`, add a new section: the heading `### 5.9a Finding related entries — FIND`, a blank line, the paragraph in the next step, a blank line, the four items of the steps after it, and a blank line. Wrap lines at 100 characters, with two spaces of indent on the continuation lines of an item, like the items of 5.9.
+  2. The paragraph: `Several commands choose entries that are related to a text: ``decide`` (R-CTX-13), ``learn``, ``problem``, ``brief --task`` (R-CTX-2) and ``search --similar`` (R-READ-9). They all choose the same way (D48).` (the doubled backticks stand for single ones in the file; the same in all steps below).
+  3. Item: `- **R-FIND-1 MUST** Words are compared by their English word stem (D49), so ``reuse``, ``reusing`` and ``reused`` count as one word, and common English words such as ``and``, ``the`` and ``with`` never count.`
+  4. Item: `- **R-FIND-2 MUST** A word or tag that few entries hold counts more: its weight is 1 + floor(log2(entries / entries that hold it)). A match in the title counts 5 times the weight, a match in a tag 3 times, a match in the text once.`
+  5. Item: `- **R-FIND-3 MUST** An entry is listed only when it shares a tag with the query or its score reaches a third of the sum of the weights of the query's words, so a list may be empty.`
+  6. Item: `- **R-FIND-4 MUST** When the query holds a spelling of a glossary term (R-TERM-4), the words of the term's other spellings join the query.`
+  7. Section 5.9: replace the whole item R-READ-3 (from `- **R-READ-3 MUST**` up to the line before `- **R-READ-4 MUST**`) with: `- **R-READ-3 MUST** ``search <words…>`` finds entries in the project dossier and the team dossier together, each result marked with its place. It lists first the entries that hold every word: matches in the title first, then in tags, then in text, and within each newest first. A word is held when the entry holds it, a glossary spelling of it (R-TERM-4) or a word with the same stem (R-FIND-1); case is ignored. When more than one word is given, it then lists up to 10 entries that hold only some of the words, best first (R-FIND-2), under the line ``some of the words:``. The same filters as ``list``.`
+  8. R-READ-4: after `prints whole entries.` add the sentence `With ``--json`` each result has ``match``: ``all`` or ``some``.`
+  9. R-CTX-2: after its last sentence (ending `from the usage index.`) add `The words of the title are matched as R-FIND-1 to R-FIND-4 say.` R-CTX-13: after its last sentence (ending `shows the list.`) add `Shared title words are found as R-FIND-1 to R-FIND-4 say.` Keep the wrapping at 100 characters.
+- accept: requirements.md defines R-FIND-1 to R-FIND-4 in section 5.9a, and R-READ-3, R-READ-4, R-CTX-2 and R-CTX-13 refer to them.
+- verify: git grep -q -F "### 5.9a Finding related entries" -- docs/requirements.md && git grep -q -F "**R-FIND-4 MUST**" -- docs/requirements.md && git grep -q -F "some of the words:" -- docs/requirements.md
+- reqs: R-FIND-1 to R-FIND-4, R-READ-3, R-READ-4
+- note (2026-11-25, planner): added
+
+### T-487 · requirements.md: topics (R-TOPIC-1 to R-TOPIC-5)
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: docs
+- milestone: T-438
+- why: The topic tasks of version 1.0 name R-TOPIC-1 to R-TOPIC-5.
+- summary: The requirements say that each project keeps a short list of topics, that entries name their topics from it, and that only a person adds one.
+- depends: T-486
+- files: docs/requirements.md
+- read: docs/requirements.md
+- steps:
+  1. Directly before the heading `### 5.12 Remote mode — REMOTE`, add a new section: the heading `### 5.11i Topics — TOPIC`, a blank line, the paragraph in the next step, a blank line, the five items of the steps after it, and a blank line. Wrap lines at 100 characters, with two spaces of indent on the continuation lines of an item, like the items of 5.11h.
+  2. The paragraph: `Tags say which machine, analysis and software an entry is about; a topic says which part of the work it belongs to, from one short list per project (D50).`
+  3. Item: `- **R-TOPIC-1 MUST** The project settings hold a list ``topics``. ``topics`` prints each topic with the number of approved entries that name it, and ``(no topic)`` with the number of approved decisions, findings and lessons that name none. ``topics add <name>`` adds a topic; an LLM is refused (D50).` (the doubled backticks stand for single ones in the file; the same below).
+  4. Item: `- **R-TOPIC-2 MUST** An entry may carry a field ``topic`` (one or more, comma-separated), given with ``--topic`` on ``decide``, ``propose``, ``found``, ``learn``, ``assume``, ``problem`` and ``howto``, or with ``--field`` on ``add`` and ``set``. When the list is not empty, a value that is not on it is refused, naming the list.`
+  5. Item: `- **R-TOPIC-3 MUST** When the list is not empty, a decision, assumption, finding, lesson, how-to or investigation written by an LLM without a topic is refused; entries written from a document (R-IMPORT-3) are exempt.`
+  6. Item: `- **R-TOPIC-4 MUST** ``list`` and ``search`` take ``--topic <name>``; a topic counts as a tag for R-FIND-2.`
+  7. Item: `- **R-TOPIC-5 MUST** ``brief`` prints one line with the topics and the number of decisions in force of each, and each decision line names its topics.`
+- accept: requirements.md defines R-TOPIC-1 to R-TOPIC-5 in section 5.11i.
+- verify: git grep -q -F "### 5.11i Topics" -- docs/requirements.md && git grep -q -F "**R-TOPIC-5 MUST**" -- docs/requirements.md
+- reqs: R-TOPIC-1 to R-TOPIC-5
+- note (2026-11-25, planner): added
+
+### T-488 · requirements.md: code pointers (R-CODE-6 to 8), TEST-12, phase 7 and idea I-2
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: docs
+- milestone: T-438
+- why: The code pointer tasks name R-CODE-6 to R-CODE-8, the retrieval test names TEST-12, and the release names phase 7.
+- summary: The requirements say that pointers to a folder cover its files and that an LLM is shown the entries binding a file before its first edit, add the finding test, and name version 1.0 as phase 7.
+- depends: T-487
+- files: docs/requirements.md
+- read: docs/requirements.md
+- steps:
+  1. Section 5.11e: after the item R-CODE-5, add the three items below, wrapped at 100 characters like R-CODE-5 (the doubled backticks stand for single ones in the file; the same in all steps).
+  2. Item: `- **R-CODE-6 MUST** A code pointer to a folder covers every file in it, in ``which`` and in ``brief --task``.`
+  3. Item: `- **R-CODE-7 MUST** ``decide``, ``found`` and ``learn`` take ``--code <pointers>``.`
+  4. Item: `- **R-CODE-8 MUST** ``which <path> --binding`` prints only the approved entries in force whose pointers cover the path; with ``--session <id>`` it leaves out the entries that session was shown before. The PreToolUse hook that ``hooks install`` adds (``guard``) refuses an LLM's first edit of a file in a session when such entries exist and names them in the refusal; the next edit of the file goes through (D51).`
+  5. Section 9 (Testing): after the item TEST-10 and before the line `---`, add `- **TEST-12 MUST** Finding tests (``tests/retrieval.rs``): a test dossier of invented entries and a fixed list of searches, each with the entry that must be among the first three results.`
+  6. Section 11 (Releases): directly before the heading `### Added on 2026-11-22`, add, with one blank line between blocks as in phase 6: the heading `### Phase 7 — Finding (v1.0)`; the line `**Goal:** an LLM is shown the entries that matter for its work, also when they are worded differently (D48 to D51).`; a table with the header `| Area | Requirements |` and `|---|---|` and the rows `| Ranking by stems and rare words | R-FIND-1 to 4 |`, `| Search | R-READ-3, 4 |`, `| Topics | R-TOPIC-1 to 5 |`, `| Code pointers and the check before an edit | R-CODE-6 to 8 |`, `| Finding tests | TEST-12 |`; and the line `**It worked if:** in the project's own dossier, ``search connection reuse`` lists the two entries about connection reuse among its first three results, and every search of TEST-12 finds its entry.`
+  7. Section 13: replace the item I-2 with `- **I-2** Search by meaning (embeddings stored next to the entries) when full-text search starts to miss entries. Version 1.0 improves full-text finding first (D48); embeddings stay an idea.` wrapped as before.
+  8. Check that no ID is defined twice: `git grep -n -E "\*\*(R-FIND-[0-9]|R-TOPIC-[0-9]|R-CODE-[0-9]|R-READ-3|TEST-12) " -- docs/requirements.md` must show each ID exactly once.
+- accept: requirements.md defines R-CODE-6 to R-CODE-8 and TEST-12, names phase 7, and no requirement ID is defined twice.
+- verify: git grep -q -F "**R-CODE-8 MUST**" -- docs/requirements.md && git grep -q -F "**TEST-12 MUST**" -- docs/requirements.md && git grep -q -F "### Phase 7 — Finding (v1.0)" -- docs/requirements.md
+- reqs: R-CODE-6 to R-CODE-8, TEST-12
+- note (2026-11-25, planner): added
 
 ### T-439 · format.md: the topic field, the topics setting, folder pointers and the shown file
 - status: open
@@ -9459,24 +9542,80 @@
 ### T-440 · design.md: section 21, the modules and signatures of version 1.0
 - status: open
 - owner: —
-- priority: P1 · difficulty: 3 · type: docs
+- priority: P1 · type: milestone
 - milestone: T-432
+- goal: design.md section 21 holds every signature and output text the tasks of version 1.0 name, and no task differs from it.
 - why: One task fills in one file, and every signature a worker uses is fixed in design.md.
 - summary: The design document fixes the functions of version 1.0, so that each code task only fills them in.
-- final: Design work: signatures and outputs for all tasks of this version; the planner does it.
 - depends: T-438, T-439
-- files: docs/design.md
-- read: docs/design.md, docs/requirements.md, docs/format.md, src/select.rs, src/hooks.rs
-- steps:
-  1. Add section `21. Finding (R-FIND, R-TOPIC, R-CODE-6 to 8)`. Copy every signature from the steps of the tasks under the milestones of this version (todo show <id>); where a task and this document would differ, change the task with todo set, never only one of the two.
-  2. select.rs: `pub fn stem(word: &str) -> String`, `pub const COMMON_WORDS`, `pub fn is_common(word: &str) -> bool`, `pub fn stems(text: &str) -> Vec<String>`, `pub struct Index` with `pub fn of(items: &[Item]) -> Index` and `pub fn weight(&self, holders: usize) -> u32`, `pub fn weighted(item: &Item, query: &Query, index: &Index) -> u32`, `pub fn needed(query: &Query, index: &Index) -> u32`, `pub fn ranked<'a>(items: &'a [Item], query: &Query) -> Vec<(u32, &'a Item)>`, `pub fn top<'a>(items: &'a [Item], query: &Query, limit: usize) -> Vec<&'a Item>`, `pub fn why(item: &Item, query: &Query) -> Option<&'static str>`, `pub fn widened(query: &Query, terms: &[Term]) -> Query`. Say that score, reason and best are removed at the end, and that TAG_FIELDS gains `topic`.
-  3. config.rs: `Config.topics: Vec<String>`. create.rs: the two topic rules of create::create. codeptr.rs: `path_of`, `covers`, `lies_in`. shown.rs: `unseen`. hooks.rs: `edited_path`, `session_of`, and the second PostToolUse entry of `installed`. Commands: `topics` and `topics add`, `which --binding [--session]`, the --topic and --code options, the edit event of `after`.
-  4. State the outputs exactly as the tasks give them: the lines of search with `some of the words:`, the lines of `which --binding`, the context text of the edit hook, the `Topics:` line of brief.
-  5. Section 2 or wherever the dependencies are listed: add `rust-stemmers` with its reason.
 - accept: design.md section 21 holds every signature and output text the tasks of this version name, and no task differs from it.
 - reqs: R-FIND-1 to R-FIND-4, R-TOPIC-1 to R-TOPIC-5, R-CODE-6 to R-CODE-8
 - note (2026-11-25, planner): added
 - note (2026-11-25, planner): T-484 answered 2026-11-25: the owner wants the entries shown BEFORE the edit (PreToolUse), not after. The steps below still describe the hook after the edit and must be changed by the planner before this task is worked on.
+- note (2026-11-25, planner): split into T-489, T-490, T-491
+
+### T-489 · design.md: section 21 begins; 21.1 ranking and search
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: docs
+- milestone: T-440
+- why: One task fills in one file, and every signature a ranking or search task uses must be fixed in design.md first.
+- summary: The design document fixes the functions and outputs of the new ranking and search, so that each code task only fills them in.
+- depends: T-438, T-439
+- files: docs/design.md
+- read: docs/design.md, docs/requirements.md, docs/format.md, src/select.rs
+- steps:
+  1. Read section 18 of docs/design.md: section 21 follows its layout (a rust block of signatures with one `///` line each, then a table `| Command | Arguments | Result |`). Read the tasks T-441 to T-451 with `todo show <id>`.
+  2. At the end of docs/design.md add, separated by blank lines: the heading `# Version 1.0`; the line `Formats: format.md §35 and §36.`; the heading `## 21. Finding (R-FIND, R-TOPIC, R-CODE-6 to 8, D48 to D51)`; the line `New dependency: rust-stemmers (D49), the Snowball English stemmer, used only in src/select.rs.`
+  3. Add the heading `### 21.1 Ranking and search (R-FIND-1 to 4, R-READ-3, R-READ-4)` and a rust block that starts with `// select.rs` and holds, each with one `///` line taken from the task that adds it and ending with `;`: from T-441 `pub fn stem(word: &str) -> String`, `pub const COMMON_WORDS` (with the type T-441 gives), `pub fn is_common(word: &str) -> bool`, `pub fn stems(text: &str) -> Vec<String>`; from T-442 `pub struct Index` with `pub fn of(items: &[Item]) -> Index` and `pub fn weight(&self, holders: usize) -> u32`, `pub fn weighted(item: &Item, query: &Query, index: &Index) -> u32`, `pub fn needed(query: &Query, index: &Index) -> u32`, `pub fn ranked<'a>(items: &'a [Item], query: &Query) -> Vec<(u32, &'a Item)>`, `pub fn top<'a>(items: &'a [Item], query: &Query, limit: usize) -> Vec<&'a Item>`, `pub fn why(item: &Item, query: &Query) -> Option<&'static str>`; from T-443 `pub fn widened(query: &Query, terms: &[Term]) -> Query`. End the block with the comment lines `// TAG_FIELDS gains "topic".` and `// score, reason and best are removed (T-449).`
+  4. Below the block, a table `| Command | Arguments | Result |` with one row each for: `decide` (T-444), `learn` (T-445), `problem` (T-446), `brief --task` (T-447), `search --similar` (T-448), and `search` (T-450 and T-451 in one row). The Result cell says what the task's accept says, and copies every output line exactly as the task's steps write it, for search the line `some of the words:` and the JSON field `match`.
+  5. Do not choose between differing texts: when two tasks give a signature or an output line differently, or a task uses a function that is not listed here, give this task back with `todo stuck <id> --note "<which tasks differ and how>"`.
+- accept: design.md section 21.1 holds every signature and output line of the ranking and search tasks T-441 to T-451, and none of those tasks differs from it.
+- verify: git grep -q -F "### 21.1 Ranking and search" -- docs/design.md && git grep -q -F "pub fn widened" -- docs/design.md && git grep -q -F "rust-stemmers" -- docs/design.md
+- reqs: R-FIND-1 to R-FIND-4, R-READ-3, R-READ-4
+- note (2026-11-25, planner): added
+
+### T-490 · design.md: section 21.2 topics
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: docs
+- milestone: T-440
+- why: Every signature and output text a topic task uses must be fixed in design.md first.
+- summary: The design document fixes the settings field, the rules and the commands for topics, so that each topic task only fills them in.
+- depends: T-489
+- files: docs/design.md
+- read: docs/design.md, docs/requirements.md, docs/format.md, src/config.rs, src/create.rs
+- steps:
+  1. Read the tasks T-452 to T-467 with `todo show <id>`.
+  2. After section 21.1, add the heading `### 21.2 Topics (R-TOPIC-1 to 5, D50)` and a rust block in the layout of section 18 that holds: under `// config.rs` the field `pub topics: Vec<String>` of Config with one `///` line (T-452); under `// create.rs` the two topic rules of create::create as comment lines, worded as T-454 words them; and every other `pub` signature that a task from T-452 to T-467 adds, each with one `///` line from its task.
+  3. Below the block, a table `| Command | Arguments | Result |` with one row each for: `topics` (T-464), `topics add` (T-465), the option `--topic` of decide, propose, found, learn, assume, problem and howto (T-455 to T-461, one row), `list` and `search` with `--topic` (T-453), `set` (T-462), and `brief` (T-466, T-467). Copy every output line exactly as the task's steps write it, among them `<topic>  <n>`, `(no topic)  <n>`, `no topics: dossier topics add <name>`, `a person adds a topic: dossier topics add <name>`, `<name> is already a topic`, `added topic <name>` and the `Topics:` line of brief.
+  4. Below the table, one line: `The topics command is registered as T-463 says.` followed by the files T-463 lists.
+  5. Do not choose between differing texts: when two tasks give a signature or an output line differently, or a task uses a function that is not listed here, give this task back with `todo stuck <id> --note "<which tasks differ and how>"`.
+- accept: design.md section 21.2 holds every signature and output line of the topic tasks T-452 to T-467, and none of those tasks differs from it.
+- verify: git grep -q -F "### 21.2 Topics" -- docs/design.md && git grep -q -F "a person adds a topic" -- docs/design.md
+- reqs: R-TOPIC-1 to R-TOPIC-5
+- note (2026-11-25, planner): added
+
+### T-491 · design.md: section 21.3 code pointers and the check before an edit
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: docs
+- milestone: T-440
+- why: Every signature and output text a code pointer task uses must be fixed in design.md first, including the refusal that guard gives before an edit (D51).
+- summary: The design document fixes how code pointers cover files and how guard refuses the first edit of a file once, naming the entries that bind it.
+- depends: T-490
+- files: docs/design.md
+- read: docs/design.md, docs/requirements.md, docs/format.md, src/hooks.rs, src/cmd/guard.rs, src/cmd/which.rs
+- steps:
+  1. Read the tasks T-468 to T-477 with `todo show <id>`.
+  2. After section 21.2, add the heading `### 21.3 Code pointers and the check before an edit (R-CODE-6 to 8, D51)` and a rust block in the layout of section 18 that holds, each with one `///` line from its task: under `// codeptr.rs` `path_of`, `covers` and `lies_in` with the signatures T-468 gives; under `// shown.rs` `pub fn unseen(state: &Path, session: &str, ids: &[String]) -> Result<Vec<String>>` (T-474); under `// hooks.rs` `pub fn edited_path(payload: &str) -> Option<String>` and `pub fn session_of(payload: &str) -> Option<String>` (T-476), and the comment line `// installed and uninstalled are unchanged: the PreToolUse hook on Edit|Write|MultiEdit already runs guard.`
+  3. Below the block, a table `| Command | Arguments | Result |` with one row each for: `which` with a folder pointer (T-469), `brief --task` (T-470), `--code` of decide, found and learn (T-471 to T-473, one row), `which --binding [--session <id>]` (T-475: the line `<ID> · <kind> · <title>`, the indented first line, the JSON data), and `guard` (T-477). For guard, copy the refusal exactly: the line `Entries in force for <path>; read them, then make your edit again (dossier show <ID> prints one in full):` followed by the lines of which --binding, exit code 2; and say that without a path, without a session or without entries guard prints nothing and exits 0.
+  4. Find where design.md describes guard so far (`git grep -n "guard" -- docs/design.md`); after that description add the sentence `Since version 1.0, guard also refuses the first edit of a file in a session when entries in force bind it (section 21.3).`
+  5. Do not choose between differing texts: when two tasks give a signature or an output line differently, or a task uses a function that is not listed here, give this task back with `todo stuck <id> --note "<which tasks differ and how>"`.
+- accept: design.md section 21.3 holds every signature and output line of the code pointer tasks T-468 to T-477, including guard's refusal, and none of those tasks differs from it.
+- verify: git grep -q -F "### 21.3 Code pointers" -- docs/design.md && git grep -q -F "pub fn unseen" -- docs/design.md && git grep -q -F "make your edit again" -- docs/design.md
+- reqs: R-CODE-6 to R-CODE-8
+- note (2026-11-25, planner): added
 
 ### T-441 · select.rs: word stems and common words
 - status: open
@@ -10191,49 +10330,51 @@
 - reqs: R-CODE-8
 - note (2026-11-25, planner): added
 
-### T-476 · hooks.rs: the hook after an edit
+### T-476 · hooks.rs: the edited file and the session of a hook payload
 - status: open
 - owner: —
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-436
-- why: Claude Code must run dossier after an LLM changes a file, and dossier must read which file it was.
-- summary: hooks install adds a hook that runs after every file edit, and the payload of that hook can be read.
+- why: The before-edit check must know which file the LLM is about to change, and in which session.
+- summary: Two small functions read which file an LLM is about to edit, and in which session, from what Claude Code sends to a hook.
 - depends: T-440
-- files: src/hooks.rs, tests/cmd_hooks.rs
+- files: src/hooks.rs
 - read: docs/design.md, docs/format.md
 - steps:
   1. src/hooks.rs: add `pub fn edited_path(payload: &str) -> Option<String>`: the payload is parsed as `guard` parses it; Some(path) when `tool_name` is Edit, Write or MultiEdit and `tool_input.file_path` (or `tool_input.path`) is a text; None when the path has a part named DOSSIER, and for anything else.
-  2. src/hooks.rs: add `pub fn session_of(payload: &str) -> Option<String>`: the text of the payload's `session_id`.
-  3. src/hooks.rs, `installed`: after the PostToolUse entry for the shell tools, add once a PostToolUse entry with the matcher EDIT_TOOLS that runs AFTER with the same timeout. `uninstalled` removes it as it removes the other dossier hooks; check with a test that it does.
-  4. Unit tests in src/hooks.rs: edited_path for an Edit payload, a Write payload with `path`, a Bash payload (None), a file inside DOSSIER (None), text that is not JSON (None); session_of with and without the key; `installed` on empty settings has two PostToolUse entries, and running it twice adds nothing; `uninstalled` leaves no dossier hook and keeps a foreign hook.
-  5. tests/cmd_hooks.rs: `hooks install` writes the PostToolUse entry with the matcher `Edit|Write|MultiEdit`; change the existing expectations of the installed settings accordingly.
-  6. Run cargo test --lib hooks:: and cargo test --test cmd_hooks.
-- accept: hooks install adds the hook after edits, and hooks::edited_path and session_of read its payload.
-- verify: cargo test --lib hooks:: && cargo test --test cmd_hooks
+  2. src/hooks.rs: add `pub fn session_of(payload: &str) -> Option<String>`: the text of the payload's `session_id`; None when the key is missing or not a text.
+  3. Do not change `installed` or `uninstalled`: the PreToolUse hook with the matcher EDIT_TOOLS already runs GUARD, and T-477 makes guard show the entries.
+  4. Unit tests in src/hooks.rs: edited_path for an Edit payload, a Write payload with `path`, a Bash payload (None), a file inside DOSSIER (None), text that is not JSON (None); session_of with and without the key.
+  5. Run cargo test --lib hooks::
+- accept: hooks::edited_path and hooks::session_of read the file and the session of an edit payload; hooks install is unchanged.
+- verify: cargo test --lib hooks::
 - reqs: R-CODE-8
 - note (2026-11-25, planner): added
 - note (2026-11-25, planner): T-484 answered 2026-11-25: the owner wants the entries shown BEFORE the edit (PreToolUse), not after. The steps below still describe the hook after the edit and must be changed by the planner before this task is worked on.
+- note (2026-11-25, planner): Rewritten 2026-11-25 for the answer of T-484: the check before an edit now lives in guard (PreToolUse), tested with Claude Code 2.1.331. The note above is settled.
 
-### T-477 · after: the entries that bind an edited file
+### T-477 · guard: the entries that bind a file are shown before its first edit
 - status: open
 - owner: —
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-436
-- why: This is the step that puts a decision in front of the LLM at the moment it changes the code the decision is about.
-- summary: After an LLM edits a file, it is shown the decisions, findings and lessons recorded for that file, once per session.
+- why: This is the step that puts a decision in front of the LLM before it changes the code the decision is about (D51).
+- summary: Before an LLM first changes a file in a session, its edit is refused once with the decisions, findings and lessons recorded for that file; it reads them and makes the edit again.
 - depends: T-475, T-476, T-447
-- files: src/cmd/after.rs, tests/cmd_after.rs
-- read: docs/design.md, src/hooks.rs, src/cmd/which.rs
+- files: src/cmd/guard.rs, tests/cmd_guard.rs
+- read: docs/design.md, src/hooks.rs, src/cmd/after.rs, src/cmd/which.rs
 - steps:
-  1. src/cmd/after.rs, `run`: when `hooks::todo_event` gives None, ask `hooks::edited_path(&payload)`. With a path, run this program again as the other parts do (`own`) with the arguments `which`, `--binding`, the path, and, when `hooks::session_of` gives a session, `--session` and the session.
-  2. When that prints text, the context is: the line `Entries in force for <path> (dossier show <ID> prints one in full):`, then the text. Return it through `hooks::context`. When it prints nothing or fails, print nothing and succeed: `after` never fails.
-  3. tests/cmd_after.rs: a project with an approved decision that has `code: src/pump`: an Edit payload for `src/pump/seal.rs` with `session_id` `s1` gives one line of JSON whose additionalContext holds the heading line and the decision's ID and title; the same payload again gives no output; a payload for a file nothing points to gives no output; an Edit payload outside any dossier gives no output and exit code 0; the existing tests of the todo events pass unchanged.
-  4. Update the module comment: the command now also reacts to an edit. Run cargo test --test cmd_after.
-- accept: dossier after answers an edit payload with the entries in force for that file, once per session, and never fails.
-- verify: cargo test --test cmd_after
+  1. src/cmd/guard.rs: add a private copy of the function `own` of src/cmd/after.rs (session_end.rs holds one too): the standard output of this program run again with the given arguments, None unless it ends with exit 0.
+  2. src/cmd/guard.rs, `run`: when `hooks::guard` gives a message, fail with it as now. Otherwise, when `hooks::edited_path(&payload)` gives a path and `hooks::session_of(&payload)` gives a session, run `own(&["which", "--binding", <path>, "--session", <session>])`. Without a path or without a session, print nothing and succeed: without a session every edit would be refused again.
+  3. When that output is not empty after trimming, fail with Code::Usage and the message: the line `Entries in force for <path>; read them, then make your edit again (dossier show <ID> prints one in full):`, a line break, then the output with its trailing line break removed. Exit code 2 makes Claude Code refuse this edit and hand the message to the LLM; its next edit of the file goes through, because which --session leaves out what this session was shown. When the output is empty or `own` gives None, print nothing and succeed: guard never fails for any other reason.
+  4. tests/cmd_guard.rs: a project with an approved decision that has `code: src/pump`: an Edit payload for `src/pump/seal.rs` with `session_id` `s1` exits 2 and standard error holds the heading line and the decision's ID and title; the same payload again exits 0 with no output; the same payload with `session_id` `s2` exits 2 again; a payload without `session_id` exits 0 with no output; a payload for a file nothing points to exits 0 with no output; an Edit payload outside any dossier exits 0 with no output; the existing tests of edits inside DOSSIER pass unchanged.
+  5. Update the module comment and the comment of `run`: guard now also shows, before the first edit of a file in a session, the entries in force that bind it. Run cargo test --test cmd_guard.
+- accept: dossier guard refuses the first edit of a file in a session when entries in force bind it, names them, and lets the next edit through.
+- verify: cargo test --test cmd_guard
 - reqs: R-CODE-8
 - note (2026-11-25, planner): added
 - note (2026-11-25, planner): T-484 answered 2026-11-25: the owner wants the entries shown BEFORE the edit (PreToolUse), not after. The steps below still describe the hook after the edit and must be changed by the planner before this task is worked on.
+- note (2026-11-25, planner): Rewritten 2026-11-25 for the answer of T-484: the check before an edit now lives in guard (PreToolUse), tested with Claude Code 2.1.331. The note above is settled.
 
 ### T-478 · tests/retrieval.rs: fixed questions that the search must answer (TEST-12)
 - status: open
@@ -10268,7 +10409,7 @@
 - files: src/agents/rules.md, tests/cmd_agents.rs
 - read: docs/design.md, docs/requirements.md
 - steps:
-  1. src/agents/rules.md, in the part about writing entries, add these rules in the style of the text around them: (1) `Give every entry its topic with --topic. dossier topics lists the project's topics; if none fits, ask your person to add one. You cannot add a topic yourself.` (2) `When an entry is about particular code, name it with --code: a file, a file::name, or the folder when it holds for a whole part. Whoever edits that code later is then shown your entry.` (3) in the part about reading: `dossier search lists entries that hold only some of your words after the line some of the words:. Before you conclude that nothing is recorded, search once more with other words, and look at dossier list --topic <name>.` (4) `After you edit a file, dossier may show entries in force for it. They bind your change: read them with dossier show <ID> before you go on.`
+  1. src/agents/rules.md, in the part about writing entries, add these rules in the style of the text around them: (1) `Give every entry its topic with --topic. dossier topics lists the project's topics; if none fits, ask your person to add one. You cannot add a topic yourself.` (2) `When an entry is about particular code, name it with --code: a file, a file::name, or the folder when it holds for a whole part. Whoever edits that code later is then shown your entry.` (3) in the part about reading: `dossier search lists entries that hold only some of your words after the line some of the words:. Before you conclude that nothing is recorded, search once more with other words, and look at dossier list --topic <name>.` (4) `Your first edit of a file may be refused with a list of entries in force for it. They bind your change: read them (dossier show <ID> prints one in full), then make the edit again.`
   2. If the rules text has a part that is left out for code projects (R-CODE-5), these four rules stay in for both.
   3. tests/cmd_agents.rs: where the installed rules are checked for particular sentences, add a check for `--topic` and `--code`; adjust any expectation of the rules' length or checksum.
   4. Run cargo test --test cmd_agents.
@@ -10277,6 +10418,7 @@
 - reqs: R-AGENT-1, R-TOPIC-2, R-CODE-7, R-CODE-8
 - note (2026-11-25, planner): added
 - note (2026-11-25, planner): T-484 answered 2026-11-25: the owner wants the entries shown BEFORE the edit (PreToolUse), not after. The steps below still describe the hook after the edit and must be changed by the planner before this task is worked on.
+- note (2026-11-25, planner): Rewritten 2026-11-25 for the answer of T-484: the check before an edit now lives in guard (PreToolUse), tested with Claude Code 2.1.331. The note above is settled.
 
 ### T-480 · Release 1.0.0
 - status: open
@@ -10301,22 +10443,95 @@
 ### T-481 · This project's own dossier gets topics and code pointers
 - status: open
 - owner: —
-- priority: P1 · difficulty: 3 · type: chore
+- priority: P1 · type: milestone
 - milestone: T-437
+- goal: Every approved entry of this project's dossier has a topic, the entries about particular code point to it, and dossier check reports nothing new.
 - why: The 72 entries of the project's own dossier were written before topics existed; without them the new lookups find nothing here.
 - summary: The project's own entries are given topics and pointers to the code they are about, proposed by an LLM and settled by the owner.
-- final: Choosing topics and pointers for 72 entries needs judgment and the owner's approval.
 - depends: T-480
-- files: DOSSIER, AGENTS.md, .claude/settings.json
-- read: DOSSIER, docs/requirements.md
-- steps:
-  1. With dossier 1.0.0 installed: run `dossier agents` and `dossier hooks install` in this repository.
-  2. Propose to the owner a list of at most twelve topics for this project (for example: entries, approval, search, remote, files, team, hooks, todo, release). The owner adds the ones they accept with `dossier topics add <name>`.
-  3. For every approved entry, propose a topic and, where the entry is about particular code, a pointer (a folder of src where it holds for a whole module). Show the owner the whole table before anything is written.
-  4. Write what the owner accepted with `dossier set <ID> --field topic=… --field code=…`, as the owner or with --said-by where the command asks for it. Never edit a file in DOSSIER directly.
-  5. Run `dossier check` and `dossier topics`: no dead code pointer, and `(no topic)` is 0 or every entry left there is named to the owner.
-  6. Search the dossier for `connection reuse`: FND-011 and DEC-043 are among the first three results.
 - accept: Every approved entry of this project's dossier has a topic, the entries about particular code point to it, and dossier check reports nothing new.
+- reqs: R-TOPIC-1 to R-TOPIC-3, R-CODE-7
+- note (2026-11-25, planner): added
+- note (2026-11-25, planner): split into T-493, T-494, T-495, T-496
+
+### T-493 · This repository gets the agent rules and the hooks of dossier 1.0
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: chore
+- milestone: T-481
+- why: The LLMs working on dossier itself must get the 1.0 rules (--topic, --code) and the check before an edit.
+- summary: The agent rules and hooks of the new version are installed in this repository, so that LLMs working on it follow them.
+- depends: T-480
+- files: AGENTS.md, .claude/settings.json
+- read: docs/requirements.md
+- steps:
+  1. Run `dossier --version`: it must print 1.0.0. Otherwise give the task back with `todo stuck <id> --note "dossier 1.0.0 is not installed"`.
+  2. In the repository root run `dossier agents`, then `dossier hooks install`.
+  3. Check: AGENTS.md now holds the rules about `--topic` and `--code`; .claude/settings.json has a PreToolUse hook with the matcher `Edit|Write|MultiEdit` that runs `dossier guard`. .claude/settings.json is not tracked by git; commit only AGENTS.md.
+- accept: AGENTS.md holds the dossier 1.0 rules and the hooks of dossier 1.0 are installed in this repository.
+- verify: git grep -q -F -e "--topic" -- AGENTS.md && git grep -q -F -e "--code" -- AGENTS.md
+- reqs: R-AGENT-1, R-CODE-8
+- note (2026-11-25, planner): added
+
+### T-494 · Propose a topic and a code pointer for each decision of this project's dossier
+- status: open
+- owner: —
+- priority: P1 · difficulty: 2 · type: chore
+- milestone: T-481
+- why: The 47 decisions were written before topics existed; the owner must see a proposal before anything is written.
+- summary: An LLM proposes, in a table for the owner, which topic each of the project's decisions belongs to and which code it is about.
+- final: Choosing a topic and a code pointer for each entry needs judgment about what the entry is about; the owner checks every row before anything is written.
+- depends: T-493, T-492
+- files: topics-proposal.md
+- read: DOSSIER/decisions, src, docs/requirements.md
+- steps:
+  1. Read the answer of T-492 (`todo show T-492`): it lists the topics. Without an answer, give the task back with `todo stuck <id> --note "T-492 is not answered"`.
+  2. Create topics-proposal.md in the repository root: the heading `# Topics and code pointers for this project's dossier`, a blank line, the line `Topics: <the topics of T-492, comma-separated>`, a blank line, the heading `## Decisions`, and the table header `| ID | Title | Topics | Code | Note |` with `|---|---|---|---|---|`.
+  3. For every decision that `dossier list --kind decision` prints, add one row per entry: `| <ID> | <title> | <topics> | <code> | <note> |`. Topics: one or two from the list in the answer of T-492, comma-separated. Code: only where the entry is about particular code, a folder of src (ending in `/`) when it holds for a whole module, a file or `file::name` when it is narrower; otherwise empty. Note: one short reason when the choice is not obvious from the title, otherwise empty.
+  4. Change nothing in DOSSIER.
+- accept: topics-proposal.md proposes a topic, and a code pointer where it fits, for every decision of this project's dossier.
+- verify: git grep --untracked -q -F "## Decisions" -- topics-proposal.md
+- reqs: R-TOPIC-2, R-CODE-7
+- note (2026-11-25, planner): added
+
+### T-495 · Propose topics and code pointers for the assumptions, findings, investigations, lessons and tools
+- status: open
+- owner: —
+- priority: P1 · difficulty: 2 · type: chore
+- milestone: T-481
+- why: The other 25 entries of the project's dossier need topics too, and the owner reviews the whole table at once.
+- summary: An LLM adds the project's other entries to the proposal table and asks the owner to check it.
+- final: Choosing a topic and a code pointer for each entry needs judgment about what the entry is about; the owner checks every row before anything is written.
+- depends: T-494
+- files: topics-proposal.md
+- read: DOSSIER, src, docs/requirements.md
+- steps:
+  1. In topics-proposal.md, after the table of decisions, add for each of the kinds assumption, finding, investigation, lesson and tool that `dossier list --kind <kind>` prints entries for: a blank line, the heading `## <Kind>s` (for example `## Findings`), the same table header as the decisions, and one row per entry: `| <ID> | <title> | <topics> | <code> | <note> |`. Topics: one or two from the list in the answer of T-492, comma-separated. Code: only where the entry is about particular code, a folder of src (ending in `/`) when it holds for a whole module, a file or `file::name` when it is narrower; otherwise empty. Note: one short reason when the choice is not obvious from the title, otherwise empty.
+  2. Change nothing in DOSSIER.
+  3. Ask the owner: `todo ask "The topics and code pointers proposed for this project's dossier are in topics-proposal.md. Change any row you disagree with in that file, add the topics with dossier topics add <name>, then answer this question." --about T-481`.
+- accept: topics-proposal.md covers every approved entry of this project's dossier, and the owner has been asked to check it.
+- verify: git grep --untracked -q -F "## Findings" -- topics-proposal.md
+- reqs: R-TOPIC-2, R-CODE-7
+- note (2026-11-25, planner): added
+
+### T-496 · Write the accepted topics and code pointers into this project's dossier
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: chore
+- milestone: T-481
+- why: Without topics and pointers the new lookups of version 1.0 find nothing in the project's own dossier.
+- summary: The topics and code pointers the owner accepted are written into the project's entries, and finding is checked.
+- depends: T-495
+- files: DOSSIER, topics-proposal.md
+- read: docs/requirements.md
+- steps:
+  1. Check that the owner has answered the question about topics-proposal.md (`todo list --kind question --status all`, then `todo show <id>`), and that `dossier topics` lists the topics of the file. Otherwise give the task back with `todo stuck <id> --note "the proposal is not accepted yet"`.
+  2. For every row of topics-proposal.md with topics or a code pointer, run `dossier set <ID> --field topic=<topics>` and, when the row has one, `--field code=<code>` in the same command. When the command asks for the person who said so, add `--said-by` with the owner's name from the answer. Never edit a file in DOSSIER directly.
+  3. Delete topics-proposal.md (`git rm topics-proposal.md`).
+  4. Run `dossier check`: it reports no dead code pointer. Run `dossier topics`: the line `(no topic)` shows 0, or name each entry left there in the done note.
+  5. Run `dossier search connection reuse`: FND-011 and DEC-043 are among the first three results. If not, give the task back with the output.
+- accept: Every approved entry of this project's dossier has a topic, the entries about particular code point to it, dossier check reports nothing new, and search connection reuse finds its two entries first.
+- verify: dossier check
 - reqs: R-TOPIC-1 to R-TOPIC-3, R-CODE-7
 - note (2026-11-25, planner): added
 
@@ -10370,6 +10585,13 @@
 - about: T-431
 - note (2026-11-25, planner): added
 - note (2026-11-25, planner): answer — Owner, 2026-11-25: before. 1.0 must show the entries that bind a file before the LLM edits it, not only after. This needs a test first of what Claude Code's PreToolUse hook can pass to the model; T-476, T-477 and the requirements (R-CODE-8) must be changed accordingly before they are worked on.
+
+### T-492 · Which topics should this project's own dossier have (at most twelve)? Proposed from the 72 entries: entries, approval, search, remote, files, team, hooks, todo, release. Only a person adds them, with dossier topics add <name>, once dossier 1.0.0 is installed (D50); answer with the list you want.
+- status: open
+- owner: —
+- type: question
+- about: T-481
+- note (2026-11-25, planner): added
 
 ## Ideas
 
