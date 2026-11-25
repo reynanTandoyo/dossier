@@ -436,3 +436,95 @@ fn an_update_sets_the_review_date_and_one_without_it_keeps_the_date() {
         Some("2027-07-01")
     );
 }
+
+/// Writes `topics = [...]` as the first line of dossier.toml: a top-level key before any table.
+fn project_has_topics(project: &Project, names: &[&str]) {
+    let list = names
+        .iter()
+        .map(|name| format!("\"{name}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let text = project.read("DOSSIER/dossier.toml");
+    project.write(
+        "DOSSIER/dossier.toml",
+        &format!("topics = [{list}]\n{text}"),
+    );
+}
+
+/// Whether the lessons folder holds no file and the ID counter has not been written.
+fn nothing_is_written(project: &Project) -> bool {
+    folder_is_empty(&project.root().join("DOSSIER/lessons"))
+        && !project.root().join("DOSSIER/.state/ids.json").exists()
+}
+
+#[test]
+fn an_llms_lesson_without_a_topic_is_refused_when_the_project_has_topics() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+    project
+        .run("anna-claude", &learn(&["--confidence", "guess"]))
+        .code(1)
+        .stderr(contains("names its topic"))
+        .stderr(contains("pumps, rig"));
+    assert!(nothing_is_written(&project));
+    assert!(project.entry_journal().is_empty());
+}
+
+#[test]
+fn an_llms_lesson_with_a_topic_on_the_list_gets_the_topic_line() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+    project
+        .run(
+            "anna-claude",
+            &learn(&["--confidence", "guess", "--topic", "pumps"]),
+        )
+        .success()
+        .stdout("LES-001: added (draft, waiting for approval)\n");
+
+    let text = std::fs::read_to_string(project.entry_file("LES-001")).expect("the entry file");
+    assert!(text.contains("\n- topic: pumps\n"), "{text}");
+    assert_eq!(
+        entry_of(&project, "LES-001").field("topic").as_deref(),
+        Some("pumps")
+    );
+}
+
+#[test]
+fn a_topic_off_the_list_is_a_usage_error_for_learn_and_nothing_is_written() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+    project
+        .run(
+            "anna-claude",
+            &learn(&["--confidence", "guess", "--topic", "valves"]),
+        )
+        .code(2)
+        .stderr(contains("unknown topic valves"));
+    assert!(nothing_is_written(&project));
+}
+
+#[test]
+fn a_persons_lesson_without_a_topic_is_written_when_the_project_has_topics() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+    project
+        .run("anna", &learn(&["--confidence", "measured"]))
+        .success()
+        .stdout("LES-001: added (approved)\n");
+
+    let entry = entry_of(&project, "LES-001");
+    assert_eq!(entry.status(), Some(Status::Approved));
+    assert_eq!(entry.field("topic"), None);
+}
+
+#[test]
+fn without_topics_in_the_settings_an_llms_lesson_without_a_topic_is_written() {
+    let project = Project::new();
+    project
+        .run("anna-claude", &learn(&["--confidence", "guess"]))
+        .success()
+        .stdout("LES-001: added (draft, waiting for approval)\n");
+
+    assert_eq!(entry_of(&project, "LES-001").field("topic"), None);
+}

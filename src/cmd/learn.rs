@@ -72,6 +72,9 @@ pub struct Args {
     /// Tag: a comma-separated list of free tags
     #[arg(long)]
     pub tags: Option<String>,
+    /// The topics it is about, from the project's list (dossier topics), comma-separated
+    #[arg(long)]
+    pub topic: Option<String>,
 }
 
 /// Runs `learn`: checks the confidence and the statement, then writes the lesson, or changes the
@@ -263,6 +266,7 @@ fn tag_fields(args: &Args) -> Vec<(&'static str, String)> {
         ("analysis", args.analysis.as_deref()),
         ("software", args.software.as_deref()),
         ("tags", args.tags.as_deref()),
+        ("topic", args.topic.as_deref()),
     ]
     .into_iter()
     .filter_map(|(key, value)| given(value).map(|value| (key, value)))
@@ -342,6 +346,7 @@ fn similarity_query(args: &Args, title: &str) -> Query {
         args.analysis.as_deref(),
         args.software.as_deref(),
         args.tags.as_deref(),
+        args.topic.as_deref(),
     ]
     .into_iter()
     .flatten()
