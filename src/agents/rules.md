@@ -20,10 +20,14 @@
 - After `todo done <id>`, run `dossier review-task <id>`, then propose lessons with `dossier learn` (it needs `--valid-for`, `--evidence` and `--confidence`), or propose none if nothing was learned.
 - When a milestone is closed in todo, sum it up: run `dossier digest <milestone>`, then write at most 15 lines with `dossier digest <milestone> --write --stdin`; a person approves it.
 - Search before you propose something new: `dossier search <words>`.
+- `dossier search` lists entries that hold only some of your words after the line `some of the words:`. Before you conclude that nothing is recorded, search once more with other words, and look at `dossier list --topic <name>`.
 - Before writing a script, look for a tool: `dossier list --kind tool`.
 - Write every entry in English, also when the session is in another language.
 - When drafting from an old document, add `--from-document <file>`.
+- Give every entry its topic with `--topic`. `dossier topics` lists the project's topics; if none fits, ask your person to add one. You cannot add a topic yourself.
+- When an entry is about particular code, name it with `--code`: a file, a `file::name`, or the folder when it holds for a whole part. Whoever edits that code later is then shown your entry.
 - Never edit files under `DOSSIER/` directly; use the commands.
+- Your first edit of a file may be refused with a list of entries in force for it. They bind your change: read them (`dossier show <ID>` prints one in full), then make the edit again.
 - Never approve, reject, retire or remove an entry: a person does that.
 - Never confirm or refute an assumption, never accept or decline a proposal: a person does that.
 - When your person says a name or term is confidential, record it at once: `dossier confidential add "<term>"`.

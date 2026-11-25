@@ -40,6 +40,15 @@ fn help_agents_prints_the_heading_of_the_rules() {
 }
 
 #[test]
+fn help_agents_tells_the_llm_to_give_a_topic_and_a_code_pointer() {
+    let folder = tempfile::tempdir().unwrap();
+    dossier(folder.path(), &["help", "agents"])
+        .success()
+        .stdout(contains("`--topic`"))
+        .stdout(contains("`--code`"));
+}
+
+#[test]
 fn help_agents_as_json_gives_the_rules_text() {
     let folder = tempfile::tempdir().unwrap();
     dossier(folder.path(), &["help", "agents", "--json"])
