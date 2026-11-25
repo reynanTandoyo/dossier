@@ -44,6 +44,9 @@ pub struct Args {
     /// Other tags, comma-separated
     #[arg(long)]
     pub tags: Option<String>,
+    /// The topics it is about, from the project's list (dossier topics), comma-separated
+    #[arg(long)]
+    pub topic: Option<String>,
 }
 
 /// Runs `propose`: creates the proposal in one transaction and says its ID, its status and how a
@@ -66,7 +69,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
 }
 
 /// The entry that `propose` asks to create: the decision and its reason, the rejected options
-/// when given, the tags and task when given. It is a draft decision, so it is a proposal, and it
+/// when given, the tags, topic and task when given. It is a draft decision, so it is a proposal, and it
 /// names no person: create::create writes a person's proposal as the person's, and an LLM's as
 /// the LLM's own person, via the LLM.
 fn new_proposal(args: &Args) -> New {
@@ -82,6 +85,7 @@ fn new_proposal(args: &Args) -> New {
         ("analysis", &args.analysis),
         ("software", &args.software),
         ("tags", &args.tags),
+        ("topic", &args.topic),
     ];
     let mut fields: Vec<(String, String)> = tags
         .into_iter()

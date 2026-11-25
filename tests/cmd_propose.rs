@@ -20,6 +20,26 @@ fn history_lines(text: &str) -> Vec<&str> {
         .collect()
 }
 
+/// Writes `topics = [...]` into dossier.toml, after the `code` line, so that it is a top-level key
+/// before the tables (format.md §35).
+fn project_has_topics(project: &Project, names: &[&str]) {
+    let list = names
+        .iter()
+        .map(|name| format!("\"{name}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let text = project.read("DOSSIER/dossier.toml");
+    let mut edited = String::new();
+    for line in text.split_inclusive('\n') {
+        edited.push_str(line);
+        if line.starts_with("code = ") {
+            edited.push_str(&format!("topics = [{list}]\n"));
+        }
+    }
+    assert!(edited.contains("topics = ["), "{edited}");
+    project.write("DOSSIER/dossier.toml", &edited);
+}
+
 /// Whether the decisions folder holds no file at all.
 fn no_decision_written(project: &Project) -> bool {
     let folder = project.root().join("DOSSIER").join("decisions");
@@ -188,4 +208,113 @@ fn a_proposal_without_a_reason_is_a_usage_error_and_nothing_is_written() {
         .code(2)
         .stderr(contains("--reason"));
     assert!(no_decision_written(&project));
+}
+
+#[test]
+fn with_topics_an_llms_proposal_without_a_topic_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+
+    project
+        .run(
+            "anna-claude",
+            &[
+                "propose",
+                "Use the transient runs.",
+                "--reason",
+                "Steady runs converged.",
+            ],
+        )
+        .failure()
+        .code(1)
+        .stderr(contains(
+            "an entry written by an LLM names its topic: --topic <one of pumps, rig>",
+        ));
+    assert!(no_decision_written(&project));
+}
+
+#[test]
+fn with_topics_an_llms_proposal_with_a_listed_topic_gives_the_topic_line() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+
+    project.stdout(
+        "anna-claude",
+        &[
+            "propose",
+            "Use the transient runs.",
+            "--reason",
+            "Steady runs converged.",
+            "--topic",
+            "pumps",
+        ],
+    );
+
+    let text = decision_text(&project, "DEC-001");
+    assert!(text.contains("\n- topic: pumps\n"), "{text}");
+    assert!(text.contains("\n- status: proposed\n"));
+}
+
+#[test]
+fn with_topics_a_proposal_with_an_unknown_topic_is_a_usage_error_and_nothing_is_written() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+
+    project
+        .run(
+            "anna-claude",
+            &[
+                "propose",
+                "Use the transient runs.",
+                "--reason",
+                "Steady runs converged.",
+                "--topic",
+                "valves",
+            ],
+        )
+        .failure()
+        .code(2)
+        .stderr(contains(
+            "unknown topic valves; the topics of this project: pumps, rig (dossier topics)",
+        ));
+    assert!(no_decision_written(&project));
+}
+
+#[test]
+fn with_topics_a_persons_proposal_without_a_topic_is_written() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+
+    project.stdout(
+        "ben",
+        &[
+            "propose",
+            "Use the transient runs.",
+            "--reason",
+            "Steady runs converged.",
+        ],
+    );
+
+    let text = decision_text(&project, "DEC-001");
+    assert!(text.contains("\n- status: proposed\n"));
+    assert!(!text.contains("- topic:"), "{text}");
+}
+
+#[test]
+fn without_topics_in_the_settings_an_llms_proposal_without_a_topic_is_written() {
+    let project = Project::new();
+
+    project.stdout(
+        "anna-claude",
+        &[
+            "propose",
+            "Use the transient runs.",
+            "--reason",
+            "Steady runs converged.",
+        ],
+    );
+
+    let text = decision_text(&project, "DEC-001");
+    assert!(text.contains("\n- status: proposed\n"));
+    assert!(!text.contains("- topic:"), "{text}");
 }
