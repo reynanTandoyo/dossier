@@ -1502,3 +1502,21 @@ pub fn session_of(payload: &str) -> Option<String>;
 | `decide`, `found`, `learn` | `--code <paths>` | the entry gets the field `code` with the pointers, comma-separated, each trimmed with backslashes as slashes (`src/pump` or `src/pump/seal.rs::leak_model`); without `--code` no `code` line is written; `which` then lists the entry for a file it covers |
 | `which --binding` | `<path> [--session <id>]` | prints only the approved entries in force whose `code` covers the path, in the order of the store: each as the line `<ID> · <kind> · <title>` and, when the entry has a section Decision, Statement or Observation, the first line of the first of these it has, indented by two spaces; nothing else (no tasks, no `not attached` line); with `--session` the entries that session was shown before are left out (`shown::unseen`); its JSON data is `{"path": <stored path>, "entries": [{"id", "kind", "title", "text"}]}`; with no entry the output is empty; `--session` without `--binding` is a usage error |
 | `guard` | — | after the existing check, when the payload names a path and a session, runs `which --binding <path> --session <session>`; when that prints entries, exit 2 with the message `Entries in force for <path>; read them, then make your edit again (dossier show <ID> prints one in full):`, a line break, then those lines; the next edit of the file goes through, as the session was shown them; without a path, without a session or without entries guard prints nothing and exits 0 |
+
+### 21.5 Linked entries (R-FIND-5, D53)
+
+```rust
+// links.rs
+/// The most linked entries shown under one entry.
+pub const LINKED_LIMIT: usize = 3;
+/// The approved entries that "entry" names in its related field, in that order, at most limit, each once; IDs that name no entry, and the entry itself, are left out.
+pub fn linked<'a>(entry: &Entry, items: &'a [Item], limit: usize) -> Vec<&'a Item>;
+/// The line of a linked entry: two spaces, "linked: ", the ID, " · " and the title.
+pub fn line(item: &Item) -> String;
+```
+
+| Command | Arguments | Result |
+|---|---|---|
+| `search` | `<words…>` | under each result the linked lines (`links::linked`, `links::line`), at most three; `--json` gives each result `"linked": [{"id", "title"}]`, an empty list when none |
+| `brief --task` | `--task <id>` | under each entry line the linked lines; a linked entry that the brief already lists as a line of its own is not repeated; the linked lines count against the brief's line limit (R-CTX-1) |
+| `which --binding` | `<path> [--session <id>]` | under each entry the linked lines; JSON: each entry gets `"linked": [{"id", "title"}]`; guard's refusal therefore shows them too |

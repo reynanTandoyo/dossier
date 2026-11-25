@@ -1,6 +1,6 @@
 # dossier — requirements
 
-Draft 12, 2026-11-25 (owner's decisions: D28 to D51). Four points are still open (§12); everything else is decided (§3) until the
+Draft 12, 2026-11-25 (owner's decisions: D28 to D53). Four points are still open (§12); everything else is decided (§3) until the
 owner says otherwise.
 
 Each requirement has a priority, which says how important it is. When it is built is decided
@@ -141,6 +141,7 @@ an LLM starts with the right context.
 | D49 | Word stems come from the library rust-stemmers (the Snowball English stemmer, MIT/BSD licence); dossier carries no stemmer of its own. (Owner, 2026-11-25.) | A tested stemmer handles English endings correctly; an own one would be smaller but make more mistakes, and finding is what version 1.0 is for. |
 | D50 | Each project has one short list of topics, and entries name their topics from it. Only a person adds a topic (`topics add`); an LLM that finds no fitting topic asks its person. (Owner, 2026-11-25.) | A short list stays useful for finding; LLMs adding topics would fill it with near-duplicates. |
 | D51 | An LLM is shown the entries in force that bind a file before it changes the file: its first edit of the file in a session is refused once, naming those entries, and its next edit goes through (R-CODE-8). (Owner, 2026-11-25.) | Shown after the edit, a rule comes too late, and the LLM can at best repair its change. A test with Claude Code 2.1.331 on 2026-11-25 showed that the reason of a refused edit reaches the model before the file changes, while text added to an allowed edit only arrives with the edit's result. |
+| D53 | Wherever an LLM is given entries (search, brief --task, which --binding and the refusal of guard), each entry's related entries (`link`) are shown under it: one level deep, titles only, at most three, only entries with status approved. (Owner, 2026-11-25.) | A link is the most precise relation in the dossier because someone made it on purpose; one level, titles and three at most keep the output short, and an old link must not feed a replaced rule. |
 
 ---
 
@@ -549,6 +550,10 @@ Several commands choose entries that are related to a text: `decide` (R-CTX-13),
   a third of the sum of the weights of the query's words, so a list may be empty.
 - **R-FIND-4 MUST** When the query holds a spelling of a glossary term (R-TERM-4), the words of the
   term's other spellings join the query.
+- **R-FIND-5 MUST** Under each entry that search lists, each entry line of brief --task and each
+  entry of which --binding (and so of guard's refusal), its related entries with status approved
+  are shown, in the order of its related field, at most three, as one line each: two spaces,
+  linked:, the ID, · and the title. A linked entry is not followed further (D53).
 
 ### 5.10 Context for a session or task — CTX
 
