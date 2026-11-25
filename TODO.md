@@ -10876,10 +10876,8 @@
 - note (2026-11-25, haiku-T-508): done
 
 ### T-509 · guard: both refusals use Code::Blocked
-- status: claimed
+- status: done
 - owner: haiku-T-509
-- claimed: 2026-11-25T22:53+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: fix
 - milestone: T-503
 - why: The refusal before the first edit of a bound file must read as a note to the LLM, not as an error (D51).
@@ -10893,8 +10891,12 @@
   3. Run cargo test --test cmd_guard.
 - accept: guard refuses with exit code 2 and a message that does not start with error:.
 - verify: cargo test --test cmd_guard
+- verified: 2026-11-25
+- commit: 0711b5b
 - reqs: R-CODE-8, R-AGENT-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-509): done
 
 ### T-511 · init: every dossier's state folder ignores write.lock, holder.json and shown/ in git
 - status: done
