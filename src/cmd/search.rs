@@ -8,9 +8,9 @@
 //! created first, then by ID (the team's entries sorted in with the project's). Drafts and other
 //! statuses follow the filter rules, so a draft is found only with `--drafts` (R-DRAFT-6) and is
 //! marked. Each result carries the marks `show` gives (cmd/show.rs), in the same order.
-//! With `--similar <ID>` no words are needed: the entries that share the most tags and title words
-//! with that entry are listed instead, under the same filter rules (R-READ-9, `similar`). Each
-//! says why it was chosen, `tag match` or `word match`, after the dash.
+//! With `--similar <ID>` no words are needed: the entries most related to that entry are listed
+//! instead, by word stems, tags and rare words (select::top), under the same filter rules
+//! (R-READ-9, `similar`). Each says why it was chosen, `tag match` or `word match`, after the dash.
 
 use crate::approval::{self, Mark};
 use crate::cli::Global;
@@ -31,7 +31,7 @@ use std::cmp::Reverse;
 use std::path::Path;
 
 /// The tag fields that put an entry in the second group.
-const TAG_FIELDS: [&str; 4] = ["machine", "analysis", "software", "tags"];
+const TAG_FIELDS: [&str; 5] = ["machine", "analysis", "software", "tags", "topic"];
 
 /// The place of the project's own entries, and of the entries of a team dossier (R-READ-3).
 const PROJECT: &str = "project";
@@ -67,14 +67,14 @@ struct Hit {
     /// `project` for the project's own entries, `team` for those of its team dossier.
     place: &'static str,
     /// 0: every word is in the title; 1: a word is in a tag field; 2: the rest. Not used by
-    /// `--similar`, which keeps the order of `select::best`.
+    /// `--similar`, which keeps the order of `select::top`.
     group: u8,
     created: Option<DateTime<FixedOffset>>,
     mark: Option<String>,
     /// The first line of the entry that contains the first word, trimmed; empty when none does.
     /// For `--similar` it is the title.
     line: String,
-    /// For `--similar`: why the entry was chosen (select::reason), shown after the dash in place
+    /// For `--similar`: why the entry was chosen (select::why), shown after the dash in place
     /// of the line. None for a word search.
     reason: Option<&'static str>,
 }
@@ -135,9 +135,9 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
 }
 
 /// Runs `search --similar <ID>` (R-READ-9): lists the entries of the project and of its team that
-/// pass the filter and share the most tags and title words with the entry, the entry itself left
-/// out, at most `SIMILAR_LIMIT`, highest score first (select::best). The entry is read from the
-/// team dossier when its ID has the place `team:`. Each result has its reason (select::reason) in
+/// pass the filter and are most related to the entry by word stems, tags and rare words, the entry
+/// itself left out, at most `SIMILAR_LIMIT`, best first (select::top). The entry is read from the
+/// team dossier when its ID has the place `team:`. Each result has its reason (select::why) in
 /// place of a matched line; its `line` in JSON is its title.
 fn similar(id: &str, args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "search")?;
@@ -177,7 +177,7 @@ fn similar(id: &str, args: &Args, g: &Global) -> Result<Output> {
 
     let now = time::now();
     let today = time::date(&now);
-    let hits: Vec<Hit> = select::best(&items, &query, SIMILAR_LIMIT)
+    let hits: Vec<Hit> = select::top(&items, &query, SIMILAR_LIMIT)
         .into_iter()
         .filter_map(|picked| {
             // `best` returns references into `items`, so the index of each one is its position.
@@ -196,7 +196,7 @@ fn similar(id: &str, args: &Args, g: &Global) -> Result<Output> {
                 created: created(&item.entry),
                 mark: mark(place, &item, today),
                 line: item.entry.title(),
-                reason: select::reason(picked, &query),
+                reason: select::why(picked, &query),
                 item,
             })
         })

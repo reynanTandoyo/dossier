@@ -1140,3 +1140,28 @@ fn an_unknown_similar_id_is_not_found() {
         .run("", &["search", "--similar", "team:LES-001"])
         .code(4);
 }
+
+#[test]
+fn similar_lists_an_entry_whose_title_holds_other_forms_of_the_words() {
+    let project = Project::new();
+    learn(&project, "Reusing one valve connection", &[]);
+    learn(&project, "Connection reuse on the rig", &[]);
+
+    assert_eq!(
+        project.stdout("", &["search", "--similar", "LES-001"]),
+        "LES-002  Connection reuse on the rig  — word match\n1 match\n"
+    );
+}
+
+#[test]
+fn similar_leaves_out_an_entry_that_shares_only_the_common_words() {
+    let project = Project::new();
+    learn(&project, "Reusing the valve and connection", &[]);
+    // The two entries share only `the` and `and`, which relate nothing (R-FIND-1).
+    learn(&project, "Pump and the drive shaft", &[]);
+
+    project
+        .run("", &["search", "--similar", "LES-001"])
+        .success()
+        .stdout("0 matches\n");
+}
