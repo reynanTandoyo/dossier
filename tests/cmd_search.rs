@@ -146,6 +146,58 @@ fn no_entry_with_every_word_says_so_and_lists_the_partial_ones() {
 }
 
 #[test]
+fn partial_results_weigh_each_word_by_every_entry_searched() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Each command opens its own connection",
+                "--reason",
+                "Each run starts its own ssh session.",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Entry numbers are never reused",
+                "--reason",
+                "A number belongs to one entry for good.",
+            ],
+        )
+        .success();
+    for title in [
+        "Cache entries are reused across runs",
+        "Probe slots are reused after a restart",
+        "Lock files are reused by the next run",
+        "Temp folders are reused between builds",
+        "Session tokens are reused on retry",
+    ] {
+        project.run("anna", &["found", title]).success();
+    }
+
+    // Only DEC-001 holds `connection`, and six entries hold a form of `reuse`, so DEC-001 weighs
+    // most. No entry holds both words, so every entry is listed under `some of the words:`.
+    let expected = "some of the words:\n\
+        DEC-001  Each command opens its own connection\n\
+        DEC-002  Entry numbers are never reused\n\
+        FND-001  Cache entries are reused across runs\n\
+        FND-002  Probe slots are reused after a restart\n\
+        FND-003  Lock files are reused by the next run\n\
+        FND-004  Temp folders are reused between builds\n\
+        FND-005  Session tokens are reused on retry\n\
+        0 matches, 7 with some of the words\n";
+    assert_eq!(
+        project.stdout("", &["search", "connection", "reuse"]),
+        expected
+    );
+}
+
+#[test]
 fn one_typed_word_never_lists_partial_results() {
     let project = Project::new();
     valve_and_rotor(&project);

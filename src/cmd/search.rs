@@ -11,8 +11,9 @@
 //! statuses follow the filter rules, so a draft is found only with `--drafts` (R-DRAFT-6) and is
 //! marked. Each result carries the marks `show` gives (cmd/show.rs), in the same order.
 //! When more than one word is typed, the entries that hold only some of the words follow the full
-//! matches, after a line `some of the words:`: at most `PARTIAL_LIMIT`, ranked by select::ranked
-//! over the words and their glossary spellings, each shown by its title. The count line then names
+//! matches, after a line `some of the words:`: at most `PARTIAL_LIMIT`, ranked by select::ranked_in
+//! over the words and their glossary spellings, with the weights counted over every entry searched,
+//! the full matches too, each shown by its title. The count line then names
 //! them too. `--full` prints only the full matches; `--json` marks each result with
 //! `"match": "all"` or `"match": "some"`.
 //! With `--similar <ID>` no words are needed: the entries most related to that entry are listed
@@ -82,7 +83,7 @@ struct Hit {
     place: &'static str,
     /// 0: every word is in the title; 1: a word is in a tag field; 2: the rest. Not used by
     /// `--similar`, which keeps the order of `select::top`, nor by the results with some of the
-    /// words, which keep the order of `select::ranked`.
+    /// words, which keep the order of `select::ranked_in`.
     group: u8,
     created: Option<DateTime<FixedOffset>>,
     mark: Option<String>,
@@ -162,21 +163,31 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let now = time::now();
     let today = time::date(&now);
     let mut hits: Vec<Hit> = Vec::new();
-    // The entries that pass the filter but lack a word, each with the dossier it is in.
-    let mut partial: Vec<(&Ctx, Item, Vec<Linked>)> = Vec::new();
+    // Every entry the search looks at, the full matches and the others, that passes the filter,
+    // with the dossier it is in and its linked entries (homes[i] belongs to searched[i]).
+    let mut searched: Vec<Item> = Vec::new();
+    let mut homes: Vec<(&Ctx, Vec<Linked>)> = Vec::new();
     for scanned in places {
         let (items, found) = store::all(&scanned.dossier);
         warnings.extend(found);
         let under = linked_each(&items, |item| args.filter.matches(item));
         for (item, linked) in items.into_iter().zip(under) {
-            let Some(linked) = linked else {
-                continue;
-            };
-            if holds_every(&item.entry, &words) {
-                hits.push(hit(scanned, item, &words, today, linked));
-            } else {
-                partial.push((scanned, item, linked));
+            if let Some(linked) = linked {
+                searched.push(item);
+                homes.push((scanned, linked));
             }
+        }
+    }
+    // The weight of each word counts every entry searched, so a word that is common in the whole
+    // dossier weighs little, even when the entries that hold it are the full matches.
+    let index = select::Index::of(&searched);
+    // The entries that pass the filter but lack a word, each with the dossier it is in.
+    let mut partial: Vec<(&Ctx, Item, Vec<Linked>)> = Vec::new();
+    for (item, (scanned, linked)) in searched.into_iter().zip(homes) {
+        if holds_every(&item.entry, &words) {
+            hits.push(hit(scanned, item, &words, today, linked));
+        } else {
+            partial.push((scanned, item, linked));
         }
     }
     // Newest first within a group, then by ID in the order `store::all` uses. An entry of each
@@ -189,7 +200,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             hit.place == TEAM,
         )
     });
-    hits.extend(partial_hits(partial, &words, today));
+    hits.extend(partial_hits(partial, &words, &index, today));
 
     Ok(render(&hits, args.full, warnings))
 }
@@ -408,14 +419,16 @@ fn holds_every(entry: &Entry, words: &[Wanted]) -> bool {
     words.iter().all(|wanted| holds(&text, &stems, wanted))
 }
 
-/// The entries that hold only some of the search words, best first (select::ranked over the words
-/// and their glossary spellings), at most `PARTIAL_LIMIT`, each as a result with its title as the
-/// line. `partial` holds each entry with the dossier it is in and its linked entries, and `today`
-/// is the day of the run, YYYY-MM-DD. Nothing is listed when one word was typed: its entries hold
-/// it or not.
+/// The entries that hold only some of the search words, best first (select::ranked_in over the
+/// words and their glossary spellings), at most `PARTIAL_LIMIT`, each as a result with its title as
+/// the line. `partial` holds each entry with the dossier it is in and its linked entries; `index` is
+/// the select::Index of every entry searched, full matches included, so the weights do not depend
+/// on the partial entries alone; `today` is the day of the run, YYYY-MM-DD. Nothing is listed when
+/// one word was typed: its entries hold it or not.
 fn partial_hits(
     partial: Vec<(&Ctx, Item, Vec<Linked>)>,
     words: &[Wanted],
+    index: &select::Index,
     today: &str,
 ) -> Vec<Hit> {
     if words.len() < 2 {
@@ -433,8 +446,8 @@ fn partial_hits(
         .map(|(home, item, linked)| (home, (item, linked)))
         .unzip();
     let (items, unders): (Vec<Item>, Vec<Vec<Linked>>) = rest.into_iter().unzip();
-    // The index in `items` of each entry that `select::ranked` picks, best first.
-    let order: Vec<usize> = select::ranked(&items, &query)
+    // The index in `items` of each entry that `select::ranked_in` picks, best first.
+    let order: Vec<usize> = select::ranked_in(&items, &query, index)
         .into_iter()
         .take(PARTIAL_LIMIT)
         .filter_map(|(_, picked)| {
