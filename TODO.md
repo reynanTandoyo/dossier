@@ -10906,10 +10906,8 @@
 - note (2026-11-25, planner): added
 
 ### T-512 · requirements.md and design.md: D52, an LLM adds a topic after its person agrees
-- status: claimed
+- status: done
 - owner: haiku-T-512
-- claimed: 2026-11-25T22:37+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-503
 - why: The owner decided on 2026-11-25 (D52, DEC-052) that an LLM may add a topic once its person has said yes, recorded with --said-by; D50 and R-TOPIC-1 still say only a person runs topics add.
@@ -10922,13 +10920,20 @@
   3. docs/design.md section 21.4: add the row `| topics add | <name> [--said-by <person>] | an LLM without --said-by is refused with Code::NeedsPerson and the message ``ask your person; with their yes: dossier topics add <name> --said-by <person>``; with --said-by naming a member it adds the topic, and the journal detail is ``topic added: <name> (said by <person>)`` |`.
   4. Check that D52 is defined once: `git grep -c -F "| D52 |" -- docs/requirements.md` prints 1.
 - accept: requirements.md defines D52 and R-TOPIC-1 allows an LLM with --said-by; design.md 21.4 gives the new form of topics add.
-- verify: git grep -q -F "| D52 |" -- docs/requirements.md && git grep -q -F "--said-by <person>" -- docs/design.md
+- verify: git grep -q -F "| D52 |" -- docs/requirements.md && git grep -q -F -e "--said-by <person>" -- docs/design.md
+- verified: 2026-11-25
+- commit: a153b98
 - reqs: R-TOPIC-1, D52
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): forced set (owner was haiku-T-512)
+- note (2026-11-25, haiku-T-512): done
 
 ### T-513 · topics add: an LLM adds a topic with --said-by <person>
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-513
+- claimed: 2026-11-25T22:38+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-503
 - why: D52: an LLM carries out a topic its person agreed to, as decide --said-by does for decisions.
