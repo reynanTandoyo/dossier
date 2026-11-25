@@ -13,7 +13,7 @@ const PICTURES: &str = "Pictures";
 /// `rejected-reason` and after `software`, the fields of §28 after `refuted`, and the fields of
 /// §32 after `task`. `history` is not listed: it is always written last. `kind` is listed first,
 /// but `render` writes it from `Draft::kind`.
-pub const FIELD_ORDER: [&str; 46] = [
+pub const FIELD_ORDER: [&str; 47] = [
     "kind",
     "status",
     "created",
@@ -37,6 +37,7 @@ pub const FIELD_ORDER: [&str; 46] = [
     "model-checksum",
     "howto",
     "tags",
+    "topic",
     "related",
     "supersedes",
     "superseded-by",
@@ -649,6 +650,26 @@ Written after the known sections.
         assert_eq!(
             render(&draft),
             "<!-- dossier-format: 1 -->\n# FND-008 · No body yet\n\n- kind: finding\n- status: draft\n- history: 2026-11-21T09:00:00+01:00 anna: created\n"
+        );
+    }
+
+    #[test]
+    fn topic_is_written_directly_after_tags() {
+        let draft = Draft {
+            kind: Kind::Finding,
+            id: "FND-010".to_string(),
+            title: "Topic after tags".to_string(),
+            fields: pairs(&[
+                ("topic", "pumps, rig"),
+                ("related", "DEC-001"),
+                ("tags", "mesh"),
+            ]),
+            sections: pairs(&[("Observation", "Seen once.")]),
+        };
+        let text = render(&draft);
+        assert_eq!(
+            text,
+            "<!-- dossier-format: 1 -->\n# FND-010 · Topic after tags\n\n- kind: finding\n- tags: mesh\n- topic: pumps, rig\n- related: DEC-001\n\n## Observation\n\nSeen once.\n"
         );
     }
 

@@ -20,6 +20,9 @@ pub struct Filter {
     software: Option<String>,
     #[arg(long)]
     tag: Option<String>,
+    /// Only entries that name this topic
+    #[arg(long)]
+    topic: Option<String>,
     #[arg(long)]
     author: Option<String>,
     #[arg(long)]
@@ -79,14 +82,15 @@ impl Filter {
         })
     }
 
-    /// `--machine`, `--analysis`, `--software` and `--tag` (the `tags` field): each value must be
-    /// an element of the entry's list.
+    /// `--machine`, `--analysis`, `--software`, `--tag` (the `tags` field) and `--topic` (the
+    /// `topic` field): each value must be an element of the entry's list.
     fn lists_hold(&self, entry: &Entry) -> bool {
         [
             ("machine", &self.machine),
             ("analysis", &self.analysis),
             ("software", &self.software),
             ("tags", &self.tag),
+            ("topic", &self.topic),
         ]
         .into_iter()
         .all(|(key, option)| {

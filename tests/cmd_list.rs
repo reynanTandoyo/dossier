@@ -1,7 +1,7 @@
 //! Runs the built program for `list`: approved entries by default, the filters, `--wide` with who
 //! and when, the JSON data, the marks of entries that are not plainly approved (and `not tested
 //! with` on a how-to, as `show` marks it), the state of an investigation (`[open]`, `[solved]` or
-//! `[given up]`) and its `--state` filter, and a broken
+//! `[given up]`), its `--state` filter, the `--topic` filter of list and search, and a broken
 //! entry file that gives a warning while the list still works. Each test runs in its own
 //! temporary project folder (common::Project), with the clock fixed at 2026-11-20T10:00:00+01:00
 //! unless a test gives another time.
@@ -674,5 +674,43 @@ fn state_open_lists_only_the_open_investigation_and_each_kind_of_state_is_marked
     assert_eq!(
         project.stdout("anna", &["list", "--state", "given up"]),
         format!("INV-003  investigation  [given up] {TITLE_THREE}\n1 entry\n")
+    );
+}
+
+#[test]
+fn topic_filters_list_and_search_by_a_topic_ignoring_case() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "add",
+                "finding",
+                "--title",
+                "Pump seal leaks at speed",
+                "--section",
+                "Observation=An invented pump seal leaks above 3000 rpm.",
+                "--field",
+                "topic=pumps, rig",
+            ],
+        )
+        .success();
+    let line = "FND-001  finding  Pump seal leaks at speed\n";
+
+    assert_eq!(
+        project.stdout("anna", &["list", "--topic", "rig"]),
+        format!("{line}1 entry\n")
+    );
+    assert_eq!(
+        project.stdout("anna", &["list", "--topic", "PUMPS"]),
+        format!("{line}1 entry\n")
+    );
+    assert_eq!(
+        project.stdout("anna", &["list", "--topic", "valves"]),
+        "0 entries\n"
+    );
+    assert_eq!(
+        project.stdout("anna", &["search", "pump", "--topic", "rig"]),
+        "FND-001  Pump seal leaks at speed  — # FND-001 · Pump seal leaks at speed\n1 match\n"
     );
 }
