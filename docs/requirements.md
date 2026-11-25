@@ -1,6 +1,6 @@
 # dossier — requirements
 
-Draft 12, 2026-11-25 (owner's decisions: D28 to D53). Four points are still open (§12); everything else is decided (§3) until the
+Draft 13, 2026-11-25 (owner's decisions: D28 to D53). Four points are still open (§12); everything else is decided (§3) until the
 owner says otherwise.
 
 Each requirement has a priority, which says how important it is. When it is built is decided
@@ -139,8 +139,9 @@ an LLM starts with the right context.
 | D47 | 0.5.0 is released without the manual test on the real server (TEST-10). It is run before `take` and `return` are used on real work. (Owner, 2026-11-23.) | The team does not use the large-file feature yet; the automatic tests, and an end-to-end run with real ssh and scp against a test server in WSL, pass. |
 | D48 | Finding by word stems and rare words: wherever entries are chosen as related to a text, and in search, words are compared by their English word stem, and a word that few entries hold counts more than a common one (R-FIND-1 to R-FIND-4). This is still full-text search: no model is called and nothing is stored next to the entries, as D7 and D11 require. (Owner, 2026-11-25.) | In the project's own dossier, `search connection reuse` found nothing although two entries are about it, and `brief --task` listed entries that shared only the word "and" with the task. |
 | D49 | Word stems come from the library rust-stemmers (the Snowball English stemmer, MIT/BSD licence); dossier carries no stemmer of its own. (Owner, 2026-11-25.) | A tested stemmer handles English endings correctly; an own one would be smaller but make more mistakes, and finding is what version 1.0 is for. |
-| D50 | Each project has one short list of topics, and entries name their topics from it. Only a person adds a topic (`topics add`); an LLM that finds no fitting topic asks its person. (Owner, 2026-11-25.) | A short list stays useful for finding; LLMs adding topics would fill it with near-duplicates. |
+| D50 | Each project has one short list of topics, and entries name their topics from it. Only a person adds a topic (`topics add`); an LLM that finds no fitting topic asks its person. (Owner, 2026-11-25.) Changed by D52. | A short list stays useful for finding; LLMs adding topics would fill it with near-duplicates. |
 | D51 | An LLM is shown the entries in force that bind a file before it changes the file: its first edit of the file in a session is refused once, naming those entries, and its next edit goes through (R-CODE-8). (Owner, 2026-11-25.) | Shown after the edit, a rule comes too late, and the LLM can at best repair its change. A test with Claude Code 2.1.331 on 2026-11-25 showed that the reason of a refused edit reaches the model before the file changes, while text added to an allowed edit only arrives with the edit's result. |
+| D52 | A person decides each topic of a project. An LLM that finds no fitting topic asks its person; with the person's yes it adds the topic itself with `topics add --said-by <person>`, and the journal names both. Replaces the reading of D50 that only a person may run `topics add`. (Owner, 2026-11-25.) | The owner wants an LLM to carry out an agreed topic, as it records an agreed decision with `decide --said-by`; the list stays short because every topic still needs a person's yes. |
 | D53 | Wherever an LLM is given entries (search, brief --task, which --binding and the refusal of guard), each entry's related entries (`link`) are shown under it: one level deep, titles only, at most three, only entries with status approved. (Owner, 2026-11-25.) | A link is the most precise relation in the dossier because someone made it on purpose; one level, titles and three at most keep the output short, and an old link must not feed a replaced rule. |
 
 ---
@@ -862,7 +863,7 @@ it belongs to, from one short list per project (D50).
 
 - **R-TOPIC-1 MUST** The project settings hold a list `topics`. `topics` prints each topic with the
   number of approved entries that name it, and `(no topic)` with the number of approved decisions,
-  findings and lessons that name none. `topics add <name>` adds a topic; an LLM is refused (D50).
+  findings and lessons that name none. `topics add <name>` adds a topic; an LLM must name the person who agreed with `--said-by <person>` and is refused without it (D52).
 - **R-TOPIC-2 MUST** An entry may carry a field `topic` (one or more, comma-separated), given with
   `--topic` on `decide`, `propose`, `found`, `learn`, `assume`, `problem` and `howto`, or with
   `--field` on `add` and `set`. When the list is not empty, a value that is not on it is refused,

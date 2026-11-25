@@ -1525,6 +1525,7 @@ Blocked,
 | `search` | `<words…>` | the list after `some of the words:` is ranked with ranked_in and an Index of every entry search looked at |
 | `brief --task` | `<task>` | dead ends, investigations and related entries are chosen with top_in and one Index of every approved entry; related entries at most 5 (was 10) |
 | `guard` | (payload) | the refusal of an edit inside DOSSIER and the refusal before the first edit of a bound file use Code::Blocked, so standard error holds the message alone, exit code 2 |
+| `topics add` | `<name> [--said-by <person>]` | an LLM without --said-by is refused with Code::NeedsPerson and the message `ask your person; with their yes: dossier topics add <name> --said-by <person>`; with --said-by naming a member it adds the topic, and the journal detail is `topic added: <name> (said by <person>)` |
 
 ### 21.5 Linked entries (R-FIND-5, D53)
 
