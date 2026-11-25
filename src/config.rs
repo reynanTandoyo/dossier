@@ -27,6 +27,8 @@ pub struct Config {
     pub deciders: Vec<String>,
     /// Roles added to the roles of a task's files (format.md §17, §19).
     pub roles: Vec<String>,
+    /// The topics an entry may name (R-TOPIC-1); empty: any topic is allowed.
+    pub topics: Vec<String>,
     /// True after `init --code-project` (format.md §19).
     pub code_project: bool,
     pub brief_lines: usize,
@@ -73,6 +75,8 @@ struct File {
     deciders: Vec<String>,
     #[serde(default)]
     roles: Vec<String>,
+    #[serde(default)]
+    topics: Vec<String>,
     #[serde(default)]
     code_project: bool,
     #[serde(default = "project_kind")]
@@ -279,6 +283,12 @@ fn parse(text: &str, path: &Path) -> Result<Config> {
             .collect(),
         deciders: file.deciders,
         roles: file.roles,
+        topics: file
+            .topics
+            .into_iter()
+            .map(|topic| topic.trim().to_string())
+            .filter(|topic| !topic.is_empty())
+            .collect(),
         code_project: file.code_project,
         brief_lines: file.limits.brief_lines,
         status_lines: file.limits.status_lines,
@@ -687,6 +697,32 @@ mod tests {
     }
 
     #[test]
+    fn topics_before_the_first_table_are_read() {
+        let text = default_text("P-001").replace(
+            "code = \"P-001\"\n",
+            "code = \"P-001\"\ntopics = [\"pumps\", \"rig\"]\n",
+        );
+        let dir = dossier_with(&text);
+        assert_eq!(loaded(&dir).topics, ["pumps", "rig"]);
+    }
+
+    #[test]
+    fn a_settings_file_without_topics_has_none() {
+        let dir = dossier_with(&default_text("P-001"));
+        assert!(loaded(&dir).topics.is_empty());
+    }
+
+    #[test]
+    fn topics_are_trimmed_and_empty_ones_are_dropped() {
+        let text = default_text("P-001").replace(
+            "code = \"P-001\"\n",
+            "code = \"P-001\"\ntopics = [\" pumps \", \"\", \"   \", \"rig\"]\n",
+        );
+        let dir = dossier_with(&text);
+        assert_eq!(loaded(&dir).topics, ["pumps", "rig"]);
+    }
+
+    #[test]
     fn the_example_of_format_section_10_loads() {
         let dir = dossier_with(
             "format = 1\n\
@@ -993,6 +1029,20 @@ mod tests {
         let plain = ["Dr. \"Weber\"", "C:\\Tom"];
         set_list(dir.path(), "names", &names(&plain)).expect("set");
         assert_eq!(loaded(&dir).names, plain);
+    }
+
+    #[test]
+    fn set_list_topics_then_load_gives_them_back_and_keeps_the_other_lines() {
+        let dir = dossier_with(&default_text("P-001"));
+        set_list(dir.path(), "topics", &names(&["pumps", "rig"])).expect("set");
+        assert_eq!(
+            settings(&dir),
+            default_text("P-001").replace(
+                "code = \"P-001\"\n",
+                "code = \"P-001\"\ntopics = [\"pumps\", \"rig\"]\n"
+            )
+        );
+        assert_eq!(loaded(&dir).topics, ["pumps", "rig"]);
     }
 
     #[test]

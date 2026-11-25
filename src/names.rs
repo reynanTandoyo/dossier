@@ -229,6 +229,7 @@ mod tests {
             ],
             deciders: Vec::new(),
             roles: Vec::new(),
+            topics: Vec::new(),
             code_project: false,
             brief_lines: 60,
             status_lines: 60,

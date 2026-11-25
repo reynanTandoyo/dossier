@@ -216,6 +216,7 @@ mod tests {
             people: Vec::new(),
             deciders: Vec::new(),
             roles: roles.iter().map(|role| role.to_string()).collect(),
+            topics: Vec::new(),
             code_project: false,
             brief_lines: 15,
             status_lines: 10,
