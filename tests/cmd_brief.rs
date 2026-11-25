@@ -16,6 +16,8 @@
 //! `--budget <lines>`, the line limit of one call for the project brief and for `--task`, at least
 //! 5 lines (R-CTX-6). The last part adds the `Topics:` line after the tags line (or the project
 //! line), the decisions in force of each topic counted, digest-covered ones included (R-TOPIC-5).
+//! The last part also puts the topics of a decision in brackets after its ID, in the full and the
+//! shortened decision line (R-TOPIC-1).
 
 mod common;
 
@@ -3088,4 +3090,50 @@ fn a_decision_a_digest_sums_up_still_counts_for_its_topic() {
         "{text}"
     );
     assert!(!text.contains("DEC-004"), "{text}");
+}
+
+#[test]
+fn a_decision_names_its_topics_in_brackets_after_its_id_and_one_without_topic_keeps_its_line() {
+    let project = Project::new();
+    write_decision_about(&project, 1, Some("pumps, rig"), None);
+    write_decision_about(&project, 2, None, None);
+    let text = brief(&project, &[], None);
+    assert!(
+        text.lines()
+            .any(|line| line == "DEC-001 · [pumps, rig] Decision 1 (anna, 2026-11-20)"),
+        "{text}"
+    );
+    assert!(
+        text.lines()
+            .any(|line| line == "DEC-002 · Decision 2 (anna, 2026-11-20)"),
+        "{text}"
+    );
+    assert!(!text.contains("DEC-002 · ["), "{text}");
+}
+
+#[test]
+fn the_shortened_decision_line_names_its_topics_too() {
+    let project = Project::new();
+    for number in 1..=30 {
+        write_decision_about(
+            &project,
+            number,
+            (number == 30).then_some("pumps, rig"),
+            None,
+        );
+    }
+
+    let text = brief(&project, &["--budget", "10"], None);
+
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 10, "{text}");
+    assert!(
+        lines.contains(&"DEC-030 · [pumps, rig] Decision 30 (anna, 2026-11-20)"),
+        "{text}"
+    );
+    // DEC-030 is shortened to its line: its reason is not printed.
+    assert!(
+        !text.contains("  Reason number 30 of the invented project."),
+        "{text}"
+    );
 }

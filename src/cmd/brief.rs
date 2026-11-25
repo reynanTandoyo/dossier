@@ -901,8 +901,9 @@ fn tags_line(tags: &Tags) -> Option<String> {
     (!parts.is_empty()).then(|| format!("tags: {}", parts.join("; ")))
 }
 
-/// The decision as printed: `<ID> · <title> (<author>, <date>)`, with its review marks and its
-/// rests-on mark, and its bodies. `state` is the state folder of the dossier.
+/// The decision as printed: `<ID> · <title> (<author>, <date>)`, with the topics it names between
+/// the ID and the title, its review marks and its rests-on mark, and its bodies. `state` is the
+/// state folder of the dossier.
 fn decision_of(item: &Item, state: &Path, wrong: &Wrong) -> Decision {
     let entry = &item.entry;
     let date = entry
@@ -914,7 +915,7 @@ fn decision_of(item: &Item, state: &Path, wrong: &Wrong) -> Decision {
         id: entry.id(),
         summary: format!(
             "{} ({}, {date}){}{}",
-            entry_text(entry),
+            decision_text(entry),
             author(entry),
             review_marks(state, item),
             wrong.mark(entry)
@@ -995,6 +996,23 @@ fn entry_text(entry: &Entry) -> String {
         entry.id()
     } else {
         format!("{} · {title}", entry.id())
+    }
+}
+
+/// The heading of a decision: `entry_text`, with the topics the entry names in brackets after the
+/// ID, as `<ID> · [<topic>, <topic>] <title>` (R-TOPIC-1). The topics are as written in the entry.
+/// A decision that names no topic has the heading of `entry_text`.
+fn decision_text(entry: &Entry) -> String {
+    let topics = entry.list(TOPIC);
+    if topics.is_empty() {
+        return entry_text(entry);
+    }
+    let named = format!("[{}]", topics.join(", "));
+    let title = entry.title();
+    if title.is_empty() {
+        format!("{} · {named}", entry.id())
+    } else {
+        format!("{} · {named} {title}", entry.id())
     }
 }
 
