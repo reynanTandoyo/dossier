@@ -274,6 +274,7 @@ fn help_without_a_topic_lists_every_command_in_order() {
             "where-used",
             "term",
             "glossary",
+            "topics",
             "reviewed",
             "review-folder",
             "review-document",

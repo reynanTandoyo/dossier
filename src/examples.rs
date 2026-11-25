@@ -347,6 +347,11 @@ pub fn of(command: &str) -> Option<[&'static str; 3]> {
             "dossier glossary --json",
             "dossier glossary --dossier ~/work/P-017",
         ],
+        "topics" => [
+            "dossier topics",
+            "dossier topics add pumps",
+            "dossier topics --json",
+        ],
         "reviewed" => [
             "dossier reviewed DEC-012 --next 2027-06-01",
             "dossier reviewed LES-004 --next 2027-09-30",

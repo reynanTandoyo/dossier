@@ -18,7 +18,7 @@ pub struct Args {
 
 /// Every command of all phases of docs/design.md, in the order of the help overview, each with a
 /// description of at most five words.
-pub const COMMANDS: [(&str, &str); 88] = [
+pub const COMMANDS: [(&str, &str); 89] = [
     ("init", "Creates the dossier folder here"),
     ("where", "Shows folders and project code"),
     ("people", "Adds or extends a person"),
@@ -89,6 +89,7 @@ pub const COMMANDS: [(&str, &str); 88] = [
     ("where-used", "Shows software usage index"),
     ("term", "Adds or looks up terms"),
     ("glossary", "Lists all glossary terms"),
+    ("topics", "Lists or adds project topics"),
     ("reviewed", "Confirms an entry still holds"),
     ("review-folder", "Shows material from old folder"),
     ("review-document", "Starts reviewing a document"),

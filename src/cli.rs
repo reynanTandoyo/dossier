@@ -115,6 +115,7 @@ pub enum Command {
     WhereUsed(cmd::where_used::Args),
     Term(cmd::term::Args),
     Glossary(cmd::glossary::Args),
+    Topics(cmd::topics::Args),
     Reviewed(cmd::reviewed::Args),
     ReviewFolder(cmd::review_folder::Args),
     ReviewDocument(cmd::review_document::Args),
@@ -272,6 +273,7 @@ pub fn main_exit() -> u8 {
         Command::WhereUsed(a) => ("where-used", gated(&check, || cmd::where_used::run(a, g))),
         Command::Term(a) => ("term", gated(&check, || cmd::term::run(a, g))),
         Command::Glossary(a) => ("glossary", gated(&check, || cmd::glossary::run(a, g))),
+        Command::Topics(a) => ("topics", gated(&check, || cmd::topics::run(a, g))),
         Command::Reviewed(a) => ("reviewed", gated(&check, || cmd::reviewed::run(a, g))),
         Command::ReviewFolder(a) => (
             "review-folder",

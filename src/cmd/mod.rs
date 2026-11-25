@@ -80,6 +80,7 @@ pub mod team;
 pub mod term;
 pub mod todo;
 pub mod tool;
+pub mod topics;
 pub mod tried;
 pub mod unpack;
 pub mod used;
