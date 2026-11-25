@@ -280,3 +280,106 @@ fn decisions_that_share_only_common_words_are_not_related() {
     assert_eq!(output, "DEC-002: added (approved)\n");
     assert_eq!(decision_count(&project), 2);
 }
+
+#[test]
+fn a_decision_that_shares_only_and_the_and_for_is_not_related() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Keep the cooling holes open and checked for leaks",
+            "--reason",
+            "Leaks were seen early.",
+        ],
+    );
+
+    // Shares only "and", "the" and "for" with the decision in force: it is written without
+    // --besides or --replaces.
+    let output = project.stdout(
+        "anna-claude",
+        &[
+            "decide",
+            "Write the report and the summary for each run",
+            "--reason",
+            "The team reads the report.",
+            "--said-by",
+            "anna",
+        ],
+    );
+    assert_eq!(output, "DEC-002: added (approved)\n");
+    assert_eq!(decision_count(&project), 2);
+}
+
+#[test]
+fn a_related_decision_with_the_same_words_is_listed_by_stems() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Reusing one valve connection is not built",
+            "--reason",
+            "The old fitting leaked.",
+        ],
+    );
+
+    // The two titles share the stems of "connection" and "reuse" (rare words, one decision in
+    // force), so the decision in force is related and the LLM must say how the two stand together.
+    project
+        .run(
+            "anna-claude",
+            &[
+                "decide",
+                "Connection reuse for the rig",
+                "--reason",
+                "A new connection is cheaper to build.",
+                "--said-by",
+                "anna",
+            ],
+        )
+        .failure()
+        .code(1)
+        .stderr(contains(
+            "DEC-001 Reusing one valve connection is not built",
+        ));
+    assert_eq!(decision_count(&project), 1, "nothing was written");
+}
+
+#[test]
+fn a_glossary_term_relates_a_decision_to_one_that_uses_its_other_spelling() {
+    let project = Project::new();
+    project.write(
+        "DOSSIER/glossary.md",
+        "<!-- dossier-format: 1 -->\n# Glossary of P-001\n\n## ControlLine\n\n\
+         - meaning: an invented test term\n- also: valve connection\n",
+    );
+    project.stdout(
+        "anna",
+        &[
+            "decide",
+            "ControlLine stays closed",
+            "--reason",
+            "Pressure is held on the line.",
+        ],
+    );
+
+    // The new decision names "valve connection", the other spelling of the term ControlLine,
+    // which the decision in force is titled with.
+    project
+        .run(
+            "anna-claude",
+            &[
+                "decide",
+                "Bleed the valve connection once a week",
+                "--reason",
+                "Air collects in the valve connection.",
+                "--said-by",
+                "anna",
+            ],
+        )
+        .failure()
+        .code(1)
+        .stderr(contains("DEC-001 ControlLine stays closed"));
+    assert_eq!(decision_count(&project), 1, "nothing was written");
+}

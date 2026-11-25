@@ -2,10 +2,10 @@
 //! decision is approved at once; an LLM's needs `--said-by <person>` (create::create).
 //!
 //! Before it writes, `decide` looks for the approved decisions related to the new one: those
-//! that share tags or title words with it (select::best). An LLM must say how the new decision
-//! stands to them: `--replaces <ID>` supersedes one of them in the same step, `--besides` says
-//! that it stands next to them. Without either, the LLM's decision is refused and the related
-//! decisions are listed. A person is only warned (R-CTX-13).
+//! that share tags or title words with it, by word stems and rare words (select::top). An LLM
+//! must say how the new decision stands to them: `--replaces <ID>` supersedes one of them in the
+//! same step, `--besides` says that it stands next to them. Without either, the LLM's decision is
+//! refused and the related decisions are listed. A person is only warned (R-CTX-13).
 
 use crate::cli::Global;
 use crate::config::Config;
@@ -13,6 +13,7 @@ use crate::create::{self, New};
 use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
+use crate::glossary;
 use crate::names::{self, Who};
 use crate::output::Output;
 use crate::select::{self, Query};
@@ -26,18 +27,6 @@ const TITLE_CHARS: usize = 80;
 
 /// The most related decisions that are looked for and shown.
 const RELATED_LIMIT: usize = 5;
-
-/// Common English words. They say nothing about what a decision is about, so they are left out
-/// of the title and decision words the related decisions are looked for with: two decisions that
-/// share only these words are not related.
-const COMMON_WORDS: &[&str] = &[
-    "the", "and", "for", "with", "from", "this", "that", "these", "those", "are", "was", "were",
-    "will", "would", "should", "can", "not", "all", "any", "but", "use", "used", "uses", "using",
-    "has", "have", "had", "into", "than", "then", "its", "our", "your", "you", "per", "via",
-    "each", "only", "also", "when", "where", "which", "who", "what", "more", "most", "less", "new",
-    "one", "two", "out", "off", "does", "did", "been", "being", "they", "them", "their", "there",
-    "here",
-];
 
 /// The arguments of `decide`.
 #[derive(clap::Args, Debug)]
@@ -113,7 +102,11 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             }
         }
         let mut new = new_decision(args);
-        let related = find_related(&tx.ctx().dossier, &search_query(args, &new.title));
+        let related = find_related(
+            &tx.ctx().dossier,
+            &tx.ctx().cfg.code,
+            &search_query(args, &new.title),
+        );
 
         // An LLM names the person who decided it; without one, create refuses the decision
         // itself, so the related decisions are only asked about for a decision that could be
@@ -214,7 +207,7 @@ fn new_decision(args: &Args) -> New {
 }
 
 /// What the new decision is related to: each value of the four tag options, split at commas,
-/// and the words of its title and of its decision, without the COMMON_WORDS.
+/// and the words of its title and of its decision.
 fn search_query(args: &Args, title: &str) -> Query {
     let tags = [&args.machine, &args.analysis, &args.software, &args.tags]
         .into_iter()
@@ -224,23 +217,25 @@ fn search_query(args: &Args, title: &str) -> Query {
         .filter(|tag| !tag.is_empty())
         .map(str::to_string)
         .collect();
-    let words = select::words(&format!("{title} {}", args.decision))
-        .into_iter()
-        .filter(|word| !COMMON_WORDS.contains(&word.as_str()))
-        .collect();
+    let words = select::words(&format!("{title} {}", args.decision));
     Query { tags, words }
 }
 
-/// The approved decisions most related to the query, best first, as (ID, title). The store's
-/// warnings about files it could not read are not shown here.
-fn find_related(dossier: &Path, query: &Query) -> Vec<(String, String)> {
+/// The approved decisions most related to the query, best first, as (ID, title). The query is
+/// widened by the project's glossary (`code` names it when it is missing); a glossary that cannot
+/// be read adds no terms. The store's warnings about files it could not read are not shown here.
+fn find_related(dossier: &Path, code: &str, query: &Query) -> Vec<(String, String)> {
     let (items, _warnings) = store::all(dossier);
     let approved: Vec<Item> = items
         .into_iter()
         .filter(|item| item.entry.kind() == Some(Kind::Decision))
         .filter(|item| item.entry.status() == Some(Status::Approved))
         .collect();
-    select::best(&approved, query, RELATED_LIMIT)
+    let terms = glossary::load(dossier, code)
+        .map(|(file, _)| glossary::terms(&file))
+        .unwrap_or_default();
+    let widened = select::widened(query, &terms);
+    select::top(&approved, &widened, RELATED_LIMIT)
         .into_iter()
         .map(|item| (item.entry.id(), item.entry.title()))
         .collect()
