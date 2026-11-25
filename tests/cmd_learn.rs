@@ -528,3 +528,48 @@ fn without_topics_in_the_settings_an_llms_lesson_without_a_topic_is_written() {
 
     assert_eq!(entry_of(&project, "LES-001").field("topic"), None);
 }
+
+#[test]
+fn code_gives_the_code_field_with_slashes_and_the_pointers_joined() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &learn(&[
+                "--confidence",
+                "measured",
+                "--title",
+                "Seal leak is overpredicted",
+                "--code",
+                "src\\pump, src/rig/valve.rs::open",
+            ]),
+        )
+        .success()
+        .stdout("LES-001: added (approved)\n");
+
+    let text = std::fs::read_to_string(project.entry_file("LES-001")).expect("the entry file");
+    assert!(
+        text.contains("\n- code: src/pump, src/rig/valve.rs::open\n"),
+        "{text}"
+    );
+    assert_eq!(
+        entry_of(&project, "LES-001").field("code").as_deref(),
+        Some("src/pump, src/rig/valve.rs::open")
+    );
+    assert_eq!(
+        project.stdout("anna", &["which", "src/pump/seal.rs"]),
+        "not attached to any task\nentries: LES-001 Seal leak is overpredicted\n"
+    );
+}
+
+#[test]
+fn without_code_no_code_line_is_written() {
+    let project = Project::new();
+    project
+        .run("anna", &learn(&["--confidence", "measured"]))
+        .success();
+
+    let text = std::fs::read_to_string(project.entry_file("LES-001")).expect("the entry file");
+    assert!(!text.contains("\n- code:"), "{text}");
+    assert_eq!(entry_of(&project, "LES-001").field("code"), None);
+}

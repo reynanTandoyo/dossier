@@ -75,6 +75,9 @@ pub struct Args {
     /// The topics it is about, from the project's list (dossier topics), comma-separated
     #[arg(long)]
     pub topic: Option<String>,
+    /// The code it is about: paths, each optionally with ::name, comma-separated (src/pump or src/pump/seal.rs::leak_model)
+    #[arg(long)]
+    pub code: Option<String>,
 }
 
 /// Runs `learn`: checks the confidence and the statement, then writes the lesson, or changes the
@@ -259,9 +262,10 @@ fn lesson(args: &Args, confidence: &str, review: Option<&str>) -> New {
     }
 }
 
-/// The tag options that were given, as (field, value), without the empty ones.
+/// The tag options that were given, and the code pointers, as (field, value), without the empty
+/// ones.
 fn tag_fields(args: &Args) -> Vec<(&'static str, String)> {
-    [
+    let mut fields: Vec<(&'static str, String)> = [
         ("machine", args.machine.as_deref()),
         ("analysis", args.analysis.as_deref()),
         ("software", args.software.as_deref()),
@@ -270,7 +274,25 @@ fn tag_fields(args: &Args) -> Vec<(&'static str, String)> {
     ]
     .into_iter()
     .filter_map(|(key, value)| given(value).map(|value| (key, value)))
-    .collect()
+    .collect();
+    if let Some(code) = code_of(args) {
+        fields.push(("code", code));
+    }
+    fields
+}
+
+/// The value of the code field: each pointer of `--code` trimmed, with backslashes as slashes,
+/// the empty ones left out, joined with `, `; None when no pointer is left.
+fn code_of(args: &Args) -> Option<String> {
+    let pointers: Vec<String> = args
+        .code
+        .as_deref()
+        .unwrap_or("")
+        .split(',')
+        .map(|pointer| pointer.trim().replace('\\', "/"))
+        .filter(|pointer| !pointer.is_empty())
+        .collect();
+    (!pointers.is_empty()).then(|| pointers.join(", "))
 }
 
 /// The `--review` option as YYYY-MM-DD, or None when it is not given. Code::BadValue when it is
