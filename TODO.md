@@ -9736,8 +9736,8 @@
 - note (2026-11-25, haiku-T-443): done
 
 ### T-444 · decide: related decisions are chosen with the new ranking
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-444
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-433
 - why: decide refuses an LLM's decision when related decisions are in force, so a related list of noise costs the LLM a wrong --besides.
@@ -9752,12 +9752,16 @@
   4. Run the tests of both test files. Where an existing test fails because a weak match is no longer listed (R-FIND-3), change its expectation and say so in the commit message; do not change the rule.
 - accept: decide lists related decisions by stems, rarity and glossary; decisions that share only common words are not related.
 - verify: cargo test --test cmd_decide_related && cargo test --test cmd_decide
+- verified: 2026-11-25
+- commit: 1ef5e88
 - reqs: R-CTX-13, R-FIND-1 to R-FIND-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-444): done
 
 ### T-445 · learn: similar lessons are chosen with the new ranking
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-445
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-433
 - why: learn warns about similar lessons so that a lesson is not written twice; the warning must name the right ones.
@@ -9772,12 +9776,16 @@
   4. Run cargo test --test cmd_learn_similar. Where an existing test fails because a weak match is no longer named (R-FIND-3), change its expectation and say so in the commit message.
 - accept: learn names similar lessons by stems and rarity, and none that share only common words.
 - verify: cargo test --test cmd_learn_similar
+- verified: 2026-11-25
+- commit: 7ff08df
 - reqs: R-FIND-1 to R-FIND-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-445): done
 
 ### T-446 · problem: similar investigations are chosen with the new ranking
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-446
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-433
 - why: problem shows earlier investigations of the same kind, so that a solved problem is not investigated again.
@@ -9791,12 +9799,16 @@
   3. Run cargo test --test cmd_problem. Where an existing test fails because a weak match is no longer shown (R-FIND-3), change its expectation and say so in the commit message.
 - accept: problem shows similar investigations by stems and rarity.
 - verify: cargo test --test cmd_problem
+- verified: 2026-11-25
+- commit: 57f81e7
 - reqs: R-FIND-1 to R-FIND-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-446): done
 
 ### T-447 · brief --task: dead ends, investigations and related entries with the new ranking
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-447
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-433
 - why: For a task titled `Remote mode: connection reuse and connection check`, brief --task listed entries that share only the word `and`.
@@ -9812,8 +9824,12 @@
   5. Run cargo test --lib brief_task::, cargo test --test cmd_brief and cargo test --test cmd_after. Where an existing test fails because a weak match is no longer listed (R-FIND-3), change its expectation and say so in the commit message.
 - accept: brief --task lists dead ends, investigations and related entries by stems, rarity and glossary; common words relate nothing.
 - verify: cargo test --lib brief_task:: && cargo test --test cmd_brief && cargo test --test cmd_after
+- verified: 2026-11-25
+- commit: ee3b61b
 - reqs: R-CTX-2, R-FIND-1 to R-FIND-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-447): done
 
 ### T-448 · search --similar: the new ranking
 - status: done
@@ -10204,8 +10220,8 @@
 - note (2026-11-25, haiku-T-464): done
 
 ### T-465 · topics add: a person adds a topic to the project's list
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-465
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-435
 - why: The list stays short only when a person decides what goes on it.
@@ -10221,8 +10237,12 @@
   5. Run cargo test --test cmd_topics.
 - accept: topics add writes the topic into dossier.toml with a journal line, for a person only.
 - verify: cargo test --test cmd_topics
+- verified: 2026-11-25
+- commit: d60b86c
 - reqs: R-TOPIC-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-465): done
 
 ### T-466 · brief: one line with the topics and their decisions in force
 - status: open
@@ -10352,8 +10372,8 @@
 - note (2026-11-25, planner): added
 
 ### T-472 · found: the option --code
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-472
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-436
 - why: A pointer to code is only recorded when the command that writes the entry offers it.
@@ -10367,8 +10387,12 @@
   3. Run cargo test --test cmd_found.
 - accept: found --code writes the code field, and which finds the entry for a file it covers.
 - verify: cargo test --test cmd_found
+- verified: 2026-11-25
+- commit: 4b84d63
 - reqs: R-CODE-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-472): done
 
 ### T-473 · learn: the option --code
 - status: open
