@@ -103,6 +103,19 @@ fn link(project: &Project, team: &Path) {
     project.stdout("anna", &["team", "use", path.as_str()]);
 }
 
+/// Writes `topics = ["pumps", "rig"]` as the first line of dossier.toml, before its first table,
+/// so that the project has a list of topics (R-TOPIC-1).
+fn with_topics(project: &Project) {
+    let path = "DOSSIER/dossier.toml";
+    let text = project.read(path);
+    project.write(path, &format!("topics = [\"pumps\", \"rig\"]\n{text}"));
+}
+
+/// The number of files in `folder`.
+fn file_count(folder: &Path) -> usize {
+    fs::read_dir(folder).expect("the folder is read").count()
+}
+
 #[test]
 fn a_persons_how_to_is_approved_and_recorded_for_its_checksum() {
     let project = Project::new();
@@ -379,4 +392,87 @@ fn a_team_how_to_with_a_confidential_term_in_it_is_refused() {
         .code(1)
         .stderr(contains("confidential terms found: Nordwind"));
     assert!(folder_is_empty(&team.join("howtos")));
+}
+
+#[test]
+fn with_topics_an_llms_how_to_must_name_one_and_a_persons_need_not() {
+    let project = Project::new();
+    with_topics(&project);
+    let howtos = dossier_of(&project).join("howtos");
+
+    // An LLM's how-to without --topic is refused, and the message names both topics.
+    project
+        .run(
+            "anna-claude",
+            &["howto", "--software", SOFTWARE, "--title", TITLE],
+        )
+        .failure()
+        .code(1)
+        .stderr(contains(
+            "an entry written by an LLM names its topic: --topic <one of pumps, rig>",
+        ));
+    assert!(folder_is_empty(&howtos));
+
+    // With --topic the draft gets the field topic.
+    project
+        .run(
+            "anna-claude",
+            &[
+                "howto",
+                "--software",
+                SOFTWARE,
+                "--title",
+                TITLE,
+                "--topic",
+                "pumps",
+            ],
+        )
+        .success()
+        .stdout("HOW-001: added (draft, waiting for approval)\n");
+    let entry = how_to_in(&howtos, "HOW-001");
+    assert_eq!(entry.field("topic").as_deref(), Some("pumps"));
+    let text = fs::read_to_string(file_in(&howtos, "HOW-001")).expect("the file is read");
+    assert!(text.lines().any(|line| line == "- topic: pumps"));
+
+    // A topic that is not on the list is a usage error, and nothing is written.
+    project
+        .run(
+            "anna-claude",
+            &[
+                "howto",
+                "--software",
+                SOFTWARE,
+                "--title",
+                TITLE,
+                "--topic",
+                "valves",
+            ],
+        )
+        .failure()
+        .code(2)
+        .stderr(contains(
+            "unknown topic valves; the topics of this project: pumps, rig (dossier topics)",
+        ));
+    assert_eq!(file_count(&howtos), 1);
+
+    // A person's how-to without --topic is written.
+    project
+        .run("anna", &complete(&[]))
+        .success()
+        .stdout("HOW-002: added (approved)\n");
+    assert_eq!(how_to_in(&howtos, "HOW-002").field("topic"), None);
+}
+
+#[test]
+fn without_topics_in_the_settings_an_llms_how_to_without_topic_is_written() {
+    let project = Project::new();
+    project
+        .run(
+            "anna-claude",
+            &["howto", "--software", SOFTWARE, "--title", TITLE],
+        )
+        .success()
+        .stdout("HOW-001: added (draft, waiting for approval)\n");
+    let entry = how_to_in(&dossier_of(&project).join("howtos"), "HOW-001");
+    assert_eq!(entry.field("topic"), None);
 }

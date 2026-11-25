@@ -52,6 +52,9 @@ pub struct Args {
     /// Tag: a comma-separated list of free tags
     #[arg(long)]
     pub tags: Option<String>,
+    /// The topics it is about, from the project's list (dossier topics), comma-separated
+    #[arg(long)]
+    pub topic: Option<String>,
 }
 
 /// Runs `howto`: checks the options, reads the body, and writes the how-to in one transaction.
@@ -134,8 +137,8 @@ fn review_of(text: Option<&str>) -> Result<Option<String>> {
     .transpose()
 }
 
-/// The fields of the how-to: its software, then the review date, the task and the tags that were
-/// given, in that order. Empty options are left out.
+/// The fields of the how-to: its software, then the review date, the task and the tags and topic
+/// that were given, in that order. Empty options are left out.
 fn fields_of(args: &Args, software: &str, review: Option<&str>) -> Vec<(String, String)> {
     let mut fields = vec![("software".to_string(), software.to_string())];
     if let Some(review) = review {
@@ -152,12 +155,13 @@ fn fields_of(args: &Args, software: &str, review: Option<&str>) -> Vec<(String, 
     fields
 }
 
-/// The tag options that were given, as (field, value), without the empty ones.
+/// The tag and topic options that were given, as (field, value), without the empty ones.
 fn tag_fields(args: &Args) -> Vec<(&'static str, String)> {
     [
         ("machine", args.machine.as_deref()),
         ("analysis", args.analysis.as_deref()),
         ("tags", args.tags.as_deref()),
+        ("topic", args.topic.as_deref()),
     ]
     .into_iter()
     .filter_map(|(key, value)| given(value).map(|value| (key, value)))
