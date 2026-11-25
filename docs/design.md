@@ -1414,3 +1414,51 @@ pub fn widened(query: &Query, terms: &[Term]) -> Query;
 | `brief --task` | — | brief --task lists dead ends, investigations and related entries by stems, rarity and glossary; common words relate nothing |
 | `search --similar` | `<ID>` | search --similar ranks by stems and rarity |
 | `search` | `<words…>` | a typed word also finds an entry holding another form of it (same stem); entries holding every word are listed as before, in the same order; then, when more than one word was typed, the line `some of the words:`, then up to 10 ranked entries that hold only some of the words, each as its title, and the last line `<n> matches, <m> with some of the words` (`1 match` when n is 1); without such entries the last line stays as it is today; `--full` prints only the full matches; `--json` gives each result `"match": "all"` or `"match": "some"`, the partial ones after the full ones; a draft is among the partial ones only with `--drafts` |
+
+### 21.2 Topics (R-TOPIC-1 to 5, D50)
+
+```rust
+// config.rs: the settings read from dossier.toml gain `topics: Vec<String>` with #[serde(default)]
+// (not pub): a top-level key before the first table; each value trimmed, empty values dropped (T-452)
+/// The topics an entry may name (R-TOPIC-1): the top-level `topics` list of dossier.toml, empty when the key is missing.
+pub topics: Vec<String>
+
+// create.rs: create::create checks the topics when cfg.topics is not empty, before anything is queued (T-454)
+// Rule 1 (everyone): each value of the field `topic`, split at commas and trimmed, must equal a topic of the list
+//   ignoring case; else Code::Usage `unknown topic <value>; the topics of this project: <a, b, c> (dossier topics)`.
+// Rule 2 (LLMs): when the writer is an LLM (who.is_llm), tx.ctx().from_document is None, the kind is Decision,
+//   Assumption, Finding, Lesson, Howto or Investigation and the entry has no topic value: Code::Refused
+//   `an entry written by an LLM names its topic: --topic <one of a, b, c>`.
+
+// cmd/decide.rs, cmd/propose.rs, cmd/found.rs, cmd/learn.rs, cmd/assume.rs, cmd/problem.rs, cmd/howto.rs:
+// Args of each of these seven commands gains the option --topic (T-455 to T-461)
+/// The topics it is about, from the project's list (dossier topics), comma-separated
+#[arg(long)] pub topic: Option<String>
+
+// filter.rs: Filter gains the option --topic <name> directly after tag (T-453; field `topic: Option<String>`,
+// not pub; help text `Only entries that name this topic`); entry/new.rs: FIELD_ORDER gains `topic` after `tags`
+
+// cmd/topics.rs: the topics command (T-463 to T-465)
+/// The topics command: with no action it lists the topics and their entry counts (T-464).
+pub struct Args { #[command(subcommand)] pub action: Option<Action> }
+pub enum Action {
+    /// Adds a topic to the project's list; needs a person
+    Add { name: String }
+}
+/// Runs the topics command: the list with the counts (T-464), or the action add (T-465).
+pub fn run(args: &Args, g: &Global) -> Result<Output>;
+
+// cmd/set.rs (T-462): a check on --field topic=... before the write; no pub signature
+// cmd/brief.rs (T-466, T-467): head is given the items by Brief::collect; decision_of prints the topics; no pub signature
+```
+
+| Command | Arguments | Result |
+|---|---|---|
+| `topics` | — | prints each topic of the settings, in their order, with the number of approved entries that name it: `<topic>  <n>`; then, when approved decisions, findings or lessons have no topic, `(no topic)  <n>`; with no topics in the settings `no topics: dossier topics add <name>`; `--json` gives `{"topics": [{"name": …, "entries": n}], "without": n}`; warnings of `store::all` are passed on |
+| `topics add` | `<name>` | the name is trimmed and put in lower case; a usage error when it is empty, holds a comma or a line break, or has more than three words; a name already on the list (ignoring case) prints `<name> is already a topic` and changes nothing; an LLM is refused (Code::NeedsPerson) with `a person adds a topic: dossier topics add <name>`; otherwise the name is written at the end of the list in dossier.toml, the journal gets the detail `topic added: <name>` and `added topic <name>` is printed; with `--dry-run` only the warning `dry run: would write <file>` |
+| `--topic` of `decide`, `propose`, `found`, `learn`, `assume`, `problem`, `howto` | `--topic <name>`, comma-separated; help text `The topics it is about, from the project's list (dossier topics), comma-separated` | the entry gets the field `topic` (`- topic: <name>`); the two rules of create::create above apply (an LLM without `--topic` is refused; an unknown topic is a usage error); `decide`, `learn` and `problem` also use the values as tags of their related-entries query |
+| `list`, `search` | `--topic <name>`, help text `Only entries that name this topic` | only the entries whose field `topic` holds the name are listed, matched as `--tag` matches the tags field: comma-separated values, ignoring case; `search <words> --topic <name>` applies the same filter |
+| `set` | `<ID> --field topic=<value>` | when the project has topics, each comma-separated value, trimmed, must equal a topic of the list ignoring case; else Code::Usage `unknown topic <value>; the topics of this project: <a, b, c> (dossier topics)` and the file is unchanged; an empty value (removing the field) is allowed; a change is written with a history line |
+| `brief` | — | with topics in the settings, one line after the tags line (or after the project line when there is no tags line): `Topics: <a> (<n>), <b> (<n>) · dossier list --topic <name>`, n being the decisions in force that name the topic, those a digest sums up included, `(0)` when none; the JSON data gets `"topics": [{"name": …, "decisions": n}]`, an empty list without topics; a decision line with a topic is `<ID> · [<topic>, <topic>] <title> (<author>, <date>)`, the topics as written in the entry, also in the shortened form; the order and the line limit do not change |
+
+The topics command is registered as T-463 says. Files: src/cli.rs, src/cmd/mod.rs, src/cmd/topics.rs, src/cmd/help.rs, src/examples.rs, tests/cmd_agents.rs, tests/cmd_help.rs. Its help line is `topics`, `Lists or adds project topics` (after `glossary`); its examples are `dossier topics`, `dossier topics add pumps` and `dossier list --topic pumps`.
