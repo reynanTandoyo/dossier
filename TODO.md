@@ -10762,8 +10762,10 @@
 - note (2026-11-25, planner): added
 
 ### T-504 · design.md: section 21.4, the fixes of 1.0.1
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-504
+- claimed: 2026-11-25T22:36+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-503
 - why: Every signature a worker uses is fixed in design.md first.
@@ -10877,8 +10879,10 @@
 - note (2026-11-25, planner): added
 
 ### T-511 · init: every dossier's state folder ignores write.lock, holder.json and shown/ in git
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-511
+- claimed: 2026-11-25T22:36+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: fix
 - milestone: T-503
 - why: The guard hook writes one file per Claude session into .state/shown/ (R-CODE-8); without an ignore line these files end up in every commit, and init of a project dossier writes no .state/.gitignore at all although project folders are git repositories (D36, idea T-430).
