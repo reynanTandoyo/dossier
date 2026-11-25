@@ -10685,7 +10685,7 @@
 - note (2026-11-25, planner): done
 
 ### T-494 · Propose a topic and a code pointer for each decision of this project's dossier
-- status: open
+- status: dropped
 - owner: —
 - priority: P1 · difficulty: 2 · type: chore
 - milestone: T-481
@@ -10702,11 +10702,14 @@
   4. Change nothing in DOSSIER.
 - accept: topics-proposal.md proposes a topic, and a code pointer where it fits, for every decision of this project's dossier.
 - verify: git grep --untracked -q -F "## Decisions" -- topics-proposal.md
+- attempts: 1
 - reqs: R-TOPIC-2, R-CODE-7
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): verify failed — no output (exit code 1)
+- note (2026-11-25, planner): dropped — Done differently: the owner chose the topics in the session and the table was applied directly, without a proposal file (99a2693).
 
 ### T-495 · Propose topics and code pointers for the assumptions, findings, investigations, lessons and tools
-- status: open
+- status: dropped
 - owner: —
 - priority: P1 · difficulty: 2 · type: chore
 - milestone: T-481
@@ -10722,8 +10725,11 @@
   3. Ask the owner: `todo ask "The topics and code pointers proposed for this project's dossier are in topics-proposal.md. Change any row you disagree with in that file, add the topics with dossier topics add <name>, then answer this question." --about T-481`.
 - accept: topics-proposal.md covers every approved entry of this project's dossier, and the owner has been asked to check it.
 - verify: git grep --untracked -q -F "## Findings" -- topics-proposal.md
+- attempts: 1
 - reqs: R-TOPIC-2, R-CODE-7
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): verify failed — no output (exit code 1)
+- note (2026-11-25, planner): dropped — Done differently: the owner chose the topics in the session and the table was applied directly, without a proposal file (99a2693).
 
 ### T-496 · Write the accepted topics and code pointers into this project's dossier
 - status: open
@@ -10732,7 +10738,7 @@
 - milestone: T-481
 - why: Without topics and pointers the new lookups of version 1.0 find nothing in the project's own dossier.
 - summary: The topics and code pointers the owner accepted are written into the project's entries, and finding is checked.
-- depends: T-495
+- depends: T-506
 - files: DOSSIER, topics-proposal.md
 - read: docs/requirements.md
 - steps:
@@ -10745,6 +10751,7 @@
 - verify: dossier check
 - reqs: R-TOPIC-1 to R-TOPIC-3, R-CODE-7
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): Steps 1-4 done in 99a2693 (topics and code pointers on every entry, dossier check 0 problems, no entry without topic). Step 5 waits for T-506: search connection reuse lists DEC-043 fourth until partial results are weighed against the whole dossier.
 
 ### T-503 · 1.0.1: rare words are weighed against the whole dossier, and guard's refusal reads as a note
 - status: open
@@ -10887,6 +10894,64 @@
 - accept: init writes .state/.gitignore with write.lock, holder.json and shown/ for project and team dossiers, and format.md says so.
 - verify: cargo test --test cmd_init
 - reqs: R-CODE-8, D36
+- note (2026-11-25, planner): added
+
+### T-512 · requirements.md and design.md: D52, an LLM adds a topic after its person agrees
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: docs
+- milestone: T-503
+- why: The owner decided on 2026-11-25 (D52, DEC-052) that an LLM may add a topic once its person has said yes, recorded with --said-by; D50 and R-TOPIC-1 still say only a person runs topics add.
+- summary: The requirements and the design say that an LLM adds an agreed topic itself, naming the person who agreed.
+- files: docs/requirements.md, docs/design.md
+- read: docs/requirements.md, docs/design.md, DOSSIER/decisions
+- steps:
+  1. docs/requirements.md, section 3: after the row of D51 add the row `| D52 | A person decides each topic of a project. An LLM that finds no fitting topic asks its person; with the person's yes it adds the topic itself with ``topics add --said-by <person>``, and the journal names both. Replaces the reading of D50 that only a person may run ``topics add``. (Owner, 2026-11-25.) | The owner wants an LLM to carry out an agreed topic, as it records an agreed decision with ``decide --said-by``; the list stays short because every topic still needs a person's yes. |` (doubled backticks stand for single ones). In the row of D50, add at its end, inside the decision cell: ` Changed by D52.` Change line 3 to `Draft 13, 2026-11-25 (owner's decisions: D28 to D52).`
+  2. R-TOPIC-1: replace `adds a topic; an LLM is refused (D50).` with `adds a topic; an LLM must name the person who agreed with `--said-by <person>` and is refused without it (D52).`
+  3. docs/design.md section 21.4: add the row `| topics add | <name> [--said-by <person>] | an LLM without --said-by is refused with Code::NeedsPerson and the message ``ask your person; with their yes: dossier topics add <name> --said-by <person>``; with --said-by naming a member it adds the topic, and the journal detail is ``topic added: <name> (said by <person>)`` |`.
+  4. Check that D52 is defined once: `git grep -c -F "| D52 |" -- docs/requirements.md` prints 1.
+- accept: requirements.md defines D52 and R-TOPIC-1 allows an LLM with --said-by; design.md 21.4 gives the new form of topics add.
+- verify: git grep -q -F "| D52 |" -- docs/requirements.md && git grep -q -F "--said-by <person>" -- docs/design.md
+- reqs: R-TOPIC-1, D52
+- note (2026-11-25, planner): added
+
+### T-513 · topics add: an LLM adds a topic with --said-by <person>
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-503
+- why: D52: an LLM carries out a topic its person agreed to, as decide --said-by does for decisions.
+- summary: An LLM can add a topic its person agreed to, and the journal records who agreed.
+- depends: T-512
+- files: src/cmd/topics.rs, tests/cmd_topics.rs
+- read: docs/design.md, src/cmd/topics.rs, src/cmd/decide.rs, src/names.rs
+- steps:
+  1. src/cmd/topics.rs: give the Add action the option `/// The person who agreed to the topic; needed when an LLM adds it (D52)` `#[arg(long, value_name = "PERSON")] said_by: Option<String>`. Resolve the person exactly as decide resolves --said-by (src/cmd/decide.rs): it must be a member of the project, otherwise the same error as decide gives.
+  2. An LLM writer without --said-by is refused with Code::NeedsPerson and the message `ask your person; with their yes: dossier topics add <name> --said-by <person>`. With --said-by the topic is added as before, and the journal detail is `topic added: <name> (said by <person>)`. A person needs no --said-by; when a person gives it, it is recorded the same way.
+  3. tests/cmd_topics.rs: an LLM (anna-claude) without --said-by is refused with exit code of Code::NeedsPerson and dossier.toml is unchanged; with `--said-by anna` the topic is added and `log` shows the detail with `said by anna`; `--said-by nobody` is refused as decide refuses an unknown person; the existing test of a person adding a topic passes unchanged except where it expected the old LLM message.
+  4. Run cargo test --test cmd_topics.
+- accept: topics add accepts an LLM that names the agreeing person with --said-by and refuses one that does not.
+- verify: cargo test --test cmd_topics
+- reqs: R-TOPIC-1, D52
+- note (2026-11-25, planner): added
+
+### T-514 · The agent rules: add an agreed topic with --said-by
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: docs
+- milestone: T-503
+- why: The rule still tells an LLM it cannot add a topic itself (D50), which D52 changed.
+- summary: The rules for LLMs say to ask the person and, with their yes, add the topic with --said-by.
+- depends: T-513
+- files: src/agents/rules.md, tests/cmd_agents.rs
+- read: src/agents/rules.md, docs/requirements.md
+- steps:
+  1. src/agents/rules.md: replace the sentence `if none fits, ask your person to add one. You cannot add a topic yourself.` with `if none fits, ask your person; with their yes, add it with `dossier topics add <name> --said-by <person>`.` (keep the rest of the rule).
+  2. tests/cmd_agents.rs: if a test checks the old sentence, change it to the new one; add a check that `help agents` names `topics add` and `--said-by`.
+  3. Run cargo test --test cmd_agents.
+- accept: The installed rules tell an LLM to add an agreed topic with --said-by.
+- verify: cargo test --test cmd_agents
+- reqs: R-AGENT-1, D52
 - note (2026-11-25, planner): added
 
 ## Questions
