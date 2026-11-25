@@ -10661,8 +10661,8 @@
 - note (2026-11-25, planner): split into T-493, T-494, T-495, T-496
 
 ### T-493 · This repository gets the agent rules and the hooks of dossier 1.0
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · difficulty: 1 · type: chore
 - milestone: T-481
 - why: The LLMs working on dossier itself must get the 1.0 rules (--topic, --code) and the check before an edit.
@@ -10677,8 +10677,12 @@
   4. - accept: AGENTS.md holds the dossier 1.0 rules and the hooks of dossier 1.0 are installed in this repository.
 - accept: AGENTS.md holds the dossier 1.0 rules and the hooks of dossier 1.0 are installed in this repository.
 - verify: git grep -q -F -e "--topic" -- AGENTS.md && git grep -q -F -e "--code" -- AGENTS.md
+- verified: 2026-11-25
+- commit: cea3b8b
 - reqs: R-AGENT-1, R-CODE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): done
 
 ### T-494 · Propose a topic and a code pointer for each decision of this project's dossier
 - status: open
@@ -10866,6 +10870,25 @@
 - reqs: R-CODE-8, R-AGENT-3
 - note (2026-11-25, planner): added
 
+### T-511 · init: every dossier's state folder ignores write.lock, holder.json and shown/ in git
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: fix
+- milestone: T-503
+- why: The guard hook writes one file per Claude session into .state/shown/ (R-CODE-8); without an ignore line these files end up in every commit, and init of a project dossier writes no .state/.gitignore at all although project folders are git repositories (D36, idea T-430).
+- summary: The files of each Claude session and the lock files stay out of git in every dossier, not only in a team dossier.
+- files: src/cmd/init.rs, tests/cmd_init.rs, docs/format.md
+- read: docs/format.md, src/cmd/init.rs
+- steps:
+  1. src/cmd/init.rs: IGNORE_TEXT becomes `write.lock\nholder.json\nshown/\n`. Write the ignore file of the state folder for a project dossier too, in the same way and at the same point as for a team dossier, and update the doc comments of IGNORE and IGNORE_TEXT (format.md §20 and §36).
+  2. tests/cmd_init.rs: after `init --code P-001` the file DOSSIER/.state/.gitignore holds exactly `write.lock`, `holder.json` and `shown/`, one per line; the existing test of the team dossier's ignore file expects the new line too.
+  3. docs/format.md: in §20, where the ignore file of the state folder is described, say that every dossier has it and that it lists `write.lock`, `holder.json` and `shown/`; in §36 add the sentence `The folder is listed in .state/.gitignore, so the files of a session never reach git.`
+  4. Run cargo test --test cmd_init.
+- accept: init writes .state/.gitignore with write.lock, holder.json and shown/ for project and team dossiers, and format.md says so.
+- verify: cargo test --test cmd_init
+- reqs: R-CODE-8, D36
+- note (2026-11-25, planner): added
+
 ## Questions
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.
@@ -10990,10 +11013,11 @@
 - note (2026-11-24, planner): added
 
 ### T-430 · init of a project dossier does not write .state/.gitignore (write.lock, holder.json); only init --team-dossier does, although project folders are git repositories too (D36). Found when the dossier project got its own DOSSIER, 2026-11-25.
-- status: open
+- status: dropped
 - owner: —
 - type: idea
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): dropped — Covered by T-511: init writes the state ignore file for every dossier.
 
 ### T-497 · topics add with a name that is not in the settings is refused with 'this command needs a name' instead of the unknown-name error of R-CFG-4, because topics is not in WRITING of src/ctx.rs (topics.rs loads its context as "topics" for both actions). Load the add action as its own command name and add that to WRITING (found in T-463).
 - status: open
@@ -11031,3 +11055,9 @@
 - type: idea
 - note (2026-11-25, planner): added
 - note (2026-11-25, planner): dropped — Covered by the 1.0.1 tasks: select ranked_in and its use in search (T-505, T-506).
+
+### T-510 · agents install writes the whole rules text into a code project (code_project = true), with the parts about simulation runs, large files and customers; R-CODE-5 says a code project's rules leave them out (found when the dossier project got the 1.0 rules, 2026-11-25).
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-25, planner): added
