@@ -10742,6 +10742,130 @@
 - reqs: R-TOPIC-1 to R-TOPIC-3, R-CODE-7
 - note (2026-11-25, planner): added
 
+### T-503 · 1.0.1: rare words are weighed against the whole dossier, and guard's refusal reads as a note
+- status: open
+- owner: —
+- priority: P1 · type: milestone
+- goal: search's list of entries with some of the words and every section of brief --task weigh a word by how many entries of the whole dossier hold it, so a word that is common in the dossier never lifts an entry; brief --task lists at most 5 related entries; guard's refusal before an edit has no `error:` prefix. In the project's own dossier, search connection reuse lists FND-011 and DEC-043 among the first three results.
+- why: A test of 1.0 on the project's own dossier (2026-11-25) found that select::ranked weighs words only within the pool it is given: brief --task listed the same unrelated dead end and investigation for every task, and search connection reuse put DEC-043 fourth.
+- summary: Fixes from testing version 1.0 on the project's own dossier: related entries and partial search results are ranked against the whole dossier, brief --task lists fewer related entries, and the check before an edit no longer looks like an error.
+- note (2026-11-25, planner): added
+
+### T-504 · design.md: section 21.4, the fixes of 1.0.1
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: docs
+- milestone: T-503
+- why: Every signature a worker uses is fixed in design.md first.
+- summary: The design document names the two new ranking functions, the new error code for a refusal that is a note, and the smaller related list.
+- files: docs/design.md
+- read: docs/design.md, src/select.rs, src/error.rs, src/output.rs
+- steps:
+  1. After section 21.3 at the end of docs/design.md, add the heading `### 21.4 Fixes of 1.0.1` and the sentence `Found by testing 1.0 on the project's own dossier: select::ranked weighs a word only within the items it is given, so a small pool makes every word rare.`
+  2. Add a rust block that starts with `// select.rs` and holds, each with its `///` line: `/// As ranked, but every weight comes from index (an Index of the whole dossier), not from items.` `pub fn ranked_in<'a>(items: &'a [Item], query: &Query, index: &Index) -> Vec<(u32, &'a Item)>;` and `/// The items of the first limit rows of ranked_in.` `pub fn top_in<'a>(items: &'a [Item], query: &Query, index: &Index, limit: usize) -> Vec<&'a Item>;` and the comment `// ranked and top stay, and call ranked_in with Index::of(items).` Then `// error.rs` with `/// A refusal that is a note to read, not a failure: exit code 2, its message printed without "error: ".` and `Blocked,` (a variant of Code, name `BLOCKED`).
+  3. Add a table `| Command | Arguments | Result |` with the rows: `search` `<words…>`: the list after `some of the words:` is ranked with ranked_in and an Index of every entry search looked at; `brief --task` `<task>`: dead ends, investigations and related entries are chosen with top_in and one Index of every approved entry; related entries at most 5 (was 10); `guard` (payload): the refusal of an edit inside DOSSIER and the refusal before the first edit of a bound file use Code::Blocked, so standard error holds the message alone, exit code 2.
+- accept: design.md section 21.4 names ranked_in, top_in, Code::Blocked and the changed outputs.
+- verify: git grep -q -F "### 21.4 Fixes of 1.0.1" -- docs/design.md && git grep -q -F "pub fn top_in" -- docs/design.md
+- note (2026-11-25, planner): added
+
+### T-505 · select.rs: ranked_in and top_in weigh words with a given Index
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: fix
+- milestone: T-503
+- why: A small pool of candidates makes every word rare; the weights must come from the whole dossier (R-FIND-2).
+- summary: The ranking can use word weights counted over the whole dossier instead of over the few candidates it ranks.
+- depends: T-504
+- files: src/select.rs
+- read: docs/design.md, src/select.rs
+- steps:
+  1. src/select.rs: add `pub fn ranked_in<'a>(items: &'a [Item], query: &Query, index: &Index) -> Vec<(u32, &'a Item)>` with the body of today's `ranked`, using `index` in place of the Index it builds from `items` today. `ranked` becomes `ranked_in(items, query, &Index::of(items))`.
+  2. Add `pub fn top_in<'a>(items: &'a [Item], query: &Query, index: &Index, limit: usize) -> Vec<&'a Item>`: the items of the first `limit` rows of `ranked_in`. `top` becomes `top_in(items, query, &Index::of(items), limit)`. Doc comments as design.md section 21.4.
+  3. Unit tests: a dossier of 8 invented items where 7 hold the word `valve` and 1 holds `gasket`, and a pool of the 2 items `Valve check` and `Gasket check` (titles): with the query words `valve gasket`, `ranked_in(pool, query, &Index::of(&all))` puts `Gasket check` first, while `ranked(pool, query)` scores both the same; `top_in` with limit 1 gives `Gasket check`; the existing tests of ranked and top pass unchanged.
+  4. Run cargo test --lib select::
+- accept: select::ranked_in and top_in rank with the weights of a given Index; ranked and top behave as before.
+- verify: cargo test --lib select::
+- reqs: R-FIND-2, R-FIND-3
+- note (2026-11-25, planner): added
+
+### T-506 · search: the list of entries with some of the words is weighed against every entry searched
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: fix
+- milestone: T-503
+- why: With weights from the partial matches alone, search connection reuse ranked DEC-011 (never reused) above DEC-043 (its own ssh connection) in the project's dossier.
+- summary: Entries that hold only some of the search words are ranked by how rare each word is in the whole dossier.
+- depends: T-505
+- files: src/cmd/search.rs, tests/cmd_search.rs
+- read: docs/design.md, src/cmd/search.rs, src/select.rs
+- steps:
+  1. src/cmd/search.rs: collect every item that the word search looked at (all entries of the scanned dossiers that pass the filters, whether they match or not) and build one `select::Index::of(&all)`. Pass it to `partial_hits`, which ranks with `select::ranked_in(&items, &query, &index)` instead of `select::ranked`. Update the doc comments of `partial_hits` and of the module.
+  2. tests/cmd_search.rs: invented entries: five findings whose text holds `reused` and none of them `connection`; a decision titled `Each command opens its own connection`; a decision titled `Entry numbers are never reused`; and the search `connection reuse`. The decision about the connection is listed first under `some of the words:`, because only one entry holds `connection` and six hold a form of `reuse`.
+  3. Run cargo test --test cmd_search.
+- accept: search ranks the entries with some of the words by word weights of all entries searched.
+- verify: cargo test --test cmd_search
+- reqs: R-READ-3, R-FIND-2
+- note (2026-11-25, planner): added
+
+### T-507 · brief --task: dead ends, investigations and related entries are weighed against every approved entry, at most 5 related
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: fix
+- milestone: T-503
+- why: brief --task ranked its one or two dead ends and investigations among themselves, so every word was rare and the same unrelated FND-010 and INV-001 were listed for every task; and 10 related entries were mostly weak.
+- summary: The sections of brief --task use word weights of the whole dossier, so common words stop pulling in unrelated entries, and the related list is shorter.
+- depends: T-505
+- files: src/brief_task.rs, tests/cmd_brief.rs
+- read: docs/design.md, src/brief_task.rs, src/select.rs
+- steps:
+  1. src/brief_task.rs: build one `select::Index::of(&approved)` from every approved entry the task brief reads, before they are split into dead ends and the rest. Use `select::top_in(..., &index, ...)` in place of `select::top` for the dead ends, the investigations and the related entries.
+  2. Change RELATED_LIMIT from 10 to 5. Update the comments that name the limit.
+  3. tests/cmd_brief.rs: invented entries: a dead end titled `Shared build folder breaks parallel test runs`, an approved decision whose title holds `path`, ten approved findings whose texts hold `path`; a todo task titled `Topic check on the update path of learn`: brief --task lists no `## Dead ends` section, because `path` is common in this dossier and the dead end shares no other word. Adjust existing expectations only where the order or the cut at 5 related entries changes them, and say so in the commit message.
+  4. Run cargo test --test cmd_brief and cargo test --lib brief_task::.
+- accept: brief --task chooses dead ends, investigations and related entries with weights of the whole dossier, and lists at most 5 related entries.
+- verify: cargo test --test cmd_brief && cargo test --lib brief_task::
+- reqs: R-CTX-2, R-FIND-2, R-FIND-3
+- note (2026-11-25, planner): added
+
+### T-508 · error.rs and output.rs: Code::Blocked, a refusal printed without error:
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: fix
+- milestone: T-503
+- why: guard's refusal before an edit is a note for the LLM to read; the `error:` prefix makes it look like dossier failed.
+- summary: A new kind of refusal prints its message alone, so a hook's note does not look like a crash.
+- depends: T-504
+- files: src/error.rs, src/output.rs
+- read: docs/design.md, src/error.rs, src/output.rs
+- steps:
+  1. src/error.rs: add the variant `Blocked` to Code with the doc comment of design.md section 21.4; its exit code is 2 and its name `BLOCKED`. Add it to every match over Code.
+  2. src/output.rs, `render`: for an error with Code::Blocked and no --json, standard error is the message with a line break and no `error: ` before it. Every other error is printed as before.
+  3. Unit tests in src/output.rs: a Blocked error gives standard error `note text\n` and exit code 2; a Usage error still gives `error: …`; with --json a Blocked error gives the JSON line with code `BLOCKED`.
+  4. Run cargo test --lib output:: and cargo test --lib error::
+- accept: Code::Blocked exists, exits with 2, and its message is printed without the error: prefix.
+- verify: cargo test --lib output:: && cargo test --lib error::
+- reqs: R-OUT-1, R-CODE-8
+- note (2026-11-25, planner): added
+
+### T-509 · guard: both refusals use Code::Blocked
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: fix
+- milestone: T-503
+- why: The refusal before the first edit of a bound file must read as a note to the LLM, not as an error (D51).
+- summary: guard's refusals print only their message, so the LLM reads the entries as a note before it edits.
+- depends: T-508
+- files: src/cmd/guard.rs, tests/cmd_guard.rs
+- read: docs/design.md, src/cmd/guard.rs, src/error.rs
+- steps:
+  1. src/cmd/guard.rs: the two refusals (an edit inside DOSSIER, and the first edit of a file that entries in force bind) fail with Code::Blocked instead of Code::Usage. Update the comments that name Code::Usage.
+  2. tests/cmd_guard.rs: the existing refusal tests now expect standard error to start with the message itself (for the bound file: `Entries in force for`), not with `error:`; the exit code stays 2.
+  3. Run cargo test --test cmd_guard.
+- accept: guard refuses with exit code 2 and a message that does not start with error:.
+- verify: cargo test --test cmd_guard
+- reqs: R-CODE-8, R-AGENT-3
+- note (2026-11-25, planner): added
+
 ## Questions
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.
@@ -10794,11 +10918,12 @@
 - note (2026-11-25, planner): answer — Owner, 2026-11-25: before. 1.0 must show the entries that bind a file before the LLM edits it, not only after. This needs a test first of what Claude Code's PreToolUse hook can pass to the model; T-476, T-477 and the requirements (R-CODE-8) must be changed accordingly before they are worked on.
 
 ### T-492 · Which topics should this project's own dossier have (at most twelve)? Proposed from the 72 entries: entries, approval, search, remote, files, team, hooks, todo, release. Only a person adds them, with dossier topics add <name>, once dossier 1.0.0 is installed (D50); answer with the list you want.
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - type: question
 - about: T-481
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): answer — Owner, 2026-11-25: entries, approval, search, remote, files, team, hooks, todo, release.
 
 ## Ideas
 
@@ -10901,7 +11026,8 @@
 - note (2026-11-25, planner): added
 
 ### T-502 · search ranks the entries with only some of the words (T-451) with select::ranked over those entries alone, so word rarity is counted among them, not across all entries as R-FIND-2 says. Weigh them with an Index of every entry.
-- status: open
+- status: dropped
 - owner: —
 - type: idea
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): dropped — Covered by the 1.0.1 tasks: select ranked_in and its use in search (T-505, T-506).
