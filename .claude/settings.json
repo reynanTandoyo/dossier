@@ -1,0 +1,37 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "dossier after",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash|PowerShell"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "dossier guard",
+            "type": "command"
+          }
+        ],
+        "matcher": "Edit|Write|MultiEdit"
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "dossier brief",
+            "type": "command"
+          }
+        ]
+      }
+    ]
+  }
+}
