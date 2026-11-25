@@ -11084,6 +11084,28 @@
 - note (2026-11-25, planner): added
 - note (2026-11-25, haiku-T-520): done
 
+### T-522 · Release 1.1.0: linked entries come along
+- status: done
+- owner: planner
+- priority: P1 · difficulty: 1 · type: chore
+- why: Milestone T-515 (linked entries, D53) is finished on main and the owner wants it released.
+- summary: Version 1.1.0 is built, checked on Windows and Linux, tagged and published on GitHub.
+- files: Cargo.toml, Cargo.lock, README.md
+- read: docs/requirements.md
+- steps:
+  1. Cargo.toml: version = "1.1.0"; cargo build so that Cargo.lock follows (only the dossier version line changes).
+  2. README.md: status line `**Status: v1.1**`; after the 1.0 section a section `### What version 1.1 adds` about linked entries (search, brief --task, which --binding and guard; one level, titles only, at most three, approved only; D53); the server sample shows 1.1.0.
+  3. Run fmt, clippy and all tests on Windows and in WSL; after CI passes, the owner tags v1.1.0.
+- accept: Version 1.1.0 builds, passes every check, and the README says what it adds.
+- verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
+- verified: 2026-11-25
+- commit: 5087417
+- reqs: REL-1, REL-2, R-FIND-5
+- by: Reynan Henry Tandoyo
+- note (2026-11-25, planner): added
+- note (2026-11-25, planner): done
+- note (2026-11-25, planner): Checked on Windows (2411 tests), WSL Fedora 44 (2415) and CI; tagged v1.1.0 and published: https://github.com/reynanTandoyo/dossier/releases/tag/v1.1.0
+
 ## Questions
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.
