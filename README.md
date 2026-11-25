@@ -4,7 +4,7 @@
 while doing its projects. People and their LLMs write to it and read from it, so that neither has
 to rely on memory.
 
-**Status: v0.6 (phase 6)**
+**Status: v1.0**
 
 - [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the six phases it is
   built in.
@@ -1019,6 +1019,94 @@ Still not built. See [`docs/requirements.md`](docs/requirements.md), section 5.1
   `todo`, so it stays an idea for `todo`. For Claude Code, the hook after `todo` commands gives
   the same result.
 
+### What version 1.0 adds
+
+Version 1.0 shows an LLM the entries that matter for its work, also when they are worded
+differently. Words are compared by their stems, each entry can name a topic and point to code, and
+the entries that bind a file are shown before an LLM edits it. No model is called and no embeddings
+are stored: the search is still full-text.
+
+#### Search by word stems
+
+A word is compared by its English stem, so `seal` finds an entry that says `sealing`, and `reuse`,
+`reusing` and `reused` count as one word. Common words such as `and` and `the` never count. When
+several words are typed, the entries that hold only some of them are listed after the full matches,
+under the line `some of the words:`.
+
+```sh
+dossier search seal speedline
+```
+
+```
+some of the words:
+DEC-001  Seal leakage limits the pump speed
+DEC-002  Use a steady run for the speedline
+0 matches, 2 with some of the words
+```
+
+#### Related entries by rare words
+
+`decide`, `learn`, `problem`, `brief --task` and `search --similar` choose related entries the same
+way. A word that few entries hold counts more than a common one, and an entry that shares only
+common words with the text is not related to it (decision [D48](docs/requirements.md)).
+
+#### Topics
+
+A topic says which part of the work an entry belongs to. A project has one short list of topics.
+A person adds to it with `dossier topics add`. Once the list has topics, an LLM must name one with
+`--topic` when it writes a decision, assumption, finding, lesson, how-to or investigation, or the
+entry is refused.
+
+```sh
+dossier topics add pumps
+dossier topics add seals
+dossier decide "Seal leakage limits the pump speed" --reason "Measured leakage above 2 percent stops the test" --topic seals --rejected "Higher speed test: leakage too high"
+dossier topics
+dossier list --topic seals
+```
+
+```
+pumps  0
+seals  1
+```
+
+`brief` prints the topics on one line, with the number of decisions in force that name each one,
+and every decision line names its topics. `list` and `search` take `--topic <name>`.
+
+#### Pointers to code
+
+An entry can name the code it is about with `--code`: a file, such as `src/pump/seal.rs`, a file
+and a name in it, such as `src/pump/seal.rs::leak_model`, or a folder, which covers every file in
+it. `which <path>` lists the entries that point to a file. `which <path> --binding` prints only the
+approved entries in force that cover it. `brief --task` uses the pointers for the files of the task.
+
+```sh
+dossier decide "Seal leakage limits the pump speed" --reason "Measured leakage above 2 percent stops the test" --code src/pump --rejected "Higher speed test: leakage too high"
+dossier which src/pump/seal.rs --binding
+```
+
+```
+DEC-001 · decision · Seal leakage limits the pump speed
+  Seal leakage limits the pump speed
+```
+
+#### The check before an edit
+
+Before an LLM edits a file, the `PreToolUse` hook `dossier guard` looks for the approved entries in
+force that bind the file. When there are some, the first edit of that file in a session is refused
+once, and the refusal names them. The next edit of the file goes through, because the session has
+been shown them (decision [D51](docs/requirements.md)).
+
+```
+error: Entries in force for src/pump/seal.rs; read them, then make your edit again (dossier show <ID> prints one in full):
+DEC-001 · decision · Seal leakage limits the pump speed
+  Seal leakage limits the pump speed
+```
+
+After an upgrade from 0.6, run `dossier agents install --yes` in each project. It updates the rules
+for LLMs in `AGENTS.md`, which now tell an LLM to give a topic and a code pointer. The hooks need no
+change: the check before an edit runs in `dossier guard`, which `hooks install` already added.
+
 ## What it needs
 
 - [`todo`](https://github.com/reynanTandoyo/todo) 0.8 or newer. `todo` keeps the tasks of a
@@ -1228,7 +1316,7 @@ lines:
 
 ```
 ssh: ok
-dossier on the server: 0.6.0
+dossier on the server: 1.0.0
 todo on the server: 0.8.0
 dossier folder: ok (P-001)
 ```
