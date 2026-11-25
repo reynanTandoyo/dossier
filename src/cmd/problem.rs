@@ -8,12 +8,12 @@ use crate::create::{self, New};
 use crate::ctx::Ctx;
 use crate::entry::{Kind, Status};
 use crate::error::{Code, Error, Result};
+use crate::glossary::{self, Term};
 use crate::output::Output;
 use crate::select::{self, Query};
 use crate::store::{self, Item};
 use crate::tx;
 use serde_json::json;
-use std::path::Path;
 
 /// The value of `kind` in dossier.toml of a team dossier.
 const TEAM: &str = "team";
@@ -86,7 +86,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     };
     let new = new_investigation(args, problem, observed, &title);
     tx::write(&ctx, |tx| {
-        let similar = similar_to(&tx.ctx().dossier, &query);
+        let similar = similar_to(tx.ctx(), &query);
         let (id, _text) = create::create(tx, &new)?;
         let mut lines = vec![format!("{id}: added (open)")];
         lines.extend(
@@ -158,9 +158,9 @@ fn title_of(args: &Args, problem: &str) -> String {
 }
 
 /// The approved investigations most like a new one, best first, at most `SIMILAR` of them
-/// (select::best with the query's tags and title words).
-fn similar_to(dossier: &Path, query: &Query) -> Vec<Similar> {
-    let (items, _warnings) = store::all(dossier);
+/// (select::top with the query's tags and title words, widened by the glossary's spellings).
+fn similar_to(ctx: &Ctx, query: &Query) -> Vec<Similar> {
+    let (items, _warnings) = store::all(&ctx.dossier);
     let investigations: Vec<Item> = items
         .into_iter()
         .filter(|item| {
@@ -168,7 +168,8 @@ fn similar_to(dossier: &Path, query: &Query) -> Vec<Similar> {
                 && item.entry.status() == Some(Status::Approved)
         })
         .collect();
-    select::best(&investigations, query, SIMILAR)
+    let widened = select::widened(query, &glossary_terms(ctx));
+    select::top(&investigations, &widened, SIMILAR)
         .into_iter()
         .map(|item| Similar {
             id: item.entry.id(),
@@ -176,6 +177,15 @@ fn similar_to(dossier: &Path, query: &Query) -> Vec<Similar> {
             title: item.entry.title(),
         })
         .collect()
+}
+
+/// The terms of the glossary of the dossier in file order (format.md section 20). A glossary that
+/// cannot be read gives no terms, so the similar investigations are chosen without them.
+fn glossary_terms(ctx: &Ctx) -> Vec<Term> {
+    match glossary::load(&ctx.dossier, &ctx.cfg.code) {
+        Ok((file, _)) => glossary::terms(&file),
+        Err(_) => Vec::new(),
+    }
 }
 
 /// The values of the tag options, each comma-separated value trimmed; blank values are left out.

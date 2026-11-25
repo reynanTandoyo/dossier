@@ -195,6 +195,31 @@ fn a_problem_unlike_the_earlier_ones_names_no_similar_investigation() {
 }
 
 #[test]
+fn a_problem_with_other_forms_of_the_words_of_an_earlier_one_names_it_as_similar() {
+    let project = Project::new();
+    project.stdout("anna", &["problem", "Transfers fail for paths with spaces"]);
+    let stdout = project.stdout(
+        "anna",
+        &["problem", "A transfer failed for a path with a space"],
+    );
+    assert_eq!(
+        stdout,
+        "INV-002: added (open)\nsimilar: INV-001 [open] Transfers fail for paths with spaces\n"
+    );
+}
+
+#[test]
+fn an_earlier_problem_that_shares_only_common_words_is_not_named() {
+    let project = Project::new();
+    project.stdout("anna", &["problem", "The log for the run with the solver"]);
+    let stdout = project.stdout(
+        "anna",
+        &["problem", "The transfer failed for a path with a space"],
+    );
+    assert_eq!(stdout, "INV-002: added (open)\n");
+}
+
+#[test]
 fn json_gives_the_id_the_state_and_the_similar_ids() {
     let project = Project::new();
     // The keys of the JSON data are in alphabetical order, so each part is checked on its own.
