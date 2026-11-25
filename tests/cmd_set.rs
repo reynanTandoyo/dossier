@@ -479,3 +479,122 @@ fn a_dry_run_by_an_llm_changes_nothing() {
     assert_eq!(recorded_checksums(&project), checksums);
     assert!(!snapshot_exists(&project, "LES-001", "000001"));
 }
+
+/// Writes `topics = [...]` into dossier.toml, after the `code` line, so that it is a top-level key
+/// before the tables (format.md §35).
+fn project_has_topics(project: &Project, names: &[&str]) {
+    let list = names
+        .iter()
+        .map(|name| format!("\"{name}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let text = project.read("DOSSIER/dossier.toml");
+    let mut edited = String::new();
+    for line in text.split_inclusive('\n') {
+        edited.push_str(line);
+        if line.starts_with("code = ") {
+            edited.push_str(&format!("topics = [{list}]\n"));
+        }
+    }
+    assert!(edited.contains("topics = ["), "{edited}");
+    project.write("DOSSIER/dossier.toml", &edited);
+}
+
+#[test]
+fn a_topic_on_the_list_is_written_with_a_history_line() {
+    let project = Project::new();
+    anna_finds(&project);
+    project_has_topics(&project, &["pumps", "rig"]);
+    let before = text_of(&project, "FND-001");
+
+    project
+        .run("anna", &["set", "FND-001", "--field", "topic=rig"])
+        .success()
+        .stdout("FND-001: changed\n");
+
+    let after = text_of(&project, "FND-001");
+    let history = format!("- history: {WHEN} anna: changed — field topic\n");
+    assert_eq!(after.matches(&history).count(), 1);
+    assert_eq!(after.matches("- topic: rig\n").count(), 1);
+    // Taking away the history line and the topic line gives back the old text.
+    assert_eq!(
+        after
+            .replacen(&history, "", 1)
+            .replacen("- topic: rig\n", "", 1),
+        before
+    );
+}
+
+#[test]
+fn topics_are_matched_ignoring_case_and_each_comma_separated_value_is_checked() {
+    let project = Project::new();
+    anna_finds(&project);
+    project_has_topics(&project, &["pumps", "rig"]);
+
+    project
+        .run("anna", &["set", "FND-001", "--field", "topic=PUMPS, rig"])
+        .success()
+        .stdout("FND-001: changed\n");
+    assert_eq!(
+        entry_of(&project, "FND-001").field("topic").as_deref(),
+        Some("PUMPS, rig")
+    );
+
+    let before = text_of(&project, "FND-001");
+    project
+        .run("anna", &["set", "FND-001", "--field", "topic=pumps,valves"])
+        .failure()
+        .code(2)
+        .stderr(contains("unknown topic valves"));
+    assert_eq!(text_of(&project, "FND-001"), before);
+}
+
+#[test]
+fn a_topic_off_the_list_is_a_usage_error_and_the_file_is_unchanged() {
+    let project = Project::new();
+    anna_finds(&project);
+    project_has_topics(&project, &["pumps", "rig"]);
+    let before = text_of(&project, "FND-001");
+
+    project
+        .run("anna", &["set", "FND-001", "--field", "topic=valves"])
+        .failure()
+        .code(2)
+        .stderr(contains(
+            "unknown topic valves; the topics of this project: pumps, rig (dossier topics)",
+        ));
+    assert_eq!(text_of(&project, "FND-001"), before);
+    assert!(!snapshot_exists(&project, "FND-001", "000001"));
+}
+
+#[test]
+fn an_empty_topic_removes_the_field_when_the_project_has_topics() {
+    let project = Project::new();
+    anna_finds(&project);
+    project_has_topics(&project, &["pumps", "rig"]);
+    project
+        .run("anna", &["set", "FND-001", "--field", "topic=rig"])
+        .success();
+
+    project
+        .run("anna", &["set", "FND-001", "--field", "topic="])
+        .success()
+        .stdout("FND-001: changed\n");
+    assert_eq!(entry_of(&project, "FND-001").field("topic"), None);
+    assert!(!text_of(&project, "FND-001").contains("- topic:"));
+}
+
+#[test]
+fn without_topics_in_the_settings_any_topic_is_written() {
+    let project = Project::new();
+    anna_finds(&project);
+
+    project
+        .run("anna", &["set", "FND-001", "--field", "topic=valves"])
+        .success()
+        .stdout("FND-001: changed\n");
+    assert_eq!(
+        entry_of(&project, "FND-001").field("topic").as_deref(),
+        Some("valves")
+    );
+}

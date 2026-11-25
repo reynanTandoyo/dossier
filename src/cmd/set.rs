@@ -55,6 +55,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         ));
     }
     let fields = field_pairs(&args.fields)?;
+    check_topics(&ctx.cfg.topics, &fields)?;
     let sections = section_pairs(&args.sections)?;
     let who = ctx.writer()?.clone();
 
@@ -180,6 +181,34 @@ fn field_pairs(items: &[String]) -> Result<Vec<(String, String)>> {
             Ok((key, value.trim().to_string()))
         })
         .collect()
+}
+
+/// When the project has topics, each comma-separated value of a `topic` field, trimmed, must equal
+/// a topic of the list ignoring case (R-TOPIC-2). An empty value removes the field and is allowed;
+/// with no topics in the settings any value is allowed. Code::Usage names the unknown value and
+/// the topics of the project.
+fn check_topics(topics: &[String], fields: &[(String, String)]) -> Result<()> {
+    if topics.is_empty() {
+        return Ok(());
+    }
+    for (key, value) in fields {
+        if key != "topic" || value.is_empty() {
+            continue;
+        }
+        for name in value.split(',').map(str::trim) {
+            let wanted = name.to_lowercase();
+            if !topics.iter().any(|topic| topic.to_lowercase() == wanted) {
+                return Err(Error::new(
+                    Code::Usage,
+                    format!(
+                        "unknown topic {name}; the topics of this project: {} (dossier topics)",
+                        topics.join(", ")
+                    ),
+                ));
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Whether a field key is one or more letters, digits or `-` (format.md §3).
