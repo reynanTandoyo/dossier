@@ -9711,8 +9711,8 @@
 - note (2026-11-25, haiku-T-442): done
 
 ### T-443 · select.rs: a query is widened by the glossary's spellings
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-443
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-433
 - why: `connection reuse` and a product name for the same thing share no word; the glossary knows they are one term.
@@ -9728,8 +9728,12 @@
   5. Run cargo test --lib select::
 - accept: select::widened adds the other spellings of every glossary term the query names.
 - verify: cargo test --lib select::
+- verified: 2026-11-25
+- commit: 92ec18c
 - reqs: R-FIND-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-443): done
 
 ### T-444 · decide: related decisions are chosen with the new ranking
 - status: open
@@ -9812,8 +9816,8 @@
 - note (2026-11-25, planner): added
 
 ### T-448 · search --similar: the new ranking
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-448
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-433
 - why: search --similar is the same question as the related lists and must give the same kind of answer.
@@ -9827,8 +9831,12 @@
   3. Run cargo test --test cmd_search. Where an existing test fails because a weak match is no longer listed (R-FIND-3), change its expectation and say so in the commit message.
 - accept: search --similar ranks by stems and rarity.
 - verify: cargo test --test cmd_search
+- verified: 2026-11-25
+- commit: 8565aab
 - reqs: R-READ-9, R-FIND-1 to R-FIND-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-448): done
 
 ### T-449 · select.rs: remove score, reason and best
 - status: open
@@ -9986,8 +9994,8 @@
 - note (2026-11-25, planner): added
 
 ### T-456 · propose: the option --topic
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-456
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-435
 - why: An LLM that is refused for a missing topic needs an option to give one.
@@ -10002,12 +10010,16 @@
   4. Run cargo test --test cmd_propose.
 - accept: propose --topic writes the topic field; the rules of create apply.
 - verify: cargo test --test cmd_propose
+- verified: 2026-11-25
+- commit: 62ef0d8
 - reqs: R-TOPIC-2, R-TOPIC-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-456): done
 
 ### T-457 · found: the option --topic
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-457
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-435
 - why: An LLM that is refused for a missing topic needs an option to give one.
@@ -10022,8 +10034,12 @@
   4. Run cargo test --test cmd_found.
 - accept: found --topic writes the topic field; the rules of create apply.
 - verify: cargo test --test cmd_found
+- verified: 2026-11-25
+- commit: bcd54c2
 - reqs: R-TOPIC-2, R-TOPIC-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-457): done
 
 ### T-458 · learn: the option --topic
 - status: open
@@ -10047,8 +10063,8 @@
 - note (2026-11-25, planner): added
 
 ### T-459 · assume: the option --topic
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-459
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-435
 - why: An LLM that is refused for a missing topic needs an option to give one.
@@ -10063,8 +10079,12 @@
   4. Run cargo test --test cmd_assume.
 - accept: assume --topic writes the topic field; the rules of create apply.
 - verify: cargo test --test cmd_assume
+- verified: 2026-11-25
+- commit: b044b41
 - reqs: R-TOPIC-2, R-TOPIC-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-459): done
 
 ### T-460 · problem: the option --topic
 - status: open
@@ -10088,8 +10108,8 @@
 - note (2026-11-25, planner): added
 
 ### T-461 · howto: the option --topic
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-461
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-435
 - why: An LLM that is refused for a missing topic needs an option to give one.
@@ -10104,8 +10124,12 @@
   4. Run cargo test --test cmd_howto.
 - accept: howto --topic writes the topic field; the rules of create apply.
 - verify: cargo test --test cmd_howto
+- verified: 2026-11-25
+- commit: b288cb6
 - reqs: R-TOPIC-2, R-TOPIC-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-461): done
 
 ### T-462 · set: a topic that is not on the list is refused
 - status: done
@@ -10156,8 +10180,8 @@
 - note (2026-11-25, sonnet-T-463): done
 
 ### T-464 · topics: the list with the number of entries per topic
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-464
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-435
 - why: A list of topics that nobody sees grows without anyone noticing which ones are used.
@@ -10172,8 +10196,12 @@
   4. Run cargo test --test cmd_topics.
 - accept: topics prints each topic of the project with the number of approved entries that name it.
 - verify: cargo test --test cmd_topics
+- verified: 2026-11-25
+- commit: db5e0be
 - reqs: R-TOPIC-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-464): done
 
 ### T-465 · topics add: a person adds a topic to the project's list
 - status: open
@@ -10387,8 +10415,8 @@
 - note (2026-11-25, haiku-T-474): done
 
 ### T-475 · which --binding: only the entries in force that bind a path
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-475
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-436
 - why: The hook needs a short answer: which decisions, findings and lessons hold for this file, and nothing else.
@@ -10404,8 +10432,12 @@
   5. Run cargo test --test cmd_which.
 - accept: which --binding prints the approved entries that cover a path, each once per session with --session.
 - verify: cargo test --test cmd_which
+- verified: 2026-11-25
+- commit: 7e81d2f
 - reqs: R-CODE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-475): done
 
 ### T-476 · hooks.rs: the edited file and the session of a hook payload
 - status: done
@@ -10751,6 +10783,12 @@
 - note (2026-11-25, planner): added
 
 ### T-498 · Empty pieces of a topic value are treated differently: create skips them (topic=rig, counts as rig), set refuses them with 'unknown topic ' and an empty name (found in T-454 and T-462). Skip empty pieces in set too.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-25, planner): added
+
+### T-499 · which --binding (T-475) takes 'in force' as status approved; an approved entry past its valid-until date still binds and is shown before an edit. Use the in-force rule of brief and filter (valid-from / valid-until) there too.
 - status: open
 - owner: —
 - type: idea
