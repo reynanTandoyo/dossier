@@ -10762,10 +10762,8 @@
 - note (2026-11-25, planner): added
 
 ### T-504 · design.md: section 21.4, the fixes of 1.0.1
-- status: claimed
+- status: done
 - owner: haiku-T-504
-- claimed: 2026-11-25T22:36+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-503
 - why: Every signature a worker uses is fixed in design.md first.
@@ -10778,7 +10776,11 @@
   3. Add a table `| Command | Arguments | Result |` with the rows: `search` `<words…>`: the list after `some of the words:` is ranked with ranked_in and an Index of every entry search looked at; `brief --task` `<task>`: dead ends, investigations and related entries are chosen with top_in and one Index of every approved entry; related entries at most 5 (was 10); `guard` (payload): the refusal of an edit inside DOSSIER and the refusal before the first edit of a bound file use Code::Blocked, so standard error holds the message alone, exit code 2.
 - accept: design.md section 21.4 names ranked_in, top_in, Code::Blocked and the changed outputs.
 - verify: git grep -q -F "### 21.4 Fixes of 1.0.1" -- docs/design.md && git grep -q -F "pub fn top_in" -- docs/design.md
+- verified: 2026-11-25
+- commit: 8b6c77b
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-504): done
 
 ### T-505 · select.rs: ranked_in and top_in weigh words with a given Index
 - status: open
@@ -10900,8 +10902,10 @@
 - note (2026-11-25, planner): added
 
 ### T-512 · requirements.md and design.md: D52, an LLM adds a topic after its person agrees
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-512
+- claimed: 2026-11-25T22:37+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-503
 - why: The owner decided on 2026-11-25 (D52, DEC-052) that an LLM may add a topic once its person has said yes, recorded with --said-by; D50 and R-TOPIC-1 still say only a person runs topics add.
