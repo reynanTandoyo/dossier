@@ -1,6 +1,6 @@
 # dossier — requirements
 
-Draft 11, 2026-11-23 (owner's decisions: D28 to D47). Four points are still open (§12); everything else is decided (§3) until the
+Draft 12, 2026-11-25 (owner's decisions: D28 to D51). Four points are still open (§12); everything else is decided (§3) until the
 owner says otherwise.
 
 Each requirement has a priority, which says how important it is. When it is built is decided
@@ -137,6 +137,10 @@ an LLM starts with the right context.
 | D45 | The order of the releases after 0.3: refusing credentials (R-CONF-7) is released alone as 0.3.1; investigations (D41, D42) become phase 4 (v0.4); working from the PC moves to phase 5 (v0.5) and growing projects to phase 6 (v0.6). (Owner, 2026-11-23.) | The credential check protects every dossier already in use, so it does not wait for a larger release. |
 | D46 | `take` from a PC never overwrites a local file that already exists: it keeps the local copy and says that deleting it and running the same `take` copies the server's version. A copy goes to `<name>.dossier-part` first and is renamed only when complete, so a failed copy leaves no half file. (Owner, 2026-11-23.) | A repeated `take` by mistake must not wipe local edits, and a retry after a failed copy still works. |
 | D47 | 0.5.0 is released without the manual test on the real server (TEST-10). It is run before `take` and `return` are used on real work. (Owner, 2026-11-23.) | The team does not use the large-file feature yet; the automatic tests, and an end-to-end run with real ssh and scp against a test server in WSL, pass. |
+| D48 | Finding by word stems and rare words: wherever entries are chosen as related to a text, and in search, words are compared by their English word stem, and a word that few entries hold counts more than a common one (R-FIND-1 to R-FIND-4). This is still full-text search: no model is called and nothing is stored next to the entries, as D7 and D11 require. (Owner, 2026-11-25.) | In the project's own dossier, `search connection reuse` found nothing although two entries are about it, and `brief --task` listed entries that shared only the word "and" with the task. |
+| D49 | Word stems come from the library rust-stemmers (the Snowball English stemmer, MIT/BSD licence); dossier carries no stemmer of its own. (Owner, 2026-11-25.) | A tested stemmer handles English endings correctly; an own one would be smaller but make more mistakes, and finding is what version 1.0 is for. |
+| D50 | Each project has one short list of topics, and entries name their topics from it. Only a person adds a topic (`topics add`); an LLM that finds no fitting topic asks its person. (Owner, 2026-11-25.) | A short list stays useful for finding; LLMs adding topics would fill it with near-duplicates. |
+| D51 | An LLM is shown the entries in force that bind a file before it changes the file: its first edit of the file in a session is refused once, naming those entries, and its next edit goes through (R-CODE-8). (Owner, 2026-11-25.) | Shown after the edit, a rule comes too late, and the LLM can at best repair its change. A test with Claude Code 2.1.331 on 2026-11-25 showed that the reason of a refused edit reaches the model before the file changes, while text added to an allowed edit only arrives with the edit's result. |
 
 ---
 
