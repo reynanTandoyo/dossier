@@ -10954,13 +10954,15 @@
 - note (2026-11-25, planner): added
 
 ### T-515 · Linked entries come along with search, brief --task and the check before an edit
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - goal: An entry's related entries (dossier link) are shown under it, one level deep, titles only, at most 3, only those in force, wherever an LLM is given entries: search results, every entry line of brief --task, and which --binding with the refusal of guard (D53, R-FIND-5).
 - why: Links are the most precise relation in the dossier because someone made them on purpose, but no command an LLM uses follows them: in a test on 2026-11-25 search found DEC-010 and not its linked FND-008.
 - summary: When an LLM finds an entry, it also sees the entries linked to it, so a decision comes with the finding behind it and a how-to with the assumption it rests on.
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): done — Linked entries come along under search results, brief --task entry lines and which --binding / guard's refusal: one level, titles only, at most three, approved only (D53).
 
 ### T-516 · requirements.md and design.md: D53 and R-FIND-5, linked entries come along
 - status: done
@@ -11009,10 +11011,8 @@
 - note (2026-11-25, haiku-T-517): done
 
 ### T-518 · search: the linked entries under each result
-- status: claimed
+- status: done
 - owner: haiku-T-518
-- claimed: 2026-11-25T21:12+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-515
 - why: An LLM that finds an entry with search must also see the entries linked to it (R-FIND-5).
@@ -11026,14 +11026,16 @@
   3. Run cargo test --test cmd_search.
 - accept: search shows the approved linked entries under each result, in text and JSON.
 - verify: cargo test --test cmd_search
+- verified: 2026-11-25
+- commit: c6e787e
 - reqs: R-FIND-5, R-READ-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-518): done
 
 ### T-519 · brief --task: the linked entries under each entry line
-- status: claimed
+- status: done
 - owner: haiku-T-519
-- claimed: 2026-11-25T21:12+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-515
 - why: The entries brief --task gives for a task must bring their linked entries along (R-FIND-5).
@@ -11050,15 +11052,17 @@
   6. Run cargo test --test cmd_brief and cargo test --lib brief_task::.
 - accept: brief --task shows the approved linked entries under each project entry line, without repeating entries it lists; the JSON is unchanged.
 - verify: cargo test --test cmd_brief && cargo test --lib brief_task::
+- verified: 2026-11-25
+- commit: 3c98c9e
 - reqs: R-FIND-5, R-CTX-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
 - note (2026-11-25, planner): forced set (owner was haiku-T-519)
+- note (2026-11-25, haiku-T-519): done
 
 ### T-520 · which --binding and guard: the linked entries under each binding entry
-- status: claimed
+- status: done
 - owner: haiku-T-520
-- claimed: 2026-11-25T21:12+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-515
 - why: Before an edit the LLM must see the reason behind a binding rule as well, for example the finding a decision is linked to (R-FIND-5, D51).
@@ -11073,8 +11077,12 @@
   4. Run cargo test --test cmd_which and cargo test --test cmd_guard.
 - accept: which --binding, and so guard's refusal, shows the approved linked entries under each binding entry.
 - verify: cargo test --test cmd_which && cargo test --test cmd_guard
+- verified: 2026-11-25
+- commit: b95dfaa
 - reqs: R-FIND-5, R-CODE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-520): done
 
 ## Questions
 
@@ -11244,6 +11252,12 @@
 - note (2026-11-25, planner): dropped — Covered by the 1.0.1 tasks: select ranked_in and its use in search (T-505, T-506).
 
 ### T-510 · agents install writes the whole rules text into a code project (code_project = true), with the parts about simulation runs, large files and customers; R-CODE-5 says a code project's rules leave them out (found when the dossier project got the 1.0 rules, 2026-11-25).
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-25, planner): added
+
+### T-521 · search (T-518) computes the linked entries of every entry that passes the filter, also partial candidates later cut to 10; each lookup is linear, so a large dossier costs O(n^2). Compute them only for the results that are printed.
 - status: open
 - owner: —
 - type: idea
