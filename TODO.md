@@ -9855,8 +9855,8 @@
 - note (2026-11-25, haiku-T-448): done
 
 ### T-449 · select.rs: remove score, reason and best
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-449
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-433
 - why: Two rankings side by side would let a later command pick the old one by mistake.
@@ -9870,8 +9870,12 @@
   3. Run cargo test --lib select:: and cargo build --all-targets.
 - accept: select.rs has one ranking; the program and all tests build.
 - verify: cargo test --lib select:: && cargo build --all-targets
+- verified: 2026-11-25
+- commit: 9a2aba6
 - reqs: R-FIND-1 to R-FIND-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-449): done
 
 ### T-450 · search: a word also matches by its stem
 - status: open
@@ -9989,8 +9993,8 @@
 - note (2026-11-25, haiku-T-454): done
 
 ### T-455 · decide: the option --topic
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-455
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-435
 - why: An LLM that is refused for a missing topic needs an option to give one.
@@ -10006,8 +10010,12 @@
   5. Run cargo test --test cmd_decide.
 - accept: decide --topic writes the topic field; the rules of create apply.
 - verify: cargo test --test cmd_decide
+- verified: 2026-11-25
+- commit: 3c75fec
 - reqs: R-TOPIC-2, R-TOPIC-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-455): done
 
 ### T-456 · propose: the option --topic
 - status: done
@@ -10058,8 +10066,8 @@
 - note (2026-11-25, haiku-T-457): done
 
 ### T-458 · learn: the option --topic
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-458
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-435
 - why: An LLM that is refused for a missing topic needs an option to give one.
@@ -10075,8 +10083,12 @@
   5. Run cargo test --test cmd_learn.
 - accept: learn --topic writes the topic field; the rules of create apply.
 - verify: cargo test --test cmd_learn
+- verified: 2026-11-25
+- commit: 3ad16c7
 - reqs: R-TOPIC-2, R-TOPIC-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-458): done
 
 ### T-459 · assume: the option --topic
 - status: done
@@ -10103,8 +10115,8 @@
 - note (2026-11-25, haiku-T-459): done
 
 ### T-460 · problem: the option --topic
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-460
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-435
 - why: An LLM that is refused for a missing topic needs an option to give one.
@@ -10120,8 +10132,12 @@
   5. Run cargo test --test cmd_problem.
 - accept: problem --topic writes the topic field; the rules of create apply.
 - verify: cargo test --test cmd_problem
+- verified: 2026-11-25
+- commit: 5b75d4b
 - reqs: R-TOPIC-2, R-TOPIC-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-460): done
 
 ### T-461 · howto: the option --topic
 - status: done
@@ -10245,8 +10261,8 @@
 - note (2026-11-25, haiku-T-465): done
 
 ### T-466 · brief: one line with the topics and their decisions in force
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-466
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-435
 - why: When brief has to leave decisions out, the LLM needs to know which groups exist and how to list one.
@@ -10261,8 +10277,12 @@
   4. Run cargo test --test cmd_brief.
 - accept: brief prints the topics line when the project has topics, and the same numbers in JSON.
 - verify: cargo test --test cmd_brief
+- verified: 2026-11-25
+- commit: 531e77f
 - reqs: R-TOPIC-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-466): done
 
 ### T-467 · brief: each decision line names its topics
 - status: open
@@ -10334,8 +10354,8 @@
 - note (2026-11-25, haiku-T-469): done
 
 ### T-470 · brief --task: code pointers are matched by codeptr
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-470
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-436
 - why: brief --task and which must agree on what a pointer covers.
@@ -10349,8 +10369,12 @@
   3. Run cargo test --lib brief_task::
 - accept: pointers_in uses codeptr, and a folder pointer is found for a task file inside the folder.
 - verify: cargo test --lib brief_task::
+- verified: 2026-11-25
+- commit: f48e982
 - reqs: R-CODE-4, R-CODE-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-470): done
 
 ### T-471 · decide: the option --code
 - status: open
@@ -10491,8 +10515,8 @@
 - note (2026-11-25, haiku-T-476): done
 
 ### T-477 · guard: the entries that bind a file are shown before its first edit
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-477
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-436
 - why: This is the step that puts a decision in front of the LLM before it changes the code the decision is about (D51).
@@ -10508,10 +10532,14 @@
   5. Update the module comment and the comment of `run`: guard now also shows, before the first edit of a file in a session, the entries in force that bind it. Run cargo test --test cmd_guard.
 - accept: dossier guard refuses the first edit of a file in a session when entries in force bind it, names them, and lets the next edit through.
 - verify: cargo test --test cmd_guard
+- verified: 2026-11-25
+- commit: c4e22e7
 - reqs: R-CODE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
 - note (2026-11-25, planner): T-484 answered 2026-11-25: the owner wants the entries shown BEFORE the edit (PreToolUse), not after. The steps below still describe the hook after the edit and must be changed by the planner before this task is worked on.
 - note (2026-11-25, planner): Rewritten 2026-11-25 for the answer of T-484: the check before an edit now lives in guard (PreToolUse), tested with Claude Code 2.1.331. The note above is settled.
+- note (2026-11-25, haiku-T-477): done
 
 ### T-478 · tests/retrieval.rs: fixed questions that the search must answer (TEST-12)
 - status: open
@@ -10813,6 +10841,18 @@
 - note (2026-11-25, planner): added
 
 ### T-499 · which --binding (T-475) takes 'in force' as status approved; an approved entry past its valid-until date still binds and is shown before an edit. Use the in-force rule of brief and filter (valid-from / valid-until) there too.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-25, planner): added
+
+### T-500 · learn --update <ID> --topic <name> writes a topic that is not on the project's list, because the update path does not go through create::create (found in T-458); R-TOPIC-2 says such a value is refused. Check the topic there as set does (T-462).
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-25, planner): added
+
+### T-501 · guard (T-477) refuses every edit of a bound file for ever when the payload's session_id holds a character other than ASCII letters, digits and '-': shown::unseen then returns every ID and records nothing. Claude Code sends UUIDs, so it does not happen today; treat such a session like a missing one in guard.
 - status: open
 - owner: —
 - type: idea
