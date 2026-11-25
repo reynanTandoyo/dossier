@@ -92,6 +92,9 @@ const MAX_TEAM: usize = 10;
 const RESTS_ON: &str = "rests-on";
 const REFUTED: &str = "refuted";
 
+/// The field that names the topics of an entry (R-TOPIC-1).
+const TOPIC: &str = "topic";
+
 /// The variable that is set when the command was started through ssh (R-REMOTE-12).
 const SSH_VARIABLE: &str = "SSH_CONNECTION";
 
@@ -230,6 +233,9 @@ struct Brief {
     /// The decisions in force (approved, or with `--on` in force on the day), newest first, without
     /// those a digest sums up.
     decisions: Vec<Decision>,
+    /// The topics of the settings, in their order, each with the decisions in force that name it
+    /// (R-TOPIC-5). Empty when the settings name no topic.
+    topics: Vec<TopicCount>,
     /// The assumptions that are open, by ID.
     assumptions: Vec<Line>,
     /// The open investigations, newest first, by ID (R-INV-5).
@@ -346,7 +352,9 @@ impl Brief {
     ) -> Brief {
         let wrong = Wrong::of(items, day);
         let digests = digest::in_force(items, day);
-        let mut decisions = shown(items, Kind::Decision, day);
+        // The decisions in force, those a digest sums up included: the topics count them all.
+        let in_force = shown(items, Kind::Decision, day);
+        let mut decisions = in_force.clone();
         decisions.sort_by(|a, b| newest_first(&a.entry, &b.entry));
         let (decisions, summed_decisions) = split_covered(decisions, &digests);
         let (findings, summed_findings) = split_covered(shown(items, Kind::Finding, day), &digests);
@@ -355,7 +363,8 @@ impl Brief {
             .chain(summed_findings)
             .collect();
         Brief {
-            head: head(ctx, remote),
+            head: head(ctx, remote, &in_force),
+            topics: topic_counts(&ctx.cfg.topics, &in_force),
             map: map_section,
             values: value_section,
             digests: digests
@@ -554,6 +563,7 @@ impl Brief {
             "digests": self.digests.iter().map(|digest| digest.id.as_str()).collect::<Vec<_>>(),
             "summed_up": self.summed.iter().map(|summed| summed.count).sum::<usize>(),
             "decisions": self.decisions.iter().map(|decision| decision.id.as_str()).collect::<Vec<_>>(),
+            "topics": self.topics.iter().map(|topic| json!({"name": topic.name, "decisions": topic.decisions})).collect::<Vec<_>>(),
             "assumptions": ids(&self.assumptions),
             "investigations": ids(&self.investigations),
             "findings": ids(&self.findings),
@@ -587,6 +597,12 @@ struct Summed {
     milestone: String,
     /// The number of entries it covers.
     count: usize,
+}
+
+/// One topic of the settings and the number of decisions in force that name it (R-TOPIC-5).
+struct TopicCount {
+    name: String,
+    decisions: usize,
 }
 
 /// One digest in force (R-CTX-15) as printed: its heading `<DIG-ID> · <milestone> · <title>` with
@@ -802,9 +818,10 @@ fn ids_of(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// The first two lines of the brief: the project line (the server line in remote mode), then
-/// the tags line when there are tags.
-fn head(ctx: &Ctx, remote: bool) -> Vec<String> {
+/// The first lines of the brief: the project line (the server line in remote mode), then the
+/// tags line when there are tags, then the topics line when the settings name topics. `decisions`
+/// are the decisions in force, as `shown` gives them.
+fn head(ctx: &Ctx, remote: bool, decisions: &[&Item]) -> Vec<String> {
     let project = if remote {
         server_line(ctx)
     } else {
@@ -812,7 +829,46 @@ fn head(ctx: &Ctx, remote: bool) -> Vec<String> {
     };
     let mut head = vec![project];
     head.extend(tags_line(&ctx.cfg.tags));
+    head.extend(topics_line(&topic_counts(&ctx.cfg.topics, decisions)));
     head
+}
+
+/// The topics of the settings, in their order, each with the decisions that name it (R-TOPIC-5).
+fn topic_counts(topics: &[String], decisions: &[&Item]) -> Vec<TopicCount> {
+    topics
+        .iter()
+        .map(|topic| TopicCount {
+            name: topic.clone(),
+            decisions: decisions
+                .iter()
+                .filter(|item| names(&item.entry, topic))
+                .count(),
+        })
+        .collect()
+}
+
+/// Whether the entry names the topic, ignoring case: one of the values of its `topic` field.
+fn names(entry: &Entry, topic: &str) -> bool {
+    let wanted = topic.to_lowercase();
+    entry
+        .list(TOPIC)
+        .iter()
+        .any(|named| named.to_lowercase() == wanted)
+}
+
+/// `Topics: pumps (2), rig (0) · dossier list --topic <name>`, or None when there are no topics.
+fn topics_line(topics: &[TopicCount]) -> Option<String> {
+    if topics.is_empty() {
+        return None;
+    }
+    let parts: Vec<String> = topics
+        .iter()
+        .map(|topic| format!("{} ({})", topic.name, topic.decisions))
+        .collect();
+    Some(format!(
+        "Topics: {} · dossier list --topic <name>",
+        parts.join(", ")
+    ))
 }
 
 /// `Project <code> on the server in <root>`, the first line in remote mode (R-REMOTE-12).

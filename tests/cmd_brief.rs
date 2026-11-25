@@ -14,7 +14,8 @@
 //! in force under `## Digests`, the decisions and findings they sum up left out, one count line per
 //! digest after them, and the rule that a digest line is never cut (R-CTX-15). The last part adds
 //! `--budget <lines>`, the line limit of one call for the project brief and for `--task`, at least
-//! 5 lines (R-CTX-6).
+//! 5 lines (R-CTX-6). The last part adds the `Topics:` line after the tags line (or the project
+//! line), the decisions in force of each topic counted, digest-covered ones included (R-TOPIC-5).
 
 mod common;
 
@@ -2959,4 +2960,132 @@ fn a_budget_that_cuts_a_related_lesson_takes_it_out_of_the_items_too() {
         ]),
         "{json_text}"
     );
+}
+
+/// The line of the brief that names the topics of the invented project, after the tags line.
+const TOPICS_LINE: &str = "Topics: pumps (2), rig (0) · dossier list --topic <name>";
+
+/// Writes an approved decision numbered `number`, as the file `decide` writes it, with the field
+/// `topic` when `topic` is given and the field `task` when `task` is given.
+fn write_decision_about(project: &Project, number: usize, topic: Option<&str>, task: Option<&str>) {
+    let id = format!("DEC-{number:03}");
+    let mut fields = String::new();
+    if let Some(task) = task {
+        fields.push_str(&format!("- task: {task}\n"));
+    }
+    if let Some(topic) = topic {
+        fields.push_str(&format!("- topic: {topic}\n"));
+    }
+    let text = format!(
+        "<!-- dossier-format: 1 -->\n\
+         # {id} · Decision {number}\n\
+         \n\
+         - kind: decision\n\
+         - status: approved\n\
+         - created: {NOW}\n\
+         - author: anna\n\
+         - approved: {NOW} by anna\n\
+         - valid-from: {NOW}\n\
+         {fields}\
+         - history: {NOW} anna: created\n\
+         - history: {NOW} anna: approved\n\
+         \n\
+         ## Decision\n\
+         \n\
+         Decision number {number} of the invented project.\n\
+         \n\
+         ## Reason\n\
+         \n\
+         Reason number {number} of the invented project.\n"
+    );
+    project.write(
+        &format!("DOSSIER/decisions/{id}-decision-{number}.md"),
+        &text,
+    );
+}
+
+/// A project with the topics pumps and rig, two decisions naming pumps and one naming no topic.
+fn project_with_topics() -> Project {
+    let project = Project::new();
+    project.run("anna", &["topics", "add", "pumps"]).success();
+    project.run("anna", &["topics", "add", "rig"]).success();
+    write_decision_about(&project, 1, Some("pumps"), None);
+    write_decision_about(&project, 2, Some("pumps"), None);
+    write_decision_about(&project, 3, None, None);
+    project
+}
+
+#[test]
+fn the_topics_line_comes_after_the_tags_line_with_the_decisions_of_each_topic() {
+    let project = project_with_topics();
+    tag_project(&project);
+    let text = brief(&project, &[], None);
+    let lines: Vec<&str> = text.lines().collect();
+    let tags = lines
+        .iter()
+        .position(|line| line.starts_with("tags: "))
+        .unwrap_or_else(|| panic!("no tags line in {text}"));
+    assert_eq!(lines[tags + 1], TOPICS_LINE, "{text}");
+}
+
+#[test]
+fn without_tags_the_topics_line_comes_after_the_project_line() {
+    let project = project_with_topics();
+    let text = brief(&project, &[], None);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines[0], "Project P-001", "{text}");
+    assert_eq!(lines[1], TOPICS_LINE, "{text}");
+}
+
+#[test]
+fn a_project_without_topics_has_no_topics_line_and_no_topics_in_the_data() {
+    let project = Project::new();
+    write_decision_about(&project, 1, Some("pumps"), None);
+    let text = brief(&project, &[], None);
+    assert!(!text.contains("Topics:"), "{text}");
+    let json_text = brief(&project, &["--json"], None);
+    let envelope: serde_json::Value =
+        serde_json::from_str(json_text.trim()).expect("one JSON line");
+    assert_eq!(
+        envelope["data"]["topics"],
+        serde_json::json!([]),
+        "{json_text}"
+    );
+}
+
+#[test]
+fn the_json_data_gives_each_topic_with_its_decisions_in_force() {
+    let project = project_with_topics();
+    let text = brief(&project, &["--json"], None);
+    let envelope: serde_json::Value = serde_json::from_str(text.trim()).expect("one JSON line");
+    assert_eq!(
+        envelope["data"]["topics"],
+        serde_json::json!([
+            {"name": "pumps", "decisions": 2},
+            {"name": "rig", "decisions": 0}
+        ]),
+        "{text}"
+    );
+}
+
+#[test]
+fn a_decision_a_digest_sums_up_still_counts_for_its_topic() {
+    let project = project_with_topics();
+    write_decision_about(&project, 4, Some("pumps"), Some("T-001"));
+    write_digest(
+        &project,
+        "DIG-001",
+        "approved",
+        "M1",
+        "T-001",
+        "Summary of the invented milestone.",
+    );
+    let text = brief(&project, &[], None);
+    // DEC-001 and DEC-002 name pumps too: DEC-004, summed up by the digest, is counted as well.
+    assert!(
+        text.lines()
+            .any(|line| line == "Topics: pumps (3), rig (0) · dossier list --topic <name>"),
+        "{text}"
+    );
+    assert!(!text.contains("DEC-004"), "{text}");
 }
