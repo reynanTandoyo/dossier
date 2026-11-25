@@ -10570,8 +10570,8 @@
 - note (2026-11-25, haiku-T-477): done
 
 ### T-478 · tests/retrieval.rs: fixed questions that the search must answer (TEST-12)
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-478
 - priority: P1 · difficulty: 1 · type: test
 - milestone: T-437
 - why: Without a fixed set of questions nobody notices when a later change makes finding worse.
@@ -10588,12 +10588,16 @@
   6. Run cargo test --test retrieval. If a question fails, do not change the question or the entries: give the task back with todo stuck and the failure message.
 - accept: tests/retrieval.rs passes: every fixed question finds its entry among the first three results.
 - verify: cargo test --test retrieval
+- verified: 2026-11-25
+- commit: 7c688f8
 - reqs: TEST-12, R-READ-3, R-FIND-1 to R-FIND-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-478): done
 
 ### T-479 · The agent rules: topics, code pointers and searching again
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-479
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-437
 - why: An LLM uses --topic and --code only when the rules it reads tell it to and say why.
@@ -10608,10 +10612,14 @@
   4. Run cargo test --test cmd_agents.
 - accept: The rules that dossier agents installs tell an LLM to give --topic and --code and how to search again.
 - verify: cargo test --test cmd_agents
+- verified: 2026-11-25
+- commit: daf329d
 - reqs: R-AGENT-1, R-TOPIC-2, R-CODE-7, R-CODE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
 - note (2026-11-25, planner): T-484 answered 2026-11-25: the owner wants the entries shown BEFORE the edit (PreToolUse), not after. The steps below still describe the hook after the edit and must be changed by the planner before this task is worked on.
 - note (2026-11-25, planner): Rewritten 2026-11-25 for the answer of T-484: the check before an edit now lives in guard (PreToolUse), tested with Claude Code 2.1.331. The note above is settled.
+- note (2026-11-25, haiku-T-479): done
 
 ### T-480 · Release 1.0.0
 - status: open
