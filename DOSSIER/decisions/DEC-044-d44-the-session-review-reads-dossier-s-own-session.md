@@ -11,10 +11,14 @@
 - task: T-337
 - code: src/session.rs, src/claude.rs
 - topic: hooks
+- related: FND-004, FND-003, DEC-033
 - history: 2026-11-25T07:33:28+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:33:28+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:40:57+01:00 reyna via reyna - claude: changed — field code
 - history: 2026-11-25T20:45:13+01:00 reyna via reyna - claude: changed — field topic
+- history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related FND-004
+- history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related FND-003
+- history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related DEC-033
 
 ## Decision
 

@@ -10,11 +10,13 @@
 - valid-from: 2026-11-25T07:33:08+01:00
 - code: src/cmd/propose.rs, src/cmd/accept.rs
 - topic: approval
+- related: DEC-028
 - history: 2026-11-25T07:33:08+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:33:08+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T07:33:22+01:00 reyna via reyna - claude: changed — title
 - history: 2026-11-25T20:40:53+01:00 reyna via reyna - claude: changed — field code
 - history: 2026-11-25T20:45:12+01:00 reyna via reyna - claude: changed — field topic
+- history: 2026-11-25T21:45:13+01:00 reyna via reyna - claude: changed — related DEC-028
 
 ## Decision
 

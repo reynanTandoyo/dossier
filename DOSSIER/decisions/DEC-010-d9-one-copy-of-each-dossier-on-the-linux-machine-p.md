@@ -10,10 +10,14 @@
 - valid-from: 2026-11-25T07:33:27+01:00
 - code: src/remote/
 - topic: remote
+- related: DEC-043, ASM-001, ASM-002
 - history: 2026-11-25T07:33:27+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:33:27+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:40:54+01:00 reyna via reyna - claude: changed — field code
 - history: 2026-11-25T20:45:12+01:00 reyna via reyna - claude: changed — field topic
+- history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related DEC-043
+- history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related ASM-001
+- history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related ASM-002
 
 ## Decision
 

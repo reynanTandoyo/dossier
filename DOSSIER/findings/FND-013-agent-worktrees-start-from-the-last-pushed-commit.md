@@ -10,9 +10,11 @@
 - valid-from: 2026-11-25T20:10:46+01:00
 - task: T-476
 - topic: todo
+- related: FND-010
 - history: 2026-11-25T20:10:46+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T20:10:46+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:45:14+01:00 reyna via reyna - claude: changed — field topic
+- history: 2026-11-25T21:45:11+01:00 reyna via reyna - claude: changed — related FND-010
 
 ## Observation
 

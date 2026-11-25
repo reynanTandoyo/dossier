@@ -10,10 +10,13 @@
 - valid-from: 2026-11-25T07:33:28+01:00
 - code: src/hooks.rs
 - topic: hooks
+- related: DEC-044, DEC-015
 - history: 2026-11-25T07:33:28+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:33:28+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:40:56+01:00 reyna via reyna - claude: changed — field code
 - history: 2026-11-25T20:45:13+01:00 reyna via reyna - claude: changed — field topic
+- history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related DEC-044
+- history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related DEC-015
 
 ## Decision
 

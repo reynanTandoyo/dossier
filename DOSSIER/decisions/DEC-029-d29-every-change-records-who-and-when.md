@@ -10,10 +10,12 @@
 - valid-from: 2026-11-25T07:33:28+01:00
 - code: src/journal.rs
 - topic: entries
+- related: DEC-013
 - history: 2026-11-25T07:33:28+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:33:28+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:40:55+01:00 reyna via reyna - claude: changed — field code
 - history: 2026-11-25T20:45:13+01:00 reyna via reyna - claude: changed — field topic
+- history: 2026-11-25T21:45:13+01:00 reyna via reyna - claude: changed — related DEC-013
 
 ## Decision
 

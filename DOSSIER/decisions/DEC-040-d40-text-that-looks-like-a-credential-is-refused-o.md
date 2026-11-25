@@ -11,10 +11,12 @@
 - task: T-284
 - code: src/secret.rs
 - topic: entries
+- related: FND-007
 - history: 2026-11-25T07:33:28+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:33:28+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:40:56+01:00 reyna via reyna - claude: changed — field code
 - history: 2026-11-25T20:45:13+01:00 reyna via reyna - claude: changed — field topic
+- history: 2026-11-25T21:45:11+01:00 reyna via reyna - claude: changed — related FND-007
 
 ## Decision
 

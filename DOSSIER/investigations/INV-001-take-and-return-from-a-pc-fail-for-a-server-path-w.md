@@ -14,6 +14,7 @@
 - closed: 2026-11-25T07:34:44+01:00 by reyna
 - code: src/remote/transfer.rs
 - topic: files, remote
+- related: LES-002, FND-001, ASM-005
 - history: 2026-11-25T07:34:44+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:34:44+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T07:34:44+01:00 reyna via reyna - claude: tried — 1 failed
@@ -25,6 +26,9 @@
 - history: 2026-11-25T07:34:44+01:00 reyna via reyna - claude: solved
 - history: 2026-11-25T20:40:57+01:00 reyna via reyna - claude: changed — field code
 - history: 2026-11-25T20:45:14+01:00 reyna via reyna - claude: changed — field topic
+- history: 2026-11-25T21:45:11+01:00 reyna via reyna - claude: changed — related LES-002
+- history: 2026-11-25T21:45:11+01:00 reyna via reyna - claude: changed — related FND-001
+- history: 2026-11-25T21:45:11+01:00 reyna via reyna - claude: changed — related ASM-005
 
 ## Problem
 

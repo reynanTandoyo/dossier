@@ -1,0 +1,23 @@
+<!-- dossier-format: 1 -->
+# FND-013 · Agent worktrees start from the last pushed commit, not from local main
+
+- kind: finding
+- status: approved
+- created: 2026-11-25T20:10:46+01:00
+- author: reyna
+- via: reyna - claude
+- approved: 2026-11-25T20:10:46+01:00 by reyna
+- valid-from: 2026-11-25T20:10:46+01:00
+- task: T-476
+- topic: todo
+- history: 2026-11-25T20:10:46+01:00 reyna via reyna - claude: created
+- history: 2026-11-25T20:10:46+01:00 reyna via reyna - claude: approved
+- history: 2026-11-25T20:45:14+01:00 reyna via reyna - claude: changed — field topic
+
+## Observation
+
+A subagent started with isolation worktree gets a worktree under .claude/worktrees on a branch made from the last pushed commit (origin/main), not from local main. With unpushed plan commits its todo brief shows outdated steps; each worker must first run git merge --ff-only main.
+
+## Evidence
+
+Wave 9 of the 1.0 run, 2026-11-25: five worktrees started at 658f05a while local main was nine commits ahead; T-476 nearly got built from its outdated steps.

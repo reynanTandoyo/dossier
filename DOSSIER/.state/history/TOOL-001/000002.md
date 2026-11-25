@@ -1,0 +1,17 @@
+<!-- dossier-format: 1 -->
+# TOOL-001 · todo
+
+- kind: tool
+- status: draft
+- created: 2026-11-25T07:34:45+01:00
+- author: reyna
+- via: reyna - claude
+- type: software
+- location: https://github.com/reynanTandoyo/todo
+- topic: todo
+- history: 2026-11-25T07:34:45+01:00 reyna via reyna - claude: created
+- history: 2026-11-25T20:45:14+01:00 reyna via reyna - claude: changed — field topic
+
+## Purpose
+
+Keeps the tasks of the project in TODO.md; dossier reads them through todo --json.

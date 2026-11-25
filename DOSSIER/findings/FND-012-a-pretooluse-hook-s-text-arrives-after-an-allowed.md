@@ -11,9 +11,11 @@
 - task: T-484
 - code: src/cmd/guard.rs
 - topic: hooks
+- related: DEC-051
 - history: 2026-11-25T20:10:46+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T20:10:46+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:45:14+01:00 reyna via reyna - claude: changed — field topic
+- history: 2026-11-25T21:45:11+01:00 reyna via reyna - claude: changed — related DEC-051
 
 ## Observation
 
