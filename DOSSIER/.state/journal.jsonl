@@ -356,3 +356,4 @@
 {"time":"2026-11-25T21:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"link","id":"DEC-036","event":"changed","detail":"related ASM-004"}
 {"time":"2026-11-25T21:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"link","id":"DEC-045","event":"changed","detail":"related DEC-047"}
 {"time":"2026-11-25T21:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"link","id":"DEC-047","event":"changed","detail":"related DEC-045"}
+{"time":"2026-11-25T23:24:14+01:00","name":"reyna - claude","person":"reyna - claude","llm":false,"command":"agents","id":"AGENTS","event":"changed","detail":"rules block written"}

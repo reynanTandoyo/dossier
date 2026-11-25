@@ -11364,3 +11364,9 @@
 - owner: —
 - type: idea
 - note (2026-11-25, planner): added
+
+### T-524 · agents install writes a journal line with person "reyna - claude" and llm false when DOSSIER_AGENT is "reyna - claude" (2026-11-25, 1.1.1); other commands record the person reyna via the LLM reyna - claude. The agents command should resolve the writer as the others do (D34).
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-25, planner): added
