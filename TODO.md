@@ -9908,8 +9908,8 @@
 - note (2026-11-25, haiku-T-450): done
 
 ### T-451 · search: entries that hold only some of the words are listed after the full matches
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-451
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-434
 - why: `0 matches` tells an LLM that nothing is recorded, when one of its words was merely too many.
@@ -9926,8 +9926,12 @@
   6. Update the module comment. Run cargo test --test cmd_search and cargo test --test cmd_schema.
 - accept: search lists up to 10 ranked entries that hold only some of the typed words, marked as such in text and JSON.
 - verify: cargo test --test cmd_search && cargo test --test cmd_schema
+- verified: 2026-11-25
+- commit: 20d007b
 - reqs: R-READ-3, R-READ-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-451): done
 
 ### T-452 · config.rs: the project's list of topics
 - status: done
@@ -10875,6 +10879,12 @@
 - note (2026-11-25, planner): added
 
 ### T-501 · guard (T-477) refuses every edit of a bound file for ever when the payload's session_id holds a character other than ASCII letters, digits and '-': shown::unseen then returns every ID and records nothing. Claude Code sends UUIDs, so it does not happen today; treat such a session like a missing one in guard.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-25, planner): added
+
+### T-502 · search ranks the entries with only some of the words (T-451) with select::ranked over those entries alone, so word rarity is counted among them, not across all entries as R-FIND-2 says. Weigh them with an Index of every entry.
 - status: open
 - owner: —
 - type: idea
