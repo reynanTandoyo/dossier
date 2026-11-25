@@ -2935,6 +2935,75 @@ fn brief_task_related_is_chosen_by_stems_and_a_common_word_relates_nothing() {
 }
 
 #[test]
+fn a_dead_end_that_shares_only_a_word_common_in_the_dossier_is_not_listed() {
+    let project = Project::new();
+    // The word "path" is in the decision's title, in the ten findings and in the dead end, so
+    // it is common in this dossier. The decision alone holds "topic", "check" and "update".
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Output files go under the path of the run.",
+                "--reason",
+                "Each run keeps its own folder.",
+                "--title",
+                "Update path for the topic check",
+            ],
+        )
+        .success();
+    for number in 1..=10 {
+        project
+            .run(
+                "anna",
+                &[
+                    "found",
+                    "The path of the output file was measured.",
+                    "--title",
+                    &format!("Rig run {number}"),
+                ],
+            )
+            .success();
+    }
+    project
+        .run(
+            "anna",
+            &[
+                "found",
+                "The path to the shared folder broke the parallel runs.",
+                "--dead-end",
+                "--title",
+                "Shared build folder breaks parallel test runs",
+            ],
+        )
+        .success();
+    let data = serde_json::json!({
+        "id": "T-160",
+        "title": "Topic check on the update path of learn",
+        "status": "open"
+    });
+    let envelope = serde_json::json!({
+        "schema": "todo.show.v1",
+        "ok": true,
+        "data": data,
+        "warnings": []
+    })
+    .to_string();
+    project.write_stand_in(
+        "todo",
+        &format!("@echo off\r\necho {envelope}\r\n"),
+        &format!("#!/bin/sh\nprintf '%s\\n' '{envelope}'\n"),
+    );
+
+    let text = brief(&project, &["--task", "T-160"], None);
+    assert!(!text.contains("## Dead ends"), "{text}");
+    assert!(
+        !text.contains("Shared build folder breaks parallel test runs"),
+        "{text}"
+    );
+}
+
+#[test]
 fn a_budget_that_cuts_a_related_lesson_takes_it_out_of_the_items_too() {
     let project = project_with_a_linked_dead_end_and_a_related_lesson();
 

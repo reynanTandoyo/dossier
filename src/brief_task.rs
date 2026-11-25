@@ -26,15 +26,15 @@ const RECORDED: &str = "## Recorded for this task";
 const MILESTONES: &str = "## Decisions of its milestones";
 /// The heading over the approved entries that match the task's tags and title words.
 const RELATED: &str = "## Related";
-/// The most entries `select::top` chooses for the Related heading.
-const RELATED_LIMIT: usize = 10;
+/// The most entries `select::top_in` chooses for the Related heading.
+const RELATED_LIMIT: usize = 5;
 /// The heading over the task's file list (R-FILE-14).
 const FILES: &str = "## Files";
 /// The most lines of the file list (R-FILE-14).
 const FILES_LINES: usize = 15;
 /// The heading over the approved dead ends that match the task's tags and title words (R-CTX-16).
 const DEAD_ENDS: &str = "## Dead ends";
-/// The most dead ends `select::top` chooses for the Dead ends heading.
+/// The most dead ends `select::top_in` chooses for the Dead ends heading.
 const DEAD_ENDS_LIMIT: usize = 5;
 /// The heading over the approved entries whose code pointers lie in the files todo names for the
 /// task (R-CODE-4).
@@ -57,7 +57,7 @@ const USES_LIMIT: usize = 3;
 const INVESTIGATIONS: &str = "## Investigations";
 /// The most lines under the Investigations heading, which makes the part fifteen lines at most.
 const INVESTIGATIONS_LINES: usize = 14;
-/// The most other investigations `select::top` chooses for the Investigations heading.
+/// The most other investigations `select::top_in` chooses for the Investigations heading.
 const INVESTIGATIONS_LIMIT: usize = 5;
 /// The section of an investigation that holds its solution (format.md §28).
 const SOLUTION: &str = "Solution";
@@ -87,7 +87,7 @@ struct Anchor {
 /// milestones, the task's file list (R-FILE-14), the last usage records of its software and
 /// analysis in the team's usage index (R-CTX-2), the approved dead ends that match it (R-CTX-16),
 /// the investigations of the task and the most similar ones (design.md §15), the entries whose code
-/// pointers lie in the files todo names for it (R-CODE-4), then select::top over the remaining
+/// pointers lie in the files todo names for it (R-CODE-4), then select::top_in over the remaining
 /// approved entries and the team's approved lessons and how-tos (R-CTX-2, marked `team:`), except
 /// a copy of a project entry that is listed (R-TEAM-4), with the task's machine, analysis and
 /// software fields as tags and its title as words. A decision or lesson printed with its text is
@@ -102,10 +102,17 @@ pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection> {
     })?;
     let about = About::read(&data);
     let (items, _warnings) = store::all(&ctx.dossier);
-    let approved: Vec<Item> = items
+    let mut approved: Vec<Item> = items
         .into_iter()
         .filter(|item| item.entry.status() == Some(Status::Approved))
         .collect();
+    // Every word is weighed against every approved entry the brief reads, the team's lessons and
+    // how-tos included (the Related heading picks from them), so a word common in the dossier
+    // lifts no entry, whatever the pool it is chosen from. The team's entries are split off again.
+    let project_count = approved.len();
+    approved.extend(team_items(ctx));
+    let index = select::Index::of(&approved);
+    let team = approved.split_off(project_count);
 
     // An entry is listed once, under the first heading that takes it. The investigations of the
     // task wait for their own heading, after the dead ends.
@@ -178,7 +185,7 @@ pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection> {
         .into_iter()
         .filter(|item| !listed.contains(&item.entry.id()))
         .partition(is_dead_end);
-    let found = select::top(&dead_ends, &query, DEAD_ENDS_LIMIT);
+    let found = select::top_in(&dead_ends, &query, &index, DEAD_ENDS_LIMIT);
     if !found.is_empty() {
         out.push(DEAD_ENDS.to_string());
         for item in &found {
@@ -198,8 +205,14 @@ pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection> {
             .filter(|item| !listed.contains(&item.entry.id())),
     );
 
-    let (investigation_rows, left_out, investigation_anchors) =
-        investigation_lines(investigations, task, &query, &mut listed, &mut chosen);
+    let (investigation_rows, left_out, investigation_anchors) = investigation_lines(
+        investigations,
+        task,
+        &query,
+        &index,
+        &mut listed,
+        &mut chosen,
+    );
     let base = out.len();
     out.extend(investigation_rows);
     anchors.extend(investigation_anchors.into_iter().map(|anchor| Anchor {
@@ -235,13 +248,12 @@ pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection> {
         .collect();
     // The team's entries join after that check: their IDs can be the same as a project's, so
     // they are told apart by path, not by ID.
-    let team = team_items(ctx);
     let team_paths: HashSet<PathBuf> = team.iter().map(|item| item.path.clone()).collect();
     pool.extend(team);
     // A team copy of a listed project entry is left out (R-TEAM-4). Leaving it out can bring
     // another entry into the choice, so the choice is made again without it.
     let related = loop {
-        let picked = select::top(&pool, &query, RELATED_LIMIT);
+        let picked = select::top_in(&pool, &query, &index, RELATED_LIMIT);
         let left_out = copies_left_out(&picked, &team_paths, &listed, &ctx.cfg.code);
         if left_out.is_empty() {
             break picked;
@@ -354,8 +366,8 @@ fn copies_left_out(
         .collect()
 }
 
-/// Why `select::top` chose the entry, as `select::why` says it; `word match` when that gives
-/// none (every entry `top` returns has a reason, so this is a safe default).
+/// Why `select::top_in` chose the entry, as `select::why` says it; `word match` when that gives
+/// none (every entry `top_in` returns has a reason, so this is a safe default).
 fn reason_of(item: &Item, query: &Query) -> &'static str {
     select::why(item, query).unwrap_or("word match")
 }
@@ -596,19 +608,21 @@ fn is_dead_end(item: &Item) -> bool {
 }
 
 /// The Investigations heading (design.md §15, R-INV-5): the approved investigations whose `task` is
-/// the task, in file order, then the up to INVESTIGATIONS_LIMIT others that select::top chooses for
-/// the task's query. An investigation of the task that is open is its title line with `[open]` and
-/// one indented line per attempt; any other is one line (`one_line`). At most INVESTIGATIONS_LINES
-/// lines under the heading, cut as `cut` cuts. The IDs of the investigations with a line kept go to
-/// `listed`. Returns the lines (none, with no heading, when no investigation is shown) and the
-/// investigations not shown, which the caller may still choose for Related. Each investigation
-/// shown is added to `chosen` with its reason: `linked` for the task's own, else `select::why`.
-/// The anchors of the investigations shown give the index in the returned lines after which their
-/// linked lines go: after the whole block, or after the last line of the block that the cut kept.
+/// the task, in file order, then the up to INVESTIGATIONS_LIMIT others that select::top_in
+/// chooses for the task's query, weighed by `index`. An investigation of the task that is open is
+/// its title line with `[open]` and one indented line per attempt; any other is one line
+/// (`one_line`). At most INVESTIGATIONS_LINES lines under the heading, cut as `cut` cuts. The IDs
+/// of the investigations with a line kept go to `listed`. Returns the lines (none, with no heading,
+/// when no investigation is shown) and the investigations not shown, which the caller may still
+/// choose for Related. Each investigation shown is added to `chosen` with its reason: `linked` for
+/// the task's own, else `select::why`. The anchors of the investigations shown give the index in
+/// the returned lines after which their linked lines go: after the whole block, or after the last
+/// line of the block that the cut kept.
 fn investigation_lines(
     items: Vec<Item>,
     task: &str,
     query: &Query,
+    index: &select::Index,
     listed: &mut HashSet<String>,
     chosen: &mut Vec<(String, &'static str)>,
 ) -> (Vec<String>, Vec<Item>, Vec<Anchor>) {
@@ -627,7 +641,7 @@ fn investigation_lines(
         })
         .collect();
     shown.extend(
-        select::top(&others, query, INVESTIGATIONS_LIMIT)
+        select::top_in(&others, query, index, INVESTIGATIONS_LIMIT)
             .into_iter()
             .map(|item| {
                 (
@@ -1818,7 +1832,7 @@ mod tests {
         let team = team_of(&ctx);
         ctx.team = Some(team.dossier.clone());
         // The project's LES-010 and the team's LES-010 have the same ID. The team's lines come in
-        // the order of the weights of select::top.
+        // the order of the weights of select::top_in.
         write_entry(
             &ctx,
             Kind::Lesson,
