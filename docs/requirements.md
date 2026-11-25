@@ -842,6 +842,26 @@ and what solved it.
   its attempts before you try anything; record one `tried` line for each hypothesis, also the
   failed ones, and not one for each compile or run; close it with `solved`.
 
+### 5.11i Topics — TOPIC
+
+Tags say which machine, analysis and software an entry is about; a topic says which part of the work
+it belongs to, from one short list per project (D50).
+
+- **R-TOPIC-1 MUST** The project settings hold a list `topics`. `topics` prints each topic with the
+  number of approved entries that name it, and `(no topic)` with the number of approved decisions,
+  findings and lessons that name none. `topics add <name>` adds a topic; an LLM is refused (D50).
+- **R-TOPIC-2 MUST** An entry may carry a field `topic` (one or more, comma-separated), given with
+  `--topic` on `decide`, `propose`, `found`, `learn`, `assume`, `problem` and `howto`, or with
+  `--field` on `add` and `set`. When the list is not empty, a value that is not on it is refused,
+  naming the list.
+- **R-TOPIC-3 MUST** When the list is not empty, a decision, assumption, finding, lesson, how-to or
+  investigation written by an LLM without a topic is refused; entries written from a document
+  (R-IMPORT-3) are exempt.
+- **R-TOPIC-4 MUST** `list` and `search` take `--topic <name>`; a topic counts as a tag for
+  R-FIND-2.
+- **R-TOPIC-5 MUST** `brief` prints one line with the topics and the number of decisions in force of
+  each, and each decision line names its topics.
+
 ### 5.12 Remote mode — REMOTE
 
 - **R-REMOTE-1 MUST** `dossier connect <user@server>:<project folder>` in a folder on a PC writes a
