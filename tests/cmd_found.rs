@@ -431,3 +431,64 @@ fn without_topics_in_the_settings_an_llm_finding_without_a_topic_is_written() {
     assert_eq!(entry.status(), Some(Status::Approved));
     assert_eq!(entry.field("topic"), None);
 }
+
+#[test]
+fn code_gives_the_code_field_with_slashes_and_the_pointers_joined() {
+    let project = Project::new();
+    let stdout = project.stdout(
+        "anna",
+        &[
+            "found",
+            "The seal leaks at high pressure.",
+            "--title",
+            "Seal leak",
+            "--code",
+            "src\\pump, src/rig/valve.rs::open",
+        ],
+    );
+    assert_eq!(stdout, "FND-001: added (approved)\n");
+
+    let text = entry_text(&project, "FND-001");
+    assert!(
+        text.contains("\n- code: src/pump, src/rig/valve.rs::open\n"),
+        "{text}"
+    );
+    assert_eq!(
+        entry_of(&project, "FND-001").field("code").as_deref(),
+        Some("src/pump, src/rig/valve.rs::open")
+    );
+    assert_eq!(
+        project.stdout("anna", &["which", "src/pump/seal.rs"]),
+        "not attached to any task\nentries: FND-001 Seal leak\n"
+    );
+    assert_eq!(
+        project.stdout("anna", &["which", "src/rig/valve.rs"]),
+        "not attached to any task\nentries: FND-001 Seal leak\n"
+    );
+}
+
+#[test]
+fn without_code_no_code_line_is_written() {
+    let project = Project::new();
+    project.stdout("anna", &["found", "The inlet profile is uniform."]);
+
+    let text = entry_text(&project, "FND-001");
+    assert!(!text.contains("\n- code:"), "{text}");
+    assert_eq!(entry_of(&project, "FND-001").field("code"), None);
+}
+
+#[test]
+fn blank_pointers_of_code_are_left_out_and_nothing_left_writes_no_code_line() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &["found", "A finding.", "--code", " src/pump/ ,, ,"],
+    );
+    project.stdout("anna", &["found", "Another finding.", "--code", " , "]);
+
+    assert_eq!(
+        entry_of(&project, "FND-001").field("code").as_deref(),
+        Some("src/pump/")
+    );
+    assert_eq!(entry_of(&project, "FND-002").field("code"), None);
+}

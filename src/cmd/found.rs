@@ -53,6 +53,9 @@ pub struct Args {
     /// The topics it is about, from the project's list (dossier topics), comma-separated
     #[arg(long)]
     pub topic: Option<String>,
+    /// The code it is about: paths, each optionally with ::name, comma-separated (src/pump or src/pump/seal.rs::leak_model)
+    #[arg(long)]
+    pub code: Option<String>,
 }
 
 /// Runs `found`: creates the finding in a transaction and says its ID and status.
@@ -95,6 +98,9 @@ fn new_finding(args: &Args, observation: &str) -> New {
             fields.push(pair(key, value));
         }
     }
+    if let Some(code) = code_of(args) {
+        fields.push(pair("code", &code));
+    }
     if let Some(tags) = tags_of(args) {
         fields.push(pair("tags", &tags));
     }
@@ -129,6 +135,20 @@ fn tags_of(args: &Args) -> Option<String> {
         (None, true) => Some(INBOX.to_string()),
         (None, false) => None,
     }
+}
+
+/// The value of the code field: each pointer of `--code` trimmed, with backslashes as slashes,
+/// the empty ones left out, joined with `, `; None when no pointer is left.
+fn code_of(args: &Args) -> Option<String> {
+    let pointers: Vec<String> = args
+        .code
+        .as_deref()
+        .unwrap_or("")
+        .split(',')
+        .map(|pointer| pointer.trim().replace('\\', "/"))
+        .filter(|pointer| !pointer.is_empty())
+        .collect();
+    (!pointers.is_empty()).then(|| pointers.join(", "))
 }
 
 /// The words after the ID in the first output line: `approved`, or `draft, sort it out later`.
