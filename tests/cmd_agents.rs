@@ -49,6 +49,15 @@ fn help_agents_tells_the_llm_to_give_a_topic_and_a_code_pointer() {
 }
 
 #[test]
+fn help_agents_tells_the_llm_to_add_an_agreed_topic_with_said_by() {
+    let folder = tempfile::tempdir().unwrap();
+    dossier(folder.path(), &["help", "agents"])
+        .success()
+        .stdout(contains("topics add"))
+        .stdout(contains("--said-by"));
+}
+
+#[test]
 fn help_agents_as_json_gives_the_rules_text() {
     let folder = tempfile::tempdir().unwrap();
     dossier(folder.path(), &["help", "agents", "--json"])
