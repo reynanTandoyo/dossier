@@ -4,7 +4,7 @@
 while doing its projects. People and their LLMs write to it and read from it, so that neither has
 to rely on memory.
 
-**Status: v1.1**
+**Status: v1.1.1**
 
 - [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the seven phases it is
   built in.
@@ -1098,7 +1098,7 @@ once, and the refusal names them. The next edit of the file goes through, becaus
 been shown them (decision [D51](docs/requirements.md)).
 
 ```
-error: Entries in force for src/pump/seal.rs; read them, then make your edit again (dossier show <ID> prints one in full):
+Entries in force for src/pump/seal.rs; read them, then make your edit again (dossier show <ID> prints one in full):
 DEC-001 · decision · Seal leakage limits the pump speed
   Seal leakage limits the pump speed
 ```
@@ -1126,6 +1126,27 @@ Links are followed one level deep, with titles only and at most three per entry,
 approved entries: a draft, superseded or retired entry is never shown as linked. `search --json`
 and `which --binding --json` give each entry a `linked` list. Nothing needs to be done after an
 upgrade from 1.0.
+
+### What version 1.1.1 changes
+
+Fixes found by using 1.1 on this project's own dossier:
+
+- **Rare words are counted over the whole dossier.** The list of entries with only some of the
+  words, and the dead ends, investigations and related entries of `brief --task`, used to weigh a
+  word only among the few entries they compared, so every word looked rare. Now a word that many
+  entries hold counts little everywhere. `search connection reuse` lists the decision about ssh
+  connections among its first three results, and `brief --task` no longer shows the same unrelated
+  dead end for every task.
+- **`brief --task` lists at most 5 related entries** (was 10).
+- **The refusal before an edit reads as a note.** `dossier guard` prints the entries without the
+  `error:` prefix, so an LLM reads them instead of taking the refusal for a crash. The exit code is
+  still 2.
+- **Session files stay out of git.** `init` now writes `.state/.gitignore` for every dossier, not
+  only for a team dossier, and it lists `shown/`, where `guard` remembers what a session was shown.
+  In an existing dossier, add the line `shown/` to `DOSSIER/.state/.gitignore` by hand.
+- **An LLM can add a topic you agreed to.** `dossier topics add <name> --said-by <person>` adds it
+  and the journal names both (decision D52); without `--said-by`, an LLM is still refused. Run
+  `dossier agents install --yes` once to get the updated rule for LLMs.
 
 ## What it needs
 
@@ -1336,7 +1357,7 @@ lines:
 
 ```
 ssh: ok
-dossier on the server: 1.1.0
+dossier on the server: 1.1.1
 todo on the server: 0.8.0
 dossier folder: ok (P-001)
 ```

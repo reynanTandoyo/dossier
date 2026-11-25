@@ -10764,13 +10764,15 @@
 - note (2026-11-25, planner): done — Every entry has a topic and the code entries point to it (99a2693); with T-506, search connection reuse lists FND-011, DEC-048 and DEC-043 as its first three results.
 
 ### T-503 · 1.0.1: rare words are weighed against the whole dossier, and guard's refusal reads as a note
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - goal: search's list of entries with some of the words and every section of brief --task weigh a word by how many entries of the whole dossier hold it, so a word that is common in the dossier never lifts an entry; brief --task lists at most 5 related entries; guard's refusal before an edit has no `error:` prefix. In the project's own dossier, search connection reuse lists FND-011 and DEC-043 among the first three results.
 - why: A test of 1.0 on the project's own dossier (2026-11-25) found that select::ranked weighs words only within the pool it is given: brief --task listed the same unrelated dead end and investigation for every task, and search connection reuse put DEC-043 fourth.
 - summary: Fixes from testing version 1.0 on the project's own dossier: related entries and partial search results are ranked against the whole dossier, brief --task lists fewer related entries, and the check before an edit no longer looks like an error.
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): done — Ranking weighs words against the whole dossier (search, brief --task), brief --task lists at most 5 related, guard's refusal has no error: prefix, every dossier ignores .state/shown/, and an LLM adds an agreed topic with --said-by.
 
 ### T-504 · design.md: section 21.4, the fixes of 1.0.1
 - status: done
@@ -10841,10 +10843,8 @@
 - note (2026-11-25, haiku-T-506): done
 
 ### T-507 · brief --task: dead ends, investigations and related entries are weighed against every approved entry, at most 5 related
-- status: claimed
+- status: done
 - owner: haiku-T-507
-- claimed: 2026-11-25T22:45+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: fix
 - milestone: T-503
 - why: brief --task ranked its one or two dead ends and investigations among themselves, so every word was rare and the same unrelated FND-010 and INV-001 were listed for every task; and 10 related entries were mostly weak.
@@ -10859,8 +10859,12 @@
   4. Run cargo test --test cmd_brief and cargo test --lib brief_task::.
 - accept: brief --task chooses dead ends, investigations and related entries with weights of the whole dossier, and lists at most 5 related entries.
 - verify: cargo test --test cmd_brief && cargo test --lib brief_task::
+- verified: 2026-11-25
+- commit: b735a77
 - reqs: R-CTX-2, R-FIND-2, R-FIND-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-507): done
 
 ### T-508 · error.rs and output.rs: Code::Blocked, a refusal printed without error:
 - status: done
@@ -11159,6 +11163,23 @@
 - note (2026-11-25, planner): added
 - note (2026-11-25, planner): done
 - note (2026-11-25, planner): Checked on Windows (2411 tests), WSL Fedora 44 (2415) and CI; tagged v1.1.0 and published: https://github.com/reynanTandoyo/dossier/releases/tag/v1.1.0
+
+### T-523 · Release 1.1.1: the fixes from testing 1.0 on the project dossier
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: chore
+- why: Milestone T-503 is finished on main and the owner wants it released.
+- summary: Version 1.1.1 is built, checked on Windows and Linux, tagged and published on GitHub.
+- files: Cargo.toml, Cargo.lock, README.md
+- read: docs/design.md
+- steps:
+  1. Cargo.toml: version = "1.1.1"; cargo build so that Cargo.lock follows.
+  2. README.md: status line `**Status: v1.1.1**`; after the 1.1 section a section `### What version 1.1.1 changes`; the server sample shows 1.1.1.
+  3. Run fmt, clippy and all tests on Windows and in WSL; after CI passes, tag v1.1.1.
+- accept: Version 1.1.1 builds, passes every check, and the README says what it changes.
+- verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
+- reqs: REL-1, REL-2
+- note (2026-11-25, planner): added
 
 ## Questions
 
