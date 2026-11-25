@@ -10859,7 +10859,7 @@
 - why: guard's refusal before an edit is a note for the LLM to read; the `error:` prefix makes it look like dossier failed.
 - summary: A new kind of refusal prints its message alone, so a hook's note does not look like a crash.
 - depends: T-504
-- files: src/error.rs, src/output.rs
+- files: src/error.rs, src/output.rs, src/cmd/schema.rs
 - read: docs/design.md, src/error.rs, src/output.rs
 - steps:
   1. src/error.rs: add the variant `Blocked` to Code with the doc comment of design.md section 21.4; its exit code is 2 and its name `BLOCKED`. Add it to every match over Code.
@@ -10870,6 +10870,8 @@
 - verify: cargo test --lib output:: && cargo test --lib error::
 - reqs: R-OUT-1, R-CODE-8
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): forced set (owner was haiku-T-508)
+- note (2026-11-25, planner): Coordinator: src/cmd/schema.rs joins the files: its CODES array and the exhaustive match in place() list every Code, so Blocked is added there (21 codes).
 
 ### T-509 · guard: both refusals use Code::Blocked
 - status: open
