@@ -504,12 +504,15 @@ Every write command needs a name (D13) and prints one line such as `DEC-012: add
 - **R-READ-2 MUST** `list` prints one line per entry: ID, kind, status mark, tags and title.
   Filters: `--kind`, `--status`, `--machine`, `--analysis`, `--software`, `--tag`, `--author`,
   `--task`, `--since <date>`, `--where key=value`. Without `--status` it shows approved entries.
-- **R-READ-3 MUST** `search <words…>` finds entries whose title, fields or text contain all the
-  words (case ignored, word stems not required), in the project dossier and the team dossier
-  together, each result marked with its place. Order: matches in the title first, then in tags,
-  then in text; within each, newest first. The same filters as `list`.
+- **R-READ-3 MUST** `search <words…>` finds entries in the project dossier and the team dossier
+  together, each result marked with its place. It lists first the entries that hold every word:
+  matches in the title first, then in tags, then in text, and within each newest first. A word is
+  held when the entry holds it, a glossary spelling of it (R-TERM-4) or a word with the same stem
+  (R-FIND-1); case is ignored. When more than one word is given, it then lists up to 10 entries that
+  hold only some of the words, best first (R-FIND-2), under the line `some of the words:`. The same
+  filters as `list`.
 - **R-READ-4 MUST** Search results print the ID, the title and the line that matched; `--full`
-  prints whole entries.
+  prints whole entries. With `--json` each result has `match`: `all` or `some`.
 - **R-READ-5 MUST** Every read command supports `--json` and `--team` / `--project` to limit the
   place.
 - **R-READ-6 MUST** `dossier history <task or ID>` prints, in time order, everything recorded
@@ -532,6 +535,21 @@ Every write command needs a name (D13) and prints one line such as `DEC-012: add
 - **R-READ-9 COULD** `search --similar <ID>` lists entries that share the most tags and title
   words with an entry.
 
+### 5.9a Finding related entries — FIND
+
+Several commands choose entries that are related to a text: `decide` (R-CTX-13), `learn`, `problem`,
+`brief --task` (R-CTX-2) and `search --similar` (R-READ-9). They all choose the same way (D48).
+
+- **R-FIND-1 MUST** Words are compared by their English word stem (D49), so `reuse`, `reusing` and
+  `reused` count as one word, and common English words such as `and`, `the` and `with` never count.
+- **R-FIND-2 MUST** A word or tag that few entries hold counts more: its weight is
+  1 + floor(log2(entries / entries that hold it)). A match in the title counts 5 times the weight,
+  a match in a tag 3 times, a match in the text once.
+- **R-FIND-3 MUST** An entry is listed only when it shares a tag with the query or its score reaches
+  a third of the sum of the weights of the query's words, so a list may be empty.
+- **R-FIND-4 MUST** When the query holds a spelling of a glossary term (R-TERM-4), the words of the
+  term's other spellings join the query.
+
 ### 5.10 Context for a session or task — CTX
 
 - **R-CTX-1 MUST** `brief` prints what an agent should know at the start of a session in this
@@ -544,7 +562,8 @@ Every write command needs a name (D13) and prints one line such as `DEC-012: add
   the task; the decisions of the task's milestones; the team lessons and how-tos that match the
   task's `machine`, `analysis` and `software` fields and the words of its title, best matches
   first, lessons in full and how-tos by title; and the last three usage records of the same
-  software and analysis from the usage index.
+  software and analysis from the usage index. The words of the title are matched as
+  R-FIND-1 to R-FIND-4 say.
 - **R-CTX-3 MUST** The project settings hold the project's default tags (`machine`, `analysis`,
   `software`). A task may narrow them with fields of the same names in `TODO.md` (`todo` keeps
   unknown fields as written).
@@ -576,7 +595,8 @@ Every write command needs a name (D13) and prints one line such as `DEC-012: add
 - **R-CTX-13 MUST** `decide` prints the decisions in force that share tags or title words with
   the new one before it writes, and with `--replaces <ID>` supersedes the old one in the same
   step. An LLM must pass `--replaces` or `--besides` (stating that the new decision stands next
-  to the listed ones); without either the command refuses and shows the list.
+  to the listed ones); without either the command refuses and shows the list. Shared title words
+  are found as R-FIND-1 to R-FIND-4 say.
 - **R-CTX-14 MUST** `digest <milestone>` prints the material for summing up a closed `todo`
   milestone: its goal, its tasks, and its decisions, assumptions, findings and dead ends, with
   rules for the summary (at most 15 lines: what was decided and still binds, what was found,
