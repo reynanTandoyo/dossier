@@ -9681,8 +9681,8 @@
 - note (2026-11-25, haiku-T-441): done
 
 ### T-442 · select.rs: weights for rare words, and the functions top, ranked and why
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-442
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-433
 - why: A word that half the entries hold says little; a word that one entry holds says a lot. Weak matches must be left out so that a list of related entries can be empty.
@@ -9703,8 +9703,12 @@
   10. Leave words, score, reason and best and their tests as they are. Run cargo test --lib select::
 - accept: select::top, ranked and why rank by stems and rarity and leave weak matches out; the old functions still work.
 - verify: cargo test --lib select::
+- verified: 2026-11-25
+- commit: f754bd0
 - reqs: R-FIND-1, R-FIND-2, R-FIND-3, R-TOPIC-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-442): done
 
 ### T-443 · select.rs: a query is widened by the glossary's spellings
 - status: open
@@ -9936,8 +9940,8 @@
 - note (2026-11-25, haiku-T-453): done
 
 ### T-454 · create.rs: unknown topics are refused, and an LLM's entry must name a topic
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-454
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-435
 - why: An LLM tags an entry only when the tool asks for it; this is the one place every new entry passes.
@@ -9953,8 +9957,12 @@
   5. Update the doc comment of `create` (the sentence `Refusing unknown tag values is not part of v0.1` gets the two rules added after it). Run cargo test --lib create::
 - accept: create::create refuses an unknown topic for everyone and a missing topic for an LLM, only when the project has topics.
 - verify: cargo test --lib create::
+- verified: 2026-11-25
+- commit: 55c9721
 - reqs: R-TOPIC-2, R-TOPIC-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-454): done
 
 ### T-455 · decide: the option --topic
 - status: open
@@ -10100,8 +10108,8 @@
 - note (2026-11-25, planner): added
 
 ### T-462 · set: a topic that is not on the list is refused
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-462
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-435
 - why: set --field topic=… would otherwise write a topic the project does not have.
@@ -10115,12 +10123,16 @@
   3. Run cargo test --test cmd_set.
 - accept: set refuses a topic that is not on the project's list.
 - verify: cargo test --test cmd_set
+- verified: 2026-11-25
+- commit: e3e5f59
 - reqs: R-TOPIC-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-462): done
 
 ### T-463 · The topics command: registered, with its help line and examples
-- status: open
-- owner: —
+- status: done
+- owner: sonnet-T-463
 - priority: P1 · difficulty: 2 · type: feature
 - milestone: T-435
 - why: A new command touches the shared lists of commands, which only one task may change at a time.
@@ -10136,8 +10148,12 @@
   4. Run cargo test --test cmd_agents and cargo test --test cmd_help.
 - accept: dossier topics exists, prints the settings' topics, and appears in help with examples.
 - verify: cargo test --test cmd_agents && cargo test --test cmd_help
+- verified: 2026-11-25
+- commit: 6fbe31b
 - reqs: R-TOPIC-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, sonnet-T-463): done
 
 ### T-464 · topics: the list with the number of entries per topic
 - status: open
@@ -10247,8 +10263,8 @@
 - note (2026-11-25, haiku-T-468): done
 
 ### T-469 · which: a pointer to a folder covers the files in it
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-469
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-436
 - why: A decision about a whole part of the code points to its folder, and which did not find it for a file inside.
@@ -10262,8 +10278,12 @@
   3. Run cargo test --test cmd_which.
 - accept: which lists an entry for every file below a folder the entry points to.
 - verify: cargo test --test cmd_which
+- verified: 2026-11-25
+- commit: 58c2a96
 - reqs: R-CODE-6, R-CODE-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-469): done
 
 ### T-470 · brief --task: code pointers are matched by codeptr
 - status: open
@@ -10342,8 +10362,8 @@
 - note (2026-11-25, planner): added
 
 ### T-474 · shown.rs: which entries a session has been shown already
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-474
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-436
 - why: A hook that repeats the same decisions at every edit of a file would be ignored after the third time.
@@ -10359,8 +10379,12 @@
   5. Run cargo test --lib shown::
 - accept: shown::unseen returns the IDs a session has not been shown yet and records them.
 - verify: cargo test --lib shown::
+- verified: 2026-11-25
+- commit: 69125de
 - reqs: R-CODE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-474): done
 
 ### T-475 · which --binding: only the entries in force that bind a path
 - status: open
@@ -10715,6 +10739,18 @@
 - note (2026-11-24, planner): added
 
 ### T-430 · init of a project dossier does not write .state/.gitignore (write.lock, holder.json); only init --team-dossier does, although project folders are git repositories too (D36). Found when the dossier project got its own DOSSIER, 2026-11-25.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-25, planner): added
+
+### T-497 · topics add with a name that is not in the settings is refused with 'this command needs a name' instead of the unknown-name error of R-CFG-4, because topics is not in WRITING of src/ctx.rs (topics.rs loads its context as "topics" for both actions). Load the add action as its own command name and add that to WRITING (found in T-463).
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-25, planner): added
+
+### T-498 · Empty pieces of a topic value are treated differently: create skips them (topic=rig, counts as rig), set refuses them with 'unknown topic ' and an empty name (found in T-454 and T-462). Skip empty pieces in set too.
 - status: open
 - owner: —
 - type: idea
