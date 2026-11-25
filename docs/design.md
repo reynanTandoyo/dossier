@@ -768,6 +768,8 @@ pub fn guard(payload: &str) -> Option<String>;
 Written with `serde_json::to_string_pretty` and a final LF; the old file is kept as
 `settings.json.bak`.
 
+Since version 1.0, guard also refuses the first edit of a file in a session when entries in force bind it (section 21.3).
+
 ## 9. Commands of v0.2
 
 | Command | Arguments | Result |
@@ -1462,3 +1464,41 @@ pub fn run(args: &Args, g: &Global) -> Result<Output>;
 | `brief` | — | with topics in the settings, one line after the tags line (or after the project line when there is no tags line): `Topics: <a> (<n>), <b> (<n>) · dossier list --topic <name>`, n being the decisions in force that name the topic, those a digest sums up included, `(0)` when none; the JSON data gets `"topics": [{"name": …, "decisions": n}]`, an empty list without topics; a decision line with a topic is `<ID> · [<topic>, <topic>] <title> (<author>, <date>)`, the topics as written in the entry, also in the shortened form; the order and the line limit do not change |
 
 The topics command is registered as T-463 says. Files: src/cli.rs, src/cmd/mod.rs, src/cmd/topics.rs, src/cmd/help.rs, src/examples.rs, tests/cmd_agents.rs, tests/cmd_help.rs. Its help line is `topics`, `Lists or adds project topics` (after `glossary`); its examples are `dossier topics`, `dossier topics add pumps` and `dossier list --topic pumps`.
+
+### 21.3 Code pointers and the check before an edit (R-CODE-6 to 8, D51)
+
+```rust
+// codeptr.rs
+/// The path of a code pointer: the part before its first `::` (all of it when none), trimmed, backslashes as slashes, a leading `./` and trailing slashes removed.
+pub fn path_of(pointer: &str) -> String;
+/// True when the pointer's path is the stored path, or a folder that holds it.
+pub fn covers(pointer: &str, stored: &str) -> bool;
+/// True when the pointer's path is the folder, or lies in it.
+pub fn lies_in(pointer: &str, folder: &str) -> bool;
+
+// shown.rs
+/// The IDs of `ids` that the session has not been shown yet, in their order, recorded as shown; an empty or unusual session name gives all of `ids` and writes nothing.
+pub fn unseen(state: &Path, session: &str, ids: &[String]) -> Result<Vec<String>>;
+
+// hooks.rs
+/// The file an Edit, Write or MultiEdit payload is about; None for another tool and for a path with a part named DOSSIER.
+pub fn edited_path(payload: &str) -> Option<String>;
+/// The text of the payload's `session_id`; None when the key is missing or not a text.
+pub fn session_of(payload: &str) -> Option<String>;
+// installed and uninstalled are unchanged: the PreToolUse hook on Edit|Write|MultiEdit already runs guard.
+
+// which.rs (private; points_at is used by which --binding too)
+// Entry is crate::entry::Entry.
+// fn points_at(entry: &Entry, stored: &str) -> bool: true when a pointer of the entry's `code` field covers `stored`.
+
+// guard.rs (private copy of the function own of after.rs)
+// fn own(args: &[&str]) -> Option<String>: the standard output of this program run again with `args`, None unless it ends with exit 0.
+```
+
+| Command | Arguments | Result |
+|---|---|---|
+| `which` | `<path>` | also lists the entries whose `code` names a folder that the path lies in: a pointer to a folder covers the files in it (`codeptr::covers`) |
+| `brief --task` | `--task <id>` | the pointers the task context shows are matched by codeptr: a pointer is kept when it lies in a file or folder of the task, or names a folder that holds one of its files (`codeptr::lies_in`, `codeptr::covers`) |
+| `decide`, `found`, `learn` | `--code <paths>` | the entry gets the field `code` with the pointers, comma-separated, each trimmed with backslashes as slashes (`src/pump` or `src/pump/seal.rs::leak_model`); without `--code` no `code` line is written; `which` then lists the entry for a file it covers |
+| `which --binding` | `<path> [--session <id>]` | prints only the approved entries in force whose `code` covers the path, in the order of the store: each as the line `<ID> · <kind> · <title>` and, when the entry has a section Decision, Statement or Observation, the first line of the first of these it has, indented by two spaces; nothing else (no tasks, no `not attached` line); with `--session` the entries that session was shown before are left out (`shown::unseen`); its JSON data is `{"path": <stored path>, "entries": [{"id", "kind", "title", "text"}]}`; with no entry the output is empty; `--session` without `--binding` is a usage error |
+| `guard` | — | after the existing check, when the payload names a path and a session, runs `which --binding <path> --session <session>`; when that prints entries, exit 2 with the message `Entries in force for <path>; read them, then make your edit again (dossier show <ID> prints one in full):`, a line break, then those lines; the next edit of the file goes through, as the session was shown them; without a path, without a session or without entries guard prints nothing and exits 0 |
