@@ -1,5 +1,6 @@
 //! Choosing the entries that are most related to a task or a question.
 
+use crate::glossary::Term;
 use crate::store::Item;
 use std::collections::{HashMap, HashSet};
 
@@ -341,6 +342,43 @@ pub fn why(item: &Item, query: &Query) -> Option<&'static str> {
     shares_word.then_some("word match")
 }
 
+/// The query with the other spellings of every glossary term it names added to its words. A term
+/// is named when one of its spellings has stems that are all among the stems of the query words,
+/// or when a query tag equals one of its spellings, ignoring case. The tags and words keep their
+/// order; a word already among the words is not added again, ignoring case.
+pub fn widened(query: &Query, terms: &[Term]) -> Query {
+    let known = query_stems(query);
+    let tags = folded(&query.tags);
+    let mut widened_words = query.words.clone();
+    for term in terms {
+        let spellings: Vec<&str> = std::iter::once(term.term.as_str())
+            .chain(term.also.iter().map(String::as_str))
+            .collect();
+        let named = spellings.iter().any(|spelling| {
+            let spelling_stems = stems(spelling);
+            let by_words = !spelling_stems.is_empty()
+                && spelling_stems.iter().all(|stem| known.contains(stem));
+            by_words || tags.contains(&spelling.trim().to_lowercase())
+        });
+        if named {
+            for spelling in &spellings {
+                for word in words(spelling) {
+                    if !widened_words
+                        .iter()
+                        .any(|present| present.to_lowercase() == word)
+                    {
+                        widened_words.push(word);
+                    }
+                }
+            }
+        }
+    }
+    Query {
+        tags: query.tags.clone(),
+        words: widened_words,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -350,6 +388,17 @@ mod tests {
 
     const EARLY: &str = "2026-11-20T10:00:00+01:00";
     const LATE: &str = "2026-11-21T10:00:00+01:00";
+
+    /// A glossary term with the given name and spellings, and nothing else.
+    fn glossary_term(name: &str, also: &[&str]) -> Term {
+        Term {
+            term: name.to_string(),
+            meaning: String::new(),
+            symbol: None,
+            unit: None,
+            also: also.iter().map(|spelling| spelling.to_string()).collect(),
+        }
+    }
 
     /// An entry written by `render` and read back with `Entry::parse`, as the store reads it.
     /// `fields` are added after `created`; `sections` are the bodies, by name.
@@ -722,5 +771,64 @@ mod tests {
         assert_eq!(why(&titled, &q), Some("word match"));
         assert_eq!(why(&sectioned, &q), Some("word match"));
         assert_eq!(why(&unrelated, &q), None);
+    }
+
+    #[test]
+    fn a_term_named_by_its_other_spellings_adds_their_words_to_the_query() {
+        let terms = [glossary_term("ControlLine", &["valve connection"])];
+        let q = query(&["inbox"], &["valve", "connection", "check"]);
+
+        let wide = widened(&q, &terms);
+
+        assert_eq!(wide.tags, vec!["inbox".to_string()]);
+        assert_eq!(
+            wide.words,
+            vec!["valve", "connection", "check", "controlline"]
+        );
+    }
+
+    #[test]
+    fn one_word_of_a_spelling_names_nothing() {
+        let terms = [glossary_term("ControlLine", &["valve connection"])];
+        let q = query(&[], &["valve"]);
+
+        assert_eq!(widened(&q, &terms).words, vec!["valve"]);
+    }
+
+    #[test]
+    fn a_query_that_names_no_term_comes_back_unchanged() {
+        let terms = [glossary_term("ControlLine", &["valve connection"])];
+        let q = query(&["inbox"], &["pump", "seal"]);
+
+        let wide = widened(&q, &terms);
+
+        assert_eq!(wide.tags, q.tags);
+        assert_eq!(wide.words, q.words);
+        assert_eq!(widened(&q, &[]).words, q.words);
+    }
+
+    #[test]
+    fn widening_twice_adds_nothing_new() {
+        let terms = [glossary_term("ControlLine", &["valve connection"])];
+        let once = widened(&query(&[], &["valve", "connection"]), &terms);
+
+        let twice = widened(&once, &terms);
+
+        assert_eq!(twice.words, once.words);
+        assert_eq!(twice.words, vec!["valve", "connection", "controlline"]);
+    }
+
+    #[test]
+    fn a_query_tag_equal_to_a_spelling_names_the_term_ignoring_case() {
+        let terms = [glossary_term("ControlLine", &["valve connection"])];
+        let q = query(&["CONTROLLINE"], &["check", "Valve"]);
+
+        let wide = widened(&q, &terms);
+
+        assert_eq!(wide.tags, vec!["CONTROLLINE".to_string()]);
+        assert_eq!(
+            wide.words,
+            vec!["check", "Valve", "controlline", "connection"]
+        );
     }
 }
