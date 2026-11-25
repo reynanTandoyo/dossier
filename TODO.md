@@ -10970,10 +10970,8 @@
 - note (2026-11-25, haiku-T-513): done
 
 ### T-514 · The agent rules: add an agreed topic with --said-by
-- status: claimed
+- status: done
 - owner: haiku-T-514
-- claimed: 2026-11-25T22:49+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: docs
 - milestone: T-503
 - why: The rule still tells an LLM it cannot add a topic itself (D50), which D52 changed.
@@ -10987,8 +10985,12 @@
   3. Run cargo test --test cmd_agents.
 - accept: The installed rules tell an LLM to add an agreed topic with --said-by.
 - verify: cargo test --test cmd_agents
+- verified: 2026-11-25
+- commit: b369f08
 - reqs: R-AGENT-1, D52
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-514): done
 
 ### T-515 · Linked entries come along with search, brief --task and the check before an edit
 - status: done
