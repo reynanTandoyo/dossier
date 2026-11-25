@@ -13,6 +13,7 @@ pub mod brief_task;
 pub mod claude;
 pub mod cli;
 pub mod cmd;
+pub mod codeptr;
 pub mod conf;
 pub mod config;
 pub mod create;
