@@ -10953,6 +10953,112 @@
 - reqs: R-AGENT-1, D52
 - note (2026-11-25, planner): added
 
+### T-515 · Linked entries come along with search, brief --task and the check before an edit
+- status: open
+- owner: —
+- priority: P1 · type: milestone
+- goal: An entry's related entries (dossier link) are shown under it, one level deep, titles only, at most 3, only those in force, wherever an LLM is given entries: search results, every entry line of brief --task, and which --binding with the refusal of guard (D53, R-FIND-5).
+- why: Links are the most precise relation in the dossier because someone made them on purpose, but no command an LLM uses follows them: in a test on 2026-11-25 search found DEC-010 and not its linked FND-008.
+- summary: When an LLM finds an entry, it also sees the entries linked to it, so a decision comes with the finding behind it and a how-to with the assumption it rests on.
+- note (2026-11-25, planner): added
+
+### T-516 · requirements.md and design.md: D53 and R-FIND-5, linked entries come along
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: docs
+- milestone: T-515
+- why: The owner decided on 2026-11-25 that linked entries are shown with the entries an LLM is given; every task of this milestone names R-FIND-5 and the function links::linked.
+- summary: The requirements and the design say how linked entries are shown: one level, titles only, at most three, in force only.
+- files: docs/requirements.md, docs/design.md
+- read: docs/requirements.md, docs/design.md, src/cmd/link.rs, src/store.rs
+- steps:
+  1. docs/requirements.md, section 3: after the last decision row add `| D53 | Wherever an LLM is given entries (search, brief --task, which --binding and the refusal of guard), each entry's related entries (``link``) are shown under it: one level deep, titles only, at most three, only entries with status approved. (Owner, 2026-11-25.) | A link is the most precise relation in the dossier because someone made it on purpose; one level, titles and three at most keep the output short, and an old link must not feed a replaced rule. |` (doubled backticks stand for single ones). Change line 3 to name the decisions up to the new last one.
+  2. docs/requirements.md, section 5.9a: after R-FIND-4 add `- **R-FIND-5 MUST** Under each entry that search lists, each entry line of brief --task and each entry of which --binding (and so of guard's refusal), its related entries with status approved are shown, in the order of its related field, at most three, as one line each: two spaces, linked:, the ID, ` · ` and the title. A linked entry is not followed further (D53).` wrapped at 100 characters like R-FIND-4.
+  3. docs/design.md: after section 21.4 (or at the end when there is none) add `### 21.5 Linked entries (R-FIND-5, D53)` and a rust block: `// links.rs` `/// The most linked entries shown under one entry.` `pub const LINKED_LIMIT: usize = 3;` `/// The approved entries that "entry" names in its related field, in that order, at most limit, each once; IDs that name no entry, and the entry itself, are left out.` `pub fn linked<'a>(entry: &Entry, items: &'a [Item], limit: usize) -> Vec<&'a Item>;` `/// The line of a linked entry: two spaces, "linked: ", the ID, " · " and the title.` `pub fn line(item: &Item) -> String;` Then a table `| Command | Arguments | Result |` with rows for search (text: the linked lines under each result; JSON: each result gets linked, a list of {id, title}), brief --task (the linked lines under each entry line, except IDs that the brief already lists as their own line; they count against the brief's line limit) and which --binding (the linked lines under each entry; JSON: each entry gets linked; guard's refusal therefore shows them too).
+- accept: requirements.md defines D53 and R-FIND-5, and design.md 21.5 fixes links::linked, LINKED_LIMIT and the outputs.
+- verify: git grep -q -F "**R-FIND-5 MUST**" -- docs/requirements.md && git grep -q -F "### 21.5 Linked entries" -- docs/design.md
+- reqs: R-FIND-5, D53
+- note (2026-11-25, planner): added
+
+### T-517 · links.rs: the linked entries of an entry
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-515
+- why: search, brief --task and which --binding need one shared rule for which linked entries to show (R-FIND-5).
+- summary: One small module finds an entry's linked entries that are still in force and formats their lines.
+- depends: T-516
+- files: src/links.rs, src/lib.rs
+- read: docs/design.md, src/store.rs, src/entry/mod.rs, src/cmd/link.rs
+- steps:
+  1. src/lib.rs: add `pub mod links;` in alphabetical order.
+  2. src/links.rs: module comment naming R-FIND-5 and D53; `pub const LINKED_LIMIT: usize = 3`; `pub fn linked<'a>(entry: &Entry, items: &'a [Item], limit: usize) -> Vec<&'a Item>`: for each ID of `entry.list("related")` in order, the item whose `entry.id()` equals it ignoring case, when its status is approved (Status::Approved); skip IDs that name no item, the entry's own ID and IDs already taken; stop at `limit`. `pub fn line(item: &Item) -> String`: `  linked: <ID> · <title>` with the title trimmed.
+  3. Unit tests with invented items: an entry linked to an approved, a superseded and a draft entry gives only the approved one; the order of the related field is kept; a fourth approved link is left out with limit 3; an unknown ID and the entry's own ID are skipped; a link written twice gives one line; `line` of an approved finding gives `  linked: FND-002 · Seal wear grows with the gap`.
+  4. Run cargo test --lib links::
+- accept: links::linked returns the approved related entries in order, at most the limit, and links::line formats one of them.
+- verify: cargo test --lib links::
+- reqs: R-FIND-5
+- note (2026-11-25, planner): added
+
+### T-518 · search: the linked entries under each result
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-515
+- why: An LLM that finds an entry with search must also see the entries linked to it (R-FIND-5).
+- summary: Search prints the linked entries under each result and gives them in the JSON.
+- depends: T-517
+- files: src/cmd/search.rs, tests/cmd_search.rs
+- read: docs/design.md, src/cmd/search.rs, src/links.rs
+- steps:
+  1. src/cmd/search.rs: for each result, full matches and those with some of the words, compute `links::linked(&item.entry, <the items of the dossier the result is in>, links::LINKED_LIMIT)`. In the text output print `links::line` of each directly under the result's line (with --full, after the whole entry). In the JSON each result gets `"linked": [{"id": ..., "title": ...}]`, an empty list when there are none. --similar results get the same.
+  2. tests/cmd_search.rs: invented entries: a decision linked (dossier link) to a finding and to a superseded decision; search for a word of the decision only: the decision's line is followed by `  linked: FND-001 · <title>` and nothing for the superseded one; the finding is not listed as a result of its own; --json has the linked list; a result without links prints no linked line and has `"linked": []`. Adjust exact-output tests only where they now gain `"linked": []`.
+  3. Run cargo test --test cmd_search.
+- accept: search shows the approved linked entries under each result, in text and JSON.
+- verify: cargo test --test cmd_search
+- reqs: R-FIND-5, R-READ-3
+- note (2026-11-25, planner): added
+
+### T-519 · brief --task: the linked entries under each entry line
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-515
+- why: The entries brief --task gives for a task must bring their linked entries along (R-FIND-5).
+- summary: brief --task prints the linked entries under each entry it lists, without repeating entries it already shows.
+- depends: T-517
+- files: src/brief_task.rs, tests/cmd_brief.rs
+- read: docs/design.md, src/brief_task.rs, src/links.rs
+- steps:
+  1. src/brief_task.rs: after each line that names one entry (the summary lines of the sections: linked to the task, dead ends, code, investigations, related), add the lines of `links::linked(&item.entry, &approved, links::LINKED_LIMIT)` formatted with `links::line`, leaving out IDs the brief lists as their own entry line anywhere. The added lines count against the brief's line limit like any other line; the cut keeps its existing rule.
+  2. In the JSON data, each chosen entry gets `"linked": [ids]`, an empty list when there are none.
+  3. tests/cmd_brief.rs: a task whose related section lists a decision linked to a finding: the decision's line is followed by `  linked: FND-001 · <title>`; when that finding is itself listed in the brief, no linked line repeats it; a linked superseded entry is not shown. Adjust exact-output tests only where they now gain linked lines or the JSON field, and say so in the commit message.
+  4. Run cargo test --test cmd_brief and cargo test --lib brief_task::.
+- accept: brief --task shows the approved linked entries under each entry line, without repeating entries it lists.
+- verify: cargo test --test cmd_brief && cargo test --lib brief_task::
+- reqs: R-FIND-5, R-CTX-2
+- note (2026-11-25, planner): added
+
+### T-520 · which --binding and guard: the linked entries under each binding entry
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-515
+- why: Before an edit the LLM must see the reason behind a binding rule as well, for example the finding a decision is linked to (R-FIND-5, D51).
+- summary: The entries shown before the first edit of a file bring their linked entries along.
+- depends: T-517
+- files: src/cmd/which.rs, tests/cmd_which.rs, tests/cmd_guard.rs
+- read: docs/design.md, src/cmd/which.rs, src/cmd/guard.rs, src/links.rs
+- steps:
+  1. src/cmd/which.rs, --binding: after the lines of each entry (its title line and the indented first line of its main section), add the lines of `links::linked(&item.entry, <all items>, links::LINKED_LIMIT)` with `links::line`, leaving out IDs that --binding lists as entries of their own. With --session, the linked entries are shown whenever their entry is shown; they are not recorded in the session file. JSON: each entry gets `"linked": [{"id", "title"}]`.
+  2. tests/cmd_which.rs: an approved decision with `code: src/pump`, linked to an approved finding without a code pointer: `which src/pump/seal.rs --binding` prints the decision's two lines and then `  linked: FND-001 · <title>`; a linked retired entry is not shown; --json has the linked list.
+  3. tests/cmd_guard.rs: the same setup: the refusal of the first edit of src/pump/seal.rs holds the linked line.
+  4. Run cargo test --test cmd_which and cargo test --test cmd_guard.
+- accept: which --binding, and so guard's refusal, shows the approved linked entries under each binding entry.
+- verify: cargo test --test cmd_which && cargo test --test cmd_guard
+- reqs: R-FIND-5, R-CODE-8
+- note (2026-11-25, planner): added
+
 ## Questions
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.
