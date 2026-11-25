@@ -784,6 +784,14 @@ things are in the code is left to code navigation tools.
 - **R-CODE-5 SHOULD** `init --code-project` creates a dossier without confidential terms, a team
   dossier or the customer exchange, and writes agent rules without the parts about runs, large
   files and customers.
+- **R-CODE-6 MUST** A code pointer to a folder covers every file in it, in `which` and in
+  `brief --task`.
+- **R-CODE-7 MUST** `decide`, `found` and `learn` take `--code <pointers>`.
+- **R-CODE-8 MUST** `which <path> --binding` prints only the approved entries in force whose
+  pointers cover the path; with `--session <id>` it leaves out the entries that session was shown
+  before. The PreToolUse hook that `hooks install` adds (`guard`) refuses an LLM's first edit of a
+  file in a session when such entries exist and names them in the refusal; the next edit of the
+  file goes through (D51).
 
 ### 5.11h Investigations — INV
 
@@ -1265,6 +1273,8 @@ On a PC, in a connected folder: `.dossier-connect`, holding the server and the p
   from PowerShell, and `take` and `return` of a large file from a PC, by one person and by two
   (the refused and the forced take), including an interrupted copy. (ssh connection reuse is not
   built, D43.) Run before `take` and `return` are used on real work (D47).
+- **TEST-12 MUST** Finding tests (`tests/retrieval.rs`): a test dossier of invented entries and a
+  fixed list of searches, each with the entry that must be among the first three results.
 
 ---
 
@@ -1444,6 +1454,22 @@ routine steps happen by themselves.
 **It worked if:** `brief` in a project with more than 200 entries still fits its limit and
 still contains what the LLM needed.
 
+### Phase 7 — Finding (v1.0)
+
+**Goal:** an LLM is shown the entries that matter for its work, also when they are worded
+differently (D48 to D51).
+
+| Area | Requirements |
+|---|---|
+| Ranking by stems and rare words | R-FIND-1 to 4 |
+| Search | R-READ-3, 4 |
+| Topics | R-TOPIC-1 to 5 |
+| Code pointers and the check before an edit | R-CODE-6 to 8 |
+| Finding tests | TEST-12 |
+
+**It worked if:** in the project's own dossier, `search connection reuse` lists the two entries
+about connection reuse among its first three results, and every search of TEST-12 finds its entry.
+
 ### Added on 2026-11-22
 
 Three pieces of work were added after phase 3 was finished: R-AGENT-5 (hooks after `todo`
@@ -1500,7 +1526,7 @@ Where another requirement still names a removed command, the replacement is mean
   decisions and finished tasks are reported to that work package. One-way, after the team has
   used OpenProject for a while.
 - **I-2** Search by meaning (embeddings stored next to the entries) when full-text search starts
-  to miss entries.
+  to miss entries. Version 1.0 improves full-text finding first (D48); embeddings stay an idea.
 - **I-3** An MCP server for clients that can't run commands.
 - **I-4** A read-only HTML view of a dossier for reading on the office network.
 - **I-5** An overview across all projects for the team lead (codes, open drafts, last activity).
