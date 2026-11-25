@@ -24,7 +24,7 @@ const RECORDED: &str = "## Recorded for this task";
 const MILESTONES: &str = "## Decisions of its milestones";
 /// The heading over the approved entries that match the task's tags and title words.
 const RELATED: &str = "## Related";
-/// The most entries `select::best` chooses for the Related heading.
+/// The most entries `select::top` chooses for the Related heading.
 const RELATED_LIMIT: usize = 10;
 /// The heading over the task's file list (R-FILE-14).
 const FILES: &str = "## Files";
@@ -32,7 +32,7 @@ const FILES: &str = "## Files";
 const FILES_LINES: usize = 15;
 /// The heading over the approved dead ends that match the task's tags and title words (R-CTX-16).
 const DEAD_ENDS: &str = "## Dead ends";
-/// The most dead ends `select::best` chooses for the Dead ends heading.
+/// The most dead ends `select::top` chooses for the Dead ends heading.
 const DEAD_ENDS_LIMIT: usize = 5;
 /// The heading over the approved entries whose code pointers lie in the files todo names for the
 /// task (R-CODE-4).
@@ -55,7 +55,7 @@ const USES_LIMIT: usize = 3;
 const INVESTIGATIONS: &str = "## Investigations";
 /// The most lines under the Investigations heading, which makes the part fifteen lines at most.
 const INVESTIGATIONS_LINES: usize = 14;
-/// The most other investigations `select::best` chooses for the Investigations heading.
+/// The most other investigations `select::top` chooses for the Investigations heading.
 const INVESTIGATIONS_LIMIT: usize = 5;
 /// The section of an investigation that holds its solution (format.md §28).
 const SOLUTION: &str = "Solution";
@@ -77,7 +77,7 @@ pub struct Selection {
 /// milestones, the task's file list (R-FILE-14), the last usage records of its software and
 /// analysis in the team's usage index (R-CTX-2), the approved dead ends that match it (R-CTX-16),
 /// the investigations of the task and the most similar ones (design.md §15), the entries whose code
-/// pointers lie in the files todo names for it (R-CODE-4), then select::best over the remaining
+/// pointers lie in the files todo names for it (R-CODE-4), then select::top over the remaining
 /// approved entries and the team's approved lessons and how-tos (R-CTX-2, marked `team:`), except
 /// a copy of a project entry that is listed (R-TEAM-4), with the task's machine, analysis and
 /// software fields as tags and its title as words. A decision or lesson printed with its text is
@@ -118,10 +118,11 @@ pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection> {
         .collect();
     listed.extend(decisions.iter().map(|item| item.entry.id()));
 
+    let (term_rows, terms) = terms_lines(ctx, &about);
     let mut out = vec![task_line(task, &about.title)];
     // The entries named by a summary line, each with its reason, in the order of `out`.
     let mut chosen: Vec<(String, &'static str)> = Vec::new();
-    out.extend(terms_lines(ctx, &about));
+    out.extend(term_rows);
     if !recorded.is_empty() {
         out.push(RECORDED.to_string());
         out.extend(recorded.iter().map(|item| summary(item)));
@@ -149,11 +150,13 @@ pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection> {
         tags: about.tags(),
         words: select::words(&about.title),
     };
+    // A glossary spelling of a term the title names widens the words (R-FIND-4).
+    let query = select::widened(&query, &terms);
     let (dead_ends, mut pool): (Vec<Item>, Vec<Item>) = approved
         .into_iter()
         .filter(|item| !listed.contains(&item.entry.id()))
         .partition(is_dead_end);
-    let found = select::best(&dead_ends, &query, DEAD_ENDS_LIMIT);
+    let found = select::top(&dead_ends, &query, DEAD_ENDS_LIMIT);
     if !found.is_empty() {
         out.push(DEAD_ENDS.to_string());
         for item in &found {
@@ -203,7 +206,7 @@ pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection> {
     // A team copy of a listed project entry is left out (R-TEAM-4). Leaving it out can bring
     // another entry into the choice, so the choice is made again without it.
     let related = loop {
-        let picked = select::best(&pool, &query, RELATED_LIMIT);
+        let picked = select::top(&pool, &query, RELATED_LIMIT);
         let left_out = copies_left_out(&picked, &team_paths, &listed, &ctx.cfg.code);
         if left_out.is_empty() {
             break picked;
@@ -287,10 +290,10 @@ fn copies_left_out(
         .collect()
 }
 
-/// Why `select::best` chose the entry, as `select::reason` says it; `word match` when that gives
-/// none (every entry `best` returns has a reason, so this is a safe default).
+/// Why `select::top` chose the entry, as `select::why` says it; `word match` when that gives
+/// none (every entry `top` returns has a reason, so this is a safe default).
 fn reason_of(item: &Item, query: &Query) -> &'static str {
-    select::reason(item, query).unwrap_or("word match")
+    select::why(item, query).unwrap_or("word match")
 }
 
 /// What `brief --task` reads from `todo show <task> --json`. A missing value is empty.
@@ -529,13 +532,13 @@ fn is_dead_end(item: &Item) -> bool {
 }
 
 /// The Investigations heading (design.md §15, R-INV-5): the approved investigations whose `task` is
-/// the task, in file order, then the up to INVESTIGATIONS_LIMIT others that select::best chooses for
+/// the task, in file order, then the up to INVESTIGATIONS_LIMIT others that select::top chooses for
 /// the task's query. An investigation of the task that is open is its title line with `[open]` and
 /// one indented line per attempt; any other is one line (`one_line`). At most INVESTIGATIONS_LINES
 /// lines under the heading, cut as `cut` cuts. The IDs of the investigations with a line kept go to
 /// `listed`. Returns the lines (none, with no heading, when no investigation is shown) and the
 /// investigations not shown, which the caller may still choose for Related. Each investigation
-/// shown is added to `chosen` with its reason: `linked` for the task's own, else `select::reason`.
+/// shown is added to `chosen` with its reason: `linked` for the task's own, else `select::why`.
 fn investigation_lines(
     items: Vec<Item>,
     task: &str,
@@ -558,7 +561,7 @@ fn investigation_lines(
         })
         .collect();
     shown.extend(
-        select::best(&others, query, INVESTIGATIONS_LIMIT)
+        select::top(&others, query, INVESTIGATIONS_LIMIT)
             .into_iter()
             .map(|item| {
                 (
@@ -749,23 +752,31 @@ fn cut(lines: Vec<String>, limit: usize) -> Vec<String> {
 /// or other spelling is in the task's title, fields or notes. The project's come first, each
 /// glossary in its file order; the team's are marked `team:`. A glossary that cannot be read gives
 /// a line that says so, placed before the terms. A team whose settings cannot be read adds nothing.
-/// At most TERMS_LINES lines; no heading when there is nothing to say.
-fn terms_lines(ctx: &Ctx, about: &About) -> Vec<String> {
+/// At most TERMS_LINES lines; no heading when there is nothing to say. Also returns the terms of
+/// both glossaries that could be read, the project's first, for widening the query in `select`.
+fn terms_lines(ctx: &Ctx, about: &About) -> (Vec<String>, Vec<Term>) {
     let mut problems: Vec<String> = Vec::new();
     let mut found: Vec<String> = Vec::new();
+    let mut known: Vec<Term> = Vec::new();
     match glossary_terms(&ctx.dossier, &ctx.cfg.code) {
-        Ok(terms) => found.extend(matching(&terms, &about.texts).into_iter().map(term_line)),
+        Ok(terms) => {
+            found.extend(matching(&terms, &about.texts).into_iter().map(term_line));
+            known.extend(terms);
+        }
         Err(error) => problems.push(format!("glossary cannot be read: {}", error.message)),
     }
     if let Some(team) = &ctx.team
         && let Some(code) = team_code(team)
     {
         match glossary_terms(team, &code) {
-            Ok(terms) => found.extend(
-                matching(&terms, &about.texts)
-                    .into_iter()
-                    .map(|term| format!("team:{}", term_line(term))),
-            ),
+            Ok(terms) => {
+                found.extend(
+                    matching(&terms, &about.texts)
+                        .into_iter()
+                        .map(|term| format!("team:{}", term_line(term))),
+                );
+                known.extend(terms);
+            }
             Err(error) => problems.push(format!(
                 "the team's glossary cannot be read: {}",
                 error.message
@@ -774,11 +785,11 @@ fn terms_lines(ctx: &Ctx, about: &About) -> Vec<String> {
     }
     let rows: Vec<String> = problems.into_iter().chain(found).collect();
     if rows.is_empty() {
-        return Vec::new();
+        return (Vec::new(), known);
     }
     let mut out = vec![TERMS.to_string()];
     out.extend(cut(rows, TERMS_LINES));
-    out
+    (out, known)
 }
 
 /// The terms of the glossary of `dossier` in file order (format.md §20). `code` names the file
@@ -1270,6 +1281,58 @@ mod tests {
     }
 
     #[test]
+    fn related_leaves_out_an_entry_that_shares_only_a_common_word() {
+        let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let (dir, ctx) = project();
+        write_entry(
+            &ctx,
+            Kind::Finding,
+            "FND-001",
+            "Rig and valve",
+            "approved",
+            &[],
+            &[("Observation", "The valve was opened.")],
+        );
+        write_entry(
+            &ctx,
+            Kind::Finding,
+            "FND-002",
+            "Bearings checked after the run",
+            "approved",
+            &[],
+            &[("Observation", "The bearings were measured.")],
+        );
+        let task = serde_json::json!({
+            "id": "T-150",
+            "title": "Pump seal and bearing check",
+            "status": "open"
+        });
+        let show = stand_in(dir.path(), "todo-show", &envelope(task));
+        // SAFETY: ENV_LOCK is held, so no other test reads or changes the environment meanwhile.
+        unsafe { std::env::set_var("DOSSIER_TODO", &show) };
+
+        let found = lines(&ctx, "T-150", 100);
+
+        // SAFETY: ENV_LOCK is still held.
+        unsafe { std::env::remove_var("DOSSIER_TODO") };
+
+        let found = found.expect("the lines");
+        let related = found
+            .iter()
+            .position(|line| line == "## Related")
+            .expect("the Related heading");
+        assert!(
+            found[related + 1..]
+                .contains(&"FND-002 · finding · Bearings checked after the run".to_string()),
+            "{found:?}"
+        );
+        assert!(
+            !found.iter().any(|line| line.contains("FND-001")),
+            "{found:?}"
+        );
+    }
+
+    #[test]
     fn a_heading_with_no_line_is_left_out() {
         let _guard = crate::ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let (dir, ctx) = project();
@@ -1561,8 +1624,6 @@ mod tests {
                 "  Statement: Steady mixing-plane runs converge at mass flows where rotating stall is seen.",
                 "  Valid for: Transonic front stages.",
                 "  picture: images/LES-010/stall-margin-by-method.svg — Stall margin by method",
-                "FND-011 · finding · Seal leak model checked against the rig",
-                "FND-013 · finding · Setup notes checked against rig",
             ]
         );
     }
@@ -1681,8 +1742,8 @@ mod tests {
         let (dir, mut ctx) = project();
         let team = team_of(&ctx);
         ctx.team = Some(team.dossier.clone());
-        // The project's LES-010 and the team's LES-010 have the same ID. Scores: the project's 8
-        // (title and machine), the team lesson's 6 (machine and analysis), the how-to's 5 (title).
+        // The project's LES-010 and the team's LES-010 have the same ID. The team's lines come in
+        // the order of the weights of select::top.
         write_entry(
             &ctx,
             Kind::Lesson,
@@ -1777,10 +1838,10 @@ mod tests {
                 "LES-010 · lesson · Compressor stall notes",
                 "  Statement: Stall came early at low mass flow.",
                 "  Valid for: Front stages only.",
+                "team:HOW-001 · howto · Set up speedline runs",
                 "team:LES-010 · lesson · Steady runs overpredict stall margin",
                 "  Statement: Steady runs converge where rotating stall is seen.",
                 "  Valid for: Transonic front stages.",
-                "team:HOW-001 · howto · Set up speedline runs",
             ]
         );
     }
@@ -2613,8 +2674,8 @@ mod tests {
                 ("FND-001".to_string(), "linked"),
                 ("DEC-003".to_string(), "milestone"),
                 ("team:LES-002".to_string(), "tag match"),
-                ("LES-011".to_string(), "tag match"),
                 ("LES-010".to_string(), "word match"),
+                ("LES-011".to_string(), "tag match"),
             ]
         );
         let text = text.expect("the lines").join("\n");

@@ -2878,6 +2878,60 @@ fn brief_task_json_items_are_the_entries_printed_in_their_order_with_their_reaso
 }
 
 #[test]
+fn brief_task_related_is_chosen_by_stems_and_a_common_word_relates_nothing() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &["found", "The valve was opened.", "--title", "Rig and valve"],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "found",
+                "The bearings were measured.",
+                "--title",
+                "Bearings checked after the run",
+            ],
+        )
+        .success();
+    let data = serde_json::json!({
+        "id": "T-150",
+        "title": "Pump seal and bearing check",
+        "status": "open"
+    });
+    let envelope = serde_json::json!({
+        "schema": "todo.show.v1",
+        "ok": true,
+        "data": data,
+        "warnings": []
+    })
+    .to_string();
+    project.write_stand_in(
+        "todo",
+        &format!("@echo off\r\necho {envelope}\r\n"),
+        &format!("#!/bin/sh\nprintf '%s\\n' '{envelope}'\n"),
+    );
+
+    let text = brief(&project, &["--task", "T-150"], None);
+    assert!(
+        text.contains("FND-002 · finding · Bearings checked after the run"),
+        "{text}"
+    );
+    assert!(!text.contains("Rig and valve"), "{text}");
+
+    let json_text = brief(&project, &["--task", "T-150", "--json"], None);
+    let reply: serde_json::Value = serde_json::from_str(json_text.trim()).expect("one JSON line");
+    assert_eq!(
+        reply["data"]["items"],
+        serde_json::json!([{"id": "FND-002", "reason": "word match"}]),
+        "{json_text}"
+    );
+}
+
+#[test]
 fn a_budget_that_cuts_a_related_lesson_takes_it_out_of_the_items_too() {
     let project = project_with_a_linked_dead_end_and_a_related_lesson();
 
