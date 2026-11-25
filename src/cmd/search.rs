@@ -18,6 +18,8 @@
 //! With `--similar <ID>` no words are needed: the entries most related to that entry are listed
 //! instead, by word stems, tags and rare words (select::top), under the same filter rules
 //! (R-READ-9, `similar`). Each says why it was chosen, `tag match` or `word match`, after the dash.
+//! Under each result come its linked entries (links::linked, R-FIND-5), one `linked:` line each, at
+//! most `links::LINKED_LIMIT`; in JSON each result has them as `"linked"`.
 
 use crate::approval::{self, Mark};
 use crate::cli::Global;
@@ -27,6 +29,7 @@ use crate::error::{Code, Error, Result};
 use crate::filesum;
 use crate::filter::Filter;
 use crate::glossary::{self, Term};
+use crate::links;
 use crate::output::Output;
 use crate::paths;
 use crate::select::{self, Query};
@@ -92,6 +95,16 @@ struct Hit {
     /// For a word search: whether the entry holds every word or only some of them. None for
     /// `--similar`.
     matched: Option<Matched>,
+    /// The linked entries shown under the result (links::linked), in their order; empty when the
+    /// entry names none that is approved.
+    linked: Vec<Linked>,
+}
+
+/// A linked entry shown under a result: its `linked:` line (links::line) and its data in JSON.
+#[derive(Clone)]
+struct Linked {
+    line: String,
+    data: Value,
 }
 
 /// How a word search result holds the search words.
@@ -150,15 +163,19 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let today = time::date(&now);
     let mut hits: Vec<Hit> = Vec::new();
     // The entries that pass the filter but lack a word, each with the dossier it is in.
-    let mut partial: Vec<(&Ctx, Item)> = Vec::new();
+    let mut partial: Vec<(&Ctx, Item, Vec<Linked>)> = Vec::new();
     for scanned in places {
         let (items, found) = store::all(&scanned.dossier);
         warnings.extend(found);
-        for item in items.into_iter().filter(|item| args.filter.matches(item)) {
+        let under = linked_each(&items, |item| args.filter.matches(item));
+        for (item, linked) in items.into_iter().zip(under) {
+            let Some(linked) = linked else {
+                continue;
+            };
             if holds_every(&item.entry, &words) {
-                hits.push(hit(scanned, item, &words, today));
+                hits.push(hit(scanned, item, &words, today, linked));
             } else {
-                partial.push((scanned, item));
+                partial.push((scanned, item, linked));
             }
         }
     }
@@ -205,14 +222,19 @@ fn similar(id: &str, args: &Args, g: &Global) -> Result<Output> {
     let places: Vec<&Ctx> = std::iter::once(&ctx).chain(team.as_ref()).collect();
     let mut warnings = Vec::new();
     let mut items: Vec<Item> = Vec::new();
-    // The place of each item in `items`, at the same index.
+    // The linked entries of each item in `items`, and its place, at the same index.
+    let mut unders: Vec<Vec<Linked>> = Vec::new();
     let mut homes: Vec<&Ctx> = Vec::new();
     for place in places {
         let (found, problems) = store::all(&place.dossier);
         warnings.extend(problems);
-        for item in found {
-            if item.path != target.path && args.filter.matches(&item) {
+        let under = linked_each(&found, |item| {
+            item.path != target.path && args.filter.matches(item)
+        });
+        for (item, linked) in found.into_iter().zip(under) {
+            if let Some(linked) = linked {
                 items.push(item);
+                unders.push(linked);
                 homes.push(place);
             }
         }
@@ -228,6 +250,7 @@ fn similar(id: &str, args: &Args, g: &Global) -> Result<Output> {
                 .iter()
                 .position(|candidate| std::ptr::eq(candidate, picked))?;
             let place = *homes.get(index)?;
+            let linked = unders.get(index)?.clone();
             let item = Item {
                 path: picked.path.clone(),
                 raw: picked.raw.clone(),
@@ -241,6 +264,7 @@ fn similar(id: &str, args: &Args, g: &Global) -> Result<Output> {
                 line: item.entry.title(),
                 reason: select::why(picked, &query),
                 matched: None,
+                linked,
                 item,
             })
         })
@@ -386,9 +410,14 @@ fn holds_every(entry: &Entry, words: &[Wanted]) -> bool {
 
 /// The entries that hold only some of the search words, best first (select::ranked over the words
 /// and their glossary spellings), at most `PARTIAL_LIMIT`, each as a result with its title as the
-/// line. `partial` holds each entry with the dossier it is in, and `today` is the day of the run,
-/// YYYY-MM-DD. Nothing is listed when one word was typed: its entries hold it or not.
-fn partial_hits(partial: Vec<(&Ctx, Item)>, words: &[Wanted], today: &str) -> Vec<Hit> {
+/// line. `partial` holds each entry with the dossier it is in and its linked entries, and `today`
+/// is the day of the run, YYYY-MM-DD. Nothing is listed when one word was typed: its entries hold
+/// it or not.
+fn partial_hits(
+    partial: Vec<(&Ctx, Item, Vec<Linked>)>,
+    words: &[Wanted],
+    today: &str,
+) -> Vec<Hit> {
     if words.len() < 2 {
         return Vec::new();
     }
@@ -399,7 +428,11 @@ fn partial_hits(partial: Vec<(&Ctx, Item)>, words: &[Wanted], today: &str) -> Ve
             .flat_map(|wanted| wanted.spellings.clone())
             .collect(),
     };
-    let (homes, items): (Vec<&Ctx>, Vec<Item>) = partial.into_iter().unzip();
+    let (homes, rest): (Vec<&Ctx>, Vec<(Item, Vec<Linked>)>) = partial
+        .into_iter()
+        .map(|(home, item, linked)| (home, (item, linked)))
+        .unzip();
+    let (items, unders): (Vec<Item>, Vec<Vec<Linked>>) = rest.into_iter().unzip();
     // The index in `items` of each entry that `select::ranked` picks, best first.
     let order: Vec<usize> = select::ranked(&items, &query)
         .into_iter()
@@ -410,12 +443,13 @@ fn partial_hits(partial: Vec<(&Ctx, Item)>, words: &[Wanted], today: &str) -> Ve
                 .position(|candidate| std::ptr::eq(candidate, picked))
         })
         .collect();
-    let mut items: Vec<Option<Item>> = items.into_iter().map(Some).collect();
+    let mut slots: Vec<Option<(Item, Vec<Linked>)>> =
+        items.into_iter().zip(unders).map(Some).collect();
     order
         .into_iter()
         .filter_map(|index| {
             let home = *homes.get(index)?;
-            let item = items.get_mut(index)?.take()?;
+            let (item, linked) = slots.get_mut(index)?.take()?;
             Some(Hit {
                 place: place_of(home),
                 group: 2,
@@ -424,6 +458,7 @@ fn partial_hits(partial: Vec<(&Ctx, Item)>, words: &[Wanted], today: &str) -> Ve
                 line: item.entry.title(),
                 reason: None,
                 matched: Some(Matched::Some),
+                linked,
                 item,
             })
         })
@@ -431,9 +466,9 @@ fn partial_hits(partial: Vec<(&Ctx, Item)>, words: &[Wanted], today: &str) -> Ve
 }
 
 /// The match of one entry that holds every search word, of the dossier `ctx`: its place, group,
-/// creation time, mark and matched line. `words` holds each search word (see holds_every); `today`
-/// is the day of the run, YYYY-MM-DD.
-fn hit(ctx: &Ctx, item: Item, words: &[Wanted], today: &str) -> Hit {
+/// creation time, mark, matched line and linked entries. `words` holds each search word (see
+/// holds_every); `today` is the day of the run, YYYY-MM-DD.
+fn hit(ctx: &Ctx, item: Item, words: &[Wanted], today: &str, linked: Vec<Linked>) -> Hit {
     let entry = &item.entry;
     let title = entry.title().to_lowercase();
     let title_stems = stems_of(&entry.title());
@@ -455,7 +490,33 @@ fn hit(ctx: &Ctx, item: Item, words: &[Wanted], today: &str) -> Hit {
         line: matched_line(entry, &words[0]),
         reason: None,
         matched: Some(Matched::All),
+        linked,
         item,
+    }
+}
+
+/// The linked entries of each entry of `items` that `keep` accepts, in the order of `items`, and
+/// None for the others. An entry's linked entries are looked up among all of `items`, so that a
+/// linked entry the filter leaves out is still shown (links::linked).
+fn linked_each(items: &[Item], keep: impl Fn(&Item) -> bool) -> Vec<Option<Vec<Linked>>> {
+    items
+        .iter()
+        .map(|item| {
+            keep(item).then(|| {
+                links::linked(&item.entry, items, links::LINKED_LIMIT)
+                    .into_iter()
+                    .map(linked_of)
+                    .collect()
+            })
+        })
+        .collect()
+}
+
+/// The line and the JSON data of a linked entry shown under a result.
+fn linked_of(item: &Item) -> Linked {
+    Linked {
+        line: links::line(item),
+        data: json!({"id": item.entry.id(), "title": item.entry.title()}),
     }
 }
 
@@ -641,7 +702,8 @@ fn result_lines(hits: &[Hit]) -> String {
 /// One result line, ending with a line break: `<ID>  [mark] <title>  — <shown>`, the ID with
 /// `team:` before it for a team entry, the mark only when there is one and the part after the dash
 /// only when it is not empty. The part after the dash is the reason of a `--similar` result, else
-/// the matched line; a result with some of the words has none, its title being its line.
+/// the matched line; a result with some of the words has none, its title being its line. The
+/// linked lines of the result follow it (push_linked).
 fn result_line(hit: &Hit) -> String {
     let id = shown_id(hit);
     let title = hit.item.entry.title();
@@ -654,16 +716,26 @@ fn result_line(hit: &Hit) -> String {
         None if hit.partial() => "",
         None => hit.line.as_str(),
     };
-    if shown.is_empty() {
+    let mut text = if shown.is_empty() {
         format!("{head}\n")
     } else {
         format!("{head}  — {shown}\n")
+    };
+    push_linked(&mut text, hit);
+    text
+}
+
+/// Appends the linked lines of a result, each ending with a line break (links::line).
+fn push_linked(text: &mut String, hit: &Hit) {
+    for linked in &hit.linked {
+        text.push_str(&linked.line);
+        text.push('\n');
     }
 }
 
-/// The whole text of each full match, with a line `---` between two results. Every entry text
-/// ends with a line break, so the text can be followed by the count line. The results with some of
-/// the words are left out.
+/// The whole text of each full match, its linked lines after it, with a line `---` between two
+/// results. Every entry text ends with a line break, so the text can be followed by the count line.
+/// The results with some of the words are left out.
 fn full_text(hits: &[Hit]) -> String {
     let mut text = String::new();
     for (index, hit) in hits.iter().filter(|hit| !hit.partial()).enumerate() {
@@ -676,6 +748,7 @@ fn full_text(hits: &[Hit]) -> String {
         if !body.ends_with('\n') {
             text.push('\n');
         }
+        push_linked(&mut text, hit);
     }
     text
 }
@@ -695,17 +768,24 @@ fn count_line(count: usize, partial: usize) -> String {
     }
 }
 
-/// The data of one result: its ID, title, status, matched line and place (`project` or `team`).
-/// The ID is the entry's own, without `team:`; the place says where it is. A word search result
-/// has its `match` (`all` or `some`); a `--similar` result has its `reason`.
+/// The data of one result: its ID, title, status, matched line, place (`project` or `team`) and
+/// linked entries (`linked`, each with its `id` and `title`, none is an empty list). The ID is the
+/// entry's own, without `team:`; the place says where it is. A word search result has its `match`
+/// (`all` or `some`); a `--similar` result has its `reason`.
 fn result_data(hit: &Hit) -> Value {
     let entry = &hit.item.entry;
+    let linked: Vec<Value> = hit
+        .linked
+        .iter()
+        .map(|linked| linked.data.clone())
+        .collect();
     let mut data = json!({
         "id": entry.id(),
         "title": entry.title(),
         "status": entry.status().map_or("", Status::name),
         "line": hit.line,
         "place": hit.place,
+        "linked": linked,
     });
     if let Some(matched) = hit.matched {
         data["match"] = json!(matched.name());

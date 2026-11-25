@@ -5,8 +5,10 @@
 //! project's own. A German word finds the English entries through the glossaries of the project
 //! and the team (R-TERM-4). A word also matches a word of the same stem, so `replaced` finds
 //! `replacement`. When more than one word is typed, the entries that hold only some of them are
-//! listed after the full matches, and JSON marks each result `all` or `some`. Each test runs in its
-//! own temporary project with the clock fixed at 2026-11-20T10:00:00+01:00.
+//! listed after the full matches, and JSON marks each result `all` or `some`. The linked entries of
+//! a result (its related entries, approved only) follow it as `linked:` lines, and JSON gives them
+//! as `"linked"`. Each test runs in its own temporary project with the clock fixed at
+//! 2026-11-20T10:00:00+01:00.
 
 mod common;
 
@@ -21,11 +23,11 @@ const NOW: &str = "2026-11-20T10:00:00+01:00";
 const LATER: &str = "2026-11-21T09:00:00+01:00";
 
 /// The IDs at the start of the result lines of `stdout`, in order. A result line has two spaces
-/// after its ID; the count line has none.
+/// after its ID; the count line has none, and a linked line starts with two spaces.
 fn result_ids(stdout: &str) -> Vec<String> {
     stdout
         .lines()
-        .filter(|line| line.contains("  "))
+        .filter(|line| !line.starts_with("  ") && line.contains("  "))
         .filter_map(|line| line.split("  ").next())
         .map(str::to_string)
         .collect()
@@ -423,6 +425,7 @@ fn json_gives_the_id_title_status_and_line_of_each_result() {
             "line": "# FND-001 · Speedline plot kept for review",
             "match": "all",
             "place": "project",
+            "linked": [],
         },
         {
             "id": "DEC-001",
@@ -431,6 +434,7 @@ fn json_gives_the_id_title_status_and_line_of_each_result() {
             "line": "# DEC-001 · Use transient runs for the last three speedline points",
             "match": "all",
             "place": "project",
+            "linked": [],
         },
     ]);
     assert_eq!(value["data"], expected);
@@ -567,6 +571,7 @@ fn json_gives_the_place_of_each_result() {
             "line": "# FND-001 · Stall seen at the lowest mass flow",
             "match": "all",
             "place": "project",
+            "linked": [],
         },
         {
             "id": "LES-001",
@@ -575,6 +580,7 @@ fn json_gives_the_place_of_each_result() {
             "line": "# LES-001 · Steady runs overpredict the stall margin",
             "match": "all",
             "place": "team",
+            "linked": [],
         },
     ]);
     assert_eq!(value["data"], expected);
@@ -1170,6 +1176,7 @@ fn similar_lists_the_entries_that_share_a_tag_or_a_title_word_and_not_the_entry_
             "line": "Transient runs at high speed",
             "place": "project",
             "reason": "tag match",
+            "linked": [],
         },
     ]);
     assert_eq!(value["data"], expected);
@@ -1361,4 +1368,176 @@ fn similar_leaves_out_an_entry_that_shares_only_the_common_words() {
         .run("", &["search", "--similar", "LES-001"])
         .success()
         .stdout("0 matches\n");
+}
+
+/// DEC-001 holds the word `speedline` and is linked (`link`) to the finding FND-001 and to DEC-002.
+/// DEC-001 supersedes DEC-002 (`supersede`), so DEC-002 is superseded; it holds no word of the
+/// search.
+fn decision_with_links(project: &Project) {
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Use transient runs for the last three speedline points",
+                "--reason",
+                "Steady runs converged where the transient run already showed stall.",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "found",
+                "Mass flow still oscillated by 0.4 percent at half the time step",
+                "--evidence",
+                "Runs 12 and 13, monitor plots in results.",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Use steady runs for the first three points",
+                "--reason",
+                "Steady runs converged early in the range.",
+            ],
+        )
+        .success();
+    project
+        .run("anna", &["link", "DEC-001", "FND-001"])
+        .success();
+    project
+        .run("anna", &["supersede", "DEC-002", "--by", "DEC-001"])
+        .success();
+    // `supersede` does not link the two; the link is what puts DEC-002 under DEC-001.
+    project
+        .run("anna", &["link", "DEC-001", "DEC-002"])
+        .success();
+}
+
+#[test]
+fn a_result_is_followed_by_its_linked_entries_and_not_by_a_superseded_one() {
+    let project = Project::new();
+    decision_with_links(&project);
+
+    // FND-001 holds no search word, so it is not a result of its own; DEC-002 is superseded.
+    let stdout = project.stdout("", &["search", "speedline"]);
+    assert_eq!(result_ids(&stdout), ["DEC-001"], "{stdout}");
+    let expected = "DEC-001  Use transient runs for the last three speedline points  — # DEC-001 · Use transient runs for the last three speedline points\n\
+        \x20 linked: FND-001 · Mass flow still oscillated by 0.4 percent at half the time step\n\
+        1 match\n";
+    assert_eq!(stdout, expected);
+}
+
+#[test]
+fn full_prints_the_linked_lines_after_the_whole_entry() {
+    let project = Project::new();
+    decision_with_links(&project);
+
+    let stdout = project.stdout("", &["search", "--full", "speedline"]);
+    assert!(
+        stdout.ends_with(
+            "  linked: FND-001 · Mass flow still oscillated by 0.4 percent at half the time step\n1 match\n"
+        ),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn json_gives_each_result_its_linked_entries() {
+    let project = Project::new();
+    decision_with_links(&project);
+
+    let stdout = project.stdout("", &["--json", "search", "speedline"]);
+    let value: serde_json::Value = serde_json::from_str(&stdout).expect("one JSON line");
+    let expected = serde_json::json!([
+        {
+            "id": "DEC-001",
+            "title": "Use transient runs for the last three speedline points",
+            "status": "approved",
+            "line": "# DEC-001 · Use transient runs for the last three speedline points",
+            "match": "all",
+            "place": "project",
+            "linked": [
+                {
+                    "id": "FND-001",
+                    "title": "Mass flow still oscillated by 0.4 percent at half the time step",
+                },
+            ],
+        },
+    ]);
+    assert_eq!(value["data"], expected);
+}
+
+#[test]
+fn a_result_without_links_has_no_linked_line_and_an_empty_list() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Use transient runs for the last three speedline points",
+                "--reason",
+                "Steady runs converged where the transient run already showed stall.",
+            ],
+        )
+        .success();
+
+    let text = project.stdout("", &["search", "speedline"]);
+    assert!(!text.contains("linked:"), "{text}");
+    let json = project.stdout("", &["--json", "search", "speedline"]);
+    let value: serde_json::Value = serde_json::from_str(&json).expect("one JSON line");
+    assert_eq!(value["data"][0]["linked"], serde_json::json!([]), "{json}");
+}
+
+#[test]
+fn similar_shows_the_linked_entries_under_each_similar_entry() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Use transient runs for the last three speedline points",
+                "--reason",
+                "Steady runs converged where the transient run already showed stall.",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Transient runs at high speed",
+                "--reason",
+                "Steady runs converged early in the range.",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "found",
+                "Mass flow still oscillated by 0.4 percent at half the time step",
+                "--evidence",
+                "Monitor plots in results.",
+            ],
+        )
+        .success();
+    project
+        .run("anna", &["link", "DEC-002", "FND-001"])
+        .success();
+
+    let stdout = project.stdout("", &["search", "--similar", "DEC-001"]);
+    let expected = "DEC-002  Transient runs at high speed  — word match\n\
+        \x20 linked: FND-001 · Mass flow still oscillated by 0.4 percent at half the time step\n\
+        1 match\n";
+    assert_eq!(stdout, expected);
 }
