@@ -10622,8 +10622,8 @@
 - note (2026-11-25, haiku-T-479): done
 
 ### T-480 · Release 1.0.0
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-480
 - priority: P1 · difficulty: 1 · type: chore
 - milestone: T-437
 - why: The owner tags a release only from a version that builds, passes every check and says what it adds.
@@ -10638,8 +10638,13 @@
   4. Run cargo fmt --all -- --check, cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features; all three must pass. Do not tag and do not push: the owner does that.
 - accept: Version 1.0.0 builds, passes every check, and the README says what it adds.
 - verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
+- verified: 2026-11-25
+- commit: d880f10
 - reqs: REL-1, REL-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-480): done
+- note (2026-11-25, planner): Checked 2026-11-25 on Windows (2391 tests) and in WSL Fedora 44 at 737b1c1 (2395 tests): fmt, clippy and all tests pass. README phases line fixed in 737b1c1. Not tagged, not pushed: the owner does that.
 
 ### T-481 · This project's own dossier gets topics and code pointers
 - status: open
@@ -10667,8 +10672,9 @@
 - read: docs/requirements.md
 - steps:
   1. Run `dossier --version`: it must print 1.0.0. Otherwise give the task back with `todo stuck <id> --note "dossier 1.0.0 is not installed"`.
-  2. In the repository root run `dossier agents`, then `dossier hooks install`.
+  2. In the repository root run `dossier agents install --yes`, then `dossier hooks install`.
   3. Check: AGENTS.md now holds the rules about `--topic` and `--code`; .claude/settings.json has a PreToolUse hook with the matcher `Edit|Write|MultiEdit` that runs `dossier guard`. .claude/settings.json is not tracked by git; commit only AGENTS.md.
+  4. - accept: AGENTS.md holds the dossier 1.0 rules and the hooks of dossier 1.0 are installed in this repository.
 - accept: AGENTS.md holds the dossier 1.0 rules and the hooks of dossier 1.0 are installed in this repository.
 - verify: git grep -q -F -e "--topic" -- AGENTS.md && git grep -q -F -e "--code" -- AGENTS.md
 - reqs: R-AGENT-1, R-CODE-8
