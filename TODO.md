@@ -9371,15 +9371,17 @@
 - note (2026-11-25, planner): done — Related entries are chosen by word stems and rare words in decide, learn, problem, brief --task and search --similar.
 
 ### T-434 · Search: different wording still finds the entry
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - milestone: T-431
 - goal: R-READ-3 holds in its new form: a word matches by its stem too, and after the entries that hold every word, search lists the best entries that hold some of them.
 - why: A search that needs every word exactly answers `0 matches` to an LLM that used another word form, and the LLM concludes that nothing is recorded.
 - summary: A search with slightly different words no longer comes back empty.
 - depends: T-433
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): done — Search matches by word stem and lists entries with only some of the words after the full matches.
 
 ### T-435 · Topics: every entry names what it is about, from one list
 - status: done
