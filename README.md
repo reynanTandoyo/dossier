@@ -4,7 +4,7 @@
 while doing its projects. People and their LLMs write to it and read from it, so that neither has
 to rely on memory.
 
-**Status: v1.0**
+**Status: v1.1**
 
 - [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the seven phases it is
   built in.
@@ -1107,6 +1107,26 @@ After an upgrade from 0.6, run `dossier agents install --yes` in each project. I
 for LLMs in `AGENTS.md`, which now tell an LLM to give a topic and a code pointer. The hooks need no
 change: the check before an edit runs in `dossier guard`, which `hooks install` already added.
 
+### What version 1.1 adds
+
+Entries that someone linked with `dossier link <ID> <ID>` now come along. Wherever an LLM is given
+entries, each one is followed by the entries linked to it: under each result of `search`, under each
+entry line of `brief --task`, and under each entry of `which <path> --binding`, so also in the
+refusal of `dossier guard` before an edit. A decision then comes with the finding behind it, and a
+how-to with the assumption it rests on (decision [D53](docs/requirements.md), R-FIND-5).
+
+```
+$ dossier search take return
+INV-001  take and return from a PC fail for a server path with spaces or wildcard characters
+  linked: FND-001 · scp -p from a Windows PC sends the file mode 0666
+  linked: ASM-005 · take and return from a PC work on the real server as they did against WSL
+```
+
+Links are followed one level deep, with titles only and at most three per entry, and only to
+approved entries: a draft, superseded or retired entry is never shown as linked. `search --json`
+and `which --binding --json` give each entry a `linked` list. Nothing needs to be done after an
+upgrade from 1.0.
+
 ## What it needs
 
 - [`todo`](https://github.com/reynanTandoyo/todo) 0.8 or newer. `todo` keeps the tasks of a
@@ -1316,7 +1336,7 @@ lines:
 
 ```
 ssh: ok
-dossier on the server: 1.0.0
+dossier on the server: 1.1.0
 todo on the server: 0.8.0
 dossier folder: ok (P-001)
 ```
