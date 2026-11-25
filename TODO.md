@@ -10850,10 +10850,8 @@
 - note (2026-11-25, planner): added
 
 ### T-508 · error.rs and output.rs: Code::Blocked, a refusal printed without error:
-- status: claimed
+- status: done
 - owner: haiku-T-508
-- claimed: 2026-11-25T22:37+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: fix
 - milestone: T-503
 - why: guard's refusal before an edit is a note for the LLM to read; the `error:` prefix makes it look like dossier failed.
@@ -10868,14 +10866,20 @@
   4. Run cargo test --lib output:: and cargo test --lib error::
 - accept: Code::Blocked exists, exits with 2, and its message is printed without the error: prefix.
 - verify: cargo test --lib output:: && cargo test --lib error::
+- verified: 2026-11-25
+- commit: 61763e8
 - reqs: R-OUT-1, R-CODE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
 - note (2026-11-25, planner): forced set (owner was haiku-T-508)
 - note (2026-11-25, planner): Coordinator: src/cmd/schema.rs joins the files: its CODES array and the exhaustive match in place() list every Code, so Blocked is added there (21 codes).
+- note (2026-11-25, haiku-T-508): done
 
 ### T-509 · guard: both refusals use Code::Blocked
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-509
+- claimed: 2026-11-25T22:53+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: fix
 - milestone: T-503
 - why: The refusal before the first edit of a bound file must read as a note to the LLM, not as an error (D51).
