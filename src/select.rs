@@ -201,13 +201,17 @@ pub fn needed(query: &Query, index: &Index) -> u32 {
 /// The items with a weighted score above 0 that carry a query tag or reach `needed`, with their
 /// score, highest first, then newest `created` first, then ID, then path.
 pub fn ranked<'a>(items: &'a [Item], query: &Query) -> Vec<(u32, &'a Item)> {
-    let index = Index::of(items);
-    let threshold = needed(query, &index);
+    ranked_in(items, query, &Index::of(items))
+}
+
+/// As ranked, but every weight comes from index (an Index of the whole dossier), not from items.
+pub fn ranked_in<'a>(items: &'a [Item], query: &Query, index: &Index) -> Vec<(u32, &'a Item)> {
+    let threshold = needed(query, index);
     let query_tags = folded(&query.tags);
     let mut scored: Vec<(u32, &'a Item)> = items
         .iter()
         .filter_map(|item| {
-            let points = weighted(item, query, &index);
+            let points = weighted(item, query, index);
             let listed = carries_tag(item, &query_tags) || points >= threshold;
             (points > 0 && listed).then_some((points, item))
         })
@@ -224,7 +228,12 @@ pub fn ranked<'a>(items: &'a [Item], query: &Query) -> Vec<(u32, &'a Item)> {
 
 /// The items of the first `limit` rows of `ranked`.
 pub fn top<'a>(items: &'a [Item], query: &Query, limit: usize) -> Vec<&'a Item> {
-    ranked(items, query)
+    top_in(items, query, &Index::of(items), limit)
+}
+
+/// The items of the first `limit` rows of `ranked_in`.
+pub fn top_in<'a>(items: &'a [Item], query: &Query, index: &Index, limit: usize) -> Vec<&'a Item> {
+    ranked_in(items, query, index)
         .into_iter()
         .take(limit)
         .map(|(_, item)| item)
@@ -412,6 +421,36 @@ mod tests {
 
         let q = query(&[], &["pump", "seal"]);
         assert_eq!(ids(&top(&items, &q, 8))[0], "DEC-001");
+    }
+
+    #[test]
+    fn ranked_in_weighs_words_by_the_whole_dossier_not_by_the_pool() {
+        let valve_check = || item("DEC-001", EARLY, "Valve check", &[], &[]);
+        let gasket_check = || item("DEC-008", EARLY, "Gasket check", &[], &[]);
+        let mut all = vec![valve_check()];
+        for n in 2..=7 {
+            all.push(item(&format!("DEC-00{n}"), EARLY, "Valve test", &[], &[]));
+        }
+        all.push(gasket_check());
+        let pool = vec![valve_check(), gasket_check()];
+        let index = Index::of(&all);
+        let q = query(&[], &["valve", "gasket"]);
+
+        let found: Vec<(u32, String)> = ranked_in(&pool, &q, &index)
+            .into_iter()
+            .map(|(points, item)| (points, item.entry.id()))
+            .collect();
+        assert_eq!(
+            found,
+            vec![(20, "DEC-008".to_string()), (5, "DEC-001".to_string())]
+        );
+        assert_eq!(ids(&top_in(&pool, &q, &index, 1)), vec!["DEC-008"]);
+
+        let alone: Vec<u32> = ranked(&pool, &q)
+            .iter()
+            .map(|(points, _)| *points)
+            .collect();
+        assert_eq!(alone, vec![10, 10]);
     }
 
     #[test]
