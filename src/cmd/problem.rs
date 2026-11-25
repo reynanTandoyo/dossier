@@ -50,6 +50,9 @@ pub struct Args {
     /// Other tags, comma-separated
     #[arg(long)]
     pub tags: Option<String>,
+    /// The topics it is about, from the project's list (dossier topics), comma-separated
+    #[arg(long)]
+    pub topic: Option<String>,
 }
 
 /// One similar investigation as the output names it.
@@ -129,6 +132,7 @@ fn new_investigation(args: &Args, problem: &str, observed: Option<&str>, title: 
         ("analysis", &args.analysis),
         ("software", &args.software),
         ("tags", &args.tags),
+        ("topic", &args.topic),
     ] {
         if let Some(value) = trimmed(value.as_deref()) {
             fields.push(pair(key, value));
@@ -190,14 +194,20 @@ fn glossary_terms(ctx: &Ctx) -> Vec<Term> {
 
 /// The values of the tag options, each comma-separated value trimmed; blank values are left out.
 fn tag_values(args: &Args) -> Vec<String> {
-    [&args.machine, &args.analysis, &args.software, &args.tags]
-        .into_iter()
-        .filter_map(|value| value.as_deref())
-        .flat_map(|value| value.split(','))
-        .map(str::trim)
-        .filter(|tag| !tag.is_empty())
-        .map(str::to_string)
-        .collect()
+    [
+        &args.machine,
+        &args.analysis,
+        &args.software,
+        &args.tags,
+        &args.topic,
+    ]
+    .into_iter()
+    .filter_map(|value| value.as_deref())
+    .flat_map(|value| value.split(','))
+    .map(str::trim)
+    .filter(|tag| !tag.is_empty())
+    .map(str::to_string)
+    .collect()
 }
 
 /// The text with its ends trimmed, or None when it is not given or blank.

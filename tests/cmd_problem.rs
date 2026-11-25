@@ -32,6 +32,20 @@ fn no_investigation_written(project: &Project) -> bool {
         .is_none()
 }
 
+/// Writes `topics = [...]` as the first line of dossier.toml: a top-level key before any table.
+fn project_has_topics(project: &Project, names: &[&str]) {
+    let list = names
+        .iter()
+        .map(|name| format!("\"{name}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let text = project.read("DOSSIER/dossier.toml");
+    project.write(
+        "DOSSIER/dossier.toml",
+        &format!("topics = [{list}]\n{text}"),
+    );
+}
+
 #[test]
 fn anna_claude_opens_an_investigation_approved_with_state_open() {
     let project = Project::new();
@@ -336,4 +350,72 @@ fn a_team_dossier_refuses_and_names_promote() {
         !team.root().join("DOSSIER").join("investigations").exists(),
         "a refused team write creates no folder"
     );
+}
+
+#[test]
+fn an_llm_problem_without_a_topic_is_refused_when_the_project_has_topics() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+    project
+        .run("anna-claude", &["problem", "The pump runs hot."])
+        .code(1)
+        .stderr(contains("names its topic"))
+        .stderr(contains("pumps, rig"));
+    assert!(no_investigation_written(&project));
+    assert!(project.entry_journal().is_empty());
+}
+
+#[test]
+fn an_llm_problem_with_a_topic_on_the_list_gets_the_topic_field() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+    let stdout = project.stdout(
+        "anna-claude",
+        &["problem", "The pump runs hot.", "--topic", "pumps"],
+    );
+    assert_eq!(stdout, "INV-001: added (open)\n");
+
+    let text = entry_text(&project, "INV-001");
+    assert!(text.contains("\n- topic: pumps\n"), "{text}");
+    assert_eq!(
+        entry_of(&project, "INV-001").field("topic").as_deref(),
+        Some("pumps")
+    );
+}
+
+#[test]
+fn a_topic_off_the_list_is_a_usage_error_for_a_problem_and_nothing_is_written() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+    project
+        .run(
+            "anna-claude",
+            &["problem", "The pump runs hot.", "--topic", "valves"],
+        )
+        .code(2)
+        .stderr(contains("unknown topic valves"));
+    assert!(no_investigation_written(&project));
+}
+
+#[test]
+fn a_persons_problem_without_a_topic_is_written_when_the_project_has_topics() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+    let stdout = project.stdout("anna", &["problem", "The pump runs hot."]);
+    assert_eq!(stdout, "INV-001: added (open)\n");
+
+    let entry = entry_of(&project, "INV-001");
+    assert_eq!(entry.status(), Some(Status::Approved));
+    assert_eq!(entry.field("topic"), None);
+}
+
+#[test]
+fn without_topics_in_the_settings_an_llm_problem_without_a_topic_is_written() {
+    let project = Project::new();
+    let stdout = project.stdout("anna-claude", &["problem", "The pump runs hot."]);
+    assert_eq!(stdout, "INV-001: added (open)\n");
+
+    let entry = entry_of(&project, "INV-001");
+    assert_eq!(entry.status(), Some(Status::Approved));
+    assert_eq!(entry.field("topic"), None);
 }
