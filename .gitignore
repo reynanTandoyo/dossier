@@ -1,3 +1,5 @@
 /target
 .todo/
 .serena/
+.claude/worktrees/
+.claude/settings.local.json
