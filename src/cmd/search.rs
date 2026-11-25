@@ -10,6 +10,11 @@
 //! created first, then by ID (the team's entries sorted in with the project's). Drafts and other
 //! statuses follow the filter rules, so a draft is found only with `--drafts` (R-DRAFT-6) and is
 //! marked. Each result carries the marks `show` gives (cmd/show.rs), in the same order.
+//! When more than one word is typed, the entries that hold only some of the words follow the full
+//! matches, after a line `some of the words:`: at most `PARTIAL_LIMIT`, ranked by select::ranked
+//! over the words and their glossary spellings, each shown by its title. The count line then names
+//! them too. `--full` prints only the full matches; `--json` marks each result with
+//! `"match": "all"` or `"match": "some"`.
 //! With `--similar <ID>` no words are needed: the entries most related to that entry are listed
 //! instead, by word stems, tags and rare words (select::top), under the same filter rules
 //! (R-READ-9, `similar`). Each says why it was chosen, `tag match` or `word match`, after the dash.
@@ -46,6 +51,9 @@ const SEPARATOR: &str = "---";
 /// The most entries that `search --similar` lists (R-READ-9).
 const SIMILAR_LIMIT: usize = 10;
 
+/// The most entries that hold only some of the words that `search` lists after the full matches.
+const PARTIAL_LIMIT: usize = 10;
+
 /// The arguments of `search`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
@@ -70,22 +78,53 @@ struct Hit {
     /// `project` for the project's own entries, `team` for those of its team dossier.
     place: &'static str,
     /// 0: every word is in the title; 1: a word is in a tag field; 2: the rest. Not used by
-    /// `--similar`, which keeps the order of `select::top`.
+    /// `--similar`, which keeps the order of `select::top`, nor by the results with some of the
+    /// words, which keep the order of `select::ranked`.
     group: u8,
     created: Option<DateTime<FixedOffset>>,
     mark: Option<String>,
     /// The first line of the entry that holds the first word, trimmed; empty when none does.
-    /// For `--similar` it is the title.
+    /// For `--similar` and for the results with some of the words it is the title.
     line: String,
     /// For `--similar`: why the entry was chosen (select::why), shown after the dash in place
     /// of the line. None for a word search.
     reason: Option<&'static str>,
+    /// For a word search: whether the entry holds every word or only some of them. None for
+    /// `--similar`.
+    matched: Option<Matched>,
+}
+
+/// How a word search result holds the search words.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Matched {
+    /// Every word is held.
+    All,
+    /// Only some of the words are held; listed after the full matches.
+    Some,
+}
+
+impl Matched {
+    /// The value of `match` in JSON.
+    fn name(self) -> &'static str {
+        match self {
+            Matched::All => "all",
+            Matched::Some => "some",
+        }
+    }
+}
+
+impl Hit {
+    /// Whether the result holds only some of the search words.
+    fn partial(&self) -> bool {
+        self.matched == Some(Matched::Some)
+    }
 }
 
 /// Runs `search`: finds the entries that pass the filter and hold every word, or one of its
 /// spellings, in order, and prints them as one line each, or whole with `--full`, then the count.
-/// The entries of the project come first, then those of its team dossier when the project has one
-/// (R-READ-3).
+/// When more than one word was typed, the entries that hold only some of them follow
+/// (partial_hits). The entries of the project come first, then those of its team dossier when the
+/// project has one (R-READ-3).
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     if let Some(id) = args.similar.as_deref() {
         if !args.words.is_empty() {
@@ -110,15 +149,18 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let now = time::now();
     let today = time::date(&now);
     let mut hits: Vec<Hit> = Vec::new();
+    // The entries that pass the filter but lack a word, each with the dossier it is in.
+    let mut partial: Vec<(&Ctx, Item)> = Vec::new();
     for scanned in places {
         let (items, found) = store::all(&scanned.dossier);
         warnings.extend(found);
-        hits.extend(
-            items
-                .into_iter()
-                .filter(|item| args.filter.matches(item))
-                .filter_map(|item| hit(scanned, item, &words, today)),
-        );
+        for item in items.into_iter().filter(|item| args.filter.matches(item)) {
+            if holds_every(&item.entry, &words) {
+                hits.push(hit(scanned, item, &words, today));
+            } else {
+                partial.push((scanned, item));
+            }
+        }
     }
     // Newest first within a group, then by ID in the order `store::all` uses. An entry of each
     // place with the same ID keeps the project's first, so the order is the same on every run.
@@ -130,6 +172,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             hit.place == TEAM,
         )
     });
+    hits.extend(partial_hits(partial, &words, today));
 
     Ok(render(&hits, args.full, warnings))
 }
@@ -197,6 +240,7 @@ fn similar(id: &str, args: &Args, g: &Global) -> Result<Output> {
                 mark: mark(place, &item, today),
                 line: item.entry.title(),
                 reason: select::why(picked, &query),
+                matched: None,
                 item,
             })
         })
@@ -205,14 +249,17 @@ fn similar(id: &str, args: &Args, g: &Global) -> Result<Output> {
 }
 
 /// The output of a search: the results as lines or, with `full`, as whole entries, then the count
-/// line; the data of each result; and the warnings of the reads.
+/// line; the data of each result; and the warnings of the reads. With `full` the results with some
+/// of the words are not printed, so the count line counts the full matches only.
 fn render(hits: &[Hit], full: bool, warnings: Vec<String>) -> Output {
     let mut text = if full {
         full_text(hits)
     } else {
         result_lines(hits)
     };
-    text.push_str(&count_line(hits.len()));
+    let whole = hits.iter().filter(|hit| !hit.partial()).count();
+    let partial = hits.iter().filter(|hit| hit.partial()).count();
+    text.push_str(&count_line(whole, if full { 0 } else { partial }));
     let data = Value::Array(hits.iter().map(result_data).collect());
     warnings
         .into_iter()
@@ -330,16 +377,64 @@ fn holds(text: &str, stems: &HashSet<String>, wanted: &Wanted) -> bool {
         || stems.contains(&wanted.stem)
 }
 
-/// The match of one entry of the dossier `ctx`: its place, group, creation time, mark and matched
-/// line. `words` holds each search word; `today` is the day of the run, YYYY-MM-DD. None when a
-/// word is missing from the entry.
-fn hit(ctx: &Ctx, item: Item, words: &[Wanted], today: &str) -> Option<Hit> {
-    let entry = &item.entry;
+/// Whether an entry holds every search word (see holds).
+fn holds_every(entry: &Entry, words: &[Wanted]) -> bool {
     let text = entry.text().to_lowercase();
     let stems = entry_stems(entry);
-    if !words.iter().all(|wanted| holds(&text, &stems, wanted)) {
-        return None;
+    words.iter().all(|wanted| holds(&text, &stems, wanted))
+}
+
+/// The entries that hold only some of the search words, best first (select::ranked over the words
+/// and their glossary spellings), at most `PARTIAL_LIMIT`, each as a result with its title as the
+/// line. `partial` holds each entry with the dossier it is in, and `today` is the day of the run,
+/// YYYY-MM-DD. Nothing is listed when one word was typed: its entries hold it or not.
+fn partial_hits(partial: Vec<(&Ctx, Item)>, words: &[Wanted], today: &str) -> Vec<Hit> {
+    if words.len() < 2 {
+        return Vec::new();
     }
+    let query = Query {
+        tags: Vec::new(),
+        words: words
+            .iter()
+            .flat_map(|wanted| wanted.spellings.clone())
+            .collect(),
+    };
+    let (homes, items): (Vec<&Ctx>, Vec<Item>) = partial.into_iter().unzip();
+    // The index in `items` of each entry that `select::ranked` picks, best first.
+    let order: Vec<usize> = select::ranked(&items, &query)
+        .into_iter()
+        .take(PARTIAL_LIMIT)
+        .filter_map(|(_, picked)| {
+            items
+                .iter()
+                .position(|candidate| std::ptr::eq(candidate, picked))
+        })
+        .collect();
+    let mut items: Vec<Option<Item>> = items.into_iter().map(Some).collect();
+    order
+        .into_iter()
+        .filter_map(|index| {
+            let home = *homes.get(index)?;
+            let item = items.get_mut(index)?.take()?;
+            Some(Hit {
+                place: place_of(home),
+                group: 2,
+                created: created(&item.entry),
+                mark: mark(home, &item, today),
+                line: item.entry.title(),
+                reason: None,
+                matched: Some(Matched::Some),
+                item,
+            })
+        })
+        .collect()
+}
+
+/// The match of one entry that holds every search word, of the dossier `ctx`: its place, group,
+/// creation time, mark and matched line. `words` holds each search word (see holds_every); `today`
+/// is the day of the run, YYYY-MM-DD.
+fn hit(ctx: &Ctx, item: Item, words: &[Wanted], today: &str) -> Hit {
+    let entry = &item.entry;
     let title = entry.title().to_lowercase();
     let title_stems = stems_of(&entry.title());
     let group = if words
@@ -352,15 +447,16 @@ fn hit(ctx: &Ctx, item: Item, words: &[Wanted], today: &str) -> Option<Hit> {
     } else {
         2
     };
-    Some(Hit {
+    Hit {
         place: place_of(ctx),
         group,
         created: created(entry),
         mark: mark(ctx, &item, today),
         line: matched_line(entry, &words[0]),
         reason: None,
+        matched: Some(Matched::All),
         item,
-    })
+    }
 }
 
 /// The place of the entries of the dossier `ctx`: `team` for a team dossier, else `project`.
@@ -530,38 +626,47 @@ fn matched_line(entry: &Entry, wanted: &Wanted) -> String {
         .to_string()
 }
 
-/// One line per result, each ending with a line break: `<ID>  [mark] <title>  — <shown>`, the ID
-/// with `team:` before it for a team entry, the mark only when there is one and the part after the
-/// dash only when it is not empty. The part after the dash is the reason of a `--similar` result,
-/// else the matched line.
+/// The lines of the results: the full matches, one line each, then, when there are any, the line
+/// `some of the words:` and the results with some of the words, one line each.
 fn result_lines(hits: &[Hit]) -> String {
-    let mut text = String::new();
-    for hit in hits {
-        let id = shown_id(hit);
-        let title = hit.item.entry.title();
-        let head = match &hit.mark {
-            Some(mark) => format!("{id}  {mark} {title}"),
-            None => format!("{id}  {title}"),
-        };
-        let shown = match hit.reason {
-            Some(reason) => reason,
-            None => hit.line.as_str(),
-        };
-        if shown.is_empty() {
-            text.push_str(&head);
-        } else {
-            text.push_str(&format!("{head}  — {shown}"));
-        }
-        text.push('\n');
+    let (whole, partial): (Vec<&Hit>, Vec<&Hit>) = hits.iter().partition(|hit| !hit.partial());
+    let mut text: String = whole.into_iter().map(result_line).collect();
+    if !partial.is_empty() {
+        text.push_str("some of the words:\n");
+        text.extend(partial.into_iter().map(result_line));
     }
     text
 }
 
-/// The whole text of each result, with a line `---` between two results. Every entry text ends
-/// with a line break, so the text can be followed by the count line.
+/// One result line, ending with a line break: `<ID>  [mark] <title>  — <shown>`, the ID with
+/// `team:` before it for a team entry, the mark only when there is one and the part after the dash
+/// only when it is not empty. The part after the dash is the reason of a `--similar` result, else
+/// the matched line; a result with some of the words has none, its title being its line.
+fn result_line(hit: &Hit) -> String {
+    let id = shown_id(hit);
+    let title = hit.item.entry.title();
+    let head = match &hit.mark {
+        Some(mark) => format!("{id}  {mark} {title}"),
+        None => format!("{id}  {title}"),
+    };
+    let shown = match hit.reason {
+        Some(reason) => reason,
+        None if hit.partial() => "",
+        None => hit.line.as_str(),
+    };
+    if shown.is_empty() {
+        format!("{head}\n")
+    } else {
+        format!("{head}  — {shown}\n")
+    }
+}
+
+/// The whole text of each full match, with a line `---` between two results. Every entry text
+/// ends with a line break, so the text can be followed by the count line. The results with some of
+/// the words are left out.
 fn full_text(hits: &[Hit]) -> String {
     let mut text = String::new();
-    for (index, hit) in hits.iter().enumerate() {
+    for (index, hit) in hits.iter().filter(|hit| !hit.partial()).enumerate() {
         if index > 0 {
             text.push_str(SEPARATOR);
             text.push('\n');
@@ -575,18 +680,24 @@ fn full_text(hits: &[Hit]) -> String {
     text
 }
 
-/// The count line: `1 match`, `2 matches`, `0 matches`.
-fn count_line(count: usize) -> String {
-    if count == 1 {
+/// The count line: `1 match`, `2 matches`, `0 matches`; with `partial` results printed, the count of
+/// them follows: `, 1 with some of the words`, `, 2 with some of the words`.
+fn count_line(count: usize, partial: usize) -> String {
+    let matches = if count == 1 {
         "1 match".to_string()
     } else {
         format!("{count} matches")
+    };
+    if partial == 0 {
+        matches
+    } else {
+        format!("{matches}, {partial} with some of the words")
     }
 }
 
 /// The data of one result: its ID, title, status, matched line and place (`project` or `team`).
-/// The ID is the entry's own, without `team:`; the place says where it is. A `--similar` result
-/// also has its `reason`.
+/// The ID is the entry's own, without `team:`; the place says where it is. A word search result
+/// has its `match` (`all` or `some`); a `--similar` result has its `reason`.
 fn result_data(hit: &Hit) -> Value {
     let entry = &hit.item.entry;
     let mut data = json!({
@@ -596,6 +707,9 @@ fn result_data(hit: &Hit) -> Value {
         "line": hit.line,
         "place": hit.place,
     });
+    if let Some(matched) = hit.matched {
+        data["match"] = json!(matched.name());
+    }
     if let Some(reason) = hit.reason {
         data["reason"] = json!(reason);
     }

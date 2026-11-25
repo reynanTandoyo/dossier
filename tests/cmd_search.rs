@@ -4,8 +4,9 @@
 //! dossier also finds the team's entries, marked `team:` before their ID, sorted in with the
 //! project's own. A German word finds the English entries through the glossaries of the project
 //! and the team (R-TERM-4). A word also matches a word of the same stem, so `replaced` finds
-//! `replacement`. Each test runs in its own temporary project with the clock fixed at
-//! 2026-11-20T10:00:00+01:00.
+//! `replacement`. When more than one word is typed, the entries that hold only some of them are
+//! listed after the full matches, and JSON marks each result `all` or `some`. Each test runs in its
+//! own temporary project with the clock fixed at 2026-11-20T10:00:00+01:00.
 
 mod common;
 
@@ -77,10 +78,142 @@ fn two_words_must_both_be_present() {
     assert_eq!(result_ids(&both), ["DEC-001"]);
     assert!(both.ends_with("1 match\n"), "{both}");
 
+    // Each entry holds one of the two words, so both are listed after the line `some of the words:`.
+    let some = project.stdout("", &["search", "transient", "mixing"]);
+    let expected = "some of the words:\n\
+        DEC-001  Use transient runs for the last three speedline points\n\
+        FND-001  Mixing-plane runs converge at high back pressure\n\
+        0 matches, 2 with some of the words\n";
+    assert_eq!(some, expected);
+}
+
+/// Two entries for the words `valve rotor`: DEC-001 holds both in its title, FND-001 holds only
+/// `rotor`, in its title and a day later.
+fn valve_and_rotor(project: &Project) {
     project
-        .run("", &["search", "transient", "mixing"])
-        .success()
-        .stdout("0 matches\n");
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Valve rotor clearance is set at the cold stop",
+                "--reason",
+                "Set the clearance cold before the first hot run.",
+            ],
+        )
+        .success();
+    project
+        .run_at(
+            "anna",
+            LATER,
+            &["found", "Rotor speed drifts after restart"],
+        )
+        .success();
+}
+
+#[test]
+fn an_entry_with_only_some_of_the_words_is_listed_after_the_full_matches() {
+    let project = Project::new();
+    valve_and_rotor(&project);
+
+    let expected = "DEC-001  Valve rotor clearance is set at the cold stop  — \
+        # DEC-001 · Valve rotor clearance is set at the cold stop\n\
+        some of the words:\n\
+        FND-001  Rotor speed drifts after restart\n\
+        1 match, 1 with some of the words\n";
+    assert_eq!(project.stdout("", &["search", "valve", "rotor"]), expected);
+
+    // With --full only the full match is printed whole, and the count is of the full matches.
+    let first = fs::read_to_string(project.entry_file("DEC-001")).expect("the decision file");
+    assert_eq!(
+        project.stdout("", &["search", "valve", "rotor", "--full"]),
+        format!("{first}1 match\n")
+    );
+}
+
+#[test]
+fn no_entry_with_every_word_says_so_and_lists_the_partial_ones() {
+    let project = Project::new();
+    project
+        .run("anna", &["found", "Rotor speed drifts after restart"])
+        .success();
+
+    let expected = "some of the words:\n\
+        FND-001  Rotor speed drifts after restart\n\
+        0 matches, 1 with some of the words\n";
+    assert_eq!(project.stdout("", &["search", "rotor", "nozzle"]), expected);
+}
+
+#[test]
+fn one_typed_word_never_lists_partial_results() {
+    let project = Project::new();
+    valve_and_rotor(&project);
+    project
+        .run("anna", &["found", "Nozzle wear was measured"])
+        .success();
+
+    let stdout = project.stdout("", &["search", "rotor"]);
+    assert!(!stdout.contains("some of the words"), "{stdout}");
+    assert!(stdout.ends_with("2 matches\n"), "{stdout}");
+
+    let json = project.stdout("", &["--json", "search", "rotor"]);
+    let value: serde_json::Value = serde_json::from_str(&json).expect("one JSON line");
+    let hits = value["data"].as_array().expect("the results");
+    assert_eq!(hits.len(), 2, "{json}");
+    assert!(hits.iter().all(|hit| hit["match"] == "all"), "{json}");
+}
+
+#[test]
+fn json_marks_each_result_all_or_some_with_the_full_matches_first() {
+    let project = Project::new();
+    valve_and_rotor(&project);
+
+    let stdout = project.stdout("", &["--json", "search", "valve", "rotor"]);
+    let value: serde_json::Value = serde_json::from_str(&stdout).expect("one JSON line");
+    let hits = value["data"].as_array().expect("the results");
+    assert_eq!(hits.len(), 2, "{stdout}");
+    assert_eq!(hits[0]["id"], "DEC-001");
+    assert_eq!(hits[0]["match"], "all");
+    assert_eq!(hits[1]["id"], "FND-001");
+    assert_eq!(hits[1]["match"], "some");
+    assert_eq!(hits[1]["line"], "Rotor speed drifts after restart");
+}
+
+#[test]
+fn a_draft_with_some_of_the_words_is_listed_only_with_drafts() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Valve rotor clearance is set at the cold stop",
+                "--reason",
+                "Set the clearance cold before the first hot run.",
+            ],
+        )
+        .success();
+    project
+        .run_at(
+            "anna",
+            LATER,
+            &["found", "Rotor speed drifts after restart", "--later"],
+        )
+        .success();
+
+    let approved = "DEC-001  Valve rotor clearance is set at the cold stop  — \
+        # DEC-001 · Valve rotor clearance is set at the cold stop\n\
+        1 match\n";
+    assert_eq!(project.stdout("", &["search", "valve", "rotor"]), approved);
+
+    let expected = "DEC-001  Valve rotor clearance is set at the cold stop  — \
+        # DEC-001 · Valve rotor clearance is set at the cold stop\n\
+        some of the words:\n\
+        FND-001  [draft] Rotor speed drifts after restart\n\
+        1 match, 1 with some of the words\n";
+    assert_eq!(
+        project.stdout("", &["search", "valve", "rotor", "--drafts"]),
+        expected
+    );
 }
 
 #[test]
@@ -288,6 +421,7 @@ fn json_gives_the_id_title_status_and_line_of_each_result() {
             "title": "Speedline plot kept for review",
             "status": "draft",
             "line": "# FND-001 · Speedline plot kept for review",
+            "match": "all",
             "place": "project",
         },
         {
@@ -295,6 +429,7 @@ fn json_gives_the_id_title_status_and_line_of_each_result() {
             "title": "Use transient runs for the last three speedline points",
             "status": "approved",
             "line": "# DEC-001 · Use transient runs for the last three speedline points",
+            "match": "all",
             "place": "project",
         },
     ]);
@@ -430,6 +565,7 @@ fn json_gives_the_place_of_each_result() {
             "title": "Stall seen at the lowest mass flow",
             "status": "approved",
             "line": "# FND-001 · Stall seen at the lowest mass flow",
+            "match": "all",
             "place": "project",
         },
         {
@@ -437,6 +573,7 @@ fn json_gives_the_place_of_each_result() {
             "title": "Steady runs overpredict the stall margin",
             "status": "approved",
             "line": "# LES-001 · Steady runs overpredict the stall margin",
+            "match": "all",
             "place": "team",
         },
     ]);
