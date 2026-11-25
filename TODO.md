@@ -10893,10 +10893,8 @@
 - note (2026-11-25, planner): added
 
 ### T-511 · init: every dossier's state folder ignores write.lock, holder.json and shown/ in git
-- status: claimed
+- status: done
 - owner: haiku-T-511
-- claimed: 2026-11-25T22:36+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: fix
 - milestone: T-503
 - why: The guard hook writes one file per Claude session into .state/shown/ (R-CODE-8); without an ignore line these files end up in every commit, and init of a project dossier writes no .state/.gitignore at all although project folders are git repositories (D36, idea T-430).
@@ -10910,10 +10908,14 @@
   4. Run cargo test --test cmd_init.
 - accept: init writes .state/.gitignore with write.lock, holder.json and shown/ for project and team dossiers, and format.md says so.
 - verify: cargo test --test cmd_init
+- verified: 2026-11-25
+- commit: 4ef1f2e
 - reqs: R-CODE-8, D36
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
 - note (2026-11-25, planner): forced set (owner was haiku-T-511)
 - note (2026-11-25, planner): Coordinator: tests/xos.rs joins the files: its fixed project dossier now has .state/.gitignore, so EXPECTED_FILES gains it and EXPECTED_DIGEST is updated to the value the test reports.
+- note (2026-11-25, haiku-T-511): done
 
 ### T-512 · requirements.md and design.md: D52, an LLM adds a topic after its person agrees
 - status: done
