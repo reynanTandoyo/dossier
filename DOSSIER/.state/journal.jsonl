@@ -1,0 +1,251 @@
+{"time":"2026-11-25T07:31:45+01:00","name":"reyna - claude","person":"reyna - claude","llm":false,"command":"init","id":"DOSSIER","event":"created","detail":"code DOSSIER"}
+{"time":"2026-11-25T07:31:51+01:00","name":"reyna - claude","person":"reyna - claude","llm":false,"command":"people","id":"SETTINGS","event":"changed","detail":"person reyna"}
+{"time":"2026-11-25T07:33:08+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-001","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:08+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-002","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:22+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"retitle","id":"DEC-001","event":"changed","detail":"title"}
+{"time":"2026-11-25T07:33:22+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"retitle","id":"DEC-002","event":"changed","detail":"title"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-003","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-004","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-005","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-006","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-007","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-008","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-009","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-010","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-011","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-012","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-013","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-014","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-015","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-016","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-017","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-018","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-019","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-020","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-021","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-022","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-023","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-024","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-025","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:27+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-026","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-027","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-028","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-029","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-030","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-031","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-020","event":"superseded","detail":"by DEC-031"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-032","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-033","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-034","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-014","event":"superseded","detail":"by DEC-034"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-035","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-036","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-037","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-038","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-039","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-040","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-041","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-042","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-043","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-044","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-045","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-046","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:33:28+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-047","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"assume","id":"ASM-001","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"assume","id":"ASM-002","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"assume","id":"ASM-003","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"assume","id":"ASM-004","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"assume","id":"ASM-005","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"problem","id":"INV-001","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"tried","id":"INV-001","event":"tried","detail":"1 failed"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"tried","id":"INV-001","event":"tried","detail":"2 failed"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"tried","id":"INV-001","event":"tried","detail":"3 worked"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"tried","id":"INV-001","event":"tried","detail":"4 failed"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"tried","id":"INV-001","event":"tried","detail":"5 worked"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"tried","id":"INV-001","event":"tried","detail":"6 failed"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"solved","id":"INV-001","event":"solved","detail":"scp -s with an unquoted path; wildcard characters are escaped in a download source (remote_path) only, and an upload target (remote_target) is passed as typed"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"found","id":"FND-001","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"found","id":"FND-002","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"found","id":"FND-003","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"found","id":"FND-004","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"found","id":"FND-005","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"found","id":"FND-006","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"found","id":"FND-007","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"found","id":"FND-008","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"found","id":"FND-009","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"found","id":"FND-010","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:34:44+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"found","id":"FND-011","event":"created","detail":"approved"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"learn","id":"LES-001","event":"created","detail":"draft"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"learn","id":"LES-002","event":"created","detail":"draft"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"learn","id":"LES-003","event":"created","detail":"draft"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"map","id":"MAP","event":"set","detail":"src"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"map","id":"MAP","event":"set","detail":"src/cmd"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"map","id":"MAP","event":"set","detail":"src/entry"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"map","id":"MAP","event":"set","detail":"src/remote"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"map","id":"MAP","event":"set","detail":"src/agents"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"map","id":"MAP","event":"set","detail":"tests"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"map","id":"MAP","event":"set","detail":"docs"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"map","id":"MAP","event":"set","detail":".github/workflows"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"term","id":"GLOSSARY","event":"added","detail":"entry"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"term","id":"GLOSSARY","event":"added","detail":"draft"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"term","id":"GLOSSARY","event":"added","detail":"digest"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"term","id":"GLOSSARY","event":"added","detail":"investigation"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"term","id":"GLOSSARY","event":"added","detail":"take"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"term","id":"GLOSSARY","event":"added","detail":"connected folder"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"term","id":"GLOSSARY","event":"added","detail":"team dossier"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"term","id":"GLOSSARY","event":"added","detail":"level"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"tool","id":"TOOL-001","event":"created","detail":"draft"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"tool","id":"TOOL-002","event":"created","detail":"draft"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"tool","id":"TOOL-003","event":"created","detail":"draft"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"tool","id":"TOOL-004","event":"created","detail":"draft"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"tool","id":"TOOL-005","event":"created","detail":"draft"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"value","id":"VALUES","event":"proposed","detail":"limits.take_days: 14 days"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"value","id":"VALUES","event":"proposed","detail":"limits.brief_lines: 60 lines"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"value","id":"VALUES","event":"proposed","detail":"limits.checksum_limit: 1 GB"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"value","id":"VALUES","event":"proposed","detail":"digest.summary_lines: 15 lines"}
+{"time":"2026-11-25T07:34:45+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"value","id":"VALUES","event":"proposed","detail":"session.review_limit: 20000 characters"}
+{"time":"2026-11-25T07:35:04+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"term","id":"GLOSSARY","event":"added","detail":"LLM"}
+{"time":"2026-11-25T07:35:05+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"term","id":"GLOSSARY","event":"added","detail":"PC"}
+{"time":"2026-11-25T07:35:05+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"term","id":"GLOSSARY","event":"added","detail":"WSL"}
+{"time":"2026-11-25T07:35:05+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"term","id":"GLOSSARY","event":"added","detail":"TODO.md"}
+{"time":"2026-11-25T20:10:34+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-048","event":"created","detail":"approved"}
+{"time":"2026-11-25T20:10:34+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-049","event":"created","detail":"approved"}
+{"time":"2026-11-25T20:10:34+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-050","event":"created","detail":"approved"}
+{"time":"2026-11-25T20:10:34+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-051","event":"created","detail":"approved"}
+{"time":"2026-11-25T20:10:46+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"found","id":"FND-012","event":"created","detail":"approved"}
+{"time":"2026-11-25T20:10:46+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"found","id":"FND-013","event":"created","detail":"approved"}
+{"time":"2026-11-25T20:40:12+01:00","name":"reyna","person":"reyna","llm":false,"command":"agents","id":"AGENTS","event":"changed","detail":"rules block written"}
+{"time":"2026-11-25T20:40:19+01:00","name":"reyna","person":"reyna","llm":false,"command":"hooks","id":"HOOKS","event":"changed","detail":"hooks installed; DOSSIER_AGENT set"}
+{"time":"2026-11-25T20:40:47+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-043","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:53+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-001","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:53+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-002","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:53+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-003","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:54+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-005","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:54+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-006","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:54+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-007","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:54+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-009","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:54+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-010","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:54+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-011","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:54+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-012","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:54+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-013","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:54+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-015","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:54+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-017","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:54+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-018","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:55+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-019","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:55+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-021","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:55+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-022","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:55+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-023","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:55+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-024","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:55+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-026","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:55+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-027","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:55+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-028","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:55+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-029","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:55+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-030","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:56+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-031","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:56+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-032","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:56+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-033","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:56+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-034","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:56+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-036","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:56+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-037","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:56+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-038","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:56+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-039","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:56+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-040","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:56+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-041","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:56+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-042","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:57+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-044","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:57+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-046","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:57+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"ASM-001","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:57+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"ASM-005","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:57+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"FND-001","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:57+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"FND-002","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:57+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"FND-004","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:57+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"FND-011","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:57+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"INV-001","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:57+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"LES-002","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:40:58+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"TOOL-003","event":"changed","detail":"field code"}
+{"time":"2026-11-25T20:45:00+01:00","name":"reyna","person":"reyna","llm":false,"command":"topics","id":"SETTINGS","event":"changed","detail":"topic added: entries"}
+{"time":"2026-11-25T20:45:00+01:00","name":"reyna","person":"reyna","llm":false,"command":"topics","id":"SETTINGS","event":"changed","detail":"topic added: approval"}
+{"time":"2026-11-25T20:45:00+01:00","name":"reyna","person":"reyna","llm":false,"command":"topics","id":"SETTINGS","event":"changed","detail":"topic added: search"}
+{"time":"2026-11-25T20:45:00+01:00","name":"reyna","person":"reyna","llm":false,"command":"topics","id":"SETTINGS","event":"changed","detail":"topic added: remote"}
+{"time":"2026-11-25T20:45:00+01:00","name":"reyna","person":"reyna","llm":false,"command":"topics","id":"SETTINGS","event":"changed","detail":"topic added: files"}
+{"time":"2026-11-25T20:45:00+01:00","name":"reyna","person":"reyna","llm":false,"command":"topics","id":"SETTINGS","event":"changed","detail":"topic added: team"}
+{"time":"2026-11-25T20:45:00+01:00","name":"reyna","person":"reyna","llm":false,"command":"topics","id":"SETTINGS","event":"changed","detail":"topic added: hooks"}
+{"time":"2026-11-25T20:45:01+01:00","name":"reyna","person":"reyna","llm":false,"command":"topics","id":"SETTINGS","event":"changed","detail":"topic added: todo"}
+{"time":"2026-11-25T20:45:01+01:00","name":"reyna","person":"reyna","llm":false,"command":"topics","id":"SETTINGS","event":"changed","detail":"topic added: release"}
+{"time":"2026-11-25T20:45:06+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-052","event":"created","detail":"approved"}
+{"time":"2026-11-25T20:45:06+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-050","event":"superseded","detail":"by DEC-052"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-001","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-002","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-003","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-004","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-005","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-006","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-007","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-008","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-009","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-010","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-011","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-012","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-013","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-015","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-016","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-017","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-018","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-019","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-021","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-022","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-023","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:12+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-024","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-025","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-026","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-027","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-028","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-029","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-030","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-031","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-032","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-033","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-034","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-035","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-036","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-037","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-038","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-039","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-040","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-041","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-042","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-043","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-044","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-045","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-046","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-047","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-048","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-049","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"DEC-051","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"ASM-001","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"ASM-002","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"ASM-003","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"ASM-004","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"ASM-005","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"FND-001","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"FND-002","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"FND-003","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"FND-004","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"FND-005","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"FND-006","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"FND-007","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"FND-008","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"FND-009","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"FND-010","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"FND-011","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"FND-012","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"FND-013","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"INV-001","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"LES-001","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"LES-002","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"LES-003","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"TOOL-001","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"TOOL-002","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"TOOL-003","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"TOOL-004","event":"changed","detail":"field topic"}
+{"time":"2026-11-25T20:45:14+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"TOOL-005","event":"changed","detail":"field topic"}

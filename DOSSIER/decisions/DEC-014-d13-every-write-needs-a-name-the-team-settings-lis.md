@@ -1,0 +1,23 @@
+<!-- dossier-format: 1 -->
+# DEC-014 · D13: Every write needs a name; the team settings list people and their LLMs
+
+- kind: decision
+- status: superseded
+- created: 2026-11-25T07:33:27+01:00
+- author: reyna
+- via: reyna - claude
+- approved: 2026-11-25T07:33:27+01:00 by reyna
+- valid-from: 2026-11-25T07:33:27+01:00
+- valid-until: 2026-11-25T07:33:28+01:00
+- superseded-by: DEC-034
+- history: 2026-11-25T07:33:27+01:00 reyna via reyna - claude: created
+- history: 2026-11-25T07:33:27+01:00 reyna via reyna - claude: approved
+- history: 2026-11-25T07:33:28+01:00 reyna via reyna - claude: superseded — by DEC-034
+
+## Decision
+
+Every write needs a name (`--agent` or `DOSSIER_AGENT`, falling back to `TODO_AGENT`). The team settings say which names are people and which LLM belongs to whom.
+
+## Reason
+
+Each entry must show whether a person or an LLM wrote it, and for whom.
