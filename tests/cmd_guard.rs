@@ -138,6 +138,29 @@ fn the_first_edit_of_a_bound_file_in_a_session_is_refused_with_its_entries() {
 }
 
 #[test]
+fn the_refusal_names_the_approved_entry_linked_under_the_bound_decision() {
+    let project = Project::new();
+    decide_about_pump(&project);
+    project.stdout(
+        "anna",
+        &[
+            "found",
+            "The seal leaks above 40 bar.",
+            "--title",
+            "Seal leak",
+        ],
+    );
+    project.stdout("anna", &["link", "DEC-001", "FND-001"]);
+    run_guard(&project, &edit_in_session("src/pump/seal.rs", Some("s1")))
+        .code(2)
+        .stdout(is_empty())
+        .stderr(contains("DEC-001 · decision · Seal gap"))
+        .stderr(contains(
+            "  Keep the seal gap at 0.2 mm.\n  linked: FND-001 · Seal leak\n",
+        ));
+}
+
+#[test]
 fn the_same_edit_again_in_the_same_session_is_allowed_without_output() {
     let project = Project::new();
     decide_about_pump(&project);

@@ -477,12 +477,14 @@ fn binding_json_gives_the_path_and_each_entry_with_its_kind_and_first_line() {
                     "kind": "decision",
                     "title": "Seal gap",
                     "text": "Keep the seal gap at 0.2 mm.",
+                    "linked": [],
                 },
                 {
                     "id": "FND-001",
                     "kind": "finding",
                     "title": "Seal leak",
                     "text": "The seal leaks above 40 bar.",
+                    "linked": [],
                 },
             ],
         })
@@ -510,6 +512,114 @@ fn binding_with_session_leaves_out_what_the_session_was_shown_before() {
     assert_eq!(shown("s1"), first);
     assert_eq!(shown("s1"), "");
     assert_eq!(shown("s2"), first);
+}
+
+/// Makes the approved finding FND-001 "Seal leak" (no code pointer) and links it to DEC-001, the
+/// decision of `decide_about_pump`.
+fn link_seal_leak_to_pump_decision(project: &Project) {
+    project.stdout(
+        "anna",
+        &[
+            "found",
+            "The seal leaks above 40 bar.",
+            "--title",
+            "Seal leak",
+        ],
+    );
+    project.stdout("anna", &["link", "DEC-001", "FND-001"]);
+}
+
+#[test]
+fn binding_shows_the_approved_entry_linked_under_the_decision() {
+    let project = Project::new();
+    decide_about_pump(&project);
+    link_seal_leak_to_pump_decision(&project);
+
+    assert_eq!(
+        project.stdout("", &["which", "src/pump/seal.rs", "--binding"]),
+        "DEC-001 · decision · Seal gap\n  Keep the seal gap at 0.2 mm.\n  linked: FND-001 · Seal leak\n"
+    );
+}
+
+#[test]
+fn binding_json_gives_each_entry_its_linked_entries() {
+    let project = Project::new();
+    decide_about_pump(&project);
+    link_seal_leak_to_pump_decision(&project);
+
+    let output = project.stdout("", &["which", "src/pump/seal.rs", "--binding", "--json"]);
+    let value: serde_json::Value =
+        serde_json::from_str(output.trim_end()).expect("one line of JSON");
+    assert_eq!(value["schema"], "dossier.which.v1");
+    assert_eq!(value["ok"], true);
+    assert_eq!(
+        value["data"],
+        json!({
+            "path": "src/pump/seal.rs",
+            "entries": [{
+                "id": "DEC-001",
+                "kind": "decision",
+                "title": "Seal gap",
+                "text": "Keep the seal gap at 0.2 mm.",
+                "linked": [{"id": "FND-001", "title": "Seal leak"}],
+            }],
+        })
+    );
+}
+
+#[test]
+fn binding_leaves_out_a_linked_entry_that_is_retired() {
+    let project = Project::new();
+    decide_about_pump(&project);
+    link_seal_leak_to_pump_decision(&project);
+    project.stdout(
+        "anna",
+        &["retire", "FND-001", "--reason", "Invented reason."],
+    );
+
+    assert_eq!(
+        project.stdout("", &["which", "src/pump/seal.rs", "--binding"]),
+        "DEC-001 · decision · Seal gap\n  Keep the seal gap at 0.2 mm.\n"
+    );
+}
+
+#[test]
+fn a_linked_entry_that_is_listed_as_an_entry_of_its_own_is_not_repeated_as_linked() {
+    let project = Project::new();
+    decide_about_pump(&project);
+    link_seal_leak_to_pump_decision(&project);
+    project.stdout("anna", &["set", "FND-001", "--field", "code=src/pump"]);
+
+    assert_eq!(
+        project.stdout("", &["which", "src/pump/seal.rs", "--binding"]),
+        "DEC-001 · decision · Seal gap\n  Keep the seal gap at 0.2 mm.\n\
+         FND-001 · finding · Seal leak\n  The seal leaks above 40 bar.\n"
+    );
+}
+
+#[test]
+fn binding_with_session_shows_the_linked_entry_with_its_decision_only_the_first_time() {
+    let project = Project::new();
+    decide_about_pump(&project);
+    link_seal_leak_to_pump_decision(&project);
+    let shown = |session: &str| {
+        project.stdout(
+            "",
+            &[
+                "which",
+                "src/pump/seal.rs",
+                "--binding",
+                "--session",
+                session,
+            ],
+        )
+    };
+
+    assert_eq!(
+        shown("s1"),
+        "DEC-001 · decision · Seal gap\n  Keep the seal gap at 0.2 mm.\n  linked: FND-001 · Seal leak\n"
+    );
+    assert_eq!(shown("s1"), "");
 }
 
 #[test]

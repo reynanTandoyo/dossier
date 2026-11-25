@@ -13,6 +13,7 @@ use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
 use crate::filelist;
+use crate::links;
 use crate::output::Output;
 use crate::paths;
 use crate::shown;
@@ -150,8 +151,11 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
 
 /// The `--binding` form (R-CODE-6, R-CODE-8): the approved entries in force whose `code` covers
 /// `stored`, in the order of the store, each as `<ID> · <kind> · <title>` and, when it has one, the
-/// first line of its statement (`statement_line`) indented by two spaces. With `session`, the
-/// entries that session has not been shown yet are kept (`shown::unseen`). Nothing else is printed.
+/// first line of its statement (`statement_line`) indented by two spaces. Under each entry come its
+/// linked entries (`links::linked`, `links::line`), except those this output lists as entries of
+/// their own. With `session`, the entries that session has not been shown yet are kept
+/// (`shown::unseen`), and the linked entries of an entry are shown with it, never recorded.
+/// Nothing else is printed.
 fn binding(ctx: &Ctx, stored: &str, session: Option<&str>) -> Result<Output> {
     let (items, warnings) = store::all(&ctx.dossier);
     let mut binding: Vec<&Item> = items
@@ -165,6 +169,7 @@ fn binding(ctx: &Ctx, stored: &str, session: Option<&str>) -> Result<Output> {
         binding.retain(|item| fresh.contains(&item.entry.id()));
     }
 
+    let listed: Vec<String> = binding.iter().map(|item| item.entry.id()).collect();
     let mut lines: Vec<String> = Vec::new();
     let mut entries: Vec<serde_json::Value> = Vec::new();
     for item in &binding {
@@ -172,11 +177,28 @@ fn binding(ctx: &Ctx, stored: &str, session: Option<&str>) -> Result<Output> {
         let kind = entry.kind().map_or("", Kind::name);
         let title = entry.title();
         let text = statement_line(entry);
+        let linked: Vec<&Item> = links::linked(entry, &items, links::LINKED_LIMIT)
+            .into_iter()
+            .filter(|other| !listed.contains(&other.entry.id()))
+            .collect();
         lines.push(format!("{} · {kind} · {title}", entry.id()));
         if let Some(text) = &text {
             lines.push(format!("  {text}"));
         }
-        entries.push(json!({"id": entry.id(), "kind": kind, "title": title, "text": text}));
+        for other in &linked {
+            lines.push(links::line(other));
+        }
+        let linked_json: Vec<serde_json::Value> = linked
+            .iter()
+            .map(|other| json!({"id": other.entry.id(), "title": other.entry.title()}))
+            .collect();
+        entries.push(json!({
+            "id": entry.id(),
+            "kind": kind,
+            "title": title,
+            "text": text,
+            "linked": linked_json,
+        }));
     }
     let data = json!({"path": stored, "entries": entries});
     Ok(warnings
