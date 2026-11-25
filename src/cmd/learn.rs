@@ -12,6 +12,7 @@ use crate::create::{self, New};
 use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status, rules};
 use crate::error::{Code, Error, Result};
+use crate::glossary::{self, Term};
 use crate::output::Output;
 use crate::select::{self, Query};
 use crate::store::{self, Item};
@@ -27,17 +28,6 @@ const TITLE_CHARS: usize = 80;
 
 /// How many similar lessons a new lesson names (R-WRITE-11).
 const SIMILAR_LIMIT: usize = 5;
-
-/// Common English words. They are left out of the words a new lesson is compared by, so that
-/// "the" or "with" alone does not make two lessons look alike.
-const COMMON_WORDS: &[&str] = &[
-    "about", "after", "also", "although", "and", "are", "been", "before", "being", "between",
-    "both", "but", "can", "could", "does", "during", "each", "for", "from", "had", "has", "have",
-    "into", "its", "may", "more", "most", "must", "not", "only", "our", "out", "over", "should",
-    "some", "such", "than", "that", "the", "their", "them", "then", "there", "these", "they",
-    "this", "those", "through", "under", "very", "was", "were", "when", "where", "which", "while",
-    "will", "with", "without", "would",
-];
 
 /// The arguments of `learn`.
 #[derive(clap::Args, Debug)]
@@ -116,14 +106,16 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
 }
 
 /// Writes a new lesson in one transaction. Before it is written, the lessons most like it are
-/// named as warnings. Files that do not parse are left out here; `check` reports them.
+/// named as warnings, chosen by word stems and rare words, with the glossary's spellings added to
+/// the query (select::top). Files that do not parse are left out here; `check` reports them.
 fn add(ctx: &Ctx, args: &Args, confidence: &str, review: Option<&str>) -> Result<Output> {
     let new = lesson(args, confidence, review);
     let query = similarity_query(args, &new.title);
     tx::write(ctx, |tx| {
         let (items, _) = store::all(&tx.ctx().dossier);
         let candidates: Vec<Item> = items.into_iter().filter(in_use_lesson).collect();
-        let warnings: Vec<String> = select::best(&candidates, &query, SIMILAR_LIMIT)
+        let query = select::widened(&query, &glossary_terms(tx.ctx()));
+        let warnings: Vec<String> = select::top(&candidates, &query, SIMILAR_LIMIT)
             .into_iter()
             .map(similar_warning)
             .collect();
@@ -331,14 +323,20 @@ fn in_use_lesson(item: &Item) -> bool {
             .is_some_and(|status| !matches!(status, Status::Superseded | Status::Retired))
 }
 
-/// What a new lesson is compared with: the words of its title and statement, without the common
-/// English words, and the values of its tag options (each comma-separated value on its own, as
-/// the entries hold them).
+/// The glossary terms of the dossier, or none when its glossary cannot be read: the similar
+/// lessons are then chosen by the words alone.
+fn glossary_terms(ctx: &Ctx) -> Vec<Term> {
+    match glossary::load(&ctx.dossier, &ctx.cfg.code) {
+        Ok((file, _)) => glossary::terms(&file),
+        Err(_) => Vec::new(),
+    }
+}
+
+/// What a new lesson is compared with: the words of its title and statement, and the values of
+/// its tag options (each comma-separated value on its own, as the entries hold them). Common
+/// words are left out by select::top, so they alone make no lessons similar.
 fn similarity_query(args: &Args, title: &str) -> Query {
-    let words = select::words(&format!("{title} {}", args.statement))
-        .into_iter()
-        .filter(|word| !COMMON_WORDS.contains(&word.as_str()))
-        .collect();
+    let words = select::words(&format!("{title} {}", args.statement));
     let tags = [
         args.machine.as_deref(),
         args.analysis.as_deref(),

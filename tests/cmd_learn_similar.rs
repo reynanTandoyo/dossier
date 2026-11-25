@@ -296,6 +296,82 @@ fn common_english_words_alone_do_not_make_lessons_similar() {
 }
 
 #[test]
+fn a_lesson_with_other_forms_of_the_same_words_is_named_as_similar() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &learn(
+                STATEMENT,
+                &[
+                    "--title",
+                    "Mixing planes overpredict the stall margin",
+                    "--confidence",
+                    "measured",
+                ],
+            ),
+        )
+        .success()
+        .stdout("LES-001: added (approved)\n");
+    // Its words are other forms of the first title's words: margins, overpredicted, mixing, plane.
+    project
+        .run(
+            "anna",
+            &learn(
+                "Stall margins are overpredicted by a mixing plane.",
+                &[
+                    "--title",
+                    "Stall margins are overpredicted by a mixing plane",
+                    "--confidence",
+                    "measured",
+                ],
+            ),
+        )
+        .success()
+        .stdout("LES-002: added (approved)\n")
+        .stderr(contains(
+            "warning: similar: LES-001 Mixing planes overpredict the stall margin\n",
+        ));
+}
+
+#[test]
+fn a_lesson_sharing_only_common_words_is_not_named_as_similar() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &learn(
+                "Nozzle and duct sizing depends on the flow.",
+                &[
+                    "--title",
+                    "Nozzles and ducts are sized",
+                    "--confidence",
+                    "measured",
+                ],
+            ),
+        )
+        .success()
+        .stdout("LES-001: added (approved)\n");
+    // The two lessons share only "the", "and" and "are".
+    project
+        .run(
+            "anna",
+            &learn(
+                "Balance the rotor and the fan after trimming.",
+                &[
+                    "--title",
+                    "Fans and rotors are balanced",
+                    "--confidence",
+                    "measured",
+                ],
+            ),
+        )
+        .success()
+        .stdout("LES-002: added (approved)\n")
+        .stderr(contains("similar").not());
+}
+
+#[test]
 fn update_changes_the_lesson_in_place_and_creates_no_file() {
     let project = Project::new();
     project
