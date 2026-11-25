@@ -1,11 +1,13 @@
 //! Runs the built program for `topics` (docs/design.md section 21.2, R-TOPIC-4): each topic of the
 //! project's list with the number of approved entries that name it, then the approved decisions,
-//! findings and lessons that name no topic. Each test runs in its own temporary project folder with
-//! the clock fixed by `common::Project` (2026-11-20T10:00:00+01:00).
+//! findings and lessons that name no topic. Also `topics add`, which only a person may run. Each
+//! test runs in its own temporary project folder with the clock fixed by `common::Project`
+//! (2026-11-20T10:00:00+01:00).
 
 mod common;
 
 use common::Project;
+use predicates::str::contains;
 use serde_json::json;
 
 /// Writes `topics = [...]` into dossier.toml, after the `code` line, so that it is a top-level key
@@ -126,4 +128,103 @@ fn without_topics_in_the_settings_the_list_says_how_to_add_one() {
     let value: serde_json::Value =
         serde_json::from_str(output.trim_end()).expect("one line of JSON");
     assert_eq!(value["data"]["topics"], json!([]));
+}
+
+#[test]
+fn a_person_adds_a_topic_and_only_the_topics_line_of_the_settings_changes() {
+    let project = Project::new();
+    let before = project.read("DOSSIER/dossier.toml");
+
+    assert_eq!(
+        project.stdout("anna", &["topics", "add", "Pumps"]),
+        "added topic pumps\n"
+    );
+
+    let after = project.read("DOSSIER/dossier.toml");
+    assert!(
+        after.lines().any(|line| line == "topics = [\"pumps\"]"),
+        "{after}"
+    );
+    let others: Vec<&str> = after
+        .lines()
+        .filter(|line| !line.starts_with("topics = "))
+        .collect();
+    assert_eq!(others, before.lines().collect::<Vec<&str>>());
+    assert_eq!(project.stdout("anna", &["topics"]), "pumps  0\n");
+    assert!(
+        project
+            .stdout("", &["log"])
+            .contains("  anna  changed  SETTINGS  topic added: pumps"),
+        "the journal names the person and the change"
+    );
+}
+
+#[test]
+fn a_topic_already_on_the_list_changes_nothing_whatever_the_case() {
+    let project = Project::new();
+    project.stdout("anna", &["topics", "add", "pumps"]);
+    let before = project.read("DOSSIER/dossier.toml");
+
+    assert_eq!(
+        project.stdout("anna", &["topics", "add", "PUMPS"]),
+        "pumps is already a topic\n"
+    );
+
+    assert_eq!(project.read("DOSSIER/dossier.toml"), before);
+    assert_eq!(
+        project
+            .stdout("", &["log"])
+            .matches("topic added: pumps")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn an_llm_is_refused_and_the_settings_stay_as_they_are() {
+    let project = Project::new();
+    let before = project.read("DOSSIER/dossier.toml");
+
+    project
+        .run("anna-claude", &["topics", "add", "rig"])
+        .failure()
+        .code(1)
+        .stderr(contains("a person adds a topic: dossier topics add <name>"));
+
+    assert_eq!(project.read("DOSSIER/dossier.toml"), before);
+}
+
+#[test]
+fn a_name_that_is_empty_has_a_comma_or_a_line_break_or_more_than_three_words_is_a_usage_error() {
+    let project = Project::new();
+    let before = project.read("DOSSIER/dossier.toml");
+
+    for name in ["a, b", "", "   ", "pumps\nrig"] {
+        project
+            .run("anna", &["topics", "add", name])
+            .failure()
+            .code(2);
+    }
+    project
+        .run("anna", &["topics", "add", "one two three four"])
+        .failure()
+        .code(2)
+        .stderr(contains("a topic has at most three words"));
+
+    assert_eq!(project.read("DOSSIER/dossier.toml"), before);
+}
+
+#[test]
+fn a_dry_run_says_what_it_would_write_and_writes_nothing() {
+    let project = Project::new();
+    let before = project.read("DOSSIER/dossier.toml");
+
+    project
+        .run("anna", &["topics", "add", "rig", "--dry-run"])
+        .success()
+        .stdout("added topic rig\n")
+        .stderr(contains("warning: dry run: would write"));
+
+    assert_eq!(project.read("DOSSIER/dossier.toml"), before);
+    assert!(!project.stdout("", &["log"]).contains("topic added"));
 }
