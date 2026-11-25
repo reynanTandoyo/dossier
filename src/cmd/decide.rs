@@ -69,6 +69,9 @@ pub struct Args {
     /// Other tags, comma-separated
     #[arg(long)]
     pub tags: Option<String>,
+    /// The topics it is about, from the project's list (dossier topics), comma-separated
+    #[arg(long)]
+    pub topic: Option<String>,
 }
 
 /// Runs `decide`: looks for the related decisions, refuses an LLM's decision that does not say how
@@ -168,7 +171,7 @@ fn announce(id: &str, status: Status, entry: &Entry) -> Result<String> {
 }
 
 /// The entry that `decide` asks to create: the decision and its reason, the rejected options
-/// when given, the tags, task and standing mark when given, and the person who said it.
+/// when given, the tags, topic, task and standing mark when given, and the person who said it.
 fn new_decision(args: &Args) -> New {
     let mut sections = vec![
         ("Decision".to_string(), args.decision.clone()),
@@ -182,6 +185,7 @@ fn new_decision(args: &Args) -> New {
         ("analysis", &args.analysis),
         ("software", &args.software),
         ("tags", &args.tags),
+        ("topic", &args.topic),
     ];
     let mut fields: Vec<(String, String)> = tags
         .into_iter()
@@ -206,17 +210,23 @@ fn new_decision(args: &Args) -> New {
     }
 }
 
-/// What the new decision is related to: each value of the four tag options, split at commas,
-/// and the words of its title and of its decision.
+/// What the new decision is related to: each value of the four tag options and of `--topic`,
+/// split at commas, and the words of its title and of its decision.
 fn search_query(args: &Args, title: &str) -> Query {
-    let tags = [&args.machine, &args.analysis, &args.software, &args.tags]
-        .into_iter()
-        .filter_map(|value| value.as_deref())
-        .flat_map(|value| value.split(','))
-        .map(str::trim)
-        .filter(|tag| !tag.is_empty())
-        .map(str::to_string)
-        .collect();
+    let tags = [
+        &args.machine,
+        &args.analysis,
+        &args.software,
+        &args.tags,
+        &args.topic,
+    ]
+    .into_iter()
+    .filter_map(|value| value.as_deref())
+    .flat_map(|value| value.split(','))
+    .map(str::trim)
+    .filter(|tag| !tag.is_empty())
+    .map(str::to_string)
+    .collect();
     let words = select::words(&format!("{title} {}", args.decision));
     Query { tags, words }
 }

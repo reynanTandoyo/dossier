@@ -501,3 +501,122 @@ fn set_adds_standing_to_an_existing_decision() {
         "set adds the field: {text}"
     );
 }
+
+/// Writes `topics = [...]` as the first line of dossier.toml: a top-level key before any table.
+fn project_has_topics(project: &Project, names: &[&str]) {
+    let list = names
+        .iter()
+        .map(|name| format!("\"{name}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let text = project.read("DOSSIER/dossier.toml");
+    project.write(
+        "DOSSIER/dossier.toml",
+        &format!("topics = [{list}]\n{text}"),
+    );
+}
+
+#[test]
+fn an_llm_decision_without_a_topic_is_refused_when_the_project_has_topics() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+    project
+        .run(
+            "anna-claude",
+            &[
+                "decide",
+                "Use the transient runs.",
+                "--reason",
+                "Steady runs converged.",
+                "--said-by",
+                "anna",
+            ],
+        )
+        .code(1)
+        .stderr(contains("names its topic"))
+        .stderr(contains("pumps, rig"));
+    assert!(no_decision_written(&project));
+}
+
+#[test]
+fn an_llm_decision_with_a_topic_on_the_list_gets_the_topic_line() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+    let output = project.stdout(
+        "anna-claude",
+        &[
+            "decide",
+            "Use the transient runs.",
+            "--reason",
+            "Steady runs converged.",
+            "--said-by",
+            "anna",
+            "--topic",
+            "pumps",
+        ],
+    );
+    assert_eq!(output, "DEC-001: added (approved)\n");
+
+    let text = decision_text(&project, "DEC-001");
+    assert!(text.contains("\n- topic: pumps\n"), "{text}");
+}
+
+#[test]
+fn a_topic_off_the_list_is_a_usage_error_and_nothing_is_written() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Use the transient runs.",
+                "--reason",
+                "Steady runs converged.",
+                "--topic",
+                "valves",
+            ],
+        )
+        .code(2)
+        .stderr(contains("unknown topic valves"));
+    assert!(no_decision_written(&project));
+}
+
+#[test]
+fn a_persons_decision_without_a_topic_is_written_when_the_project_has_topics() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+    let output = project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Use the transient runs.",
+            "--reason",
+            "Steady runs converged.",
+        ],
+    );
+    assert_eq!(output, "DEC-001: added (approved)\n");
+
+    let text = decision_text(&project, "DEC-001");
+    assert!(!text.contains("- topic:"), "{text}");
+}
+
+#[test]
+fn without_topics_in_the_settings_an_llm_decision_without_a_topic_is_written() {
+    let project = Project::new();
+    let output = project.stdout(
+        "anna-claude",
+        &[
+            "decide",
+            "Use the transient runs.",
+            "--reason",
+            "Steady runs converged.",
+            "--said-by",
+            "anna",
+        ],
+    );
+    assert_eq!(output, "DEC-001: added (approved)\n");
+
+    let text = decision_text(&project, "DEC-001");
+    assert!(!text.contains("- topic:"), "{text}");
+}
