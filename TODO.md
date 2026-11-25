@@ -9358,15 +9358,17 @@
 - note (2026-11-25, planner): done — Requirements, format and design of version 1.0 are written.
 
 ### T-433 · Ranking: related entries are chosen by word stems and rare words
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - milestone: T-431
 - goal: R-FIND-1 to R-FIND-4 hold in decide, learn, problem, brief --task and search --similar: common words never relate two entries, a rare word counts more than a frequent one, weak matches are left out, and a glossary spelling widens the query.
 - why: Related entries were scored on raw title words, so `and` counted as much as `ssh`.
 - summary: The lists of related entries stop showing noise and start seeing through different word forms.
 - depends: T-432
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): done — Related entries are chosen by word stems and rare words in decide, learn, problem, brief --task and search --similar.
 
 ### T-434 · Search: different wording still finds the entry
 - status: open
@@ -9380,26 +9382,30 @@
 - note (2026-11-25, planner): added
 
 ### T-435 · Topics: every entry names what it is about, from one list
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - milestone: T-431
 - goal: R-TOPIC-1 to R-TOPIC-5 hold: a project keeps a list of topics, entries carry a topic field, an LLM's entry without a topic is refused once the list is not empty, list and search filter by topic, and brief shows the topics.
 - why: Only 7 of the 72 entries of the project's own dossier carry a tag, because nothing asks for one; a lookup by tag is exact where a lookup by words is a guess.
 - summary: Each entry says what it is about with a word from a short list the project keeps, so entries can be looked up exactly.
 - depends: T-432
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): done — Projects keep a list of topics; entries name them with --topic, only a person adds one, and brief shows them.
 
 ### T-436 · Code pointers: an LLM that changes a file is shown the entries that bind it
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - milestone: T-431
 - goal: R-CODE-6 to R-CODE-8 hold: a pointer to a folder covers the files in it, decide, found and learn take --code, which --binding lists the entries in force for a path, and the first edit of a file in a session is refused once with the entries that bind it, so the LLM reads them before it changes the file (D51).
 - why: The file an LLM is changing is known exactly, so the decisions about that file can be found without guessing at words.
 - summary: When an LLM edits a file, it is shown the decisions, findings and lessons recorded for that file or its folder.
 - depends: T-432
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, planner): done — Code pointers cover folders, decide/found/learn take --code, which --binding lists the binding entries, and guard refuses the first edit of a bound file once per session (checked end to end with Claude Code 2.1.331).
 
 ### T-437 · Proof and release 1.0.0
 - status: open
@@ -9878,8 +9884,8 @@
 - note (2026-11-25, haiku-T-449): done
 
 ### T-450 · search: a word also matches by its stem
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-450
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-434
 - why: `search connection reuse` found nothing although an entry is titled `Reusing one ssh connection`.
@@ -9894,8 +9900,12 @@
   4. Update the module comment: a word is present when the text holds it, a glossary spelling of it, or a word with the same stem. Run cargo test --test cmd_search.
 - accept: search finds an entry through another form of a typed word; results that matched before still match, in the same order.
 - verify: cargo test --test cmd_search
+- verified: 2026-11-25
+- commit: 3cddf6c
 - reqs: R-READ-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-450): done
 
 ### T-451 · search: entries that hold only some of the words are listed after the full matches
 - status: open
@@ -10285,8 +10295,8 @@
 - note (2026-11-25, haiku-T-466): done
 
 ### T-467 · brief: each decision line names its topics
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-467
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-435
 - why: A flat list of 45 titles gives no handle to skip what does not concern the work at hand.
@@ -10301,8 +10311,12 @@
   4. Run cargo test --test cmd_brief.
 - accept: A decision line in brief starts with the decision's topics in square brackets.
 - verify: cargo test --test cmd_brief
+- verified: 2026-11-25
+- commit: 1808d83
 - reqs: R-TOPIC-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-467): done
 
 ### T-468 · codeptr.rs: what a code pointer covers
 - status: done
@@ -10377,8 +10391,8 @@
 - note (2026-11-25, haiku-T-470): done
 
 ### T-471 · decide: the option --code
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-471
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-436
 - why: A pointer to code is only recorded when the command that writes the entry offers it.
@@ -10392,8 +10406,12 @@
   3. Run cargo test --test cmd_decide.
 - accept: decide --code writes the code field, and which finds the entry for a file it covers.
 - verify: cargo test --test cmd_decide
+- verified: 2026-11-25
+- commit: b2940e2
 - reqs: R-CODE-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-471): done
 
 ### T-472 · found: the option --code
 - status: done
@@ -10419,8 +10437,8 @@
 - note (2026-11-25, haiku-T-472): done
 
 ### T-473 · learn: the option --code
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-473
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-436
 - why: A pointer to code is only recorded when the command that writes the entry offers it.
@@ -10434,8 +10452,12 @@
   3. Run cargo test --test cmd_learn.
 - accept: learn --code writes the code field, and which finds the entry for a file it covers.
 - verify: cargo test --test cmd_learn
+- verified: 2026-11-25
+- commit: bc93db1
 - reqs: R-CODE-7
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-473): done
 
 ### T-474 · shown.rs: which entries a session has been shown already
 - status: done
