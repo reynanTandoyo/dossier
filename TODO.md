@@ -9655,8 +9655,8 @@
 - note (2026-11-25, haiku-T-491): done
 
 ### T-441 · select.rs: word stems and common words
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-441
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-433
 - why: reuse, reusing and reused must count as one word, and `and` as none, before entries can be compared.
@@ -9673,8 +9673,12 @@
   6. Leave words, score, reason and best and their tests as they are. Run cargo test --lib select::
 - accept: select::stem, is_common and stems exist with their tests; nothing else behaves differently.
 - verify: cargo test --lib select::
+- verified: 2026-11-25
+- commit: b1a3ce5
 - reqs: R-FIND-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-441): done
 
 ### T-442 · select.rs: weights for rare words, and the functions top, ranked and why
 - status: open
@@ -9884,8 +9888,8 @@
 - note (2026-11-25, planner): added
 
 ### T-452 · config.rs: the project's list of topics
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-452
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-435
 - why: The topics an entry may name are kept in the project settings.
@@ -9900,12 +9904,16 @@
   4. Run cargo test --lib config:: and cargo build --all-targets.
 - accept: Config.topics holds the top-level `topics` list of dossier.toml, empty when the key is missing.
 - verify: cargo test --lib config:: && cargo build --all-targets
+- verified: 2026-11-25
+- commit: 8f2bee9
 - reqs: R-TOPIC-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-452): done
 
 ### T-453 · The topic field: its place in an entry, and list --topic and search --topic
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-453
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-435
 - why: A topic is only useful when entries can be listed by it.
@@ -9920,8 +9928,12 @@
   4. Run cargo test --lib entry::new::, cargo test --lib filter:: and cargo test --test cmd_list.
 - accept: An entry's topic field is written after tags, and list and search filter by --topic.
 - verify: cargo test --lib filter:: && cargo test --test cmd_list
+- verified: 2026-11-25
+- commit: e9e3883
 - reqs: R-TOPIC-2, R-TOPIC-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-453): done
 
 ### T-454 · create.rs: unknown topics are refused, and an LLM's entry must name a topic
 - status: open
@@ -10209,8 +10221,8 @@
 - note (2026-11-25, planner): added
 
 ### T-468 · codeptr.rs: what a code pointer covers
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-468
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-436
 - why: which and brief --task each had their own rule for when a pointer matches a path, and they differed.
@@ -10227,8 +10239,12 @@
   6. Run cargo test --lib codeptr::
 - accept: codeptr::path_of, covers and lies_in exist with their tests.
 - verify: cargo test --lib codeptr::
+- verified: 2026-11-25
+- commit: 1de4fce
 - reqs: R-CODE-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-468): done
 
 ### T-469 · which: a pointer to a folder covers the files in it
 - status: open
@@ -10368,8 +10384,8 @@
 - note (2026-11-25, planner): added
 
 ### T-476 · hooks.rs: the edited file and the session of a hook payload
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-476
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-436
 - why: The before-edit check must know which file the LLM is about to change, and in which session.
@@ -10385,10 +10401,14 @@
   5. Run cargo test --lib hooks::
 - accept: hooks::edited_path and hooks::session_of read the file and the session of an edit payload; hooks install is unchanged.
 - verify: cargo test --lib hooks::
+- verified: 2026-11-25
+- commit: f782695
 - reqs: R-CODE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
 - note (2026-11-25, planner): T-484 answered 2026-11-25: the owner wants the entries shown BEFORE the edit (PreToolUse), not after. The steps below still describe the hook after the edit and must be changed by the planner before this task is worked on.
 - note (2026-11-25, planner): Rewritten 2026-11-25 for the answer of T-484: the check before an edit now lives in guard (PreToolUse), tested with Claude Code 2.1.331. The note above is settled.
+- note (2026-11-25, haiku-T-476): done
 
 ### T-477 · guard: the entries that bind a file are shown before its first edit
 - status: open
