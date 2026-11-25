@@ -10942,10 +10942,8 @@
 - note (2026-11-25, haiku-T-512): done
 
 ### T-513 · topics add: an LLM adds a topic with --said-by <person>
-- status: claimed
+- status: done
 - owner: haiku-T-513
-- claimed: 2026-11-25T22:38+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-503
 - why: D52: an LLM carries out a topic its person agreed to, as decide --said-by does for decisions.
@@ -10960,12 +10958,18 @@
   4. Run cargo test --test cmd_topics.
 - accept: topics add accepts an LLM that names the agreeing person with --said-by and refuses one that does not.
 - verify: cargo test --test cmd_topics
+- verified: 2026-11-25
+- commit: 231818f
 - reqs: R-TOPIC-1, D52
+- by: Reynan Henry Tandoyo
 - note (2026-11-25, planner): added
+- note (2026-11-25, haiku-T-513): done
 
 ### T-514 · The agent rules: add an agreed topic with --said-by
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-514
+- claimed: 2026-11-25T22:49+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: docs
 - milestone: T-503
 - why: The rule still tells an LLM it cannot add a topic itself (D50), which D52 changed.
