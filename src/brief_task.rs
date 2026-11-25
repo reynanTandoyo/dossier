@@ -2,6 +2,7 @@
 
 use crate::attempts;
 use crate::blockfile::BlockFile;
+use crate::codeptr;
 use crate::config;
 use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status};
@@ -678,25 +679,18 @@ fn with_text(head: &str, text: &str) -> String {
     }
 }
 
-/// The code pointers of the entry that lie in one of `paths` (R-CODE-4). A pointer is `path` or
-/// `path::name` (format.md §14). Its path lies in one of `paths` when they are the same, or when
-/// it is inside that folder.
+/// The code pointers of the entry that match one of `paths` (R-CODE-4, R-CODE-6). A pointer is
+/// `path` or `path::name` (format.md §14). It matches when it lies in a file or folder of the
+/// task (`codeptr::lies_in`), or when it names a folder that holds one of its files
+/// (`codeptr::covers`), the same rule `which` uses.
 fn pointers_in(entry: &Entry, paths: &[String]) -> Vec<String> {
     entry
         .list("code")
         .into_iter()
         .filter(|pointer| {
-            let path = clean_path(
-                pointer
-                    .split_once("::")
-                    .map_or(pointer.as_str(), |(path, _)| path),
-            );
-            paths.iter().any(|wanted| {
-                path == wanted.as_str()
-                    || path
-                        .strip_prefix(wanted.as_str())
-                        .is_some_and(|rest| rest.starts_with('/'))
-            })
+            paths
+                .iter()
+                .any(|wanted| codeptr::lies_in(pointer, wanted) || codeptr::covers(pointer, wanted))
         })
         .collect()
 }
@@ -1699,6 +1693,16 @@ mod tests {
             ["src/pump/seal.rs::leak", "docs\\setup.md"]
         );
         assert!(pointers_in(&entry, &["src/pum".to_string()]).is_empty());
+    }
+
+    #[test]
+    fn a_code_pointer_to_a_folder_is_kept_for_a_file_of_the_task() {
+        let text = "<!-- dossier-format: 1 -->\n# FND-021 · Folder pointer\n\n- kind: finding\n- status: approved\n- code: src/pump\n\n## Observation\n\nText.\n";
+        let entry = Entry::parse(text).expect("the entry parses");
+        assert_eq!(
+            pointers_in(&entry, &["src/pump/seal.rs".to_string()]),
+            ["src/pump"]
+        );
     }
 
     #[test]
