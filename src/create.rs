@@ -62,13 +62,16 @@ struct Plan {
 /// whoever writes it, with `imported: yes` and `source-document` set to that document.
 /// Approved entries get `approved`, `valid-from`, two history lines (created, approved) and, for
 /// a guarded kind (approval::guarded), approval::record. Refusing unknown tag values is not part
-/// of v0.1.
+/// of v0.1. With topics in the settings (R-TOPIC-2, R-TOPIC-3), each topic named in the field
+/// `topic` must be one of them (Code::Usage), and an LLM's decision, assumption, finding, lesson,
+/// how-to or investigation that is not written from a document must name a topic (Code::Refused).
 /// A team write from a project (`ctx.project`) is refused when the entry holds a confidential term
 /// of that project, or when the project has no terms and has not stated there are none
 /// (conf::gate and conf::check, R-WRITE-6, R-CONF-2). Both are checked before anything is queued.
 pub fn create(tx: &mut Tx, new: &New) -> Result<(String, String)> {
     let who = tx.ctx().writer()?.clone();
     let plan = plan_for(&tx.ctx().cfg, &who, new, tx.ctx().from_document.as_deref())?;
+    check_topics(tx.ctx(), &who, new)?;
     let time = tx.time().to_string();
 
     // An entry that would be approved must be complete. This is checked before an ID is given
@@ -261,6 +264,59 @@ fn is_tool_owned(key: &str) -> bool {
     TOOL_OWNED
         .iter()
         .any(|owned| owned.eq_ignore_ascii_case(key))
+}
+
+/// The topics that the fields of `new` name: each value of the field `topic` (the key is compared
+/// without regard to case), split at commas and trimmed; empty values are left out.
+fn named_topics(new: &New) -> Vec<&str> {
+    new.fields
+        .iter()
+        .filter(|(key, _)| key.eq_ignore_ascii_case("topic"))
+        .flat_map(|(_, value)| value.split(','))
+        .map(str::trim)
+        .filter(|topic| !topic.is_empty())
+        .collect()
+}
+
+/// Checks the topics of an entry when the project has a list of topics (R-TOPIC-2, R-TOPIC-3,
+/// D50). Each named topic must be on the list, ignoring case: Code::Usage otherwise. An LLM's
+/// entry of a kind that needs a topic, not written from a document, must name one: Code::Refused.
+fn check_topics(ctx: &Ctx, who: &Who, new: &New) -> Result<()> {
+    let topics = &ctx.cfg.topics;
+    if topics.is_empty() {
+        return Ok(());
+    }
+    let named = named_topics(new);
+    for topic in &named {
+        if !topics.iter().any(|known| known.eq_ignore_ascii_case(topic)) {
+            return Err(Error::new(
+                Code::Usage,
+                format!(
+                    "unknown topic {topic}; the topics of this project: {} (dossier topics)",
+                    topics.join(", ")
+                ),
+            ));
+        }
+    }
+    let needs_topic = matches!(
+        new.kind,
+        Kind::Decision
+            | Kind::Assumption
+            | Kind::Finding
+            | Kind::Lesson
+            | Kind::Howto
+            | Kind::Investigation
+    );
+    if who.is_llm && ctx.from_document.is_none() && needs_topic && named.is_empty() {
+        return Err(Error::new(
+            Code::Refused,
+            format!(
+                "an entry written by an LLM names its topic: --topic <one of {}>",
+                topics.join(", ")
+            ),
+        ));
+    }
+    Ok(())
 }
 
 /// Code::MissingField when the entry text cannot be approved: every problem of rules::problems,
@@ -979,6 +1035,136 @@ mod tests {
             );
             assert!(!ctx.state.join("approved.json").exists());
         }
+    }
+
+    /// The topics of the project in the topic tests (invented).
+    fn test_topics() -> Vec<String> {
+        vec!["pumps".to_string(), "rig".to_string()]
+    }
+
+    /// The sections that make a finding complete (invented text).
+    fn observation() -> Vec<(String, String)> {
+        vec![pair("Observation", "An invented observation for a test.")]
+    }
+
+    #[test]
+    fn with_topics_an_llms_finding_without_a_topic_is_refused() {
+        let _guard = quiet();
+        let (_dir, mut ctx) = project("anna-claude", false);
+        ctx.cfg.topics = test_topics();
+        let new = New {
+            sections: observation(),
+            ..new_of(Kind::Finding, "Invented observation")
+        };
+        let error = run(&ctx, &new).expect_err("the finding names no topic");
+
+        assert_eq!(error.code, Code::Refused);
+        assert_eq!(
+            error.message,
+            "an entry written by an LLM names its topic: --topic <one of pumps, rig>"
+        );
+        // Refused before anything is queued: no ID is given out and no entry is written.
+        assert!(!ctx.state.join("ids.json").exists());
+        assert!(dir_is_empty(&ctx.dossier.join(Kind::Finding.folder())));
+    }
+
+    #[test]
+    fn with_topics_an_llms_finding_with_a_listed_topic_is_written_as_given() {
+        let _guard = quiet();
+        let (_dir, mut ctx) = project("anna-claude", false);
+        ctx.cfg.topics = test_topics();
+        let new = New {
+            fields: vec![pair("topic", "Pumps")],
+            sections: observation(),
+            ..new_of(Kind::Finding, "Invented observation")
+        };
+        let (_id, text, _time) = run(&ctx, &new).expect("the finding is created");
+
+        let entry = Entry::parse(&text).expect("the text is an entry");
+        assert_eq!(entry.field("topic").as_deref(), Some("Pumps"));
+    }
+
+    #[test]
+    fn with_topics_an_unknown_topic_is_a_usage_error_for_a_person_and_an_llm() {
+        let _guard = quiet();
+        for writer in ["anna", "anna-claude"] {
+            let (_dir, mut ctx) = project(writer, false);
+            ctx.cfg.topics = test_topics();
+            let new = New {
+                fields: vec![pair("topic", "valves")],
+                sections: observation(),
+                ..new_of(Kind::Finding, "Invented observation")
+            };
+            let error = run(&ctx, &new).expect_err("valves is not a topic");
+
+            assert_eq!(error.code, Code::Usage);
+            assert_eq!(
+                error.message,
+                "unknown topic valves; the topics of this project: pumps, rig (dossier topics)"
+            );
+            assert!(dir_is_empty(&ctx.dossier.join(Kind::Finding.folder())));
+        }
+    }
+
+    #[test]
+    fn with_topics_a_persons_finding_without_a_topic_is_written() {
+        let _guard = quiet();
+        let (_dir, mut ctx) = project("anna", false);
+        ctx.cfg.topics = test_topics();
+        let new = New {
+            sections: observation(),
+            ..new_of(Kind::Finding, "Invented observation")
+        };
+        let (_id, text, _time) = run(&ctx, &new).expect("the finding is created");
+
+        let entry = Entry::parse(&text).expect("the text is an entry");
+        assert_eq!(entry.status(), Some(Status::Approved));
+        assert_eq!(entry.field("topic"), None);
+    }
+
+    #[test]
+    fn with_topics_an_llms_tool_entry_without_a_topic_is_written() {
+        let _guard = quiet();
+        let (_dir, mut ctx) = project("anna-claude", false);
+        ctx.cfg.topics = test_topics();
+        let new = new_of(Kind::Tool, "Invented solver script");
+        let (_id, text, _time) = run(&ctx, &new).expect("the tool entry is created");
+
+        let entry = Entry::parse(&text).expect("the text is an entry");
+        assert_eq!(entry.status(), Some(Status::Draft));
+        assert_eq!(entry.field("topic"), None);
+    }
+
+    #[test]
+    fn with_topics_an_llms_finding_from_a_document_without_a_topic_is_written() {
+        let _guard = quiet();
+        let (_dir, mut ctx) = project("anna-claude", false);
+        ctx.cfg.topics = test_topics();
+        ctx.from_document = Some("docs/Bericht Ä.pdf".to_string());
+        let new = New {
+            sections: observation(),
+            ..new_of(Kind::Finding, "Invented observation")
+        };
+        let (_id, text, _time) = run(&ctx, &new).expect("the imported finding is created");
+
+        let entry = Entry::parse(&text).expect("the text is an entry");
+        assert_eq!(entry.status(), Some(Status::Draft));
+        assert_eq!(entry.field("topic"), None);
+    }
+
+    #[test]
+    fn without_topics_in_the_settings_an_llms_finding_without_a_topic_is_written() {
+        let _guard = quiet();
+        let (_dir, ctx) = project("anna-claude", false);
+        assert!(ctx.cfg.topics.is_empty());
+        let new = New {
+            sections: observation(),
+            ..new_of(Kind::Finding, "Invented observation")
+        };
+        let (_id, text, _time) = run(&ctx, &new).expect("the finding is created");
+
+        let entry = Entry::parse(&text).expect("the text is an entry");
+        assert_eq!(entry.field("topic"), None);
     }
 
     /// A team dossier as `project` makes it, and a project of the code P-001 written from it. The
