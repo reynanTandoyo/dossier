@@ -1,6 +1,6 @@
 //! Command results: the text or data a command returns, and how they are written out.
 
-use crate::error::Result;
+use crate::error::{Code, Result};
 use serde_json::json;
 use std::io::Write;
 
@@ -41,7 +41,8 @@ impl Output {
 ///
 /// Without `json`: the text to standard output, with a final line break unless the text is
 /// empty; each warning as `warning: <text>` and an error as `error: <message>` to standard
-/// error. With `json`: one line on standard output, and nothing on standard error.
+/// error, except a `Code::Blocked` error, whose message is printed alone. With `json`: one line
+/// on standard output, and nothing on standard error.
 pub fn emit(command: &str, json: bool, result: &Result<Output>) -> u8 {
     let (stdout, stderr, code) = render(command, json, result);
     write_part(&mut std::io::stdout().lock(), &stdout);
@@ -82,6 +83,9 @@ fn render(command: &str, json: bool, result: &Result<Output>) -> (String, String
             String::new(),
             error.exit(),
         ),
+        Err(error) if error.code == Code::Blocked => {
+            (String::new(), with_line_break(&error.message), error.exit())
+        }
         Err(error) => (
             String::new(),
             format!("error: {}\n", error.message),
@@ -190,6 +194,36 @@ mod tests {
         assert_eq!(out, "");
         assert_eq!(err, "error: no entry DEC-012\n");
         assert_eq!(code, 1);
+    }
+
+    #[test]
+    fn blocked_error_is_a_note_without_the_error_prefix() {
+        let error = Error::new(Code::Blocked, "note text");
+        let (out, err, code) = render("guard", false, &Err(error));
+        assert_eq!(out, "");
+        assert_eq!(err, "note text\n");
+        assert_eq!(code, 2);
+    }
+
+    #[test]
+    fn usage_error_keeps_the_error_prefix() {
+        let error = Error::new(Code::Usage, "unknown option");
+        let (out, err, code) = render("list", false, &Err(error));
+        assert_eq!(out, "");
+        assert_eq!(err, "error: unknown option\n");
+        assert_eq!(code, 2);
+    }
+
+    #[test]
+    fn json_blocked_error_has_the_code_blocked() {
+        let error = Error::new(Code::Blocked, "note text");
+        let (out, err, code) = render("guard", true, &Err(error));
+        let value = parse_line(&out);
+        assert_eq!(value["ok"], false);
+        assert_eq!(value["error"]["code"], "BLOCKED");
+        assert_eq!(value["error"]["message"], "note text");
+        assert_eq!(err, "");
+        assert_eq!(code, 2);
     }
 
     #[test]

@@ -23,6 +23,8 @@ pub enum Code {
     TooNew,
     TodoMissing,
     Ssh,
+    /// A refusal that is a note to read, not a failure: exit code 2, its message printed without "error: ".
+    Blocked,
 }
 
 /// A failure: its code and a message.
@@ -54,7 +56,7 @@ impl Error {
             | Code::UnknownName
             | Code::MissingField
             | Code::BadValue => 1,
-            Code::Usage | Code::NotImplemented => 2,
+            Code::Usage | Code::NotImplemented | Code::Blocked => 2,
             Code::Busy | Code::Changed => 3,
             Code::NoDossier
             | Code::NetworkDrive
@@ -89,6 +91,7 @@ impl Error {
             Code::TooNew => "TOO_NEW",
             Code::TodoMissing => "TODO_MISSING",
             Code::Ssh => "SSH",
+            Code::Blocked => "BLOCKED",
         }
     }
 }
@@ -109,7 +112,7 @@ impl From<std::io::Error> for Error {
 mod tests {
     use super::*;
 
-    const ALL: [(Code, u8, &str); 20] = [
+    const ALL: [(Code, u8, &str); 21] = [
         (Code::Usage, 2, "USAGE"),
         (Code::NotImplemented, 2, "NOT_IMPLEMENTED"),
         (Code::Refused, 1, "REFUSED"),
@@ -130,6 +133,7 @@ mod tests {
         (Code::TooNew, 4, "TOO_NEW"),
         (Code::TodoMissing, 5, "TODO_MISSING"),
         (Code::Ssh, 5, "SSH"),
+        (Code::Blocked, 2, "BLOCKED"),
     ];
 
     #[test]

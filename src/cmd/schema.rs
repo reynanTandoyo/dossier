@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 pub struct Args {}
 
 /// Every variant of `Code`, in the order of error.rs.
-const CODES: [Code; 20] = [
+const CODES: [Code; 21] = [
     Code::Usage,
     Code::NotImplemented,
     Code::Refused,
@@ -34,6 +34,7 @@ const CODES: [Code; 20] = [
     Code::TooNew,
     Code::TodoMissing,
     Code::Ssh,
+    Code::Blocked,
 ];
 
 /// Runs `schema`. The text is the description pretty-printed as JSON; with `--json` the same
@@ -108,6 +109,7 @@ fn place(code: Code) -> usize {
         Code::TooNew => 17,
         Code::TodoMissing => 18,
         Code::Ssh => 19,
+        Code::Blocked => 20,
     }
 }
 
