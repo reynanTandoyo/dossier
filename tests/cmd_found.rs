@@ -335,3 +335,99 @@ fn a_dry_run_names_the_file_and_writes_nothing() {
             .exists()
     );
 }
+
+/// Writes `topics = [...]` as the first line of dossier.toml: a top-level key before any table.
+fn project_has_topics(project: &Project, names: &[&str]) {
+    let list = names
+        .iter()
+        .map(|name| format!("\"{name}\""))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let text = project.read("DOSSIER/dossier.toml");
+    project.write(
+        "DOSSIER/dossier.toml",
+        &format!("topics = [{list}]\n{text}"),
+    );
+}
+
+/// Whether the findings folder holds no file and the ID counter has not been written.
+fn nothing_is_written(project: &Project) -> bool {
+    fs::read_dir(project.root().join("DOSSIER").join("findings"))
+        .expect("the findings folder")
+        .next()
+        .is_none()
+        && !project
+            .root()
+            .join("DOSSIER")
+            .join(".state")
+            .join("ids.json")
+            .exists()
+}
+
+#[test]
+fn an_llm_finding_without_a_topic_is_refused_when_the_project_has_topics() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+    project
+        .run("anna-claude", &["found", "The pump runs hot."])
+        .code(1)
+        .stderr(contains("names its topic"))
+        .stderr(contains("pumps, rig"));
+    assert!(nothing_is_written(&project));
+    assert!(project.entry_journal().is_empty());
+}
+
+#[test]
+fn an_llm_finding_with_a_topic_on_the_list_gets_the_topic_field() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+    let stdout = project.stdout(
+        "anna-claude",
+        &["found", "The pump runs hot.", "--topic", "pumps"],
+    );
+    assert_eq!(stdout, "FND-001: added (approved)\n");
+
+    let text = entry_text(&project, "FND-001");
+    assert!(text.contains("\n- topic: pumps\n"), "{text}");
+    assert_eq!(
+        entry_of(&project, "FND-001").field("topic").as_deref(),
+        Some("pumps")
+    );
+}
+
+#[test]
+fn a_topic_off_the_list_is_a_usage_error_and_nothing_is_written() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+    project
+        .run(
+            "anna-claude",
+            &["found", "The pump runs hot.", "--topic", "valves"],
+        )
+        .code(2)
+        .stderr(contains("unknown topic valves"));
+    assert!(nothing_is_written(&project));
+}
+
+#[test]
+fn a_persons_finding_without_a_topic_is_written_when_the_project_has_topics() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+    let stdout = project.stdout("anna", &["found", "The pump runs hot."]);
+    assert_eq!(stdout, "FND-001: added (approved)\n");
+
+    let entry = entry_of(&project, "FND-001");
+    assert_eq!(entry.status(), Some(Status::Approved));
+    assert_eq!(entry.field("topic"), None);
+}
+
+#[test]
+fn without_topics_in_the_settings_an_llm_finding_without_a_topic_is_written() {
+    let project = Project::new();
+    let stdout = project.stdout("anna-claude", &["found", "The pump runs hot."]);
+    assert_eq!(stdout, "FND-001: added (approved)\n");
+
+    let entry = entry_of(&project, "FND-001");
+    assert_eq!(entry.status(), Some(Status::Approved));
+    assert_eq!(entry.field("topic"), None);
+}

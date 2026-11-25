@@ -50,6 +50,9 @@ pub struct Args {
     /// Other tags, comma-separated
     #[arg(long)]
     pub tags: Option<String>,
+    /// The topics it is about, from the project's list (dossier topics), comma-separated
+    #[arg(long)]
+    pub topic: Option<String>,
 }
 
 /// Runs `found`: creates the finding in a transaction and says its ID and status.
@@ -86,6 +89,7 @@ fn new_finding(args: &Args, observation: &str) -> New {
         ("machine", &args.machine),
         ("analysis", &args.analysis),
         ("software", &args.software),
+        ("topic", &args.topic),
     ] {
         if let Some(value) = trimmed(value.as_deref()) {
             fields.push(pair(key, value));
