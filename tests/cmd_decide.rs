@@ -620,3 +620,49 @@ fn without_topics_in_the_settings_an_llm_decision_without_a_topic_is_written() {
     let text = decision_text(&project, "DEC-001");
     assert!(!text.contains("- topic:"), "{text}");
 }
+
+#[test]
+fn code_gives_the_code_field_with_slashes_and_the_pointers_joined_and_which_lists_the_decision() {
+    let project = Project::new();
+    let output = project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Use the transient runs for the last three points.",
+            "--reason",
+            "Steady runs converged.",
+            "--title",
+            "Seal leak",
+            "--code",
+            "src\\pump, src/rig/valve.rs::open",
+        ],
+    );
+    assert_eq!(output, "DEC-001: added (approved)\n");
+
+    let text = decision_text(&project, "DEC-001");
+    assert!(
+        text.contains("\n- code: src/pump, src/rig/valve.rs::open\n"),
+        "{text}"
+    );
+    assert_eq!(
+        project.stdout("anna", &["which", "src/pump/seal.rs"]),
+        "not attached to any task\nentries: DEC-001 Seal leak\n"
+    );
+}
+
+#[test]
+fn without_code_no_code_line_is_written() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Use the transient runs for the last three points.",
+            "--reason",
+            "Steady runs converged.",
+        ],
+    );
+
+    let text = decision_text(&project, "DEC-001");
+    assert!(!text.contains("\n- code:"), "{text}");
+}

@@ -72,6 +72,9 @@ pub struct Args {
     /// The topics it is about, from the project's list (dossier topics), comma-separated
     #[arg(long)]
     pub topic: Option<String>,
+    /// The code it is about: paths, each optionally with ::name, comma-separated (src/pump or src/pump/seal.rs::leak_model)
+    #[arg(long)]
+    pub code: Option<String>,
 }
 
 /// Runs `decide`: looks for the related decisions, refuses an LLM's decision that does not say how
@@ -171,7 +174,7 @@ fn announce(id: &str, status: Status, entry: &Entry) -> Result<String> {
 }
 
 /// The entry that `decide` asks to create: the decision and its reason, the rejected options
-/// when given, the tags, topic, task and standing mark when given, and the person who said it.
+/// when given, the tags, topic, code, task and standing mark when given, and the person who said it.
 fn new_decision(args: &Args) -> New {
     let mut sections = vec![
         ("Decision".to_string(), args.decision.clone()),
@@ -193,6 +196,9 @@ fn new_decision(args: &Args) -> New {
             non_empty(value.as_deref()).map(|value| (key.to_string(), value))
         })
         .collect();
+    if let Some(code) = code_of(args) {
+        fields.push(("code".to_string(), code));
+    }
     if let Some(task) = non_empty(args.task.as_deref()) {
         fields.push(("task".to_string(), task.to_uppercase()));
     }
@@ -208,6 +214,20 @@ fn new_decision(args: &Args) -> New {
         said_by: args.said_by.clone(),
         draft: false,
     }
+}
+
+/// The value of the code field: each pointer of `--code` trimmed, with backslashes as slashes,
+/// the empty ones left out, joined with `, `; None when no pointer is left.
+fn code_of(args: &Args) -> Option<String> {
+    let pointers: Vec<String> = args
+        .code
+        .as_deref()
+        .unwrap_or("")
+        .split(',')
+        .map(|pointer| pointer.trim().replace('\\', "/"))
+        .filter(|pointer| !pointer.is_empty())
+        .collect();
+    (!pointers.is_empty()).then(|| pointers.join(", "))
 }
 
 /// What the new decision is related to: each value of the four tag options and of `--topic`,
