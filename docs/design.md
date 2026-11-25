@@ -1503,6 +1503,29 @@ pub fn session_of(payload: &str) -> Option<String>;
 | `which --binding` | `<path> [--session <id>]` | prints only the approved entries in force whose `code` covers the path, in the order of the store: each as the line `<ID> · <kind> · <title>` and, when the entry has a section Decision, Statement or Observation, the first line of the first of these it has, indented by two spaces; nothing else (no tasks, no `not attached` line); with `--session` the entries that session was shown before are left out (`shown::unseen`); its JSON data is `{"path": <stored path>, "entries": [{"id", "kind", "title", "text"}]}`; with no entry the output is empty; `--session` without `--binding` is a usage error |
 | `guard` | — | after the existing check, when the payload names a path and a session, runs `which --binding <path> --session <session>`; when that prints entries, exit 2 with the message `Entries in force for <path>; read them, then make your edit again (dossier show <ID> prints one in full):`, a line break, then those lines; the next edit of the file goes through, as the session was shown them; without a path, without a session or without entries guard prints nothing and exits 0 |
 
+### 21.4 Fixes of 1.0.1
+
+Found by testing 1.0 on the project's own dossier: select::ranked weighs a word only within the items it is given, so a small pool makes every word rare.
+
+```rust
+// select.rs
+/// As ranked, but every weight comes from index (an Index of the whole dossier), not from items.
+pub fn ranked_in<'a>(items: &'a [Item], query: &Query, index: &Index) -> Vec<(u32, &'a Item)>;
+/// The items of the first limit rows of ranked_in.
+pub fn top_in<'a>(items: &'a [Item], query: &Query, index: &Index, limit: usize) -> Vec<&'a Item>;
+// ranked and top stay, and call ranked_in with Index::of(items).
+
+// error.rs: a variant of Code, its name BLOCKED
+/// A refusal that is a note to read, not a failure: exit code 2, its message printed without "error: ".
+Blocked,
+```
+
+| Command | Arguments | Result |
+|---|---|---|
+| `search` | `<words…>` | the list after `some of the words:` is ranked with ranked_in and an Index of every entry search looked at |
+| `brief --task` | `<task>` | dead ends, investigations and related entries are chosen with top_in and one Index of every approved entry; related entries at most 5 (was 10) |
+| `guard` | (payload) | the refusal of an edit inside DOSSIER and the refusal before the first edit of a bound file use Code::Blocked, so standard error holds the message alone, exit code 2 |
+
 ### 21.5 Linked entries (R-FIND-5, D53)
 
 ```rust
