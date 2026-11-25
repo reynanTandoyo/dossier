@@ -6,7 +6,7 @@ to rely on memory.
 
 **Status: v1.0**
 
-- [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the six phases it is
+- [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the seven phases it is
   built in.
 - [`docs/format.md`](docs/format.md): the exact format of the entry files.
 - [`TODO.md`](TODO.md): the work plan for building the program.
