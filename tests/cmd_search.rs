@@ -3,7 +3,8 @@
 //! first, `--full` prints whole entries, and no match prints `0 matches`. A project with a team
 //! dossier also finds the team's entries, marked `team:` before their ID, sorted in with the
 //! project's own. A German word finds the English entries through the glossaries of the project
-//! and the team (R-TERM-4). Each test runs in its own temporary project with the clock fixed at
+//! and the team (R-TERM-4). A word also matches a word of the same stem, so `replaced` finds
+//! `replacement`. Each test runs in its own temporary project with the clock fixed at
 //! 2026-11-20T10:00:00+01:00.
 
 mod common;
@@ -588,6 +589,65 @@ fn a_spelling_found_in_the_text_is_the_line_shown() {
         "{stdout}"
     );
     assert!(stdout.ends_with("1 match\n"), "{stdout}");
+}
+
+#[test]
+fn a_word_matches_a_word_of_the_same_stem_and_a_title_match_comes_first() {
+    let project = Project::new();
+    project
+        .run("anna", &["found", "Reusing one valve connection"])
+        .success();
+    project
+        .run_at(
+            "anna",
+            LATER,
+            &[
+                "assume",
+                "Seal leakage is negligible",
+                "--reason",
+                "The connection is reused on each run.",
+            ],
+        )
+        .success();
+
+    // `reuse` matches `Reusing` in the title, so the older finding is in the title group and comes
+    // before the newer assumption, which has `reused` only in its text.
+    let stdout = project.stdout("", &["search", "connection", "reuse"]);
+    assert_eq!(result_ids(&stdout), ["FND-001", "ASM-001"], "{stdout}");
+    assert!(stdout.ends_with("2 matches\n"), "{stdout}");
+}
+
+#[test]
+fn a_word_found_by_its_stem_is_listed_with_the_line_that_holds_it() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "assume",
+                "Seal wear is slow",
+                "--reason",
+                "The seal is replaced at each overhaul.",
+            ],
+        )
+        .success();
+    project
+        .run_at(
+            "anna",
+            LATER,
+            &[
+                "assume",
+                "Seal life is long",
+                "--reason",
+                "Seal replacement costs little.",
+            ],
+        )
+        .success();
+
+    let expected = "ASM-002  Seal life is long  — Seal replacement costs little.\n\
+        ASM-001  Seal wear is slow  — The seal is replaced at each overhaul.\n\
+        2 matches\n";
+    assert_eq!(project.stdout("", &["search", "replaced"]), expected);
 }
 
 #[test]

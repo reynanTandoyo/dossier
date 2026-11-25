@@ -1,7 +1,9 @@
 //! The `search` command: finds the entries whose text holds every word given, ignoring case
 //! (R-READ-3, R-READ-4). A word also matches inside a longer word, so `speed` finds `speedline`.
-//! A word is present when the text holds it or one of its spellings in the glossaries of the
-//! project and of the team, so a German word finds the English entries (R-TERM-4).
+//! A word is present when the text holds it, when it holds one of its spellings in the glossaries
+//! of the project and of the team, so a German word finds the English entries (R-TERM-4), or when
+//! one of its words has the same stem (select::stem), so `replaced` finds `replacement`. A stem is
+//! compared in the title, the field values and the section bodies of an entry.
 //! The project's own entries are searched and, when the project has a team dossier, the team's
 //! too (R-READ-3); a team entry is shown with `team:` before its ID. The results come in three
 //! groups: every word in the title, a word in a tag field, then the rest; inside a group the newest
@@ -28,6 +30,7 @@ use crate::time;
 use chrono::{DateTime, FixedOffset, NaiveDate};
 use serde_json::{Value, json};
 use std::cmp::Reverse;
+use std::collections::HashSet;
 use std::path::Path;
 
 /// The tag fields that put an entry in the second group.
@@ -71,7 +74,7 @@ struct Hit {
     group: u8,
     created: Option<DateTime<FixedOffset>>,
     mark: Option<String>,
-    /// The first line of the entry that contains the first word, trimmed; empty when none does.
+    /// The first line of the entry that holds the first word, trimmed; empty when none does.
     /// For `--similar` it is the title.
     line: String,
     /// For `--similar`: why the entry was chosen (select::why), shown after the dash in place
@@ -103,10 +106,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let places: Vec<&Ctx> = std::iter::once(&ctx).chain(team.as_ref()).collect();
     let mut warnings = Vec::new();
     let terms = glossary_terms(&places, &mut warnings);
-    let words: Vec<Vec<String>> = typed
-        .iter()
-        .map(|word| matching_spellings(&terms, word))
-        .collect();
+    let words: Vec<Wanted> = typed.iter().map(|word| wanted(&terms, word)).collect();
     let now = time::now();
     let today = time::date(&now);
     let mut hits: Vec<Hit> = Vec::new();
@@ -286,26 +286,68 @@ fn matching_spellings(terms: &[Term], word: &str) -> Vec<String> {
         .collect()
 }
 
-/// Whether `text` (in lower case) holds one of the spellings of a search word.
-fn holds(text: &str, spellings: &[String]) -> bool {
-    spellings
+/// A typed search word and what it matches (R-TERM-4, R-READ-3): its spellings, in lower case (see
+/// matching_spellings), and its stem (select::stem). A text holds the word when one spelling is in
+/// the text or one of its words has the stem. Common words are matched too.
+struct Wanted {
+    spellings: Vec<String>,
+    stem: String,
+}
+
+/// The search word `word` (lower case) with its spellings and its stem.
+fn wanted(terms: &[Term], word: &str) -> Wanted {
+    Wanted {
+        spellings: matching_spellings(terms, word),
+        stem: select::stem(word),
+    }
+}
+
+/// The stems of the words of `text`, as select::words and select::stem give them. Common words
+/// are kept, so a search word matches them by stem too.
+fn stems_of(text: &str) -> HashSet<String> {
+    select::words(text)
+        .into_iter()
+        .map(|word| select::stem(&word))
+        .collect()
+}
+
+/// The stems of the words of an entry's title, field values and section bodies. Section names and
+/// the ID are left out, so a search word does not match them by stem.
+fn entry_stems(entry: &Entry) -> HashSet<String> {
+    let mut parts = vec![entry.title()];
+    parts.extend(entry.fields().into_iter().map(|(_, value)| value));
+    parts.extend(entry.sections().into_iter().map(|(_, body)| body));
+    parts.iter().flat_map(|part| stems_of(part)).collect()
+}
+
+/// Whether a text holds the search word: one of its spellings is in the text (lower case), or one
+/// of its words has the stem of the word. `stems` are the stems of the words of the text.
+fn holds(text: &str, stems: &HashSet<String>, wanted: &Wanted) -> bool {
+    wanted
+        .spellings
         .iter()
         .any(|spelling| text.contains(spelling.as_str()))
+        || stems.contains(&wanted.stem)
 }
 
 /// The match of one entry of the dossier `ctx`: its place, group, creation time, mark and matched
-/// line. `words` holds the spellings of each search word; `today` is the day of the run,
-/// YYYY-MM-DD. None when a word is missing from the entry's text.
-fn hit(ctx: &Ctx, item: Item, words: &[Vec<String>], today: &str) -> Option<Hit> {
+/// line. `words` holds each search word; `today` is the day of the run, YYYY-MM-DD. None when a
+/// word is missing from the entry.
+fn hit(ctx: &Ctx, item: Item, words: &[Wanted], today: &str) -> Option<Hit> {
     let entry = &item.entry;
     let text = entry.text().to_lowercase();
-    if !words.iter().all(|spellings| holds(&text, spellings)) {
+    let stems = entry_stems(entry);
+    if !words.iter().all(|wanted| holds(&text, &stems, wanted)) {
         return None;
     }
     let title = entry.title().to_lowercase();
-    let group = if words.iter().all(|spellings| holds(&title, spellings)) {
+    let title_stems = stems_of(&entry.title());
+    let group = if words
+        .iter()
+        .all(|wanted| holds(&title, &title_stems, wanted))
+    {
         0
-    } else if words.iter().any(|spellings| in_tags(entry, spellings)) {
+    } else if words.iter().any(|wanted| in_tags(entry, wanted)) {
         1
     } else {
         2
@@ -352,13 +394,13 @@ fn id_order(id: &str) -> (bool, u64, String) {
     }
 }
 
-/// Whether an element of a tag field of the entry holds one of the spellings (lower case).
-fn in_tags(entry: &Entry, spellings: &[String]) -> bool {
+/// Whether an element of a tag field of the entry holds the search word.
+fn in_tags(entry: &Entry, wanted: &Wanted) -> bool {
     TAG_FIELDS.iter().any(|key| {
         entry
             .list(key)
             .iter()
-            .any(|value| holds(&value.to_lowercase(), spellings))
+            .any(|value| holds(&value.to_lowercase(), &stems_of(value), wanted))
     })
 }
 
@@ -476,14 +518,14 @@ fn rests_on_mark(entry: &Entry) -> Option<String> {
     (!ids.is_empty()).then(|| format!("[rests on {}]", ids.join(", ")))
 }
 
-/// The first line of the entry that holds one of the spellings (lower case), without its line
-/// ending and trimmed; empty when no line holds one.
-fn matched_line(entry: &Entry, spellings: &[String]) -> String {
+/// The first line of the entry that holds the search word (see holds), without its line ending and
+/// trimmed; empty when no line holds it.
+fn matched_line(entry: &Entry, wanted: &Wanted) -> String {
     entry
         .text()
         .lines()
         .map(str::trim)
-        .find(|line| holds(&line.to_lowercase(), spellings))
+        .find(|line| holds(&line.to_lowercase(), &stems_of(line), wanted))
         .unwrap_or_default()
         .to_string()
 }
