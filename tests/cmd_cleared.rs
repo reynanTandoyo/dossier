@@ -1,7 +1,7 @@
 //! Runs the built program for `cleared`: a person clears one rests-on mark that `refute` wrote, on
-//! an entry or on the block of a file, and the history keeps the note (R-WRITE-15). Each test runs
-//! in its own project folder (common::Project), with the clock fixed at 2026-11-20T10:00:00+01:00
-//! unless a test says otherwise.
+//! an entry or on the block of a file, and the history keeps the note (R-WRITE-15). An LLM does so
+//! with `--said-by <person>` (D57). Each test runs in its own project folder (common::Project), with
+//! the clock fixed at 2026-11-20T10:00:00+01:00 unless a test says otherwise.
 
 mod common;
 
@@ -277,7 +277,7 @@ fn only_a_person_clears_and_the_assumption_and_the_note_are_checked() {
     cleared(&project, "anna-claude", "DEC-001", "ASM-001", NOTE)
         .failure()
         .code(1)
-        .stderr(contains("cleared is for a person; anna-claude is an LLM"));
+        .stderr(contains("--said-by anna"));
     cleared(&project, "anna", "DEC-001", "DEC-001", NOTE)
         .failure()
         .code(1)
@@ -296,6 +296,142 @@ fn only_a_person_clears_and_the_assumption_and_the_note_are_checked() {
         .assert()
         .failure()
         .code(2);
+
+    assert_eq!(
+        std::fs::read(project.entry_file("DEC-001")).expect("the entry is read"),
+        decision,
+        "a refused change writes nothing"
+    );
+    assert_eq!(entry_of(&project, "DEC-001").list("rests-on"), ["ASM-001"]);
+}
+
+#[test]
+fn an_llm_without_said_by_is_refused_and_nothing_is_written() {
+    let project = scenario();
+    refute(&project, NOW, "ASM-001").success();
+    let decision = std::fs::read(project.entry_file("DEC-001")).expect("the entry is read");
+
+    project
+        .command("anna-claude", NOW)
+        .env_remove("DOSSIER_ANSWERS")
+        .args([
+            "cleared",
+            "DEC-001",
+            "--assumption",
+            "ASM-001",
+            "--note",
+            NOTE,
+        ])
+        .assert()
+        .code(1)
+        .stderr(contains("--said-by anna"));
+
+    assert_eq!(
+        std::fs::read(project.entry_file("DEC-001")).expect("the entry is read"),
+        decision,
+        "a refused change writes nothing"
+    );
+    assert_eq!(entry_of(&project, "DEC-001").list("rests-on"), ["ASM-001"]);
+}
+
+#[test]
+fn an_llm_with_said_by_clears_its_mark_without_a_terminal_or_a_question() {
+    let project = scenario();
+    refute(&project, NOW, "ASM-001").success();
+    // No answers are prepared and no terminal is attached, so nothing can be asked: the mark is
+    // cleared as the person decided (D57).
+    project
+        .command("anna-claude", NOW)
+        .env_remove("DOSSIER_ANSWERS")
+        .args([
+            "cleared",
+            "DEC-001",
+            "--assumption",
+            "ASM-001",
+            "--note",
+            NOTE,
+            "--said-by",
+            "anna",
+        ])
+        .assert()
+        .success()
+        .stdout("DEC-001: cleared ASM-001\n")
+        .stderr("");
+
+    let decision = entry_of(&project, "DEC-001");
+    assert!(
+        decision.field("rests-on").is_none(),
+        "the last mark of the entry takes its line away"
+    );
+    assert_eq!(
+        decision.history().last().map(String::as_str),
+        Some(
+            "2026-11-20T10:00:00+01:00 anna via anna-claude: cleared — ASM-001: the rig measured a flat inlet profile"
+        )
+    );
+    let journal = project.entry_journal();
+    let newest = journal.last().expect("the clearing is journalled");
+    assert_eq!(newest.id, "DEC-001");
+    assert_eq!(newest.event, "cleared");
+    assert_eq!(newest.person, "anna");
+    assert_eq!(newest.name, "anna-claude");
+    assert!(newest.llm);
+}
+
+#[test]
+fn an_llm_with_said_by_for_another_person_is_refused_and_nothing_is_written() {
+    let project = scenario();
+    refute(&project, NOW, "ASM-001").success();
+    let decision = std::fs::read(project.entry_file("DEC-001")).expect("the entry is read");
+
+    project
+        .command("anna-claude", NOW)
+        .env_remove("DOSSIER_ANSWERS")
+        .args([
+            "cleared",
+            "DEC-001",
+            "--assumption",
+            "ASM-001",
+            "--note",
+            NOTE,
+            "--said-by",
+            "ben",
+        ])
+        .assert()
+        .code(1)
+        .stderr(contains("acts for anna only"));
+
+    assert_eq!(
+        std::fs::read(project.entry_file("DEC-001")).expect("the entry is read"),
+        decision,
+        "a refused change writes nothing"
+    );
+    assert_eq!(entry_of(&project, "DEC-001").list("rests-on"), ["ASM-001"]);
+}
+
+#[test]
+fn a_worker_session_clears_nothing_even_with_said_by() {
+    let project = scenario();
+    refute(&project, NOW, "ASM-001").success();
+    let decision = std::fs::read(project.entry_file("DEC-001")).expect("the entry is read");
+
+    project
+        .command("anna-claude", NOW)
+        .env_remove("DOSSIER_ANSWERS")
+        .env("DOSSIER_ROLE", "worker")
+        .args([
+            "cleared",
+            "DEC-001",
+            "--assumption",
+            "ASM-001",
+            "--note",
+            NOTE,
+            "--said-by",
+            "anna",
+        ])
+        .assert()
+        .code(1)
+        .stderr(contains("a worker decides nothing"));
 
     assert_eq!(
         std::fs::read(project.entry_file("DEC-001")).expect("the entry is read"),

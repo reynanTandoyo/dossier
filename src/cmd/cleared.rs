@@ -4,13 +4,15 @@
 //! list whose block has it. Each change gets one history line, `cleared`, with the assumption and
 //! the `--note` text, so that the history keeps why the mark was removed (format.md §6, §14, §17).
 //!
-//! Only a person can clear a mark; no terminal is needed. A refused change writes nothing.
+//! A person clears a mark; an LLM does so with `--said-by <person>` (D57). No terminal is needed.
+//! A refused change writes nothing.
 
 use crate::cli::Global;
 use crate::ctx::Ctx;
 use crate::entry::Kind;
 use crate::error::{Code, Error, Result};
 use crate::filelist;
+use crate::names;
 use crate::names::Who;
 use crate::output::Output;
 use crate::paths;
@@ -37,6 +39,9 @@ pub struct Args {
     /// Why the mark is removed, in one line, such as "the rig measured a flat inlet profile"
     #[arg(long)]
     pub note: String,
+    /// The person who decided this; needed when an LLM runs the command (D57)
+    #[arg(long, value_name = "PERSON")]
+    pub said_by: Option<String>,
 }
 
 /// What `cleared` removed: the entries and the files (task and stored path) it cleared.
@@ -45,19 +50,15 @@ struct Cleared {
     files: Vec<(String, String)>,
 }
 
-/// Runs `cleared`: checks that a person acts, the assumption and the note, then, in one
-/// transaction, removes the mark from the entry or from the blocks of the path. The first output
-/// line is `<ID>: cleared <ASM>` for an entry, or `<TASK> file <path>: cleared <ASM>` for a file;
-/// the data has the same lists.
+/// Runs `cleared`: checks who acts (names::said_by_gate, D57), the assumption and the note, then,
+/// in one transaction, removes the mark from the entry or from the blocks of the path. An LLM runs
+/// it with `--said-by <person>` for its person; it needs no terminal and asks nothing. The first
+/// output line is `<ID>: cleared <ASM>` for an entry, or `<TASK> file <path>: cleared <ASM>` for a
+/// file; the data has the same lists.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "cleared")?;
     let who = ctx.writer()?.clone();
-    if who.is_llm {
-        return Err(Error::new(
-            Code::NeedsPerson,
-            format!("cleared is for a person; {} is an LLM", who.name),
-        ));
-    }
+    names::said_by_gate(&who, args.said_by.as_deref(), "cleared")?;
     let assumption = assumption_id(&args.assumption)?;
     let note = note_text(&args.note)?;
     let target = args.target.trim();
