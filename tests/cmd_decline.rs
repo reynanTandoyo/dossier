@@ -1,8 +1,8 @@
-//! Runs the built program for `decline`: a decider at a terminal turns a proposal down. The
-//! declined proposal is kept with status `declined` and its reason, and it is hidden from `list`
-//! except with `--status declined`. Only a person named in `deciders` may decline, only at a
-//! terminal, and only a proposal can be declined. Each test runs in its own project folder
-//! (common::Project), with the clock fixed at 2026-11-20T10:00:00+01:00 unless a test says
+//! Runs the built program for `decline`: a decider turns a proposal down, at a terminal or, for an
+//! LLM, with `--said-by <person>` (D57). The declined proposal is kept with status `declined` and
+//! its reason, and it is hidden from `list` except with `--status declined`. Only a person named in
+//! `deciders` may decline, and only a proposal can be declined. Each test runs in its own project
+//! folder (common::Project), with the clock fixed at 2026-11-20T10:00:00+01:00 unless a test says
 //! otherwise.
 
 mod common;
@@ -195,7 +195,7 @@ fn anna_claude_is_an_llm_so_it_is_refused_even_though_its_person_decides() {
     decline_with(&project, "anna-claude", LATER, id, REASON)
         .failure()
         .code(1)
-        .stderr(contains("decline is for a person; anna-claude is an LLM"));
+        .stderr(contains("--said-by anna"));
 
     assert_eq!(bytes_of(&project, id), before, "the file is unchanged");
     assert_eq!(entry_of(&project, id).status(), Some(Status::Proposed));
@@ -338,4 +338,91 @@ fn json_gives_the_id_and_the_status_and_a_refusal_names_its_code() {
         .failure()
         .code(1)
         .stdout(contains("\"code\":\"REFUSED\""));
+}
+
+#[test]
+fn an_llm_without_said_by_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    let id = ben_proposes(&project);
+    let before = bytes_of(&project, id);
+
+    decline_with(&project, "anna-claude", LATER, id, REASON)
+        .failure()
+        .code(1)
+        .stderr(contains("--said-by anna"));
+
+    assert_eq!(bytes_of(&project, id), before, "the file is unchanged");
+    assert_eq!(entry_of(&project, id).status(), Some(Status::Proposed));
+}
+
+#[test]
+fn an_llm_with_said_by_declines_without_a_terminal_or_a_question() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    let id = ben_proposes(&project);
+    // No answers are prepared and no terminal is attached, so nothing can be asked: the proposal
+    // is declined as the person decided (D57).
+    project
+        .command("anna-claude", LATER)
+        .args(["decline", id, "--reason", REASON, "--said-by", "anna"])
+        .assert()
+        .success()
+        .stdout("DEC-001: declined\n")
+        .stderr("");
+
+    let entry = entry_of(&project, id);
+    assert_eq!(entry.status(), Some(Status::Declined));
+    assert_eq!(entry.field("declined-reason").as_deref(), Some(REASON));
+    assert_eq!(
+        entry.history().last().map(String::as_str),
+        Some(format!("{LATER} anna via anna-claude: declined — {REASON}").as_str())
+    );
+
+    let journal = project.entry_journal();
+    let last = journal.last().expect("a journal line");
+    assert_eq!(last.command, "decline");
+    assert_eq!(last.id, "DEC-001");
+    assert_eq!(last.event, "declined");
+    assert_eq!(last.detail, REASON);
+    assert_eq!(last.person, "anna");
+    assert_eq!(last.name, "anna-claude");
+    assert!(last.llm);
+}
+
+#[test]
+fn an_llm_with_said_by_for_another_person_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    let id = ben_proposes(&project);
+    let before = bytes_of(&project, id);
+
+    project
+        .command("anna-claude", LATER)
+        .args(["decline", id, "--reason", REASON, "--said-by", "ben"])
+        .assert()
+        .code(1)
+        .stderr(contains("acts for anna only"));
+
+    assert_eq!(bytes_of(&project, id), before, "the file is unchanged");
+    assert_eq!(entry_of(&project, id).status(), Some(Status::Proposed));
+}
+
+#[test]
+fn a_worker_session_decides_nothing_even_with_said_by() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    let id = ben_proposes(&project);
+    let before = bytes_of(&project, id);
+
+    project
+        .command("anna-claude", LATER)
+        .env("DOSSIER_ROLE", "worker")
+        .args(["decline", id, "--reason", REASON, "--said-by", "anna"])
+        .assert()
+        .code(1)
+        .stderr(contains("a worker decides nothing"));
+
+    assert_eq!(bytes_of(&project, id), before, "the file is unchanged");
+    assert_eq!(entry_of(&project, id).status(), Some(Status::Proposed));
 }

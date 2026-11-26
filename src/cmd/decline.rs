@@ -1,7 +1,8 @@
-//! The `decline` command: a decider turns a proposal down (R-WRITE-12, D28). Only a person, at a
-//! terminal, and a person named in `deciders` (names::may_decide) can decline, and only a proposal
-//! can be declined. The declined proposal is kept, hidden like a rejected draft: its status is
-//! `declined`, the reason is in `declined-reason`, and the history line `declined` carries it too.
+//! The `decline` command: a decider turns a proposal down (R-WRITE-12, D28). A person at a
+//! terminal, or an LLM with `--said-by <person>` (D57), can decline; the person must be named in
+//! `deciders` (names::may_decide), and only a proposal can be declined. The declined proposal is
+//! kept, hidden like a rejected draft: its status is `declined`, the reason is in
+//! `declined-reason`, and the history line `declined` carries it too.
 
 use crate::cli::Global;
 use crate::ctx::Ctx;
@@ -25,25 +26,25 @@ pub struct Args {
     /// Why the proposal is turned down; kept in the entry
     #[arg(long)]
     pub reason: String,
+
+    /// The person who decided this; needed when an LLM runs the command (D57)
+    #[arg(long, value_name = "PERSON")]
+    pub said_by: Option<String>,
 }
 
-/// Runs `decline`: checks who acts, then, in one transaction, sets the proposal to `declined`,
-/// keeps the reason and adds the history line. The output is `<ID>: declined`; the data is
-/// {id, status}.
+/// Runs `decline`: checks who acts (names::said_by_gate, D57) and, unless an LLM carries out its
+/// person's decision with `--said-by`, that a person is at a terminal. Then, in one transaction,
+/// sets the proposal to `declined`, keeps the reason and adds the history line. The output is
+/// `<ID>: declined`; the data is {id, status}.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "decline")?;
     let who = ctx.writer()?.clone();
-    if who.is_llm {
-        return Err(Error::new(
-            Code::NeedsPerson,
-            format!("decline is for a person; {} is an LLM", who.name),
-        ));
-    }
+    let said = names::said_by_gate(&who, args.said_by.as_deref(), "decline")?;
     let reason = args.reason.trim();
     if reason.is_empty() {
         return Err(Error::new(Code::BadValue, "the reason must not be empty"));
     }
-    if !term::is_terminal() {
+    if !said && !term::is_terminal() {
         return Err(Error::new(
             Code::NeedsTerminal,
             "this command must be run by a person at a terminal",
