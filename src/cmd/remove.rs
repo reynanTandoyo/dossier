@@ -1,13 +1,15 @@
 //! The `remove` command: a person at a terminal deletes an entry for good (R-LIFE-3), for example
-//! customer data entered by mistake. The file is deleted, the journal records the removal without
-//! the text, and the snapshots of the entry are deleted too, so that no copy of its text remains.
-//! Its ID is not reused, since ids.json keeps the highest number given out (R-ID-3). The person
-//! types the ID to confirm; anything else changes nothing.
+//! customer data entered by mistake. An LLM does it with `--said-by <person>` (D57), since the
+//! person decided it; then nothing is asked. The file is deleted, the journal records the removal
+//! without the text, and the snapshots of the entry are deleted too, so that no copy of its text
+//! remains. Its ID is not reused, since ids.json keeps the highest number given out (R-ID-3). A
+//! person types the ID to confirm; anything else changes nothing.
 
 use crate::approval;
 use crate::cli::Global;
 use crate::ctx::Ctx;
 use crate::error::{Code, Error, Result};
+use crate::names;
 use crate::output::Output;
 use crate::store;
 use crate::term;
@@ -24,21 +26,22 @@ pub struct Args {
     /// Confirms the deletion; without it nothing is deleted
     #[arg(long)]
     pub yes: bool,
+
+    /// The person who decided this; needed when an LLM runs the command (D57)
+    #[arg(long, value_name = "PERSON")]
+    pub said_by: Option<String>,
 }
 
-/// Runs `remove`: checks that a person acts at a terminal and that `--yes` is given, asks for the
-/// ID to be typed, then deletes the entry in one transaction. The output is `<ID>: removed`. When
-/// the answer is not the ID, nothing changes and the output is `nothing changed`.
+/// Runs `remove`: checks who acts (names::said_by_gate, D57), that a person is at a terminal
+/// unless an LLM carries out its person's decision with `--said-by`, and that `--yes` is given.
+/// A person is asked to type the ID, then the entry is deleted in one transaction; with
+/// `--said-by` nothing is asked. The output is `<ID>: removed`. When the answer is not the ID,
+/// nothing changes and the output is `nothing changed`.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "remove")?;
     let who = ctx.writer()?.clone();
-    if who.is_llm {
-        return Err(Error::new(
-            Code::NeedsPerson,
-            format!("remove is for a person; {} is an LLM", who.name),
-        ));
-    }
-    if !term::is_terminal() {
+    let said = names::said_by_gate(&who, args.said_by.as_deref(), "remove")?;
+    if !said && !term::is_terminal() {
         return Err(Error::new(
             Code::NeedsTerminal,
             "this command must be run by a person at a terminal",
@@ -54,12 +57,14 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     // The ID as the entry has it, read before the question so that an unknown ID is refused
     // without asking anything.
     let id = store::get(&ctx.dossier, &args.id)?.entry.id();
-    let answer = term::ask(&format!("type the ID to delete {id} for good: "))?;
-    if !answer.eq_ignore_ascii_case(&id) {
-        return Ok(Output::with(
-            "nothing changed",
-            json!({"id": id, "removed": false}),
-        ));
+    if !said {
+        let answer = term::ask(&format!("type the ID to delete {id} for good: "))?;
+        if !answer.eq_ignore_ascii_case(&id) {
+            return Ok(Output::with(
+                "nothing changed",
+                json!({"id": id, "removed": false}),
+            ));
+        }
     }
 
     let output = tx::write(&ctx, |tx| {

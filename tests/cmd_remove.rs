@@ -1,8 +1,8 @@
-//! Runs the built program for `remove`: a person at a terminal deletes an entry for good. The file
-//! is gone, the journal has a `removed` line without the text, no snapshot of the text remains,
-//! and the ID is not reused. An LLM, a missing `--yes`, a wrong answer and a missing terminal
-//! change nothing. Each test runs in its own temporary project, with the clock fixed by
-//! `common::Project`.
+//! Runs the built program for `remove`: a person at a terminal, or an LLM with `--said-by <person>`
+//! (D57), deletes an entry for good. The file is gone, the journal has a `removed` line without the
+//! text, no snapshot of the text remains, and the ID is not reused. An LLM without its person's
+//! `--said-by`, a missing `--yes`, a wrong answer and a missing terminal change nothing. Each test
+//! runs in its own temporary project, with the clock fixed by `common::Project`.
 
 mod common;
 
@@ -145,9 +145,7 @@ fn an_llm_cannot_remove_an_entry_and_the_file_stays() {
         .args(["remove", "FND-001", "--yes"])
         .assert()
         .code(1)
-        .stderr(contains(
-            "error: remove is for a person; anna-claude is an LLM",
-        ));
+        .stderr(contains("--said-by anna"));
 
     assert_eq!(
         std::fs::read(&path).expect("the entry file is read"),
@@ -242,4 +240,115 @@ fn an_unknown_id_is_refused() {
         .args(["remove", "FND-009", "--yes"])
         .assert()
         .code(1);
+}
+
+#[test]
+fn an_llm_without_said_by_is_refused_and_nothing_is_removed() {
+    let project = Project::new();
+    approved_finding(&project);
+    let path = project.entry_file("FND-001");
+    let before = std::fs::read(&path).expect("the entry file is read");
+
+    project
+        .command("anna-claude", NOW)
+        .args(["remove", "FND-001", "--yes"])
+        .assert()
+        .code(1)
+        .stderr(contains("--said-by anna"));
+
+    assert_eq!(
+        std::fs::read(&path).expect("the entry file is read"),
+        before
+    );
+    assert!(
+        !project
+            .read("DOSSIER/.state/journal.jsonl")
+            .contains("removed")
+    );
+}
+
+#[test]
+fn an_llm_with_said_by_removes_the_entry_without_a_terminal_or_a_question() {
+    let project = Project::new();
+    approved_finding(&project);
+    let path = project.entry_file("FND-001");
+
+    // No answers are prepared and no terminal is attached, so nothing can be asked (D57). The
+    // entry file is gone after the removal, so its history cannot be read; the journal is checked.
+    project
+        .command("anna-claude", NOW)
+        .args(["remove", "FND-001", "--yes", "--said-by", "anna"])
+        .assert()
+        .success()
+        .stdout("FND-001: removed\n")
+        .stderr("");
+
+    assert!(!path.exists(), "the entry file is deleted");
+    let journal = project.entry_journal();
+    let last = journal.last().expect("a journal line");
+    assert_eq!(last.command, "remove");
+    assert_eq!(last.id, "FND-001");
+    assert_eq!(last.event, "removed");
+    assert_eq!(last.person, "anna");
+    assert_eq!(last.name, "anna-claude");
+    assert!(last.llm);
+}
+
+#[test]
+fn an_llm_with_said_by_for_another_person_is_refused_and_nothing_is_removed() {
+    let project = Project::new();
+    approved_finding(&project);
+    let path = project.entry_file("FND-001");
+    let before = std::fs::read(&path).expect("the entry file is read");
+
+    project
+        .command("anna-claude", NOW)
+        .args(["remove", "FND-001", "--yes", "--said-by", "ben"])
+        .assert()
+        .code(1)
+        .stderr(contains("acts for anna only"));
+
+    assert_eq!(
+        std::fs::read(&path).expect("the entry file is read"),
+        before
+    );
+}
+
+#[test]
+fn a_worker_session_removes_nothing_even_with_said_by() {
+    let project = Project::new();
+    approved_finding(&project);
+    let path = project.entry_file("FND-001");
+    let before = std::fs::read(&path).expect("the entry file is read");
+
+    project
+        .command("anna-claude", NOW)
+        .env("DOSSIER_ROLE", "worker")
+        .args(["remove", "FND-001", "--yes", "--said-by", "anna"])
+        .assert()
+        .code(1)
+        .stderr(contains("a worker decides nothing"));
+
+    assert_eq!(
+        std::fs::read(&path).expect("the entry file is read"),
+        before
+    );
+}
+
+#[test]
+fn an_llm_with_said_by_but_without_yes_is_a_usage_error_and_deletes_nothing() {
+    let project = Project::new();
+    approved_finding(&project);
+    let path = project.entry_file("FND-001");
+
+    project
+        .command("anna-claude", NOW)
+        .args(["remove", "FND-001", "--said-by", "anna"])
+        .assert()
+        .code(2)
+        .stderr(contains(
+            "error: remove deletes the entry for good; add --yes",
+        ));
+
+    assert!(path.exists());
 }
