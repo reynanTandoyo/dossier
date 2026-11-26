@@ -1,8 +1,9 @@
 //! Runs the built program for `retire`: a person ends an approved entry with a reason and no
-//! replacement. The entry is kept with status `retired`, `valid-until` and `retired-reason`. A
-//! draft, a retired entry, an LLM and a blank reason are refused, and nothing is written in those
-//! cases. Each test runs in its own temporary project folder, with the clock fixed by
-//! `common::Project` (2026-11-20T10:00:00+01:00).
+//! replacement, and an LLM does so with `--said-by <person>` (D57). The entry is kept with status
+//! `retired`, `valid-until` and `retired-reason`. A draft, a retired entry, an LLM without
+//! `--said-by`, an LLM for another person, a worker session and a blank reason are refused, and
+//! nothing is written in those cases. Each test runs in its own temporary project folder, with the
+//! clock fixed by `common::Project` (2026-11-20T10:00:00+01:00).
 
 mod common;
 
@@ -219,9 +220,7 @@ fn anna_claude_cannot_retire_and_nothing_is_written() {
     project
         .run("anna-claude", &["retire", "DEC-001", "--reason", REASON])
         .code(1)
-        .stderr(contains(
-            "error: retire is for a person; anna-claude is an LLM",
-        ));
+        .stderr(contains("--said-by anna"));
     project
         .command("anna-claude", NOW)
         .args(["retire", "DEC-001", "--reason", REASON, "--json"])
@@ -234,6 +233,88 @@ fn anna_claude_cannot_retire_and_nothing_is_written() {
         entry_of(&project, "DEC-001").status(),
         Some(Status::Approved)
     );
+}
+
+#[test]
+fn an_llm_without_said_by_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    anna_decides(&project);
+    let before = bytes_of(&project, "DEC-001");
+
+    project
+        .run("anna-claude", &["retire", "DEC-001", "--reason", REASON])
+        .code(1)
+        .stderr(contains("--said-by anna"));
+
+    assert_eq!(bytes_of(&project, "DEC-001"), before);
+    assert_eq!(
+        entry_of(&project, "DEC-001").status(),
+        Some(Status::Approved)
+    );
+}
+
+#[test]
+fn an_llm_with_said_by_retires_its_entry_without_a_terminal_or_a_question() {
+    let project = Project::new();
+    anna_decides(&project);
+    // No answers are prepared and no terminal is attached, so nothing can be asked: the entry is
+    // retired as the person decided (D57).
+    project
+        .command("anna-claude", NOW)
+        .args(["retire", "DEC-001", "--reason", REASON, "--said-by", "anna"])
+        .assert()
+        .success()
+        .stdout("DEC-001: retired\n")
+        .stderr("");
+
+    let entry = entry_of(&project, "DEC-001");
+    assert_eq!(entry.status(), Some(Status::Retired));
+    assert_eq!(entry.field("retired-reason").as_deref(), Some(REASON));
+    assert_eq!(entry.field("author").as_deref(), Some("anna"));
+    assert_eq!(
+        entry.history().last().map(String::as_str),
+        Some(format!("{NOW} anna via anna-claude: retired — {REASON}").as_str())
+    );
+    let journal = project.entry_journal();
+    let newest = journal.last().expect("the retirement is journalled");
+    assert_eq!(newest.id, "DEC-001");
+    assert_eq!(newest.event, "retired");
+    assert_eq!(newest.person, "anna");
+    assert_eq!(newest.name, "anna-claude");
+    assert!(newest.llm);
+}
+
+#[test]
+fn an_llm_with_said_by_for_another_person_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    anna_decides(&project);
+    let before = bytes_of(&project, "DEC-001");
+
+    project
+        .command("anna-claude", NOW)
+        .args(["retire", "DEC-001", "--reason", REASON, "--said-by", "ben"])
+        .assert()
+        .code(1)
+        .stderr(contains("acts for anna only"));
+
+    assert_eq!(bytes_of(&project, "DEC-001"), before);
+}
+
+#[test]
+fn a_worker_session_retires_nothing_even_with_said_by() {
+    let project = Project::new();
+    anna_decides(&project);
+    let before = bytes_of(&project, "DEC-001");
+
+    project
+        .command("anna-claude", NOW)
+        .env("DOSSIER_ROLE", "worker")
+        .args(["retire", "DEC-001", "--reason", REASON, "--said-by", "anna"])
+        .assert()
+        .code(1)
+        .stderr(contains("a worker decides nothing"));
+
+    assert_eq!(bytes_of(&project, "DEC-001"), before);
 }
 
 #[test]

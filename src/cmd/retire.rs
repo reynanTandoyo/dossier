@@ -1,14 +1,16 @@
 //! The `retire` command: a person ends an approved entry without a replacement (R-LIFE-5). The
 //! entry is kept with status `retired`; `valid-until` is the time it was retired, and
 //! `retired-reason` and the history line carry the reason. Only an approved entry can be retired,
-//! and only a person can retire it. A retired lesson, how-to or tool is no longer approved, so its
-//! recorded checksum is forgotten (approval::guarded).
+//! and a person retires it. An LLM carries out its person's decision with `--said-by <person>`
+//! (D57). A retired lesson, how-to or tool is no longer approved, so its recorded checksum is
+//! forgotten (approval::guarded).
 
 use crate::approval;
 use crate::cli::Global;
 use crate::ctx::Ctx;
 use crate::entry::{Kind, Status};
 use crate::error::{Code, Error, Result};
+use crate::names;
 use crate::output::Output;
 use crate::store;
 use crate::tx::{self, Change};
@@ -23,21 +25,20 @@ pub struct Args {
     /// Why the entry no longer holds; kept in the entry and in its history
     #[arg(long)]
     pub reason: String,
+    /// The person who decided this; needed when an LLM runs the command (D57)
+    #[arg(long, value_name = "PERSON")]
+    pub said_by: Option<String>,
 }
 
-/// Runs `retire`: checks that a person acts and that the reason is not blank, then, in one
-/// transaction, closes the entry with the time and the reason. The output is `<ID>: retired`.
-/// The checksum of a retired lesson, how-to or tool is forgotten after the file is written,
-/// unless this is a dry run.
+/// Runs `retire`: checks who acts (names::said_by_gate, D57) and that the reason is not blank,
+/// then, in one transaction, closes the entry with the time and the reason. An LLM runs it with
+/// `--said-by <person>` for its person; it needs no terminal and asks nothing. The output is
+/// `<ID>: retired`. The checksum of a retired lesson, how-to or tool is forgotten after the file is
+/// written, unless this is a dry run.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "retire")?;
     let who = ctx.writer()?.clone();
-    if who.is_llm {
-        return Err(Error::new(
-            Code::NeedsPerson,
-            format!("retire is for a person; {} is an LLM", who.name),
-        ));
-    }
+    names::said_by_gate(&who, args.said_by.as_deref(), "retire")?;
     let reason = args.reason.trim();
     if reason.is_empty() {
         return Err(Error::new(Code::BadValue, "the reason must not be empty"));
