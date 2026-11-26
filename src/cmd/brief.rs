@@ -9,6 +9,9 @@
 //! `--on <date>` it prints what was in force on that day instead (R-LIFE-9); the proposals, the
 //! drafts and what rests on a wrong assumption are then left out.
 //!
+//! In a worker session (DOSSIER_ROLE=worker, R-AGENT-6) the project brief is replaced by one line,
+//! unless `--full` is given; `--task` and `--on` print as before.
+//!
 //! When the project names a team dossier (R-CTX-1), the team's approved lessons and how-tos whose
 //! machine, analysis or software tags match the project's are printed under their own heading, at
 //! most MAX_TEAM of them. The last line says how many entries were approved in the project or the
@@ -44,6 +47,7 @@ use crate::filelist;
 use crate::journal::{self, Record};
 use crate::mapfile;
 use crate::output::Output;
+use crate::role::{self, Role};
 use crate::store::{self, Item};
 use crate::time;
 use crate::values;
@@ -65,6 +69,9 @@ pub struct Args {
     /// The most lines this call prints, at least 5, instead of `brief_lines` (R-CTX-6)
     #[arg(long, value_name = "lines")]
     pub budget: Option<usize>,
+    /// Prints the project brief also in a worker session (R-AGENT-6)
+    #[arg(long, conflicts_with = "task")]
+    pub full: bool,
 }
 
 /// The headings of the project brief, in the order they are printed.
@@ -101,6 +108,9 @@ const SSH_VARIABLE: &str = "SSH_CONNECTION";
 /// The fewest lines `--budget` accepts (R-CTX-6).
 const MIN_BUDGET: usize = 5;
 
+/// The one line a worker session gets instead of the project brief (R-AGENT-6).
+const WORKER_LINE: &str = "dossier: worker session. The entries for your task are printed after todo claim; the project brief is left out.";
+
 /// Runs `brief`: the context of the project, or with `--task` the context of one task. The line
 /// limit is `--budget` when it is given, else `brief_lines`. The warnings of reading the dossier
 /// are passed on.
@@ -114,6 +124,10 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         ));
     }
     let ctx = Ctx::load(g, "brief")?;
+    if args.task.is_none() && args.on.is_none() && !args.full && role::current() == Role::Worker {
+        let data = json!({"code": ctx.cfg.code, "role": "worker", "lines": [WORKER_LINE]});
+        return Ok(Output::with(WORKER_LINE, data));
+    }
     let limit = args.budget.unwrap_or(ctx.cfg.brief_lines);
     let remote = std::env::var(SSH_VARIABLE).is_ok_and(|value| !value.is_empty());
     match &args.task {

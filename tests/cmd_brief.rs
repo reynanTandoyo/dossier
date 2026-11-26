@@ -3470,3 +3470,91 @@ fn brief_task_prints_the_last_handover_and_takeover_directly_after_its_first_lin
         "{text}"
     );
 }
+
+/// The one line a worker session gets instead of the project brief, as brief.rs writes it.
+const WORKER_LINE: &str = "dossier: worker session. The entries for your task are printed after todo claim; the project brief is left out.";
+
+/// Runs `brief` with `extra` arguments as anna at the fixed clock, with DOSSIER_ROLE set to `role`
+/// when it is given, and returns the standard output. The variable SSH_CONNECTION is removed.
+fn brief_in_role(project: &Project, role: Option<&str>, extra: &[&str]) -> String {
+    let mut command = project.command("anna", NOW);
+    command.env_remove("SSH_CONNECTION");
+    if let Some(role) = role {
+        command.env("DOSSIER_ROLE", role);
+    }
+    let output = command
+        .arg("brief")
+        .args(extra)
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    String::from_utf8(output).expect("the standard output is UTF-8")
+}
+
+#[test]
+fn a_worker_session_gets_one_line_in_place_of_the_brief() {
+    let project = project_with_entries();
+
+    assert_eq!(
+        brief_in_role(&project, Some("worker"), &[]),
+        format!("{WORKER_LINE}\n")
+    );
+    assert_eq!(
+        brief_in_role(&project, Some(" Worker "), &[]),
+        format!("{WORKER_LINE}\n")
+    );
+}
+
+#[test]
+fn a_planner_session_and_a_session_without_the_variable_get_the_brief() {
+    let project = project_with_entries();
+
+    let planner = brief_in_role(&project, Some("planner"), &[]);
+    assert!(planner.contains("## Decisions in force"), "{planner}");
+    let unmarked = brief_in_role(&project, None, &[]);
+    assert!(unmarked.contains("## Decisions in force"), "{unmarked}");
+}
+
+#[test]
+fn a_worker_session_with_full_gets_the_brief() {
+    let project = project_with_entries();
+
+    let text = brief_in_role(&project, Some("worker"), &["--full"]);
+
+    assert!(text.contains("## Decisions in force"), "{text}");
+    assert!(!text.contains(WORKER_LINE), "{text}");
+}
+
+#[test]
+fn a_worker_session_with_on_gets_the_brief_of_that_day() {
+    let project = project_with_entries();
+
+    let text = brief_in_role(&project, Some("worker"), &["--on", "2026-11-20"]);
+
+    assert!(text.contains("## Decisions in force"), "{text}");
+    assert!(!text.contains(WORKER_LINE), "{text}");
+}
+
+#[test]
+fn the_json_data_of_a_worker_session_names_the_role() {
+    let project = project_with_entries();
+
+    let text = brief_in_role(&project, Some("worker"), &["--json"]);
+    let envelope: serde_json::Value = serde_json::from_str(text.trim()).expect("one JSON line");
+
+    assert_eq!(envelope["data"]["role"], "worker", "{text}");
+}
+
+#[test]
+fn full_is_refused_with_task() {
+    let project = Project::new();
+
+    project
+        .command("anna", NOW)
+        .args(["brief", "--full", "--task", "T-001"])
+        .assert()
+        .failure()
+        .code(2);
+}
