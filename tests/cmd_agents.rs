@@ -13,6 +13,9 @@ use std::path::Path;
 /// The fixed clock of the journal tests (25 characters, with a T).
 const WHEN: &str = "2026-11-21T09:30:00+01:00";
 
+/// The skill file, relative to the folder the program runs in.
+const SKILL: &str = ".claude/skills/dossier/SKILL.md";
+
 /// The program run in `folder` with `args`, not yet checked.
 fn dossier(folder: &Path, args: &[&str]) -> assert_cmd::assert::Assert {
     Command::cargo_bin("dossier")
@@ -349,6 +352,89 @@ fn install_without_a_dossier_writes_the_block_and_creates_no_state_folder() {
     assert!(agents_md(folder.path()).contains("<!-- dossier:begin -->"));
     assert!(!folder.path().join("DOSSIER").exists());
     assert!(!folder.path().join(".state").exists());
+}
+
+/// The journal lines of the project's dossier with the ID SKILL, oldest first.
+fn skill_records(project: &Project) -> Vec<dossier::journal::Record> {
+    journal_of(project)
+        .into_iter()
+        .filter(|record| record.id == "SKILL")
+        .collect()
+}
+
+#[test]
+fn a_block_of_version_1_2_fails_check_and_install_renews_it_and_keeps_the_other_lines() {
+    let folder = tempfile::tempdir().unwrap();
+    let old = "# Project\n\nKeep this line.\n\n<!-- dossier:begin -->\n# Working with the dossier\n\n- Start a session with `dossier brief`.\n<!-- dossier:end -->\n\nNotes after the block.\n";
+    std::fs::write(folder.path().join("AGENTS.md"), old).unwrap();
+    dossier(folder.path(), &["agents", "check"])
+        .code(1)
+        .stderr(contains("run: dossier agents install --yes"));
+    dossier(folder.path(), &["agents", "install", "--yes"])
+        .success()
+        .stdout(contains("AGENTS.md: rules block written"));
+    dossier(folder.path(), &["agents", "check"]).success();
+    let text = agents_md(folder.path());
+    let (before, rest) = text.split_once("<!-- dossier:begin -->\n").unwrap();
+    let (_, after) = rest.split_once("<!-- dossier:end -->\n").unwrap();
+    assert_eq!(before, "# Project\n\nKeep this line.\n\n");
+    assert_eq!(after, "\nNotes after the block.\n");
+    assert!(text.contains("dossier help worker"));
+    assert!(!text.contains("- Start a session with"));
+}
+
+#[test]
+fn install_renews_an_out_of_date_skill_file_and_journals_it() {
+    let project = Project::new();
+    project.write(SKILL, "old skill text\n");
+    project
+        .run("anna", &["agents", "install", "--yes"])
+        .success()
+        .stdout(contains(
+            "AGENTS.md: rules block written\n.claude/skills/dossier/SKILL.md: skill written",
+        ));
+    assert_eq!(project.read(SKILL), dossier::agents::skill());
+    let records = skill_records(&project);
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].detail, "skill written");
+}
+
+#[test]
+fn install_without_a_skill_file_creates_no_claude_folder() {
+    let folder = tempfile::tempdir().unwrap();
+    dossier(folder.path(), &["agents", "install", "--yes"])
+        .success()
+        .stdout(contains("AGENTS.md: rules block written"));
+    assert!(!folder.path().join(".claude").exists());
+}
+
+#[test]
+fn check_fails_on_an_out_of_date_skill_file_and_names_it() {
+    let folder = tempfile::tempdir().unwrap();
+    dossier(folder.path(), &["agents", "install", "--yes"]).success();
+    let skill = folder.path().join(".claude/skills/dossier");
+    std::fs::create_dir_all(&skill).unwrap();
+    std::fs::write(skill.join("SKILL.md"), "old skill text\n").unwrap();
+    dossier(folder.path(), &["agents", "check"])
+        .code(1)
+        .stderr(contains(
+            ".claude/skills/dossier/SKILL.md is out of date; run: dossier agents install --yes",
+        ));
+}
+
+#[test]
+fn install_as_json_says_whether_the_skill_was_renewed() {
+    let folder = tempfile::tempdir().unwrap();
+    dossier(folder.path(), &["agents", "install", "--yes", "--json"])
+        .success()
+        .stdout(contains("\"written\":true"))
+        .stdout(contains("\"skill\":false"));
+    let skill = folder.path().join(".claude/skills/dossier");
+    std::fs::create_dir_all(&skill).unwrap();
+    std::fs::write(skill.join("SKILL.md"), "old skill text\n").unwrap();
+    dossier(folder.path(), &["agents", "install", "--yes", "--json"])
+        .success()
+        .stdout(contains("\"skill\":true"));
 }
 
 #[test]

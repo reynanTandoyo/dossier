@@ -40,40 +40,23 @@ fn rules_lf() -> String {
         .to_string()
 }
 
-/// The rules text as `rules_lf` gives it; in a code project (`code_project`) without the lines
-/// that start with one of NOT_IN_CODE_PROJECTS (R-CODE-5).
-pub fn rules_for(code_project: bool) -> String {
-    let text = rules_lf();
-    if !code_project {
-        return text;
-    }
-    text.lines()
-        .filter(|line| {
-            !NOT_IN_CODE_PROJECTS
-                .iter()
-                .any(|start| line.starts_with(start))
-        })
-        .collect::<Vec<_>>()
-        .join("\n")
+/// The block without its final line break: BEGIN, the common rules, END.
+fn block_body() -> String {
+    format!("{BEGIN}\n{}\n{END}", rules_lf())
 }
 
-/// The block without its final line break: BEGIN, the rules for `code_project`, END.
-fn block_body(code_project: bool) -> String {
-    format!("{BEGIN}\n{}\n{END}", rules_for(code_project))
+/// The block: BEGIN, the common rules, END, each line ending with LF.
+pub fn block() -> String {
+    format!("{}\n", block_body())
 }
 
-/// The block: BEGIN, the rules for `code_project`, END, each line ending with LF.
-pub fn block(code_project: bool) -> String {
-    format!("{}\n", block_body(code_project))
-}
-
-/// The text of AGENTS.md with the block for `code_project` added (after todo's block if there is
-/// one, else at the end) or replaced; every other line unchanged.
-pub fn installed(existing: &str, code_project: bool) -> String {
+/// The text of AGENTS.md with the block added (after todo's block if there is one, else at the
+/// end) or replaced; every other line unchanged.
+pub fn installed(existing: &str) -> String {
     if let Some((start, end)) = managed_span(existing) {
         // Replace BEGIN through END in place; the line break after END stays as it is.
         let style = style_before(existing, start);
-        let body = block_body(code_project);
+        let body = block_body();
         let mut out = String::with_capacity(existing.len() + body.len());
         out.push_str(&existing[..start]);
         out.push_str(&with_style(&body, style));
@@ -84,18 +67,18 @@ pub fn installed(existing: &str, code_project: bool) -> String {
         // A blank line, then the block, right after todo's END line. A last line without a line
         // break gets one first.
         let style = style_before(existing, after);
-        let mut out = String::with_capacity(existing.len() + block(code_project).len() + 4);
+        let mut out = String::with_capacity(existing.len() + block().len() + 4);
         out.push_str(&existing[..after]);
         if !existing[..after].ends_with('\n') {
             out.push_str(style);
         }
         out.push_str(style);
-        out.push_str(&with_style(&block(code_project), style));
+        out.push_str(&with_style(&block(), style));
         out.push_str(&existing[after..]);
         return out;
     }
     if existing.is_empty() {
-        return block(code_project);
+        return block();
     }
     // Append: a blank line first, unless the text already ends with one.
     let style = style_before(existing, existing.len());
@@ -106,15 +89,13 @@ pub fn installed(existing: &str, code_project: bool) -> String {
         }
         out.push_str(style);
     }
-    out.push_str(&with_style(&block(code_project), style));
+    out.push_str(&with_style(&block(), style));
     out
 }
 
-/// Whether the block in `existing` is current for `code_project`.
-pub fn current(existing: &str, code_project: bool) -> bool {
-    existing
-        .replace("\r\n", "\n")
-        .contains(&block_body(code_project))
+/// Whether the block in `existing` is current.
+pub fn current(existing: &str) -> bool {
+    existing.replace("\r\n", "\n").contains(&block_body())
 }
 
 /// The Claude Code skill: a front matter (name: dossier, description: one line) and the common
@@ -124,6 +105,11 @@ pub fn skill() -> String {
         "---\nname: dossier\ndescription: Record and read the project's decisions, assumptions, findings and lessons with the dossier command.\n---\n\n{}\n",
         rules_lf()
     )
+}
+
+/// Whether `existing` is the skill of this version (CRLF counts as LF).
+pub fn skill_current(existing: &str) -> bool {
+    existing.replace("\r\n", "\n") == skill()
 }
 
 /// The number of lines of a rules text: `text.trim().lines().count()`, so empty lines count.
@@ -212,7 +198,7 @@ fn ends_with_blank_line(text: &str) -> bool {
 mod tests {
     use super::{
         BEGIN, END, NOT_IN_CODE_PROJECTS, RULES, RULES_MAX_LINES, WORKER, WORKER_MAX_LINES, block,
-        current, installed, lines_of, planner_for, skill, worker,
+        current, installed, lines_of, planner_for, skill, skill_current, worker,
     };
 
     /// The text with every LF turned into CRLF.
@@ -222,20 +208,15 @@ mod tests {
 
     #[test]
     fn block_starts_with_begin_and_ends_with_end_and_a_line_break() {
-        let block = block(false);
+        let block = block();
         assert!(block.starts_with(&format!("{BEGIN}\n")));
         assert!(block.ends_with(&format!("\n{END}\n")));
     }
 
     #[test]
     fn installs_into_an_empty_text() {
-        assert_eq!(installed("", false), block(false));
-        assert!(current(&installed("", false), false));
-    }
-
-    #[test]
-    fn the_block_is_the_same_in_a_code_project() {
-        assert_eq!(installed("", true), installed("", false));
+        assert_eq!(installed(""), block());
+        assert!(current(&installed("")));
     }
 
     #[test]
@@ -243,9 +224,9 @@ mod tests {
         let old = format!(
             "{BEGIN}\n# Working with the dossier\n\n- Start a session with `dossier brief`.\n{END}\n"
         );
-        assert!(!current(&old, false));
-        let new = installed(&old, false);
-        assert!(current(&new, false));
+        assert!(!current(&old));
+        let new = installed(&old);
+        assert!(current(&new));
         assert_eq!(new.matches("# Working with the dossier").count(), 1);
         assert!(
             !new.lines()
@@ -284,9 +265,9 @@ mod tests {
         let before = "# Project\n\n<!-- todo:begin -->\n# Work\n<!-- todo:end -->\n\nNotes\n";
         let expected = format!(
             "# Project\n\n<!-- todo:begin -->\n# Work\n<!-- todo:end -->\n\n{}\nNotes\n",
-            block(false)
+            block()
         );
-        assert_eq!(installed(before, false), expected);
+        assert_eq!(installed(before), expected);
     }
 
     #[test]
@@ -297,49 +278,46 @@ mod tests {
             "# Project\n\n<!-- todo:begin -->\n<!-- todo:end -->\n",
         ];
         for before in texts {
-            let once = installed(before, false);
-            assert_eq!(installed(&once, false), once);
+            let once = installed(before);
+            assert_eq!(installed(&once), once);
         }
     }
 
     #[test]
     fn current_is_false_before_and_true_after_installing() {
         let before = "# Project\n\n<!-- todo:begin -->\n<!-- todo:end -->\n";
-        assert!(!current(before, false));
-        assert!(current(&installed(before, false), false));
+        assert!(!current(before));
+        assert!(current(&installed(before)));
     }
 
     #[test]
     fn replaces_an_older_block_in_place_and_keeps_the_other_lines() {
         let old = format!("# Project\n\n{BEGIN}\nold rules\n{END}\n\nNotes\n");
-        assert!(!current(&old, false));
-        let new = installed(&old, false);
-        assert_eq!(new, format!("# Project\n\n{}\nNotes\n", block(false)));
-        assert!(current(&new, false));
+        assert!(!current(&old));
+        let new = installed(&old);
+        assert_eq!(new, format!("# Project\n\n{}\nNotes\n", block()));
+        assert!(current(&new));
     }
 
     #[test]
     fn appends_after_a_text_without_a_todo_block() {
         assert_eq!(
-            installed("# Project\n\nNotes\n", false),
-            format!("# Project\n\nNotes\n\n{}", block(false))
+            installed("# Project\n\nNotes\n"),
+            format!("# Project\n\nNotes\n\n{}", block())
         );
     }
 
     #[test]
     fn appends_without_a_second_blank_line_after_a_blank_line() {
         assert_eq!(
-            installed("# Project\n\n", false),
-            format!("# Project\n\n{}", block(false))
+            installed("# Project\n\n"),
+            format!("# Project\n\n{}", block())
         );
     }
 
     #[test]
     fn appends_a_line_break_and_a_blank_line_to_a_text_without_a_final_line_break() {
-        assert_eq!(
-            installed("# Project", false),
-            format!("# Project\n\n{}", block(false))
-        );
+        assert_eq!(installed("# Project"), format!("# Project\n\n{}", block()));
     }
 
     #[test]
@@ -348,28 +326,28 @@ mod tests {
         let expected = format!(
             "{}{}{}",
             crlf("# Project\n\n<!-- todo:begin -->\n# Work\n<!-- todo:end -->\n\n"),
-            crlf(&block(false)),
+            crlf(&block()),
             crlf("\nNotes\n")
         );
-        let after = installed(&before, false);
+        let after = installed(&before);
         assert_eq!(after, expected);
-        assert!(current(&after, false));
-        assert_eq!(installed(&after, false), after);
+        assert!(current(&after));
+        assert_eq!(installed(&after), after);
     }
 
     #[test]
     fn crlf_text_without_todo_block_gets_crlf_lines_when_appended() {
         assert_eq!(
-            installed("# Project\r\n", false),
-            format!("# Project\r\n\r\n{}", crlf(&block(false)))
+            installed("# Project\r\n"),
+            format!("# Project\r\n\r\n{}", crlf(&block()))
         );
     }
 
     #[test]
     fn a_stray_begin_marker_does_not_take_other_lines_with_it() {
         let before = format!("{BEGIN}\nkeep me\n");
-        let once = installed(&before, false);
-        let twice = installed(&once, false);
+        let once = installed(&before);
+        let twice = installed(&once);
         assert_eq!(twice, once);
         assert!(twice.contains("keep me"));
     }
@@ -394,6 +372,17 @@ mod tests {
         ));
         assert!(!text.contains('\r'));
         assert!(text.ends_with('\n') && !text.ends_with("\n\n"));
+    }
+
+    #[test]
+    fn skill_current_accepts_the_skill_with_crlf_and_refuses_a_changed_line() {
+        assert!(skill_current(&skill()));
+        assert!(skill_current(&skill().replace('\n', "\r\n")));
+        assert!(!skill_current(&skill().replacen(
+            "name: dossier",
+            "name: dossiers",
+            1
+        )));
     }
 
     #[test]
