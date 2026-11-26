@@ -11274,10 +11274,8 @@
 - note (2026-11-26, haiku-T-528): done
 
 ### T-529 · takeover: take over a task, name the unreturned files, show the progress
-- status: claimed
+- status: done
 - owner: haiku-T-529
-- claimed: 2026-11-26T07:03+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-525
 - why: When a colleague is ill or gone, another must be able to carry on with everything recorded (R-HAND-2, R-HAND-3, R-HAND-5).
@@ -11295,8 +11293,12 @@
   7. Run cargo test --test cmd_takeover.
 - accept: takeover claims the task for the writer with the recorded note, names the files others still hold with the command to take them, and shows the brief.
 - verify: cargo test --test cmd_takeover
+- verified: 2026-11-26
+- commit: 7a4f5df
 - reqs: R-HAND-2, R-HAND-3, R-HAND-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-529): done
 
 ### T-530 · brief --task: the last handover note under the task line
 - status: done
@@ -11322,8 +11324,10 @@
 - note (2026-11-26, haiku-T-530): done
 
 ### T-531 · The agent rules: hand over a task with a note; take over only with your person's yes
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-531
+- claimed: 2026-11-26T07:13+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: docs
 - milestone: T-525
 - why: An LLM learns the tool from the rules text (D14); it must know when and how to hand over and take over (D54).
@@ -11338,6 +11342,47 @@
 - accept: The installed rules tell an LLM how to hand over a task and that takeover needs its person's yes.
 - verify: cargo test --test cmd_agents
 - reqs: R-AGENT-1, D54
+- note (2026-11-26, planner): added
+
+### T-532 · handover: --dry-run calls no todo command and writes nothing
+- status: claimed
+- owner: haiku-T-532
+- claimed: 2026-11-26T07:13+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
+- priority: P1 · difficulty: 1 · type: fix
+- milestone: T-525
+- why: With --dry-run every dossier command changes nothing (R-WRITE dry runs), but handover still noted and released the task in todo and wrote a journal line (found in T-529).
+- summary: A dry run of handover only says what it would do.
+- files: src/cmd/handover.rs, tests/cmd_handover.rs
+- read: src/cmd/handover.rs, src/cli.rs, src/cmd/topics.rs
+- steps:
+  1. src/cmd/handover.rs: after the check of the writer's taken files (which also runs in a dry run), when `g.dry_run` is true call no todo command and append no journal line; return the output with the warning `dry run: would note "handover — <text>" on <task> and release it in todo`, as topics add returns its dry-run warning.
+  2. tests/cmd_handover.rs: with --dry-run the stand-in todo records no call, the journal is unchanged and the warning is printed; a dry run with a taken file is still refused.
+  3. Run cargo test --test cmd_handover.
+- accept: handover --dry-run changes nothing in todo or the journal and says what it would do.
+- verify: cargo test --test cmd_handover
+- reqs: R-HAND-1
+- note (2026-11-26, planner): added
+
+### T-533 · takeover: --dry-run changes nothing, and the brief uses the same dossier
+- status: claimed
+- owner: haiku-T-533
+- claimed: 2026-11-26T07:13+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
+- priority: P1 · difficulty: 1 · type: fix
+- milestone: T-525
+- why: takeover --dry-run still claimed and noted the task in todo and wrote a journal line, and the brief it appends lost --dossier and --project, so run from another folder it printed nothing (found in T-529).
+- summary: A dry run of takeover only says what it would do, and the progress it shows always comes from the right dossier.
+- files: src/cmd/takeover.rs, tests/cmd_takeover.rs
+- read: src/cmd/takeover.rs, src/cli.rs
+- steps:
+  1. src/cmd/takeover.rs: when `g.dry_run` is true, read the task with todo show as now, then call no other todo command and append no journal line; print the file warnings as usual and return the warning `dry run: would claim <task> from <previous holder or nobody> and add the note "<note>"`.
+  2. The brief: pass the global options on to the program run again, before `brief`: `--dossier <path>` when `g.dossier` is set, `--project <code>` when `g.project` is set, and `--agent <name>` when `g.agent` is set.
+  3. tests/cmd_takeover.rs: with --dry-run the stand-in todo records only the show call, the journal is unchanged and the warning names the previous holder; run with --dossier from a folder outside the project, the output still holds the brief's first line `Task T-7`.
+  4. Run cargo test --test cmd_takeover.
+- accept: takeover --dry-run changes nothing, and the appended brief comes from the dossier the command was run for.
+- verify: cargo test --test cmd_takeover
+- reqs: R-HAND-2
 - note (2026-11-26, planner): added
 
 ## Questions
