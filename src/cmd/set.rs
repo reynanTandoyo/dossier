@@ -184,9 +184,9 @@ fn field_pairs(items: &[String]) -> Result<Vec<(String, String)>> {
 }
 
 /// When the project has topics, each comma-separated value of a `topic` field, trimmed, must equal
-/// a topic of the list ignoring case (R-TOPIC-2). An empty value removes the field and is allowed;
-/// with no topics in the settings any value is allowed. Code::Usage names the unknown value and
-/// the topics of the project.
+/// a topic of the list ignoring case (R-TOPIC-2). Empty pieces are skipped, as create skips them.
+/// An empty value removes the field and is allowed; with no topics in the settings any value is
+/// allowed. Code::Usage names the unknown value and the topics of the project.
 fn check_topics(topics: &[String], fields: &[(String, String)]) -> Result<()> {
     if topics.is_empty() {
         return Ok(());
@@ -195,7 +195,11 @@ fn check_topics(topics: &[String], fields: &[(String, String)]) -> Result<()> {
         if key != "topic" || value.is_empty() {
             continue;
         }
-        for name in value.split(',').map(str::trim) {
+        for name in value
+            .split(',')
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+        {
             let wanted = name.to_lowercase();
             if !topics.iter().any(|topic| topic.to_lowercase() == wanted) {
                 return Err(Error::new(

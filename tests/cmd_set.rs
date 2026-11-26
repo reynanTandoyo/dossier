@@ -550,6 +550,31 @@ fn topics_are_matched_ignoring_case_and_each_comma_separated_value_is_checked() 
 }
 
 #[test]
+fn empty_pieces_of_a_topic_value_are_skipped_as_create_skips_them() {
+    let project = Project::new();
+    anna_finds(&project);
+    project_has_topics(&project, &["pumps", "rig"]);
+
+    project
+        .run("anna", &["set", "FND-001", "--field", "topic=rig,"])
+        .success()
+        .stdout("FND-001: changed\n");
+    project
+        .run("anna", &["set", "FND-001", "--field", "topic=rig,,pumps"])
+        .success()
+        .stdout("FND-001: changed\n");
+
+    // An empty piece does not excuse a piece that is not on the list.
+    let before = text_of(&project, "FND-001");
+    project
+        .run("anna", &["set", "FND-001", "--field", "topic=valves,"])
+        .failure()
+        .code(2)
+        .stderr(contains("unknown topic valves"));
+    assert_eq!(text_of(&project, "FND-001"), before);
+}
+
+#[test]
 fn a_topic_off_the_list_is_a_usage_error_and_the_file_is_unchanged() {
     let project = Project::new();
     anna_finds(&project);
