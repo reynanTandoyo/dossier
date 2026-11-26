@@ -12314,8 +12314,8 @@
 - note (2026-11-26, haiku-T-576): done — reviewed now takes --said-by: an LLM confirms an entry for its own person without a terminal (a worker is still refused, and another person's name is refused); a person still needs a terminal as before. Four new tests and one updated message expectation in tests/cmd_reviewed.rs pass; the full suite, clippy and fmt pass.
 
 ### T-577 · cleared: an LLM runs it with --said-by
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-577
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-563
 - why: The person's yes is given in the session; the LLM must be able to carry it out.
@@ -12331,8 +12331,12 @@
   5. Run cargo test --test cmd_cleared.
 - accept: cleared --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
 - verify: cargo test --test cmd_cleared
+- verified: 2026-11-26
+- commit: d9da281
 - reqs: R-SAID-1 to R-SAID-4, TEST-14
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-577): done — cleared takes --said-by: an LLM runs it for its person (names::said_by_gate, D57); a worker, an LLM without --said-by and an LLM for another person are refused, and the entry and journal name the person and the LLM; four new tests and the old LLM test now expect --said-by; cargo test --test cmd_cleared, fmt, clippy and the full suite pass.
 
 ### T-578 · confidential: an LLM runs it with --said-by
 - status: open
