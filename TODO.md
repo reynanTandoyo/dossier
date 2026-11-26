@@ -12210,8 +12210,8 @@
 - note (2026-11-26, haiku-T-572): done — retire takes --said-by: an LLM with its person's name retires an approved entry without a terminal or a question (D57); a person, a worker session and another person are refused as before; cargo test, clippy and fmt pass.
 
 ### T-573 · remove: an LLM runs it with --said-by
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-573
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-563
 - why: The person's yes is given in the session; the LLM must be able to carry it out.
@@ -12229,8 +12229,12 @@
   7. Run cargo test --test cmd_remove.
 - accept: remove --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
 - verify: cargo test --test cmd_remove
+- verified: 2026-11-26
+- commit: 46fc777
 - reqs: R-SAID-1 to R-SAID-4, TEST-14
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-573): done — remove: an LLM with --said-by <its person> removes the entry without a terminal or a question (said_by_gate decides; a person still types the ID); an LLM without it, for another person, or in a worker session is refused; 5 tests added or changed in tests/cmd_remove.rs, the cmd_remove suite (13 tests), fmt, clippy and the full suite pass.
 
 ### T-574 · restore: an LLM runs it with --said-by
 - status: open
