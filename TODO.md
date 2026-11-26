@@ -11603,10 +11603,8 @@
 - note (2026-11-26, planner): added
 
 ### T-545 · after: no usage-record reminder in a code project
-- status: claimed
+- status: done
 - owner: haiku-T-545
-- claimed: 2026-11-26T07:49+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: fix
 - milestone: T-535
 - why: In a code project the after hook ends every todo done with 'No usage record for T-...', which is about simulation runs that a code project does not have (R-CODE-5; seen while working on the dossier project, 2026-11-25).
@@ -11619,14 +11617,16 @@
   3. Run cargo test --test cmd_after.
 - accept: after gives no usage-record reminder in a code project.
 - verify: cargo test --test cmd_after
+- verified: 2026-11-26
+- commit: 1600310
 - reqs: R-CODE-5, R-AGENT-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-545): done
 
 ### T-546 · check UNIT: a name must hold a letter, so 10:30 is not a setting
-- status: claimed
+- status: done
 - owner: haiku-T-546
-- claimed: 2026-11-26T07:49+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P3 · difficulty: 1 · type: fix
 - milestone: T-535
 - why: check read a line such as 10:30 as the name 10 with the value 30 and warned about a missing unit (idea T-429).
@@ -11639,14 +11639,16 @@
   3. Run cargo test --test cmd_check.
 - accept: check gives no UNIT warning for a name without a letter.
 - verify: cargo test --test cmd_check
+- verified: 2026-11-26
+- commit: b40d450
 - reqs: R-ENTRY-11
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-546): done
 
 ### T-547 · add: a text line starting with ## is refused
-- status: claimed
+- status: done
 - owner: haiku-T-547
-- claimed: 2026-11-26T07:49+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: fix
 - milestone: T-535
 - why: add (and other commands taking multi-line text) did not refuse a line starting with '## ', which opens a new section in the entry file; problem and digest --write refuse it (idea T-420).
@@ -11659,8 +11661,12 @@
   3. Run cargo test --test cmd_add.
 - accept: add refuses a text line starting with ## and writes nothing.
 - verify: cargo test --test cmd_add
+- verified: 2026-11-26
+- commit: db2150f
 - reqs: R-WRITE-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-547): done
 
 ## Questions
 
@@ -11863,3 +11869,9 @@
 - type: idea
 - note (2026-11-26, planner): added
 - note (2026-11-26, planner): dropped — Fixed as a task of milestone 1.2.0 (2026-11-26).
+
+### T-548 · The after hook reads 'todo done <word>' anywhere in a shell command, also inside a git commit message (-m "... todo done does ..."), and answers with a review of task DOES (found in T-545, 2026-11-26). Match only a todo command at the start of the command line or after ;, && or |.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-26, planner): added
