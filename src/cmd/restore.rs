@@ -1,15 +1,16 @@
-//! The `restore` command: a person at a terminal brings a snapshot of an entry back (R-HIST-2). The
-//! snapshot's text becomes the entry, except for its history: every history line of the current
-//! entry that the snapshot lacks is put back, so that the history keeps every earlier line, and a
-//! `restored` line is added last. The text before the restore is saved as a snapshot too, so a
-//! restore can itself be undone. The person confirms with `yes`; anything else changes nothing.
+//! The `restore` command: a person at a terminal, or an LLM with `--said-by <person>` (D57), brings
+//! a snapshot of an entry back (R-HIST-2). The snapshot's text becomes the entry, except for its
+//! history: every history line of the current entry that the snapshot lacks is put back, so that
+//! the history keeps every earlier line, and a `restored` line is added last. The text before the
+//! restore is saved as a snapshot too, so a restore can itself be undone. A person confirms with
+//! `yes`; with `--said-by` nothing is asked. Anything else changes nothing.
 
 use crate::approval;
 use crate::cli::Global;
 use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
-use crate::names::Who;
+use crate::names::{self, Who};
 use crate::output::Output;
 use crate::snapshot;
 use crate::store;
@@ -24,21 +25,22 @@ pub struct Args {
     pub id: String,
     /// The number of the snapshot to bring back, as `history <ID>` lists it
     pub n: u32,
+
+    /// The person who decided this; needed when an LLM runs the command (D57)
+    #[arg(long, value_name = "PERSON")]
+    pub said_by: Option<String>,
 }
 
-/// Runs `restore`: checks that a person acts at a terminal, that the entry and the snapshot exist,
-/// and asks for confirmation. Then the snapshot is written in one transaction. The output is
-/// `<ID>: restored to snapshot <n>`. Any answer other than `yes` gives `nothing changed`.
+/// Runs `restore`: checks who acts (names::said_by_gate, D57), that a person is at a terminal
+/// unless an LLM carries out its person's decision with `--said-by`, that the entry and the
+/// snapshot exist, and, for a person, asks for confirmation. Then the snapshot is written in one
+/// transaction. The output is `<ID>: restored to snapshot <n>`. Any answer other than `yes` gives
+/// `nothing changed`.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "restore")?;
     let who = ctx.writer()?.clone();
-    if who.is_llm {
-        return Err(Error::new(
-            Code::NeedsPerson,
-            format!("restore is for a person; {} is an LLM", who.name),
-        ));
-    }
-    if !term::is_terminal() {
+    let said = names::said_by_gate(&who, args.said_by.as_deref(), "restore")?;
+    if !said && !term::is_terminal() {
         return Err(Error::new(
             Code::NeedsTerminal,
             "this command must be run by a person at a terminal",
@@ -49,12 +51,14 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     // unknown entry or snapshot is refused without asking anything.
     let id = store::get(&ctx.dossier, &args.id)?.entry.id();
     snapshot::load(&ctx.state, &id, args.n)?;
-    let answer = term::ask(&format!("restore {id} to snapshot {}? (yes/no) ", args.n))?;
-    if !answer.eq_ignore_ascii_case("yes") {
-        return Ok(Output::with(
-            "nothing changed",
-            json!({"id": id, "snapshot": args.n, "restored": false}),
-        ));
+    if !said {
+        let answer = term::ask(&format!("restore {id} to snapshot {}? (yes/no) ", args.n))?;
+        if !answer.eq_ignore_ascii_case("yes") {
+            return Ok(Output::with(
+                "nothing changed",
+                json!({"id": id, "snapshot": args.n, "restored": false}),
+            ));
+        }
     }
 
     // The status and the text of a restored lesson, how-to or tool. Its checksum is written after

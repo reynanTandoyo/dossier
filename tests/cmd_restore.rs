@@ -1,8 +1,9 @@
-//! Runs the built program for `restore`: a person at a terminal brings a snapshot back. The entry
-//! gets the snapshot's field back, keeps every earlier history line and gains a `restored` line;
-//! the text before the restore is kept as a snapshot too. An LLM, a wrong answer, an unknown
-//! snapshot, a missing terminal and a dry run change nothing. Each test runs in its own temporary
-//! project, with the clock fixed by `common::Project`.
+//! Runs the built program for `restore`: a person at a terminal, or an LLM with `--said-by <person>`
+//! (D57), brings a snapshot back. The entry gets the snapshot's field back, keeps every earlier
+//! history line and gains a `restored` line; the text before the restore is kept as a snapshot too.
+//! An LLM without its person's `--said-by`, a wrong answer, an unknown snapshot, a missing terminal
+//! and a dry run change nothing. Each test runs in its own temporary project, with the clock fixed
+//! by `common::Project`.
 
 mod common;
 
@@ -228,7 +229,7 @@ fn restoring_an_approved_lesson_is_not_marked_as_changed_after_approval() {
 }
 
 #[test]
-fn an_llm_cannot_restore_and_the_file_stays() {
+fn an_llm_without_said_by_cannot_restore_and_the_file_stays() {
     let project = Project::new();
     found_with_machine(&project);
     machine_changed_to_fan(&project);
@@ -241,9 +242,94 @@ fn an_llm_cannot_restore_and_the_file_stays() {
         .args(["restore", "FND-001", "1"])
         .assert()
         .code(1)
-        .stderr(contains(
-            "error: restore is for a person; anna-claude is an LLM",
-        ));
+        .stderr(contains("--said-by anna"));
+
+    assert_eq!(
+        std::fs::read(&path).expect("the entry file is read"),
+        before
+    );
+}
+
+#[test]
+fn an_llm_with_said_by_restores_the_snapshot_without_a_terminal_or_a_question() {
+    let project = Project::new();
+    found_with_machine(&project);
+    machine_changed_to_fan(&project);
+
+    // No answers are prepared and no terminal is attached, so nothing can be asked (D57).
+    project
+        .command("anna-claude", RESTORE_TIME)
+        .args(["restore", "FND-001", "1", "--said-by", "anna"])
+        .assert()
+        .success()
+        .stdout("FND-001: restored to snapshot 1\n")
+        .stderr("");
+
+    let text = text_of(&project, "FND-001");
+    assert!(
+        text.contains("- machine: rig-a\n"),
+        "the snapshot's field is back"
+    );
+    assert!(!text.contains("machine: fan"), "the changed field is gone");
+    let history = history_of(&text);
+    let last = history.last().expect("a history line");
+    assert!(
+        last.contains("anna via anna-claude: restored"),
+        "the newest history line names the person and the LLM: {last}"
+    );
+
+    let journal = project.entry_journal();
+    let record = journal.last().expect("a journal line");
+    assert_eq!(record.command, "restore");
+    assert_eq!(record.id, "FND-001");
+    assert_eq!(record.event, "restored");
+    assert_eq!(record.detail, "snapshot 1");
+    assert_eq!(record.person, "anna");
+    assert_eq!(record.name, "anna-claude");
+    assert!(record.llm);
+}
+
+#[test]
+fn an_llm_with_said_by_for_another_person_restores_nothing() {
+    let project = Project::new();
+    found_with_machine(&project);
+    machine_changed_to_fan(&project);
+    let path = project.entry_file("FND-001");
+    let before = std::fs::read(&path).expect("the entry file is read");
+
+    project
+        .command("anna-claude", RESTORE_TIME)
+        .args(["restore", "FND-001", "1", "--said-by", "ben"])
+        .assert()
+        .code(1)
+        .stderr(contains("acts for anna only"));
+
+    assert_eq!(
+        std::fs::read(&path).expect("the entry file is read"),
+        before
+    );
+    assert!(
+        !project
+            .read("DOSSIER/.state/journal.jsonl")
+            .contains("restored")
+    );
+}
+
+#[test]
+fn a_worker_session_restores_nothing_even_with_said_by() {
+    let project = Project::new();
+    found_with_machine(&project);
+    machine_changed_to_fan(&project);
+    let path = project.entry_file("FND-001");
+    let before = std::fs::read(&path).expect("the entry file is read");
+
+    project
+        .command("anna-claude", RESTORE_TIME)
+        .env("DOSSIER_ROLE", "worker")
+        .args(["restore", "FND-001", "1", "--said-by", "anna"])
+        .assert()
+        .code(1)
+        .stderr(contains("a worker decides nothing"));
 
     assert_eq!(
         std::fs::read(&path).expect("the entry file is read"),
