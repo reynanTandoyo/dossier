@@ -101,14 +101,8 @@ pub const COMMANDS: [(&str, &str); 91] = [
     ("gave-up", "Closes an investigation unsolved"),
     ("take", "Records who took a file"),
     ("return", "Checks or ends a take"),
-    (
-        "handover",
-        "Gives your task back in todo with a note of what is done and what is next",
-    ),
-    (
-        "takeover",
-        "Takes over a task, also one a colleague holds, and shows its progress",
-    ),
+    ("handover", "Gives a task back"),
+    ("takeover", "Takes over a task"),
     ("review-session", "Material from a session file"),
     ("session", "Converts a transcript"),
     ("session-end", "Starts the session review"),
