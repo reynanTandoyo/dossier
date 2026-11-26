@@ -1,6 +1,7 @@
-//! Runs the built program for `reject`: a person turns a draft down. The entry is kept with status
-//! `rejected` and the reason; an approved entry and an LLM are refused, and nothing is written in
-//! those cases. Each test runs in its own project folder, with the clock fixed by `common::Project`.
+//! Runs the built program for `reject`: a person turns a draft down, and an LLM does so with
+//! `--said-by <person>` (D57). The entry is kept with status `rejected` and the reason; an approved
+//! entry and an LLM without `--said-by` are refused, and nothing is written in those cases. Each
+//! test runs in its own project folder, with the clock fixed by `common::Project`.
 
 mod common;
 
@@ -171,9 +172,7 @@ fn an_llm_cannot_reject_and_nothing_is_written() {
     project
         .run("anna-claude", &["reject", "LES-001", "--reason", REASON])
         .code(1)
-        .stderr(contains(
-            "error: reject is for a person; anna-claude is an LLM",
-        ));
+        .stderr(contains("--said-by anna"));
     project
         .command("anna-claude", NOW)
         .args(["reject", "LES-001", "--json"])
@@ -183,6 +182,82 @@ fn an_llm_cannot_reject_and_nothing_is_written() {
 
     assert_eq!(bytes_of(&project, "LES-001"), before);
     assert_eq!(entry_of(&project, "LES-001").status(), Some(Status::Draft));
+}
+
+#[test]
+fn an_llm_without_said_by_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    draft_lesson(&project);
+    let before = bytes_of(&project, "LES-001");
+    project
+        .run("anna-claude", &["reject", "LES-001"])
+        .code(1)
+        .stderr(contains("--said-by anna"));
+
+    assert_eq!(bytes_of(&project, "LES-001"), before);
+    assert_eq!(entry_of(&project, "LES-001").status(), Some(Status::Draft));
+}
+
+#[test]
+fn an_llm_with_said_by_rejects_its_draft_without_a_terminal_or_a_question() {
+    let project = Project::new();
+    draft_lesson(&project);
+    // No answers are prepared and no terminal is attached, so nothing can be asked: the draft is
+    // rejected as the person decided (D57).
+    project
+        .command("anna-claude", NOW)
+        .args(["reject", "LES-001", "--said-by", "anna"])
+        .assert()
+        .success()
+        .stdout("LES-001: rejected\n")
+        .stderr("");
+
+    let entry = entry_of(&project, "LES-001");
+    assert_eq!(entry.status(), Some(Status::Rejected));
+    assert_eq!(entry.field("author").as_deref(), Some("anna"));
+    assert_eq!(entry.field("via").as_deref(), Some("anna-claude"));
+    assert_eq!(
+        entry.history().last().map(String::as_str),
+        Some(format!("{NOW} anna via anna-claude: rejected").as_str())
+    );
+    let journal = project.entry_journal();
+    let newest = journal.last().expect("the rejection is journalled");
+    assert_eq!(newest.id, "LES-001");
+    assert_eq!(newest.event, "rejected");
+    assert_eq!(newest.person, "anna");
+    assert_eq!(newest.name, "anna-claude");
+    assert!(newest.llm);
+}
+
+#[test]
+fn an_llm_with_said_by_for_another_person_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    draft_lesson(&project);
+    let before = bytes_of(&project, "LES-001");
+    project
+        .command("anna-claude", NOW)
+        .args(["reject", "LES-001", "--said-by", "ben"])
+        .assert()
+        .code(1)
+        .stderr(contains("acts for anna only"));
+
+    assert_eq!(bytes_of(&project, "LES-001"), before);
+}
+
+#[test]
+fn a_worker_session_decides_nothing_even_with_said_by() {
+    let project = Project::new();
+    draft_lesson(&project);
+    let before = bytes_of(&project, "LES-001");
+    project
+        .command("anna-claude", NOW)
+        .env("DOSSIER_ROLE", "worker")
+        .args(["reject", "LES-001", "--said-by", "anna"])
+        .assert()
+        .code(1)
+        .stderr(contains("a worker decides nothing"));
+
+    assert_eq!(bytes_of(&project, "LES-001"), before);
 }
 
 #[test]

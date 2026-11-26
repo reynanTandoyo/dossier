@@ -1,12 +1,13 @@
 //! The `reject` command: a person turns a draft down (R-DRAFT-5). The entry is kept with status
 //! `rejected`, so that the same proposal can be recognised later; the reason, when given, goes in
-//! the field `rejected-reason` and in the history line. Only a draft can be rejected, and only a
-//! person can reject it.
+//! the field `rejected-reason` and in the history line. Only a draft can be rejected. A person
+//! rejects it; an LLM carries out its person's decision with `--said-by <person>` (D57).
 
 use crate::cli::Global;
 use crate::ctx::Ctx;
 use crate::entry::Status;
 use crate::error::{Code, Error, Result};
+use crate::names;
 use crate::output::Output;
 use crate::store;
 use crate::tx::{self, Change};
@@ -20,19 +21,19 @@ pub struct Args {
     /// Why the draft is rejected; kept in the entry
     #[arg(long)]
     pub reason: Option<String>,
+    /// The person who decided this; needed when an LLM runs the command (D57)
+    #[arg(long, value_name = "PERSON")]
+    pub said_by: Option<String>,
 }
 
-/// Runs `reject`: checks that a person acts, then, in one transaction, sets the draft to
-/// `rejected`, keeps the reason and adds the history line. The output is `<ID>: rejected`.
+/// Runs `reject`: checks who acts (names::said_by_gate, D57), then, in one transaction, sets the
+/// draft to `rejected`, keeps the reason and adds the history line. An LLM runs it with
+/// `--said-by <person>` for its person; it needs no terminal and asks nothing. The output is
+/// `<ID>: rejected`.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "reject")?;
     let who = ctx.writer()?.clone();
-    if who.is_llm {
-        return Err(Error::new(
-            Code::NeedsPerson,
-            format!("reject is for a person; {} is an LLM", who.name),
-        ));
-    }
+    names::said_by_gate(&who, args.said_by.as_deref(), "reject")?;
     let reason = args.reason.as_deref().map(str::trim).unwrap_or("");
     tx::write(&ctx, |tx| {
         let item = store::get(&tx.ctx().dossier, &args.id)?;
