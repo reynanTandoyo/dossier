@@ -12109,8 +12109,8 @@
 - note (2026-11-26, haiku-T-568): done — accept takes --said-by <person>: an LLM with its person's name accepts a proposal without a terminal or a question (the gate names::said_by_gate decides; a worker session, another person or a person outside deciders is refused); a person at a terminal is asked as before. Five tests in tests/cmd_accept.rs cover it; the full suite, clippy and fmt pass.
 
 ### T-569 · decline: an LLM runs it with --said-by
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-569
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-563
 - why: The person's yes is given in the session; the LLM must be able to carry it out.
@@ -12127,8 +12127,12 @@
   6. Run cargo test --test cmd_decline.
 - accept: decline --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
 - verify: cargo test --test cmd_decline
+- verified: 2026-11-26
+- commit: eae213f
 - reqs: R-SAID-1 to R-SAID-4, TEST-14
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-569): done — decline now runs for an LLM with --said-by <person> (D57): a person is unchanged; an LLM without it, for another person, or in a worker session is refused; with its person it writes the proposal as declined, naming the person and the LLM. The four new tests and the updated existing test in tests/cmd_decline.rs pass, and fmt, clippy and the full suite pass.
 
 ### T-570 · confirm: an LLM runs it with --said-by
 - status: open
