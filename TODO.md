@@ -11702,13 +11702,15 @@
 - note (2026-11-26, planner): done — Released 1.2.0; the release commit also updated R-USE-7 in requirements.md and design.md section 14 (no usage-record reminder in a code project, from T-545).
 
 ### T-550 · Rules by role: a worker reads at most 15 lines and starts without the project brief
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - goal: R-AGENT-1 to R-AGENT-6 hold in their form of version 1.3 (D55, D56): the block in AGENTS.md and `help worker` together have at most 15 lines, with tests on the limits; `help planner` holds every other rule; a session with DOSSIER_ROLE=worker gets one line in place of the project brief and nothing after todo done and todo stuck; `agents install --yes` brings a project of version 1.2 to the new rules, and `agents check` passes. Version 1.3.0 is ready to tag.
 - why: Cheap worker models follow long rules badly. The single rules text (38 lines, about 1,070 tokens) and the brief at session start (about 1,500 tokens) are mostly the planner's business, so the rules block could not be installed in a project that workers work in.
 - summary: The rules for LLMs are split into a short part for everyone, a short part for workers and the rest for the planner, and a worker's session starts quietly.
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, planner): done — Rules are split by role, a worker session starts with one line, and one command upgrades a project; version 1.3.0 is ready to tag.
 
 ### T-551 · requirements.md: rules by role and worker sessions (D55, D56)
 - status: done
@@ -11954,23 +11956,26 @@
 - note (2026-11-26, haiku-T-560): done — Release 1.3.0: Cargo.toml and Cargo.lock say 1.3.0, and the README has a 1.3 section on the rules by role; fmt, clippy and all tests pass. Not tagged, not pushed.
 
 ### T-561 · This repository's AGENTS.md gets the short rules block
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · difficulty: 2 · type: chore
 - milestone: T-550
 - why: This repository is worked by cheap workers too, and its AGENTS.md still carries the long block of version 1.2.
 - summary: The project's own AGENTS.md is brought to the short rules with the new program, and the result is measured.
 - final: Run with the released program in this repository and measured by the planner.
 - depends: T-560
-- files: AGENTS.md
+- files: AGENTS.md, README.md, DOSSIER/.state/journal.jsonl
 - read: docs/requirements.md
 - steps:
   1. Build the release program (cargo build --release) and run it in this repository: `target/release/dossier agents install --yes`, then `target/release/dossier agents check`.
   2. Check that only the lines between the dossier markers of AGENTS.md changed.
   3. Measure in a temporary project with the new program: the lines of the block and of `help worker`, the output of `brief` with and without DOSSIER_ROLE=worker, and their sizes; report them to the owner beside the numbers of version 1.2.
 - accept: AGENTS.md of this repository holds the common rules, agents check passes with the new program, and the sizes before and after are reported.
+- commit: d1301c5
 - reqs: R-AGENT-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, planner): done — This repository's AGENTS.md holds the seven common lines, agents check passes with 1.3.0, and a worker now reads 13 lines (about 280 tokens) instead of 38 (about 1,070).
 
 ## Questions
 
