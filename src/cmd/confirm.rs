@@ -1,13 +1,15 @@
 //! The `confirm` command: a person confirms an assumption (R-WRITE-15, format.md §14). The
 //! assumption must be approved and its state `open`; it becomes `confirmed`, with the time and
 //! the person who confirmed it in `confirmed`, and the `--by` text (who and how) as its
-//! *Confirmation* section and in the history. Only a person can confirm, and no terminal is
-//! needed. A refused change writes nothing.
+//! *Confirmation* section and in the history. A person confirms; an LLM carries out its person's
+//! decision with `--said-by <person>` (D57), and no terminal is needed for either. A refused
+//! change writes nothing.
 
 use crate::cli::Global;
 use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
+use crate::names;
 use crate::output::Output;
 use crate::store;
 use crate::tx::{self, Change};
@@ -29,20 +31,19 @@ pub struct Args {
     /// Who confirmed it and how, in one line, such as "measured on the rig, report 3"
     #[arg(long)]
     pub by: String,
+    /// The person who decided this; needed when an LLM runs the command (D57)
+    #[arg(long, value_name = "PERSON")]
+    pub said_by: Option<String>,
 }
 
-/// Runs `confirm`: checks that a person acts and that `--by` is one line, then, in one
-/// transaction, sets the assumption to confirmed. The output is `<ID>: confirmed`, and the data
-/// is {id, state}.
+/// Runs `confirm`: checks who acts (names::said_by_gate, D57) and that `--by` is one line, then,
+/// in one transaction, sets the assumption to confirmed. An LLM runs it with `--said-by <person>`
+/// for its person; it needs no terminal and asks nothing. The output is `<ID>: confirmed`, and
+/// the data is {id, state}.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "confirm")?;
     let who = ctx.writer()?.clone();
-    if who.is_llm {
-        return Err(Error::new(
-            Code::NeedsPerson,
-            format!("confirm is for a person; {} is an LLM", who.name),
-        ));
-    }
+    names::said_by_gate(&who, args.said_by.as_deref(), "confirm")?;
     let by = args.by.trim();
     if by.is_empty() {
         return Err(Error::new(

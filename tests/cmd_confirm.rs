@@ -1,9 +1,10 @@
 //! Runs the built program for `confirm`: a person confirms an open, approved assumption, with
-//! `--by` naming who and how. The entry gets state `confirmed`, the `confirmed` field, the
-//! Confirmation section and a history line. An LLM, a draft, an assumption that is not open, an
-//! entry of another kind and a blank, multi-line or heading-like `--by` are refused, and nothing
-//! is written in those cases. Each test runs in its own temporary project folder, with the clock
-//! fixed by `common::Project` (2026-11-20T10:00:00+01:00).
+//! `--by` naming who and how; an LLM does so with `--said-by <person>` (D57). The entry gets state
+//! `confirmed`, the `confirmed` field, the Confirmation section and a history line. An LLM without
+//! `--said-by`, for another person or in a worker session, a draft, an assumption that is not
+//! open, an entry of another kind and a blank, multi-line or heading-like `--by` are refused, and
+//! nothing is written in those cases. Each test runs in its own temporary project folder, with the
+//! clock fixed by `common::Project` (2026-11-20T10:00:00+01:00).
 
 mod common;
 
@@ -131,9 +132,85 @@ fn anna_claude_cannot_confirm_and_nothing_is_written() {
         .run("anna-claude", &["confirm", "ASM-001", "--by", BY])
         .failure()
         .code(1)
-        .stderr(contains(
-            "error: confirm is for a person; anna-claude is an LLM",
-        ));
+        .stderr(contains("--said-by anna"));
+    assert_eq!(bytes_of(&project, "ASM-001"), before);
+}
+
+#[test]
+fn an_llm_without_said_by_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    claude_assumes(&project);
+    let before = bytes_of(&project, "ASM-001");
+
+    project
+        .run("anna-claude", &["confirm", "ASM-001", "--by", BY])
+        .failure()
+        .code(1)
+        .stderr(contains("--said-by anna"));
+    assert_eq!(bytes_of(&project, "ASM-001"), before);
+}
+
+#[test]
+fn an_llm_with_said_by_confirms_its_assumption_without_a_terminal_or_a_question() {
+    let project = Project::new();
+    claude_assumes(&project);
+    // No answers are prepared and no terminal is attached, so nothing can be asked: the
+    // assumption is confirmed as the person decided (D57).
+    project
+        .command("anna-claude", NOW)
+        .args(["confirm", "ASM-001", "--by", BY, "--said-by", "anna"])
+        .assert()
+        .success()
+        .stdout("ASM-001: confirmed\n")
+        .stderr("");
+
+    let text = entry_text(&project, "ASM-001");
+    assert!(text.contains(&format!("- state: confirmed\n- confirmed: {NOW} by anna\n")));
+    let newest_history = text.lines().rfind(|line| line.starts_with("- history: "));
+    assert_eq!(
+        newest_history,
+        Some(format!("- history: {NOW} anna via anna-claude: confirmed — {BY}").as_str())
+    );
+    let journal = project.entry_journal();
+    let newest = journal.last().expect("the confirmation is journalled");
+    assert_eq!(newest.id, "ASM-001");
+    assert_eq!(newest.event, "confirmed");
+    assert_eq!(newest.person, "anna");
+    assert_eq!(newest.name, "anna-claude");
+    assert!(newest.llm);
+}
+
+#[test]
+fn an_llm_with_said_by_for_another_person_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    claude_assumes(&project);
+    let before = bytes_of(&project, "ASM-001");
+
+    project
+        .run(
+            "anna-claude",
+            &["confirm", "ASM-001", "--by", BY, "--said-by", "ben"],
+        )
+        .failure()
+        .code(1)
+        .stderr(contains("acts for anna only"));
+    assert_eq!(bytes_of(&project, "ASM-001"), before);
+}
+
+#[test]
+fn a_worker_session_decides_nothing_even_with_said_by() {
+    let project = Project::new();
+    claude_assumes(&project);
+    let before = bytes_of(&project, "ASM-001");
+
+    project
+        .command("anna-claude", NOW)
+        .env("DOSSIER_ROLE", "worker")
+        .args(["confirm", "ASM-001", "--by", BY, "--said-by", "anna"])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(contains("a worker decides nothing"));
     assert_eq!(bytes_of(&project, "ASM-001"), before);
 }
 
