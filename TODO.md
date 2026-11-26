@@ -11805,8 +11805,8 @@
 - note (2026-11-26, haiku-T-554): done — The worker's text (six lines) and the planner's text (every other rule) are split into two files, with the line limits and the functions that give them, tested in agents/mod.rs.
 
 ### T-555 · help worker and help planner
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-555
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-550
 - why: Each role reads its own text with one command, as in todo.
@@ -11823,8 +11823,12 @@
   6. Update the module comment of help.rs. Run cargo test --test cmd_agents and cargo test --test cmd_help.
 - accept: dossier help worker and dossier help planner print the texts of the two roles; help agents is unchanged.
 - verify: cargo test --test cmd_agents && cargo test --test cmd_help
+- verified: 2026-11-26
+- commit: 822c3f8
 - reqs: R-AGENT-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-555): done — help worker prints the worker's text (at most 7 lines) and help planner prints the planner's text, which leaves out the simulation-run and confidential-term rules in a code project; both give the JSON data rules, and an unknown topic now names worker and planner.
 
 ### T-556 · agents: the rules text becomes the common rules of at most 8 lines
 - status: open
