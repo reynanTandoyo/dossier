@@ -2,13 +2,16 @@
 # DIG-001 · Digest of T-550: Rules by role: a worker reads at most 15 lines and starts without the project brief
 
 - kind: digest
-- status: draft
+- status: approved
 - created: 2026-11-26T21:05:13+01:00
 - author: reyna
 - via: reyna - claude
 - milestone: T-550
 - tasks: T-550, T-551, T-552, T-553, T-554, T-555, T-556, T-557, T-558, T-559, T-560, T-561
+- approved: 2026-11-26T23:15:20+01:00 by reyna
+- valid-from: 2026-11-26T23:15:20+01:00
 - history: 2026-11-26T21:05:13+01:00 reyna via reyna - claude: created
+- history: 2026-11-26T23:15:20+01:00 reyna via reyna - claude: approved
 
 ## Summary
 
