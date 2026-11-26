@@ -14,6 +14,7 @@ use crate::taken::{self, Take};
 use crate::todo_bridge;
 use crate::tx;
 use serde_json::{Value, json};
+use std::ffi::OsString;
 use std::process::{Command, Stdio};
 
 /// The environment variable that names the agent in todo, when it is set (R-HAND-5).
@@ -56,27 +57,10 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             return Ok(Output::text(format!("{task} is already yours")));
         }
 
-        let mut claim = vec!["claim", task.as_str(), "--agent", todo_name.as_str()];
-        if owner.is_some() {
-            claim.push("--force");
-        }
-        todo_bridge::json(&ctx.root, &claim)?;
         let from = owner.clone().unwrap_or_else(|| NOBODY.to_string());
         let note = note_text(&who, &from, said_by.as_deref());
-        todo_bridge::json(
-            &ctx.root,
-            &[
-                "note",
-                task.as_str(),
-                note.as_str(),
-                "--agent",
-                todo_name.as_str(),
-            ],
-        )?;
-        journal::append(&ctx.state, &record(tx.time(), &who, &task, &note))?;
-
         let files = unreturned(&ctx, &who, &task)?;
-        let mut lines = vec![format!("{task} taken over from {from}")];
+        let mut lines = Vec::new();
         for take in &files {
             lines.push(format!(
                 "{}: taken by {} on {} and not returned; changes on their PC are not on the server",
@@ -99,14 +83,36 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             .iter()
             .map(|take| json!({"path": take.path, "person": take.person, "time": take.time}))
             .collect();
+        let data = json!({"task": task, "from": owner, "files": files});
+        if g.dry_run {
+            // A dry run changes nothing: no claim, no note, no journal line.
+            let warning =
+                format!("dry run: would claim {task} from {from} and add the note \"{note}\"");
+            return Ok(Output::with(lines.join("\n"), data).warn(warning));
+        }
+
+        let mut claim = vec!["claim", task.as_str(), "--agent", todo_name.as_str()];
+        if owner.is_some() {
+            claim.push("--force");
+        }
+        todo_bridge::json(&ctx.root, &claim)?;
+        todo_bridge::json(
+            &ctx.root,
+            &[
+                "note",
+                task.as_str(),
+                note.as_str(),
+                "--agent",
+                todo_name.as_str(),
+            ],
+        )?;
+        journal::append(&ctx.state, &record(tx.time(), &who, &task, &note))?;
         claimed = true;
-        Ok(Output::with(
-            lines.join("\n"),
-            json!({"task": task, "from": owner, "files": files}),
-        ))
+        lines.insert(0, format!("{task} taken over from {from}"));
+        Ok(Output::with(lines.join("\n"), data))
     })?;
 
-    if claimed && let Some(brief) = own(&["brief", "--task", task.as_str()]) {
+    if claimed && let Some(brief) = brief_of(g, &task) {
         output.text.push_str("\n\n");
         output.text.push_str(brief.trim_end());
     }
@@ -220,12 +226,30 @@ fn record(time: &str, who: &Who, task: &str, note: &str) -> journal::Record {
     }
 }
 
-/// The standard output of this program run with `args` in the current folder, with standard
-/// input empty and standard error captured. None unless it started and ended with exit 0.
-fn own(args: &[&str]) -> Option<String> {
+/// The standard output of `brief --task <task>` run by this program in the current folder. The
+/// global options of this run (--dossier, --project and --agent, each when it is set) are passed
+/// on before `brief`, so the brief reads the same dossier from any folder. Standard input is empty
+/// and standard error captured. None unless it started and ended with exit 0.
+fn brief_of(g: &Global, task: &str) -> Option<String> {
+    let mut args: Vec<OsString> = Vec::new();
+    if let Some(dossier) = &g.dossier {
+        args.push(OsString::from("--dossier"));
+        args.push(OsString::from(dossier));
+    }
+    if let Some(project) = &g.project {
+        args.push(OsString::from("--project"));
+        args.push(OsString::from(project));
+    }
+    if let Some(agent) = &g.agent {
+        args.push(OsString::from("--agent"));
+        args.push(OsString::from(agent));
+    }
+    args.push(OsString::from("brief"));
+    args.push(OsString::from("--task"));
+    args.push(OsString::from(task));
     let program = std::env::current_exe().ok()?;
     let output = Command::new(program)
-        .args(args)
+        .args(&args)
         .stdin(Stdio::null())
         .output()
         .ok()?;

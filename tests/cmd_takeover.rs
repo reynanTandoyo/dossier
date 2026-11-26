@@ -2,7 +2,9 @@
 //! held by a colleague (claim with --force, the note, the journal line, the progress); an open task
 //! is claimed without --force; an LLM is refused without --said-by and with it the note ends with
 //! the person; a task already held by the writer changes nothing; the files a colleague took for
-//! the task are named with the take command; a failing todo writes no journal line. Each test runs
+//! the task are named with the take command; a failing todo writes no journal line; a dry run asks
+//! todo only for the task and writes nothing; the brief after a takeover reads the dossier named on
+//! the command line, also from another folder. Each test runs
 //! in its own temporary project folder (common::Project), with the clock fixed at
 //! 2026-11-20T10:00:00+01:00.
 
@@ -249,4 +251,60 @@ fn a_failing_todo_writes_no_journal_line() {
         .stderr(contains("T-7 is busy in todo"));
 
     assert!(takeovers(&project).is_empty());
+}
+
+#[test]
+fn a_dry_run_asks_todo_only_for_the_task_and_writes_no_journal_line() {
+    let project = Project::new();
+    stand_in(&project, Some("ben"), &ok_envelope(), 0);
+    let journal_before = project.entry_journal().len();
+
+    project
+        .run("anna", &["takeover", "T-7", "--dry-run"])
+        .success()
+        .stderr(contains(
+            "warning: dry run: would claim T-7 from ben and add the note \"takeover — anna took over from ben\"",
+        ));
+
+    // Only the show call: no claim and no note reached todo.
+    assert_eq!(
+        calls(&project).trim(),
+        "show T-7 --json",
+        "{}",
+        calls(&project)
+    );
+    assert_eq!(project.entry_journal().len(), journal_before);
+    assert!(takeovers(&project).is_empty());
+}
+
+#[test]
+fn the_brief_after_a_takeover_reads_the_dossier_named_on_the_command_line() {
+    let project = Project::new();
+    stand_in(&project, Some("ben"), &ok_envelope(), 0);
+    let outside = tempfile::TempDir::new().expect("a temporary folder outside the project");
+    let dossier = project.root().join("DOSSIER");
+
+    let stdout = project
+        .command("anna", NOW)
+        .current_dir(outside.path())
+        .args([
+            "--dossier",
+            dossier.to_str().expect("a UTF-8 path"),
+            "takeover",
+            "T-7",
+        ])
+        .assert()
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let text = String::from_utf8(stdout).expect("the standard output is UTF-8");
+
+    assert_eq!(
+        text.lines().next(),
+        Some("T-7 taken over from ben"),
+        "{text}"
+    );
+    assert!(text.contains("\n\nTask T-7 · Speedline check"), "{text}");
+    assert_eq!(takeovers(&project).len(), 1);
 }
