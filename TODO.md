@@ -11899,8 +11899,8 @@
 - note (2026-11-26, haiku-T-558): done — brief in a worker session (DOSSIER_ROLE=worker) prints one line instead of the project brief; --full prints the brief, and --task and --on are unchanged
 
 ### T-559 · after: nothing after todo done and todo stuck in a worker session
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-559
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-550
 - why: After todo done a worker was told to review the task and propose lessons, which is the planner's work.
@@ -11914,8 +11914,12 @@
   3. Run cargo test --test cmd_after.
 - accept: In a worker session dossier after prints the task's entries after a claim and nothing after todo done and todo stuck.
 - verify: cargo test --test cmd_after
+- verified: 2026-11-26
+- commit: c3586f6
 - reqs: R-AGENT-5, R-AGENT-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-559): done — In a worker session (DOSSIER_ROLE=worker) the hook after todo done and todo stuck prints nothing; the claim still prints its brief, and planner sessions are unchanged.
 
 ### T-560 · Release 1.3.0
 - status: open
