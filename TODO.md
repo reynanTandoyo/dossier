@@ -11393,6 +11393,247 @@
 - note (2026-11-26, planner): added
 - note (2026-11-26, haiku-T-533): done
 
+### T-535 · 1.2.0: the known bugs of 1.0 to 1.1 fixed
+- status: open
+- owner: —
+- priority: P1 · type: milestone
+- goal: The ideas found while building and testing 1.0, 1.1 and the handover commands that are bugs are fixed (T-420, T-429, T-497, T-498, T-499, T-500, T-501, T-510, T-521, T-524, T-534), so 1.2.0 ships handover and takeover without known faults.
+- why: The owner asked to fix every known bug before releasing handover and takeover as 1.2.0 (2026-11-26).
+- summary: Small faults found by the workers and by testing on the project's own dossier are fixed before the next release.
+- note (2026-11-26, planner): added
+
+### T-536 · brief --task: the last handover and the last takeover on their own lines
+- status: claimed
+- owner: haiku-T-536
+- claimed: 2026-11-26T07:36+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
+- priority: P1 · difficulty: 1 · type: fix
+- milestone: T-535
+- why: After a takeover, brief --task showed only 'ben took over from anna' and hid the previous holder's note of what is done and next (idea T-534).
+- summary: Whoever takes over sees the previous holder's done/next note as well as who took over.
+- files: src/brief_task.rs, tests/cmd_brief.rs, docs/requirements.md
+- read: src/brief_task.rs, docs/requirements.md
+- steps:
+  1. src/brief_task.rs: instead of one line for the last note starting with `handover —` or `takeover —`, find the last note starting with `handover —` and the last note starting with `takeover —`. Directly after the first line print, when present, `Last handover: <text after the dash and its space> (<agent>, <date>)` and then `Last takeover: <text after the dash and its space> (<agent>, <date>)`. When a note has no agent or no date, leave out the empty part: `(<date>)`, `(<agent>)` or nothing.
+  2. docs/requirements.md, R-HAND-4: replace its text with `- **R-HAND-4 MUST** ``brief --task`` prints, directly after its first line, ``Last handover: <text> (<agent>, <date>)`` for the last note of the task in todo that starts with ``handover —``, and ``Last takeover: <text> (<agent>, <date>)`` for the last that starts with ``takeover —``, each only when there is one.` (doubled backticks stand for single ones), wrapped at 100 characters.
+  3. tests/cmd_brief.rs: change the existing handover test: with the notes `handover — Done: mesh; next: run 3` (anna, 2026-11-20) and `takeover — ben took over from anna` (ben, 2026-11-21) the second and third lines are `Last handover: Done: mesh; next: run 3 (anna, 2026-11-20)` and `Last takeover: ben took over from anna (ben, 2026-11-21)`; with only a takeover note only the takeover line is printed; a note without agent prints `(2026-11-21)`.
+  4. Run cargo test --test cmd_brief.
+- accept: brief --task shows the last handover note and the last takeover note on separate lines.
+- verify: cargo test --test cmd_brief
+- reqs: R-HAND-4
+- note (2026-11-26, planner): added
+
+### T-537 · topics add: a name that is not in the settings gets the unknown-name refusal
+- status: claimed
+- owner: haiku-T-537
+- claimed: 2026-11-26T07:36+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
+- priority: P2 · difficulty: 1 · type: fix
+- milestone: T-535
+- why: topics add with an unknown name was refused with 'this command needs a name' instead of the unknown-name error of R-CFG-4, because topics is not a writing command in src/ctx.rs (idea T-497).
+- summary: Adding a topic under an unknown name is refused with the right message, while listing topics still works without a name.
+- files: src/cmd/topics.rs, src/ctx.rs, tests/cmd_topics.rs
+- read: src/ctx.rs, src/cmd/topics.rs, src/cmd/term.rs
+- steps:
+  1. src/cmd/topics.rs: load the context of the Add action with `Ctx::load(g, "topics add")`; the list keeps `Ctx::load(g, "topics")` (as src/cmd/term.rs loads `term` and `glossary` for its two actions).
+  2. src/ctx.rs: add `topics add` to WRITING (array length +1).
+  3. tests/cmd_topics.rs: `topics add pumps` as `carl` (a name not in the settings) is refused with the exit code of Code::UnknownName and dossier.toml is unchanged; `topics` as `carl` still lists the topics.
+  4. Run cargo test --test cmd_topics.
+- accept: topics add refuses an unknown name with the unknown-name error; topics still lists without a known name.
+- verify: cargo test --test cmd_topics
+- reqs: R-CFG-4, R-TOPIC-1
+- note (2026-11-26, planner): added
+
+### T-538 · set: empty pieces of a topic value are skipped, as create skips them
+- status: claimed
+- owner: haiku-T-538
+- claimed: 2026-11-26T07:36+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
+- priority: P2 · difficulty: 1 · type: fix
+- milestone: T-535
+- why: set refused topic=rig, with 'unknown topic ' and an empty name while create skips the empty piece (idea T-498).
+- summary: A trailing or doubled comma in a topic value no longer gives a confusing refusal.
+- files: src/cmd/set.rs, tests/cmd_set.rs
+- read: src/cmd/set.rs, src/create.rs
+- steps:
+  1. src/cmd/set.rs, check_topics: trim each comma-separated piece and skip empty pieces before checking it against the list, as create.rs does.
+  2. tests/cmd_set.rs: with topics pumps and rig, `set <ID> --field topic=rig,` succeeds; `topic=rig,,pumps` succeeds; `topic=valves,` is still refused naming valves.
+  3. Run cargo test --test cmd_set.
+- accept: set skips empty pieces of a topic value and still refuses unknown topics.
+- verify: cargo test --test cmd_set
+- reqs: R-TOPIC-2
+- note (2026-11-26, planner): added
+
+### T-539 · learn --update: a topic not on the project's list is refused
+- status: claimed
+- owner: haiku-T-539
+- claimed: 2026-11-26T07:36+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
+- priority: P1 · difficulty: 1 · type: fix
+- milestone: T-535
+- why: learn --update --topic wrote a topic that is not on the list, because the update path does not go through create::create (idea T-500, R-TOPIC-2).
+- summary: Updating a lesson checks its topic against the project's list, as writing a new one does.
+- files: src/cmd/learn.rs, tests/cmd_learn.rs
+- read: src/cmd/learn.rs, src/cmd/set.rs, src/create.rs
+- steps:
+  1. src/cmd/learn.rs, the --update path: before the transaction, when the project's topic list is not empty and --topic is given, check each trimmed, non-empty piece against `ctx.cfg.topics` ignoring case, as `check_topics` in src/cmd/set.rs does, and refuse an unknown one with the same message and code as set.
+  2. tests/cmd_learn.rs: with topics pumps and rig, `learn --update LES-001 ... --topic valves` is refused naming valves and the lesson is unchanged; `--topic rig` is written.
+  3. Run cargo test --test cmd_learn.
+- accept: learn --update refuses a topic that is not on the project's list.
+- verify: cargo test --test cmd_learn
+- reqs: R-TOPIC-2
+- note (2026-11-26, planner): added
+
+### T-540 · which --binding: only entries in force today, by valid-from and valid-until
+- status: claimed
+- owner: haiku-T-540
+- claimed: 2026-11-26T07:36+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
+- priority: P1 · difficulty: 1 · type: fix
+- milestone: T-535
+- why: which --binding took 'in force' as status approved, so an approved entry past its valid-until still bound a file and was shown before an edit (idea T-499).
+- summary: The check before an edit shows only rules that are in force today.
+- files: src/cmd/which.rs, tests/cmd_which.rs
+- read: src/filter.rs, src/cmd/which.rs
+- steps:
+  1. src/cmd/which.rs, --binding: keep an approved entry only when it is in force today by the same rule as filter.rs `in_force_on` (valid-from on or before today, valid-until empty or after today; today from the fixed clock as other commands take it). If that function is private, copy its rule into a private function of which.rs with a comment naming filter.rs.
+  2. tests/cmd_which.rs: an approved decision with `code: src/pump` and a valid-until before the fixed clock's day is not printed by --binding; one without valid-until still is.
+  3. Run cargo test --test cmd_which.
+- accept: which --binding, and so guard, lists only entries in force today.
+- verify: cargo test --test cmd_which
+- reqs: R-CODE-8
+- note (2026-11-26, planner): added
+
+### T-541 · guard: a session name with other characters counts as no session
+- status: claimed
+- owner: haiku-T-541
+- claimed: 2026-11-26T07:36+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
+- priority: P2 · difficulty: 1 · type: fix
+- milestone: T-535
+- why: A session_id with characters other than ASCII letters, digits and - made shown::unseen return everything and record nothing, so guard would refuse every edit of a bound file for ever (idea T-501).
+- summary: guard never refuses the same edit endlessly, whatever session name it is given.
+- files: src/cmd/guard.rs, tests/cmd_guard.rs
+- read: src/cmd/guard.rs, src/shown.rs
+- steps:
+  1. src/cmd/guard.rs: where the session is read (`hooks::session_of(...).filter(...)`), also drop a session that holds a character other than an ASCII letter, a digit or `-`; without a session guard prints nothing and succeeds, as today.
+  2. tests/cmd_guard.rs: an Edit payload for a bound file with session_id `a/b` exits 0 with no output, twice.
+  3. Run cargo test --test cmd_guard.
+- accept: guard treats a session name with other characters as no session.
+- verify: cargo test --test cmd_guard
+- reqs: R-CODE-8
+- note (2026-11-26, planner): added
+
+### T-542 · search: linked entries are looked up only for the results that are printed
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: fix
+- milestone: T-535
+- why: search computed the linked entries of every entry that passed the filter, also partial candidates later cut, so a large dossier cost O(n^2) (idea T-521).
+- summary: Search stays fast on a large dossier.
+- files: src/cmd/search.rs, tests/cmd_search.rs
+- read: src/cmd/search.rs, src/links.rs
+- steps:
+  1. src/cmd/search.rs: compute `links::linked` only for the results that are output (the full matches, and the partial results after the cut to PARTIAL_LIMIT), not for every candidate. The output must stay byte for byte the same.
+  2. tests/cmd_search.rs: the existing linked-entry tests pass unchanged; add one with 15 entries holding some of the words where the partial list is cut to 10 and the printed ones still show their linked lines.
+  3. Run cargo test --test cmd_search.
+- accept: search looks up linked entries only for printed results, with unchanged output.
+- verify: cargo test --test cmd_search
+- reqs: R-FIND-5
+- note (2026-11-26, planner): added
+
+### T-543 · agents install: a code project's rules leave out runs and confidential terms
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: fix
+- milestone: T-535
+- why: agents install wrote the whole rules text into a code project, with the parts about simulation runs and confidential customer terms that R-CODE-5 says to leave out (idea T-510).
+- summary: An LLM in a software project no longer reads rules about simulation runs and customer secrets.
+- files: src/agents/rules.md, src/cmd/agents.rs, tests/cmd_agents.rs
+- read: src/agents/mod.rs, src/agents/rules.md, src/cmd/agents.rs, src/config.rs
+- steps:
+  1. src/agents/rules.md: end each of these rule lines with the marker ` <!-- full -->`: the line about `dossier used` (simulation runs), the line `When your person says a name or term is confidential...`, and the line `Never write a confidential term into the team dossier...`.
+  2. src/cmd/agents.rs, where the rules block is built from agents::RULES: when the dossier found from the current folder (or --dossier) has `code_project = true`, leave out every line that ends with ` <!-- full -->`; otherwise keep those lines and remove the marker. Without a dossier, keep the lines without the marker. `help agents` shows the full text without markers.
+  3. tests/cmd_agents.rs: in a project made with `init --code-project`, the written AGENTS.md block has no `dossier used` and no `confidential`; in a normal project it has both; no written block contains `<!-- full -->`.
+  4. Run cargo test --test cmd_agents.
+- accept: A code project's rules block leaves out the lines about runs and confidential terms; no block shows the marker.
+- verify: cargo test --test cmd_agents
+- reqs: R-CODE-5, R-AGENT-1
+- note (2026-11-26, planner): added
+
+### T-544 · agents install: its journal line names the LLM as an LLM
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: fix
+- milestone: T-535
+- why: With DOSSIER_AGENT 'reyna - claude', agents install wrote person 'reyna - claude' and llm false into the journal (idea T-524), because it uses names::unchecked instead of resolving the name as other commands do (D34).
+- summary: The journal records correctly when an LLM installs the rules.
+- depends: T-543
+- files: src/cmd/agents.rs, tests/cmd_agents.rs
+- read: src/cmd/agents.rs, src/names.rs, src/config.rs
+- steps:
+  1. src/cmd/agents.rs, record_write: load the settings of the found dossier (config::load) and resolve the writer with names::resolve as Ctx does; when that fails, fall back to names::unchecked as now. The record's name, person and llm then follow D34: `anna - claude` gives person anna, llm true.
+  2. tests/cmd_agents.rs: with DOSSIER_AGENT=`anna - claude` in a project with the person anna, the journal line of agents install has person `anna` and llm true; with `anna` it has llm false.
+  3. Run cargo test --test cmd_agents.
+- accept: agents install records an LLM writer as an LLM of its person.
+- verify: cargo test --test cmd_agents
+- reqs: D34, D29
+- note (2026-11-26, planner): added
+
+### T-545 · after: no usage-record reminder in a code project
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: fix
+- milestone: T-535
+- why: In a code project the after hook ends every todo done with 'No usage record for T-...', which is about simulation runs that a code project does not have (R-CODE-5; seen while working on the dossier project, 2026-11-25).
+- summary: The hook after todo done stops reminding a software project about simulation runs.
+- files: src/cmd/after.rs, tests/cmd_after.rs
+- read: src/cmd/after.rs, src/config.rs
+- steps:
+  1. src/cmd/after.rs, usage_reminder (or where it is called): when the dossier found from the current folder has `code_project = true`, give no reminder.
+  2. tests/cmd_after.rs: a todo done event in a project made with `init --code-project` gives no `No usage record` line; in a normal project the existing test still gets it.
+  3. Run cargo test --test cmd_after.
+- accept: after gives no usage-record reminder in a code project.
+- verify: cargo test --test cmd_after
+- reqs: R-CODE-5, R-AGENT-5
+- note (2026-11-26, planner): added
+
+### T-546 · check UNIT: a name must hold a letter, so 10:30 is not a setting
+- status: open
+- owner: —
+- priority: P3 · difficulty: 1 · type: fix
+- milestone: T-535
+- why: check read a line such as 10:30 as the name 10 with the value 30 and warned about a missing unit (idea T-429).
+- summary: Times like 10:30 no longer trigger a unit warning.
+- files: src/cmd/check.rs, tests/cmd_check.rs
+- read: src/cmd/check.rs
+- steps:
+  1. src/cmd/check.rs, the function that decides whether a line is `<name>: <value>` or `<name> = <value>` (near unit_reports): the name must hold at least one letter.
+  2. tests/cmd_check.rs: an approved how-to whose Settings hold `10:30` gives no UNIT warning; `inlet pressure: 4` still does.
+  3. Run cargo test --test cmd_check.
+- accept: check gives no UNIT warning for a name without a letter.
+- verify: cargo test --test cmd_check
+- reqs: R-ENTRY-11
+- note (2026-11-26, planner): added
+
+### T-547 · add: a text line starting with ## is refused
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: fix
+- milestone: T-535
+- why: add (and other commands taking multi-line text) did not refuse a line starting with '## ', which opens a new section in the entry file; problem and digest --write refuse it (idea T-420).
+- summary: Text given to add can no longer break an entry into extra sections.
+- files: src/cmd/add.rs, tests/cmd_add.rs
+- read: src/cmd/add.rs, src/cmd/problem.rs
+- steps:
+  1. src/cmd/add.rs: before anything is written, refuse with Code::BadValue every section text (each `--section`/body text the command takes) that has a line starting with `## ` after its leading spaces, with the message `<section> must not hold a line starting with the heading mark ##`, as src/cmd/problem.rs words it.
+  2. tests/cmd_add.rs: an add whose section text has the line `## Extra` is refused and nothing is written; a line `#tag` or `### Note` is written.
+  3. Run cargo test --test cmd_add.
+- accept: add refuses a text line starting with ## and writes nothing.
+- verify: cargo test --test cmd_add
+- reqs: R-WRITE-1
+- note (2026-11-26, planner): added
+
 ## Questions
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.
@@ -11499,10 +11740,11 @@
 - note (2026-11-24, planner): added
 
 ### T-420 · add (and the other commands that take a multi-line text) do not refuse a line starting with ## , which opens a new section in the entry file; problem and digest --write refuse it (found in T-379).
-- status: open
+- status: dropped
 - owner: —
 - type: idea
 - note (2026-11-24, planner): added
+- note (2026-11-26, planner): dropped — Fixed as a task of milestone 1.2.0 (2026-11-26).
 
 ### T-426 · Entry::set_field appends a new field at the end of the field block, so approve writes approved and valid-from after the tags and check --fix later reorders most approved entries (found in T-397). Insert a new known field at its FIELD_ORDER place instead; many exact-text tests will need their expected files updated.
 - status: open
@@ -11511,10 +11753,11 @@
 - note (2026-11-24, planner): added
 
 ### T-429 · check UNIT: a line such as 10:30 reads as name 10 with value 30 and warns; the name should have to contain a letter (found in T-349).
-- status: open
+- status: dropped
 - owner: —
 - type: idea
 - note (2026-11-24, planner): added
+- note (2026-11-26, planner): dropped — Fixed as a task of milestone 1.2.0 (2026-11-26).
 
 ### T-430 · init of a project dossier does not write .state/.gitignore (write.lock, holder.json); only init --team-dossier does, although project folders are git repositories too (D36). Found when the dossier project got its own DOSSIER, 2026-11-25.
 - status: dropped
@@ -11524,34 +11767,39 @@
 - note (2026-11-25, planner): dropped — Covered by T-511: init writes the state ignore file for every dossier.
 
 ### T-497 · topics add with a name that is not in the settings is refused with 'this command needs a name' instead of the unknown-name error of R-CFG-4, because topics is not in WRITING of src/ctx.rs (topics.rs loads its context as "topics" for both actions). Load the add action as its own command name and add that to WRITING (found in T-463).
-- status: open
+- status: dropped
 - owner: —
 - type: idea
 - note (2026-11-25, planner): added
+- note (2026-11-26, planner): dropped — Fixed as a task of milestone 1.2.0 (2026-11-26).
 
 ### T-498 · Empty pieces of a topic value are treated differently: create skips them (topic=rig, counts as rig), set refuses them with 'unknown topic ' and an empty name (found in T-454 and T-462). Skip empty pieces in set too.
-- status: open
+- status: dropped
 - owner: —
 - type: idea
 - note (2026-11-25, planner): added
+- note (2026-11-26, planner): dropped — Fixed as a task of milestone 1.2.0 (2026-11-26).
 
 ### T-499 · which --binding (T-475) takes 'in force' as status approved; an approved entry past its valid-until date still binds and is shown before an edit. Use the in-force rule of brief and filter (valid-from / valid-until) there too.
-- status: open
+- status: dropped
 - owner: —
 - type: idea
 - note (2026-11-25, planner): added
+- note (2026-11-26, planner): dropped — Fixed as a task of milestone 1.2.0 (2026-11-26).
 
 ### T-500 · learn --update <ID> --topic <name> writes a topic that is not on the project's list, because the update path does not go through create::create (found in T-458); R-TOPIC-2 says such a value is refused. Check the topic there as set does (T-462).
-- status: open
+- status: dropped
 - owner: —
 - type: idea
 - note (2026-11-25, planner): added
+- note (2026-11-26, planner): dropped — Fixed as a task of milestone 1.2.0 (2026-11-26).
 
 ### T-501 · guard (T-477) refuses every edit of a bound file for ever when the payload's session_id holds a character other than ASCII letters, digits and '-': shown::unseen then returns every ID and records nothing. Claude Code sends UUIDs, so it does not happen today; treat such a session like a missing one in guard.
-- status: open
+- status: dropped
 - owner: —
 - type: idea
 - note (2026-11-25, planner): added
+- note (2026-11-26, planner): dropped — Fixed as a task of milestone 1.2.0 (2026-11-26).
 
 ### T-502 · search ranks the entries with only some of the words (T-451) with select::ranked over those entries alone, so word rarity is counted among them, not across all entries as R-FIND-2 says. Weigh them with an Index of every entry.
 - status: dropped
@@ -11561,25 +11809,29 @@
 - note (2026-11-25, planner): dropped — Covered by the 1.0.1 tasks: select ranked_in and its use in search (T-505, T-506).
 
 ### T-510 · agents install writes the whole rules text into a code project (code_project = true), with the parts about simulation runs, large files and customers; R-CODE-5 says a code project's rules leave them out (found when the dossier project got the 1.0 rules, 2026-11-25).
-- status: open
+- status: dropped
 - owner: —
 - type: idea
 - note (2026-11-25, planner): added
+- note (2026-11-26, planner): dropped — Fixed as a task of milestone 1.2.0 (2026-11-26).
 
 ### T-521 · search (T-518) computes the linked entries of every entry that passes the filter, also partial candidates later cut to 10; each lookup is linear, so a large dossier costs O(n^2). Compute them only for the results that are printed.
-- status: open
+- status: dropped
 - owner: —
 - type: idea
 - note (2026-11-25, planner): added
+- note (2026-11-26, planner): dropped — Fixed as a task of milestone 1.2.0 (2026-11-26).
 
 ### T-524 · agents install writes a journal line with person "reyna - claude" and llm false when DOSSIER_AGENT is "reyna - claude" (2026-11-25, 1.1.1); other commands record the person reyna via the LLM reyna - claude. The agents command should resolve the writer as the others do (D34).
-- status: open
+- status: dropped
 - owner: —
 - type: idea
 - note (2026-11-25, planner): added
+- note (2026-11-26, planner): dropped — Fixed as a task of milestone 1.2.0 (2026-11-26).
 
 ### T-534 · brief --task shows as Last handover the last handover OR takeover note (R-HAND-4), so after a takeover it shows 'ben took over from anna' and hides the previous holder's note with what is done and what is next. Show the last handover note (done/next) and, on its own line, the last takeover (found in the end-to-end test of 2026-11-26).
-- status: open
+- status: dropped
 - owner: —
 - type: idea
 - note (2026-11-26, planner): added
+- note (2026-11-26, planner): dropped — Fixed as a task of milestone 1.2.0 (2026-11-26).
