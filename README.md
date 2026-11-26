@@ -4,7 +4,7 @@
 while doing its projects. People and their LLMs write to it and read from it, so that neither has
 to rely on memory.
 
-**Status: v1.2**
+**Status: v1.3**
 
 - [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the seven phases it is
   built in.
@@ -1206,6 +1206,30 @@ its person's yes: `dossier takeover T-012 --said-by <person>`. Both commands acc
 After an upgrade, run `dossier agents install --yes` once in each project: the rules now explain
 `handover` and `takeover`.
 
+### What version 1.3 adds
+
+#### Rules by role
+
+The rules for LLMs are split by role, so each agent reads only what it needs:
+
+- `dossier help agents` prints the common rules, at most 8 lines. `agents install` writes them into
+  `AGENTS.md`.
+- `dossier help worker` prints the rules of a worker, at most 7 lines.
+- `dossier help planner` prints every other rule.
+
+#### Worker sessions
+
+Start a worker with `DOSSIER_ROLE=worker` in its environment. Its session is then a worker's: `brief`
+prints one line in place of the project brief, and the entries for its task come after `todo claim`.
+`dossier brief --full` prints the project brief in any session.
+
+A worker writes nothing to the dossier, so a worker's session prints nothing after `todo done` and
+`todo stuck`. The planner runs `dossier review-task` for the task instead.
+
+After an upgrade from 1.2, run `dossier agents install --yes` once in each project: it replaces the
+long rules block in `AGENTS.md` by the short one and renews the skill file if the project has one.
+The hooks need no change.
+
 ## What it needs
 
 - [`todo`](https://github.com/reynanTandoyo/todo) 0.8 or newer. `todo` keeps the tasks of a
@@ -1286,7 +1310,7 @@ What each command does:
 
 - `init` creates the `DOSSIER` folder and its settings.
 - `people add` lists anna and the LLM `anna-claude`.
-- `agents install` writes the rules for LLMs into `AGENTS.md`. See [For LLMs](#for-llms).
+- `agents install` writes the common rules for LLMs into `AGENTS.md`. See [For LLMs](#for-llms).
 - `decide`, `found` and `assume` are approved at once, because anna wrote them.
 - `learn` is run by anna's LLM (`--agent anna-claude`). A lesson from an LLM is a draft.
 - `drafts` lists the drafts.
@@ -1343,10 +1367,11 @@ For team members who only read and approve drafts, see [the one-page guide for r
 
 ### For LLMs
 
-- `dossier help agents` prints the rules that an LLM follows in a dossier project.
-- `dossier agents install --yes` writes the same rules into `AGENTS.md` in the project folder,
-  between two markers. Every other line stays as it is. `dossier agents check` says whether the
-  rules are current.
+- `dossier help agents` prints the common rules that an LLM follows in a dossier project.
+  `dossier help worker` and `dossier help planner` print the rules of each role.
+- `dossier agents install --yes` writes the same common rules into `AGENTS.md` in the project
+  folder, between two markers. Every other line stays as it is. `dossier agents check` says whether
+  the rules are current.
 - Entries are written in English, also when the session is in another language.
 
 ## How it works with todo
@@ -1415,7 +1440,7 @@ lines:
 
 ```
 ssh: ok
-dossier on the server: 1.2.0
+dossier on the server: 1.3.0
 todo on the server: 0.8.0
 dossier folder: ok (P-001)
 ```
