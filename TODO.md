@@ -11493,10 +11493,8 @@
 - note (2026-11-26, haiku-T-539): done
 
 ### T-540 · which --binding: only entries in force today, by valid-from and valid-until
-- status: claimed
+- status: done
 - owner: haiku-T-540
-- claimed: 2026-11-26T07:36+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: fix
 - milestone: T-535
 - why: which --binding took 'in force' as status approved, so an approved entry past its valid-until still bound a file and was shown before an edit (idea T-499).
@@ -11509,8 +11507,12 @@
   3. Run cargo test --test cmd_which.
 - accept: which --binding, and so guard, lists only entries in force today.
 - verify: cargo test --test cmd_which
+- verified: 2026-11-26
+- commit: f32af30
 - reqs: R-CODE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-540): done
 
 ### T-541 · guard: a session name with other characters counts as no session
 - status: done
