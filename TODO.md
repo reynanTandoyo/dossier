@@ -12185,8 +12185,8 @@
 - note (2026-11-26, haiku-T-571): done — refute now takes --said-by: an LLM with its person's --said-by refutes the assumption without a terminal or a question, as the person decided; without it, for another person, or in a worker session it is refused; the four new tests and the updated LLM test pass with the full suite, clippy and fmt.
 
 ### T-572 · retire: an LLM runs it with --said-by
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-572
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-563
 - why: The person's yes is given in the session; the LLM must be able to carry it out.
@@ -12202,8 +12202,12 @@
   5. Run cargo test --test cmd_retire.
 - accept: retire --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
 - verify: cargo test --test cmd_retire
+- verified: 2026-11-26
+- commit: 7c803f8
 - reqs: R-SAID-1 to R-SAID-4, TEST-14
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-572): done — retire takes --said-by: an LLM with its person's name retires an approved entry without a terminal or a question (D57); a person, a worker session and another person are refused as before; cargo test, clippy and fmt pass.
 
 ### T-573 · remove: an LLM runs it with --said-by
 - status: open
