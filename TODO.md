@@ -11679,8 +11679,10 @@
 - note (2026-11-26, haiku-T-547): done
 
 ### T-549 · Release 1.2.0: handover and takeover, and the known bugs fixed
-- status: open
-- owner: —
+- status: claimed
+- owner: planner
+- claimed: 2026-11-26T08:36+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: chore
 - why: Milestones T-525 (handover and takeover) and T-535 (known bugs) are finished and the owner wants them released.
 - summary: Version 1.2.0 is built, checked on Windows and Linux, tagged and published on GitHub.
