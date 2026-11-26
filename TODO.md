@@ -11249,10 +11249,8 @@
 - note (2026-11-26, sonnet-T-527): done
 
 ### T-528 · handover: give a task back with a note, after its files are returned
-- status: claimed
+- status: done
 - owner: haiku-T-528
-- claimed: 2026-11-26T07:03+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-525
 - why: A colleague who leaves a task must not leave it locked or lose what was done (R-HAND-1, R-HAND-5).
@@ -11268,8 +11266,12 @@
   5. Run cargo test --test cmd_handover.
 - accept: handover gives the task back in todo with its note and a journal line, and refuses while the writer holds files taken for the task.
 - verify: cargo test --test cmd_handover
+- verified: 2026-11-26
+- commit: 0310a5d
 - reqs: R-HAND-1, R-HAND-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-528): done
 
 ### T-529 · takeover: take over a task, name the unreturned files, show the progress
 - status: claimed
