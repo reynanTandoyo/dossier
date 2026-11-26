@@ -12365,8 +12365,8 @@
 - note (2026-11-26, haiku-T-578): done — confidential remove and none now take --said-by <person> (D57): an LLM with its person runs them without a terminal, and a refusal names --said-by; the other cases (another person, a worker session, no --said-by) are refused; five new tests in tests/cmd_confidential.rs, the two old LLM-message expectations now name --said-by anna; verify, fmt, clippy and the full suite pass.
 
 ### T-579 · The planner's rules: ask your person, then run it with --said-by
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-579
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-563
 - why: The rules still told an LLM never to approve, which now sends the owner back to a terminal.
@@ -12380,8 +12380,12 @@
   3. Run cargo test --lib agents:: and cargo test --test cmd_agents.
 - accept: dossier help planner tells the LLM to ask its person and to run the command itself with --said-by.
 - verify: cargo test --lib agents:: && cargo test --test cmd_agents
+- verified: 2026-11-26
+- commit: c68760d
 - reqs: R-SAID-5, R-AGENT-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-579): done — The planner's rules now say a person decides, and an LLM asks and then runs the decision command with --said-by, instead of never approving; help planner shows the new rule, with one new test in tests/cmd_agents.rs.
 
 ### T-580 · Release 1.3.1
 - status: open
@@ -12390,7 +12394,7 @@
 - milestone: T-563
 - why: The owner tags a release only from a version that builds, passes every check and says what it adds.
 - summary: The version number and the README are ready for the owner to tag release 1.3.1.
-- depends: T-566, T-567, T-568, T-569, T-570, T-571, T-572, T-573, T-574, T-575, T-576, T-577, T-578, T-579, T-581, T-582, T-583, T-584, T-585
+- depends: T-566, T-567, T-568, T-569, T-570, T-571, T-572, T-573, T-574, T-575, T-576, T-577, T-578, T-579
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/requirements.md
 - steps:
@@ -12426,7 +12430,7 @@
 ### T-582 · supersede: an LLM runs it with --said-by
 - status: open
 - owner: —
-- priority: P1 · difficulty: 1 · type: feature
+- priority: P3 · difficulty: 1 · type: feature
 - milestone: T-563
 - why: The person's yes is given in the session; the LLM must be able to carry it out.
 - summary: An LLM can replace one entry by another for its person after the person agreed.
@@ -12441,11 +12445,12 @@
 - verify: cargo test --test cmd_supersede
 - reqs: R-SAID-1 to R-SAID-4, TEST-14
 - note (2026-11-26, planner): added
+- note (2026-11-26, planner): Owner, 2026-11-26: not part of 1.3.1. He asked for approve only; this and T-583 to T-585 wait until he asks for them.
 
 ### T-583 · value approve and value reject: an LLM runs them with --said-by
 - status: open
 - owner: —
-- priority: P1 · difficulty: 1 · type: feature
+- priority: P3 · difficulty: 1 · type: feature
 - milestone: T-563
 - why: The person's yes is given in the session; the LLM must be able to carry it out.
 - summary: An LLM can approve or reject a proposed key value for its person after the person agreed.
@@ -12464,7 +12469,7 @@
 ### T-584 · team member remove and team name remove: an LLM runs them with --said-by
 - status: open
 - owner: —
-- priority: P1 · difficulty: 1 · type: feature
+- priority: P3 · difficulty: 1 · type: feature
 - milestone: T-563
 - why: The person's yes is given in the session; the LLM must be able to carry it out.
 - summary: An LLM can remove a member or a plain name from the team for its person after the person agreed.
@@ -12483,7 +12488,7 @@
 ### T-585 · Help texts no longer say that a terminal is needed
 - status: open
 - owner: —
-- priority: P1 · difficulty: 1 · type: feature
+- priority: P3 · difficulty: 1 · type: feature
 - milestone: T-563
 - why: An LLM that reads `approve: Approves drafts, at a terminal` concludes that it cannot run the command.
 - summary: The one-line descriptions of the commands stop naming the terminal.
