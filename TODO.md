@@ -11779,8 +11779,8 @@
 - note (2026-11-26, haiku-T-553): done — src/role.rs now tells whether a session is a worker's from DOSSIER_ROLE=worker, and the test helper removes that variable so tests are never a worker's.
 
 ### T-554 · agents: the worker's text and the planner's text
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-554
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-550
 - why: A worker needs six lines, not thirty-eight; the rest belongs to the planner.
@@ -11797,8 +11797,12 @@
   6. Run cargo test --lib agents::
 - accept: agents::worker and agents::planner_for give the two texts; the worker's text is within its limit; the existing rules text is unchanged.
 - verify: cargo test --lib agents::
+- verified: 2026-11-26
+- commit: 819fea5
 - reqs: R-AGENT-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-554): done — The worker's text (six lines) and the planner's text (every other rule) are split into two files, with the line limits and the functions that give them, tested in agents/mod.rs.
 
 ### T-555 · help worker and help planner
 - status: open
