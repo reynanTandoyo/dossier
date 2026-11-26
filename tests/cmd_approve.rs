@@ -1,6 +1,7 @@
 //! Runs the built program for `approve`: a person at a terminal approves or rejects drafts, one
-//! answer per draft. An LLM cannot approve, and nothing is asked without a terminal. Each test
-//! runs in its own project folder, with the clock fixed by `common::Project`.
+//! answer per draft. An LLM cannot approve without `--said-by <person>` (D57), and nothing is asked
+//! without a terminal. Each test runs in its own project folder, with the clock fixed by
+//! `common::Project`.
 
 mod common;
 
@@ -210,7 +211,7 @@ fn an_llm_cannot_approve_and_nothing_is_written() {
     approve_with(&project, "anna-claude", "a", &["LES-001"])
         .code(1)
         .stderr(contains(
-            "error: only a person can approve; anna-claude is an LLM",
+            "error: approve carries out a person's decision: ask your person, and with their yes run it again with --said-by anna",
         ));
     project
         .command("anna-claude", NOW)
@@ -221,6 +222,95 @@ fn an_llm_cannot_approve_and_nothing_is_written() {
         .stdout(contains("\"code\":\"NEEDS_PERSON\""));
 
     assert_eq!(entry_of(&project, "LES-001").status(), Some(Status::Draft));
+    assert!(!project.root().join("DOSSIER/.state/approved.json").exists());
+}
+
+#[test]
+fn an_llm_without_said_by_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    draft_lesson(&project);
+    approve_with(&project, "anna-claude", "a", &["LES-001"])
+        .code(1)
+        .stderr(contains("--said-by anna"));
+
+    assert_eq!(entry_of(&project, "LES-001").status(), Some(Status::Draft));
+    assert!(!project.root().join("DOSSIER/.state/approved.json").exists());
+}
+
+#[test]
+fn an_llm_with_said_by_approves_its_drafts_without_a_terminal_or_a_question() {
+    let project = Project::new();
+    draft_lesson(&project);
+    draft_lesson(&project);
+    // No answers are prepared and no terminal is attached, so nothing can be asked: the drafts are
+    // approved as the person decided (D57).
+    project
+        .command("anna-claude", NOW)
+        .args(["approve", "LES-001", "LES-002", "--said-by", "anna"])
+        .assert()
+        .success()
+        .stdout("LES-001: approved\nLES-002: approved\n")
+        .stderr("");
+
+    for id in ["LES-001", "LES-002"] {
+        let entry = entry_of(&project, id);
+        assert_eq!(entry.status(), Some(Status::Approved));
+        assert_eq!(
+            entry.field("approved").as_deref(),
+            Some(format!("{NOW} by anna").as_str())
+        );
+        assert_eq!(entry.field("author").as_deref(), Some("anna"));
+        assert_eq!(entry.field("via").as_deref(), Some("anna-claude"));
+        assert_eq!(
+            entry.history().last().map(String::as_str),
+            Some(format!("{NOW} anna via anna-claude: approved").as_str())
+        );
+    }
+    let journal = project.entry_journal();
+    let newest = journal.last().expect("the approvals are journalled");
+    assert_eq!(newest.id, "LES-002");
+    assert_eq!(newest.event, "approved");
+    assert_eq!(newest.person, "anna");
+    assert_eq!(newest.name, "anna-claude");
+    assert!(newest.llm);
+    assert!(
+        project
+            .read("DOSSIER/.state/approved.json")
+            .contains("LES-002")
+    );
+}
+
+#[test]
+fn an_llm_with_said_by_for_another_person_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    draft_lesson(&project);
+    project
+        .command("anna-claude", NOW)
+        .args(["approve", "LES-001", "--said-by", "ben"])
+        .assert()
+        .code(1)
+        .stderr(contains("acts for anna only"));
+
+    assert_eq!(entry_of(&project, "LES-001").status(), Some(Status::Draft));
+    assert!(!project.root().join("DOSSIER/.state/approved.json").exists());
+}
+
+#[test]
+fn a_worker_session_decides_nothing_even_with_said_by() {
+    let project = Project::new();
+    draft_lesson(&project);
+    draft_lesson(&project);
+    project
+        .command("anna-claude", NOW)
+        .env("DOSSIER_ROLE", "worker")
+        .args(["approve", "LES-001", "LES-002", "--said-by", "anna"])
+        .assert()
+        .code(1)
+        .stderr(contains("a worker decides nothing"));
+
+    for id in ["LES-001", "LES-002"] {
+        assert_eq!(entry_of(&project, id).status(), Some(Status::Draft));
+    }
     assert!(!project.root().join("DOSSIER/.state/approved.json").exists());
 }
 

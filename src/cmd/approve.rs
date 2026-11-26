@@ -1,9 +1,10 @@
 //! The `approve` command: a person at a terminal approves, edits, rejects or skips drafts, one by
 //! one (R-DRAFT-4, D5, D6). Each draft is shown in full on standard error and the person answers:
 //! `a` or `approve` approves it, `e` or `edit` opens it in the editor first (then it is shown and
-//! asked about again), `r` or `reject` rejects it, and anything else skips it. An LLM cannot
-//! approve, and nothing is asked without a terminal. The answers are written together, in one
-//! transaction.
+//! asked about again), `r` or `reject` rejects it, and anything else skips it. An LLM carries out
+//! its person's decision with `--said-by <person>` (D57): each draft that can be approved is then
+//! approved without being shown or asked about. Without `--said-by` an LLM cannot approve, and
+//! nothing is asked without a terminal. The answers are written together, in one transaction.
 
 use crate::approval;
 use crate::cli::Global;
@@ -12,7 +13,7 @@ use crate::ctx::Ctx;
 use crate::entry::rules;
 use crate::entry::{Entry, Status};
 use crate::error::{Code, Error, Result};
-use crate::names::Who;
+use crate::names::{self, Who};
 use crate::output::Output;
 use crate::store::{self, Item};
 use crate::term;
@@ -26,6 +27,10 @@ pub struct Args {
     /// The drafts to approve, such as LES-004; each is shown and asked about in turn
     #[arg(required = true, value_name = "ID")]
     pub ids: Vec<String>,
+
+    /// The person who decided this; needed when an LLM runs the command (D57)
+    #[arg(long, value_name = "PERSON")]
+    pub said_by: Option<String>,
 }
 
 /// What became of one ID.
@@ -71,19 +76,16 @@ impl Tally {
     }
 }
 
-/// Runs `approve`: checks who acts and that a person is at a terminal, then asks about each draft
-/// and writes the answers in one transaction. The first line of the output is `<ID>: approved`,
+/// Runs `approve`: checks who acts (names::said_by_gate, D57) and, unless an LLM carries out its
+/// person's decision with `--said-by`, that a person is at a terminal. Then each draft is asked
+/// about (with `--said-by`, each one that can be approved is approved without a question), and the
+/// answers are written in one transaction. The first line of the output is `<ID>: approved`,
 /// `<ID>: rejected` or `<ID>: skipped` for each ID, in the order given.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "approve")?;
     let who = ctx.writer()?.clone();
-    if who.is_llm {
-        return Err(Error::new(
-            Code::NeedsPerson,
-            format!("only a person can approve; {} is an LLM", who.name),
-        ));
-    }
-    if !term::is_terminal() {
+    let said = names::said_by_gate(&who, args.said_by.as_deref(), "approve")?;
+    if !said && !term::is_terminal() {
         return Err(Error::new(
             Code::NeedsTerminal,
             "this command must be run by a person at a terminal",
@@ -99,7 +101,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             .collect::<Result<Vec<Item>>>()?;
         let mut tally = Tally::default();
         for item in &items {
-            review(tx, item, &who, &mut tally)?;
+            review(tx, item, &who, said, &mut tally)?;
         }
         let output = Output::with(text_of(&tally), data_of(&tally));
         Ok(tally
@@ -114,8 +116,9 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
 /// a draft, and a draft that is missing something, is skipped with a warning and no question is
 /// asked. An edit is kept when the draft is then skipped; an edit that fails leaves the draft as it
 /// was, with a warning, and is asked about again. An ID given a second time is left alone with a
-/// warning.
-fn review(tx: &mut Tx, item: &Item, who: &Who, tally: &mut Tally) -> Result<()> {
+/// warning. With `said` (an LLM with `--said-by`, D57) nothing is shown or asked: a draft that
+/// can be approved is approved, and the other cases are handled as they are for a person.
+fn review(tx: &mut Tx, item: &Item, who: &Who, said: bool, tally: &mut Tally) -> Result<()> {
     let entry = &item.entry;
     let id = entry.id();
     if tally.has(&id) {
@@ -136,7 +139,9 @@ fn review(tx: &mut Tx, item: &Item, who: &Who, tally: &mut Tally) -> Result<()> 
         }
     }
     let mut current = item.entry.clone();
-    show(&current.text());
+    if !said {
+        show(&current.text());
+    }
     // Whether the person has edited the draft: an edited draft that is then skipped keeps its edit.
     let mut edited = false;
     loop {
@@ -146,6 +151,11 @@ fn review(tx: &mut Tx, item: &Item, who: &Who, tally: &mut Tally) -> Result<()> 
             keep_edit(tx, item, &current, edited);
             tally.verdict(&id, Verdict::Skipped);
             tally.warn(format!("{id} cannot be approved yet: {}", what.join("; ")));
+            return Ok(());
+        }
+        if said {
+            approve(tx, item, &current, who)?;
+            tally.verdict(&id, Verdict::Approved);
             return Ok(());
         }
         let answer = term::ask(&format!(
