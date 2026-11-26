@@ -1,14 +1,16 @@
 //! The `reopen` command: takes an entry back one step (R-LIFE-1). An approved or rejected entry
 //! goes back to draft, so it is no longer knowledge until it is approved again. A retired entry
-//! is in force again as approved, and only a person can do that. A draft and a superseded entry
-//! cannot be reopened. A lesson, how-to or tool that is approved again gets its checksum recorded
-//! (R-LIFE-6), and one that goes back to draft loses its checksum.
+//! is in force again as approved, and a person does that, or an LLM with `--said-by <person>`
+//! (D57). A draft and a superseded entry cannot be reopened. A lesson, how-to or tool that is
+//! approved again gets its checksum recorded (R-LIFE-6), and one that goes back to draft loses its
+//! checksum.
 
 use crate::approval;
 use crate::cli::Global;
 use crate::ctx::Ctx;
 use crate::entry::{Kind, Status};
 use crate::error::{Code, Error, Result};
+use crate::names;
 use crate::output::Output;
 use crate::store;
 use crate::tx::{self, Change};
@@ -24,12 +26,16 @@ const IN_FORCE_AGAIN: &str = "in force again";
 pub struct Args {
     /// The ID of the entry to reopen, such as LES-004; any case, with or without a place prefix
     pub id: String,
+    /// The person who decided this; needed when an LLM runs the command (D57)
+    #[arg(long, value_name = "PERSON")]
+    pub said_by: Option<String>,
 }
 
 /// Runs `reopen`: in one transaction, an approved or rejected entry becomes a draft, and a
-/// retired entry becomes approved again, with a history line for the change. The output is
-/// `<ID>: reopened (<new status>)`. The checksum of a lesson, how-to or tool follows the change
-/// once the file is written, unless this is a dry run.
+/// retired entry becomes approved again, with a history line for the change. Reopening a retired
+/// entry is a decision of a person: an LLM carries it out with `--said-by <person>` (D57), and
+/// names::said_by_gate decides. The output is `<ID>: reopened (<new status>)`. The checksum of a
+/// lesson, how-to or tool follows the change once the file is written, unless this is a dry run.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "reopen")?;
     let who = ctx.writer()?.clone();
@@ -51,15 +57,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
                 (Status::Draft, BACK_TO_DRAFT)
             }
             Some(Status::Retired) => {
-                if who.is_llm {
-                    return Err(Error::new(
-                        Code::NeedsPerson,
-                        format!(
-                            "reopening a retired entry is for a person; {} is an LLM",
-                            who.name
-                        ),
-                    ));
-                }
+                names::said_by_gate(&who, args.said_by.as_deref(), "reopen")?;
                 entry.set_field("status", Status::Approved.name());
                 entry.remove_field("valid-until");
                 entry.remove_field("retired-reason");

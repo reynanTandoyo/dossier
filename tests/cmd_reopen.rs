@@ -1,8 +1,8 @@
 //! Runs the built program for `reopen`: an approved or rejected entry goes back to draft, and a
-//! retired entry is in force again as approved, which only a person can do. A draft and a
-//! superseded entry cannot be reopened. Refusals leave the file, its snapshots and the journal as
-//! they were. Each test runs in its own temporary project folder (common::Project), with the
-//! clock fixed at 2026-11-20T10:00:00+01:00.
+//! retired entry is in force again as approved, which a person does, or an LLM with
+//! `--said-by <person>` (D57). A draft and a superseded entry cannot be reopened. Refusals leave
+//! the file, its snapshots and the journal as they were. Each test runs in its own temporary
+//! project folder (common::Project), with the clock fixed at 2026-11-20T10:00:00+01:00.
 
 mod common;
 
@@ -215,9 +215,7 @@ fn a_retired_finding_is_approved_again_when_anna_runs_it_and_anna_claude_is_refu
     project
         .run("anna-claude", &["reopen", "FND-001"])
         .code(1)
-        .stderr(contains(
-            "error: reopening a retired entry is for a person; anna-claude is an LLM",
-        ));
+        .stderr(contains("--said-by anna"));
     project
         .command("anna-claude", NOW)
         .args(["reopen", "FND-001", "--json"])
@@ -396,4 +394,117 @@ fn json_output_gives_the_id_and_the_new_status() {
         value["data"],
         serde_json::json!({"id": "DEC-001", "status": "draft"})
     );
+}
+
+/// Anna retires the approved decision DEC-001, so that it can be reopened.
+fn anna_retires_a_decision(project: &Project) {
+    anna_decides(project);
+    project
+        .run("anna", &["retire", "DEC-001", "--reason", REASON])
+        .success()
+        .stdout("DEC-001: retired\n");
+}
+
+#[test]
+fn an_llm_without_said_by_is_refused_to_reopen_a_retired_entry_and_nothing_is_written() {
+    let project = Project::new();
+    anna_retires_a_decision(&project);
+    let before = bytes_of(&project, "DEC-001");
+
+    project
+        .run("anna-claude", &["reopen", "DEC-001"])
+        .code(1)
+        .stderr(contains("--said-by anna"));
+
+    assert_eq!(bytes_of(&project, "DEC-001"), before);
+    assert_eq!(
+        entry_of(&project, "DEC-001").status(),
+        Some(Status::Retired)
+    );
+}
+
+#[test]
+fn an_llm_with_said_by_reopens_a_retired_entry_without_a_terminal_or_a_question() {
+    let project = Project::new();
+    anna_retires_a_decision(&project);
+    // No answers are prepared and no terminal is attached, so nothing can be asked: the entry is
+    // in force again as the person decided (D57).
+    project
+        .command("anna-claude", NOW)
+        .args(["reopen", "DEC-001", "--said-by", "anna"])
+        .assert()
+        .success()
+        .stdout("DEC-001: reopened (approved)\n")
+        .stderr("");
+
+    let entry = entry_of(&project, "DEC-001");
+    assert_eq!(entry.status(), Some(Status::Approved));
+    assert_eq!(entry.field("valid-until"), None);
+    assert_eq!(entry.field("retired-reason"), None);
+    assert_eq!(entry.field("author").as_deref(), Some("anna"));
+    assert_eq!(
+        entry.history().last().map(String::as_str),
+        Some(format!("{NOW} anna via anna-claude: reopened — in force again").as_str())
+    );
+    let journal = project.entry_journal();
+    let newest = journal.last().expect("the reopening is journalled");
+    assert_eq!(newest.id, "DEC-001");
+    assert_eq!(newest.event, "reopened");
+    assert_eq!(newest.person, "anna");
+    assert_eq!(newest.name, "anna-claude");
+    assert!(newest.llm);
+}
+
+#[test]
+fn an_llm_with_said_by_for_another_person_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    anna_retires_a_decision(&project);
+    let before = bytes_of(&project, "DEC-001");
+
+    project
+        .command("anna-claude", NOW)
+        .args(["reopen", "DEC-001", "--said-by", "ben"])
+        .assert()
+        .code(1)
+        .stderr(contains("acts for anna only"));
+
+    assert_eq!(bytes_of(&project, "DEC-001"), before);
+    assert_eq!(
+        entry_of(&project, "DEC-001").status(),
+        Some(Status::Retired)
+    );
+}
+
+#[test]
+fn a_worker_session_reopens_no_retired_entry_even_with_said_by() {
+    let project = Project::new();
+    anna_retires_a_decision(&project);
+    let before = bytes_of(&project, "DEC-001");
+
+    project
+        .command("anna-claude", NOW)
+        .env("DOSSIER_ROLE", "worker")
+        .args(["reopen", "DEC-001", "--said-by", "anna"])
+        .assert()
+        .code(1)
+        .stderr(contains("a worker decides nothing"));
+
+    assert_eq!(bytes_of(&project, "DEC-001"), before);
+    assert_eq!(
+        entry_of(&project, "DEC-001").status(),
+        Some(Status::Retired)
+    );
+}
+
+#[test]
+fn an_llm_reopens_an_approved_entry_without_said_by_as_before() {
+    let project = Project::new();
+    anna_decides(&project);
+
+    project
+        .run("anna-claude", &["reopen", "DEC-001"])
+        .success()
+        .stdout("DEC-001: reopened (draft)\n");
+
+    assert_eq!(entry_of(&project, "DEC-001").status(), Some(Status::Draft));
 }
