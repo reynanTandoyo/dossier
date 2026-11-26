@@ -11831,8 +11831,8 @@
 - note (2026-11-26, haiku-T-555): done — help worker prints the worker's text (at most 7 lines) and help planner prints the planner's text, which leaves out the simulation-run and confidential-term rules in a code project; both give the JSON data rules, and an unknown topic now names worker and planner.
 
 ### T-556 · agents: the rules text becomes the common rules of at most 8 lines
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-556
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-550
 - why: The block in AGENTS.md is read by every agent, so it must hold only what every agent needs.
@@ -11848,8 +11848,12 @@
   5. Run cargo test --lib agents::, cargo test --test cmd_agents and cargo test --test cmd_skill.
 - accept: help agents, the block of agents install and the skill hold the common rules of at most 8 lines; together with the worker's text they are within 15 lines, and a test fails otherwise.
 - verify: cargo test --lib agents:: && cargo test --test cmd_agents && cargo test --test cmd_skill
+- verified: 2026-11-26
+- commit: a50155f
 - reqs: R-AGENT-1, R-AGENT-2, R-AGENT-4, TEST-13
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-556): done — The block in AGENTS.md and the skill now hold only the seven common rules (help agents prints them, at most 8 lines); worker and planner rules come from help worker and help planner, with tests on the line limits (8, and 15 with the worker text).
 
 ### T-557 · agents install renews the skill too, and agents check covers it
 - status: open
