@@ -11223,10 +11223,8 @@
 - note (2026-11-26, haiku-T-526): done
 
 ### T-527 · The handover and takeover commands: registered, with help lines and examples
-- status: claimed
+- status: done
 - owner: sonnet-T-527
-- claimed: 2026-11-26T06:53+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 2 · type: feature
 - milestone: T-525
 - why: Two new commands are registered in the shared command lists; the later tasks fill in their behaviour in their own files.
@@ -11243,12 +11241,18 @@
   5. Run cargo test --test cmd_agents and cargo test --test cmd_help, then the full checks.
 - accept: handover and takeover are registered commands with help lines and examples, listed as writing commands, and still answer not available yet.
 - verify: cargo test --test cmd_agents && cargo test --test cmd_help
+- verified: 2026-11-26
+- commit: 171c60a
 - reqs: R-HAND-1, R-HAND-2, R-OUT-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, sonnet-T-527): done
 
 ### T-528 · handover: give a task back with a note, after its files are returned
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-528
+- claimed: 2026-11-26T07:03+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-525
 - why: A colleague who leaves a task must not leave it locked or lose what was done (R-HAND-1, R-HAND-5).
@@ -11268,8 +11272,10 @@
 - note (2026-11-26, planner): added
 
 ### T-529 · takeover: take over a task, name the unreturned files, show the progress
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-529
+- claimed: 2026-11-26T07:03+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-525
 - why: When a colleague is ill or gone, another must be able to carry on with everything recorded (R-HAND-2, R-HAND-3, R-HAND-5).
@@ -11291,10 +11297,8 @@
 - note (2026-11-26, planner): added
 
 ### T-530 · brief --task: the last handover note under the task line
-- status: claimed
+- status: done
 - owner: haiku-T-530
-- claimed: 2026-11-26T06:53+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-525
 - why: Whoever takes over a task must see first what the previous holder said is done and next (R-HAND-4).
@@ -11308,8 +11312,12 @@
   3. Run cargo test --test cmd_brief.
 - accept: brief --task shows the last handover or takeover note of the task under its first line.
 - verify: cargo test --test cmd_brief
+- verified: 2026-11-26
+- commit: 94e2e84
 - reqs: R-HAND-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-530): done
 
 ### T-531 · The agent rules: hand over a task with a note; take over only with your person's yes
 - status: open
