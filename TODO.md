@@ -12057,8 +12057,8 @@
 - note (2026-11-26, haiku-T-566): done — approve takes --said-by <person>: an LLM carries out its person's decision (D57), each draft that can be approved is approved without a question and the entry and journal name the person and the LLM; a person without a terminal is still refused, a worker session is refused. Four new tests in tests/cmd_approve.rs and the message test changed to --said-by; the approve tests (23), fmt, clippy and the full suite pass.
 
 ### T-567 · reject: an LLM runs it with --said-by
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-567
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-563
 - why: The person's yes is given in the session; the LLM must be able to carry it out.
@@ -12074,8 +12074,12 @@
   5. Run cargo test --test cmd_reject.
 - accept: reject --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
 - verify: cargo test --test cmd_reject
+- verified: 2026-11-26
+- commit: 42e0b90
 - reqs: R-SAID-1 to R-SAID-4, TEST-14
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-567): done — reject takes --said-by: an LLM with its person's --said-by runs it without a terminal or a question, and the entry and journal name the person and the LLM; without --said-by, for another person, or in a worker session an LLM is refused. Four new tests and one changed in tests/cmd_reject.rs (12 pass); fmt, clippy and the full test suite pass.
 
 ### T-568 · accept: an LLM runs it with --said-by
 - status: open
