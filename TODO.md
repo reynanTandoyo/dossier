@@ -11856,8 +11856,8 @@
 - note (2026-11-26, haiku-T-556): done — The block in AGENTS.md and the skill now hold only the seven common rules (help agents prints them, at most 8 lines); worker and planner rules come from help worker and help planner, with tests on the line limits (8, and 15 with the worker text).
 
 ### T-557 · agents install renews the skill too, and agents check covers it
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-557
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-550
 - why: Bringing a project from version 1.2 to the new rules must be one command.
@@ -11874,8 +11874,12 @@
   6. Update the module comment of src/cmd/agents.rs. Run cargo test --lib agents::, cargo test --test cmd_agents and cargo test --test cmd_skill.
 - accept: agents install --yes renews the block and an existing skill file, and agents check fails when either is out of date.
 - verify: cargo test --lib agents:: && cargo test --test cmd_agents && cargo test --test cmd_skill
+- verified: 2026-11-26
+- commit: 0d04e46
 - reqs: R-AGENT-2, R-AGENT-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-557): done — agents install --yes also rewrites .claude/skills/dossier/SKILL.md when it exists and is out of date (journaled as SKILL), and agents check fails when that skill file is out of date.
 
 ### T-558 · brief: one line in a worker session, and --full
 - status: done
