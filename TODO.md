@@ -12263,8 +12263,8 @@
 - note (2026-11-26, haiku-T-574): done — restore takes --said-by <person>: an LLM with its person's --said-by restores the snapshot without a terminal or a question (gate names::said_by_gate); a person still confirms with yes; an LLM without it, for another person, or in a worker session changes nothing. Four new tests in tests/cmd_restore.rs and the one old LLM test now expects --said-by anna; cargo test --test cmd_restore, fmt, clippy and the full suite pass.
 
 ### T-575 · reopen: an LLM runs it with --said-by
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-575
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-563
 - why: The person's yes is given in the session; the LLM must be able to carry it out.
@@ -12281,8 +12281,12 @@
   6. Run cargo test --test cmd_reopen.
 - accept: reopen --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
 - verify: cargo test --test cmd_reopen
+- verified: 2026-11-26
+- commit: 7eb0888
 - reqs: R-SAID-1 to R-SAID-4, TEST-14
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-575): done — reopen takes --said-by: an LLM reopens a retired entry for its person with --said-by (D57, names::said_by_gate); without it or for another person it is refused, and a worker session is refused; approved or rejected entries are unchanged; five tests in tests/cmd_reopen.rs, all checks pass.
 
 ### T-576 · reviewed: an LLM runs it with --said-by
 - status: open
