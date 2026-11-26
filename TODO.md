@@ -11754,8 +11754,8 @@
 - note (2026-11-26, planner): done — The design fixes the three rules texts, the role of a session, and the outputs of help, agents, brief and after.
 
 ### T-553 · role.rs: whether a session is a worker's
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-553
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-550
 - why: Two commands must agree on what makes a session a worker's, and a worker must be able to run the tests.
@@ -11771,8 +11771,12 @@
   5. Run cargo test --lib role:: and cargo build --all-targets.
 - accept: role::of and role::current exist with tests, and every command a test prepares runs without DOSSIER_ROLE.
 - verify: cargo test --lib role:: && cargo build --all-targets
+- verified: 2026-11-26
+- commit: 50b7ebe
 - reqs: R-AGENT-6, TEST-13
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-553): done — src/role.rs now tells whether a session is a worker's from DOSSIER_ROLE=worker, and the test helper removes that variable so tests are never a worker's.
 
 ### T-554 · agents: the worker's text and the planner's text
 - status: open
