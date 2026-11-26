@@ -176,3 +176,40 @@ fn a_todo_that_refuses_makes_handover_fail_and_writes_no_journal_line() {
     );
     assert!(handover_journal(&project).is_empty());
 }
+
+#[test]
+fn a_dry_run_calls_no_todo_command_and_writes_no_journal_line() {
+    let project = Project::new();
+    todo_stand_in(&project, OK_ANSWER, 0);
+    let before = project.entry_journal().len();
+
+    project
+        .run("anna", &["handover", TASK, "--note", NOTE, "--dry-run"])
+        .success()
+        .stdout(contains(format!("{TASK} handed over: handover — {NOTE}")))
+        .stderr(contains(format!(
+            "warning: dry run: would note \"handover — {NOTE}\" on {TASK} and release it in todo"
+        )));
+
+    assert!(todo_calls(&project).is_empty(), "todo was not called");
+    assert_eq!(project.entry_journal().len(), before);
+    assert!(handover_journal(&project).is_empty());
+}
+
+#[test]
+fn a_dry_run_with_a_taken_file_is_still_refused() {
+    let project = Project::new();
+    todo_stand_in(&project, OK_ANSWER, 0);
+    project.write(PATH, "invented simulation data\n");
+    project.stdout("anna", &["take", PATH, "--task", TASK]);
+
+    project
+        .run("anna", &["handover", TASK, "--note", NOTE, "--dry-run"])
+        .code(1)
+        .stderr(contains(format!(
+            "{TASK}: return the files you took first:"
+        )));
+
+    assert!(todo_calls(&project).is_empty(), "todo was not called");
+    assert!(handover_journal(&project).is_empty());
+}
