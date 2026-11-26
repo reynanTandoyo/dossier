@@ -1628,3 +1628,35 @@ none, so nothing is printed.
 
 **Tests.** `Project::command` in `tests/common/mod.rs` removes `DOSSIER_ROLE`, as it removes
 `TODO_AGENT`; a test of a worker session sets it on the prepared command.
+
+## 24. Carrying out a person's decision (R-SAID-1 to R-SAID-5, D57)
+
+```rust
+// names.rs
+/// The gate of a command that carries out a person's decision (R-SAID-1, R-SAID-4).
+/// Ok(false): a person runs the command. Ok(true): an LLM runs it for its person.
+/// `said_by` is trimmed; empty counts as none. `command` is the name used in the messages.
+pub fn said_by_gate(who: &Who, said_by: Option<&str>, command: &str) -> Result<bool>;
+```
+
+The cases of `said_by_gate`, in this order:
+
+1. `who` is a person: with no `said_by`, or one that equals `who.person` ignoring case,
+   Ok(false). With another name: Code::Usage, `--said-by is for an LLM; <who.name> is a person`.
+2. `who` is an LLM and `role::current()` is Worker: Code::Refused,
+   `a worker decides nothing: say it in your todo note`.
+3. `who` is an LLM with no `said_by`: Code::NeedsPerson,
+   `<command> carries out a person's decision: ask your person, and with their yes run it again with --said-by <who.person>`.
+4. `who` is an LLM and `said_by` does not equal `who.person` ignoring case: Code::NeedsPerson,
+   `<who.name> acts for <who.person> only; --said-by names <said_by>`.
+5. Otherwise Ok(true).
+
+Every command of R-SAID-1 gains `pub said_by: Option<String>` (`--said-by <PERSON>`, help text
+`The person who decided this; needed when an LLM runs the command (D57)`) and replaces its own
+check `if who.is_llm { … Code::NeedsPerson … }` by `let said = names::said_by_gate(&who,
+args.said_by.as_deref(), "<command>")?;`. Where the command then refuses a run without a terminal,
+it does so only when `said` is false. Where it asks a question (`term::ask`), it asks only when
+`said` is false; with `said` true it goes on as after the agreeing answer (R-SAID-2) and shows
+nothing first. Nothing else changes: `who` stays the LLM's name, so the field written is
+`… by <who.person>` and the history line and the journal are `<person> via <llm>` (R-SAID-3), as
+`names::label` and `tx` already write them.

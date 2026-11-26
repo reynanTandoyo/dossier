@@ -101,7 +101,7 @@ an LLM starts with the right context.
 | D3 | Two places: a project dossier in each project folder, and one team dossier. Reusable knowledge is written to the team dossier; the project dossier keeps what is specific to the customer. | Knowledge locked in one project folder is lost to the next project. Customer data must not spread. |
 | D4 | Seven kinds of entry: decision, assumption, finding, lesson, how-to, script, usage record. | They differ in who approves them, what they must contain and how long they stay true. |
 | D5 | An entry is either **approved** or a **draft**. What a person states is approved at once; what an LLM concludes on its own is a draft until a person approves it. Only approved entries are shown as knowledge. | A wrong engineering rule costs more than a missing one. |
-| D6 | Approving needs a person at a terminal. An LLM can't approve. | Otherwise D5 means nothing. |
+| D6 | Approving needs a person at a terminal. An LLM can't approve. *(Replaced by D57 on 2026-11-26: an LLM carries out its person's decision with `--said-by`.)* | Otherwise D5 means nothing. |
 | D7 | `dossier` never calls a model, just like `todo`: the model calls the tool. Drafts are written by the LLM that is already in the session, using material and rules that `dossier` prints. | No network code, no keys, no cost outside the session, and it works with every LLM. |
 | D8 | The team dossier holds no customer data. Projects appear there only under a project code. Each project lists its confidential terms, and writing to the team dossier is refused while a term appears in the text. | The team works for several customers under confidentiality agreements. |
 | D9 | One copy of each dossier, on the Linux machine, changed only by commands that run on that machine. PCs reach it through ssh (remote mode). | The lock works only between programs on the same machine, and one copy needs no syncing. |
@@ -152,6 +152,7 @@ an LLM starts with the right context.
 | D54 | A task is handed over with `handover <task> --note`, which gives it back in todo with a note of what is done and what is next, once the writer has returned every file taken for it. Anyone in the team takes over a task at any time with `takeover <task>`; it is recorded who took over from whom, and the files the previous holder has not returned are named. An LLM may hand over its own task, and takes over only with `--said-by <person>`. The handover note is a todo note on the task. (Owner, 2026-11-26.) | A colleague who changes team or falls ill must not leave a task locked or its progress lost. The task belongs to todo (D38), so the note is a todo note; a small team trusts each other, so a takeover is recorded rather than restricted. |
 | D55 | The rules for LLMs are split by role, as in `todo`. A common block of at most 8 lines is what every agent reads: `agents install` writes it into `AGENTS.md`, `help agents` prints it and the skill holds it. `help worker` (at most 7 lines) holds the rules of a worker: it writes nothing to the dossier and reports what it learned in its `todo` note. `help planner` holds every other rule. A test fails when the common block or the worker text grows past its limit. Claude Code hooks stay an extra, and there is no MCP server. Replaces D14. (Owner, 2026-11-26.) | Weak worker models follow long rules badly. The single rules text had 38 lines, about 1,070 tokens, and most of it is the planner's business, so it could not be installed in a project that cheap workers work in. |
 | D56 | A session is a worker's when the environment variable `DOSSIER_ROLE` is `worker`; whoever starts the worker sets it. Any other value, or none, is a planner's session and behaves as before. In a worker session `brief` without `--task` prints one line in place of the project brief (`--full` prints the brief), and the hook after `todo` commands prints the entries for a claimed task but nothing after `todo done` and `todo stuck`. The planner runs `review-task` for a task a worker finished and records what its note says. (Owner, 2026-11-26.) | The brief at session start costs about 1,500 tokens that a worker with a complete work order does not need; after `todo claim` the hook already gives it the entries for its own task. An environment variable works with every agent program and needs no change to the installed hooks. |
+| D57 | A person decides what is approved, rejected, accepted, declined, confirmed, refuted, retired, removed, restored, reopened, cleared and reviewed, and which confidential term is removed. The person need not type the command: an LLM carries the decision out with `--said-by <its person>` after that person's yes in the session, without a terminal and without the question the command asks a person; the entry and the journal name both. Without `--said-by` an LLM is refused as before, and in a worker session always. Replaces D6. (Owner, 2026-11-26.) | The owner works through an LLM and does not want to type commands at a terminal; the same was decided for recording decisions (`decide --said-by`), topics (D52) and takeover (D54). The check that D5 needs is the person's yes in the session, and the journal records who said it and which LLM ran the command. |
 
 ---
 
@@ -370,7 +371,8 @@ Every write command needs a name (D13) and prints one line such as `DEC-012: add
 - **R-DRAFT-4 MUST** `approve <ID>…` approves drafts. It runs only on a terminal, shows each
   draft in full, and asks for confirmation one by one (approve, edit first, reject, skip). It
   refuses when standard input is not a terminal, and it refuses a name that the team settings
-  list as an LLM.
+  list as an LLM. An LLM approves with `--said-by` (R-SAID-1, R-SAID-2): each draft named is
+  approved without a question, and a draft that is missing something is skipped as before.
 - **R-DRAFT-5 MUST** `reject <ID> [--reason "…"]` sets a draft to `rejected`. Rejected entries
   are hidden everywhere except `list --status rejected`, and are kept so that the same proposal
   can be recognised (R-WRITE-11 includes them, marked as rejected).
@@ -391,6 +393,34 @@ Every write command needs a name (D13) and prints one line such as `DEC-012: add
 - **R-DRAFT-9 COULD** `hooks install` adds a Claude Code hook that, when a session ends, runs a
   configured agent command (D7: the command is the team's own, `dossier` only starts it) on the
   output of `review-session`, so that drafts are waiting the next morning.
+
+### 5.5a Carrying out a person's decision — SAID
+
+Some commands carry out what only a person may decide (D5, D57). The person need not type them.
+
+- **R-SAID-1 MUST** These commands take `--said-by <person>`: `approve`, `reject`, `accept`,
+  `decline`, `confirm`, `refute`, `retire`, `remove`, `restore`, `reopen` (of a retired entry),
+  `cleared`, `reviewed`, and `confidential remove` and `confidential none`. A person runs them as
+  before. An LLM without `--said-by` is refused (exit code 1) with a message that tells it to
+  ask its person and to run the command again with `--said-by <person>`. An LLM with `--said-by`
+  naming its own person (D34; case ignored) runs the command for that person. Any other name is
+  refused: an LLM acts for its own person only.
+- **R-SAID-2 MUST** A command run with `--said-by` by an LLM needs no terminal and asks nothing:
+  the person's yes was given in the session. `approve` approves each draft named, `accept` and
+  `restore` proceed as after the answer `yes`, and `remove` (still with `--yes`) proceeds as
+  after the ID was typed. Every other check of the command stays, with the person as the one
+  who decides: `accept`, for example, still needs a person who is in `deciders`.
+- **R-SAID-3 MUST** The entry names the person (`approved: … by <person>`), and its history line
+  and the journal name the person and the LLM (`<person> via <llm>`), so that it can always be
+  seen who said yes and which LLM ran the command (D29).
+- **R-SAID-4 MUST** In a worker session (R-AGENT-6) an LLM is refused also with `--said-by`: a
+  worker decides nothing.
+- **R-SAID-5 MUST** The planner's rules (R-AGENT-1) say: a person decides these things; show
+  your person the entry and ask; with their yes in this session, run the command with
+  `--said-by <person>`; never without it.
+
+Not covered in version 1.3.1, and still a person's at a terminal: `close`, which asks about each
+finding, and the warnings that `delivered` and `promote` ask a person to confirm.
 
 ### 5.6 Life of an entry — LIFE
 
@@ -1105,8 +1135,9 @@ depend on which of the two a command was typed on.
     suggest a decision with `propose` when your person is not the one who decides; attach the
     files a task reads and produces with `attach`; look for an existing tool before writing a
     script; give every entry its topic and, where it is about code, a pointer (R-TOPIC-2,
-    R-CODE-7); use `search` before proposing something new; never approve, reject, confirm or
-    accept; never write a confidential term to the team dossier, or a credential anywhere; what
+    R-CODE-7); use `search` before proposing something new; approve, reject, confirm, accept
+    and the like only with the person's yes and `--said-by` (R-SAID-5), never on its own; never
+    write a confidential term to the team dossier, or a credential anywhere; what
     exit codes 1 and 3 mean. From version 1.3 it also says: start a worker with
     `DOSSIER_ROLE=worker` (R-AGENT-6); a worker writes nothing to the dossier, so when a worker's
     task is done or given back, run `review-task`, read its `todo` note and record what it shows.
@@ -1359,6 +1390,10 @@ On a PC, in a connected folder: `.dossier-connect`, holding the server and the p
   worker's text at most 7, and together at most 15. The tests of `brief` and of the hook after
   `todo` commands cover a worker session (R-AGENT-6), and every test runs without the
   `DOSSIER_ROLE` of the surrounding shell, so that a worker can run the test suite.
+- **TEST-14 MUST** Each command of R-SAID-1 is tested four ways: an LLM without `--said-by` is
+  refused and the message names `--said-by`; an LLM with `--said-by` naming its person carries
+  the command out without a terminal, and the entry and the journal name both; an LLM naming
+  another person is refused; and in a worker session it is refused.
 
 ---
 
@@ -1570,6 +1605,20 @@ about connection reuse among its first three results, and every search of TEST-1
 `AGENTS.md` and `help worker`) is at most 15 lines, a worker session starts with one line in
 place of the project brief, the planner still gets the full rules and brief, and `agents check`
 passes after one `agents install --yes`.
+
+### Patch release 1.3.1 — An LLM carries out its person's decision
+
+**Goal:** a person who works through an LLM never has to open a terminal to approve, reject,
+accept or the like (D57).
+
+| Area | Requirements |
+|---|---|
+| The commands that take `--said-by` | R-SAID-1 to R-SAID-4, R-DRAFT-4 |
+| The planner's rules | R-SAID-5, R-AGENT-1 |
+| Tests | TEST-14 |
+
+**It worked if:** an LLM approves a draft with `dossier approve <ID> --said-by <person>` after
+its person said yes, and the entry and the journal show who said it and which LLM ran it.
 
 ### Added on 2026-11-22
 
