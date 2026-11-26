@@ -90,8 +90,9 @@ fn install(yes: bool, g: &Global) -> Result<Output> {
 }
 
 /// Appends the journal line of a written rules block: who and when (D29), in the dossier that
-/// `find` finds from the current folder or the --dossier folder. Without a dossier nothing is
-/// written, and that is not an error.
+/// `find` finds from the current folder or the --dossier folder. The writer is resolved against
+/// the settings as the other commands do (D34); when that fails, the name is taken as it is.
+/// Without a dossier nothing is written, and that is not an error.
 fn record_write(g: &Global) -> Result<()> {
     let cwd = std::env::current_dir()?;
     let dossier = match find::find(&cwd, g.dossier.as_deref()) {
@@ -99,7 +100,9 @@ fn record_write(g: &Global) -> Result<()> {
         Err(error) if error.code == Code::NoDossier => return Ok(()),
         Err(error) => return Err(error),
     };
-    let who = names::unchecked(g.agent.as_deref());
+    let who = config::load(&dossier)
+        .and_then(|cfg| names::resolve(&cfg, g.agent.as_deref()))
+        .unwrap_or_else(|_| names::unchecked(g.agent.as_deref()));
     let record = journal::Record {
         time: time::now(),
         name: who.name,

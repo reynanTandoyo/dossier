@@ -239,6 +239,36 @@ fn writing_the_rules_block_in_a_project_adds_one_journal_line_with_who_and_when(
 }
 
 #[test]
+fn an_llm_writing_the_rules_block_is_recorded_as_an_llm_of_its_person() {
+    let project = Project::new();
+    project
+        .run_at("anna - claude", WHEN, &["agents", "install", "--yes"])
+        .success();
+
+    let records = journal_of(&project);
+    let change = records.last().unwrap();
+    assert_eq!(change.id, "AGENTS");
+    assert_eq!(change.name, "anna - claude");
+    assert_eq!(change.person, "anna");
+    assert!(change.llm);
+}
+
+#[test]
+fn a_person_writing_the_rules_block_is_recorded_as_that_person() {
+    let project = Project::new();
+    project
+        .run_at("anna", WHEN, &["agents", "install", "--yes"])
+        .success();
+
+    let records = journal_of(&project);
+    let change = records.last().unwrap();
+    assert_eq!(change.id, "AGENTS");
+    assert_eq!(change.name, "anna");
+    assert_eq!(change.person, "anna");
+    assert!(!change.llm);
+}
+
+#[test]
 fn without_yes_or_with_dry_run_no_journal_line_is_added() {
     let project = Project::new();
     let before = journal_of(&project).len();
