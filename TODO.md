@@ -12339,8 +12339,8 @@
 - note (2026-11-26, haiku-T-577): done — cleared takes --said-by: an LLM runs it for its person (names::said_by_gate, D57); a worker, an LLM without --said-by and an LLM for another person are refused, and the entry and journal name the person and the LLM; four new tests and the old LLM test now expect --said-by; cargo test --test cmd_cleared, fmt, clippy and the full suite pass.
 
 ### T-578 · confidential: an LLM runs it with --said-by
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-578
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-563
 - why: The person's yes is given in the session; the LLM must be able to carry it out.
@@ -12357,8 +12357,12 @@
   6. Run cargo test --test cmd_confidential.
 - accept: confidential --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
 - verify: cargo test --test cmd_confidential
+- verified: 2026-11-26
+- commit: 4e7cf17
 - reqs: R-SAID-1 to R-SAID-4, TEST-14
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-578): done — confidential remove and none now take --said-by <person> (D57): an LLM with its person runs them without a terminal, and a refusal names --said-by; the other cases (another person, a worker session, no --said-by) are refused; five new tests in tests/cmd_confidential.rs, the two old LLM-message expectations now name --said-by anna; verify, fmt, clippy and the full suite pass.
 
 ### T-579 · The planner's rules: ask your person, then run it with --said-by
 - status: open
