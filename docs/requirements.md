@@ -1,6 +1,6 @@
 # dossier — requirements
 
-Draft 13, 2026-11-25 (owner's decisions: D28 to D53). Four points are still open (§12); everything else is decided (§3) until the
+Draft 14, 2026-11-26 (owner's decisions: D28 to D54). Four points are still open (§12); everything else is decided (§3) until the
 owner says otherwise.
 
 Each requirement has a priority, which says how important it is. When it is built is decided
@@ -143,6 +143,7 @@ an LLM starts with the right context.
 | D51 | An LLM is shown the entries in force that bind a file before it changes the file: its first edit of the file in a session is refused once, naming those entries, and its next edit goes through (R-CODE-8). (Owner, 2026-11-25.) | Shown after the edit, a rule comes too late, and the LLM can at best repair its change. A test with Claude Code 2.1.331 on 2026-11-25 showed that the reason of a refused edit reaches the model before the file changes, while text added to an allowed edit only arrives with the edit's result. |
 | D52 | A person decides each topic of a project. An LLM that finds no fitting topic asks its person; with the person's yes it adds the topic itself with `topics add --said-by <person>`, and the journal names both. Replaces the reading of D50 that only a person may run `topics add`. (Owner, 2026-11-25.) | The owner wants an LLM to carry out an agreed topic, as it records an agreed decision with `decide --said-by`; the list stays short because every topic still needs a person's yes. |
 | D53 | Wherever an LLM is given entries (search, brief --task, which --binding and the refusal of guard), each entry's related entries (`link`) are shown under it: one level deep, titles only, at most three, only entries with status approved. (Owner, 2026-11-25.) | A link is the most precise relation in the dossier because someone made it on purpose; one level, titles and three at most keep the output short, and an old link must not feed a replaced rule. |
+| D54 | A task is handed over with `handover <task> --note`, which gives it back in todo with a note of what is done and what is next, once the writer has returned every file taken for it. Anyone in the team takes over a task at any time with `takeover <task>`; it is recorded who took over from whom, and the files the previous holder has not returned are named. An LLM may hand over its own task, and takes over only with `--said-by <person>`. The handover note is a todo note on the task. (Owner, 2026-11-26.) | A colleague who changes team or falls ill must not leave a task locked or its progress lost. The task belongs to todo (D38), so the note is a todo note; a small team trusts each other, so a takeover is recorded rather than restricted. |
 
 ---
 
@@ -875,6 +876,32 @@ it belongs to, from one short list per project (D50).
   R-FIND-2.
 - **R-TOPIC-5 MUST** `brief` prints one line with the topics and the number of decisions in force of
   each, and each decision line names its topics.
+
+### 5.11j Handover and takeover — HAND
+
+A task is held in todo by the person or LLM that claimed it. These two commands move it to
+someone else without losing what was done (D54).
+
+- **R-HAND-1 MUST** `handover <task> --note "<text>"` is refused (Code::Refused) while the writer
+  holds files taken for the task, naming each file and the commands `dossier return <file> --done`
+  and `--abandon`. Otherwise it adds to the task in todo the note `handover — <text>`, gives the
+  task back in todo (`todo release`), and writes a journal line with the event `handover` and the
+  text as detail.
+- **R-HAND-2 MUST** `takeover <task>` claims the task in todo for the writer, with `--force` when
+  someone else holds it, adds the note `takeover — <writer> took over from <previous holder>`
+  (`from nobody` when the task was open; ` (said by <person>)` at its end when given), and writes
+  a journal line with the event `takeover`. For every file taken for the task by another person it
+  prints `<path>: taken by <person> on <time> and not returned; changes on their PC are not on the
+  server`, then once `take them with: dossier take <paths> --task <task> --force`. Last it prints
+  what `brief --task <task>` prints. It never copies a file itself.
+- **R-HAND-3 MUST** An LLM runs `takeover` only with `--said-by <person>`, resolved as `decide`
+  resolves it; without it Code::NeedsPerson. `handover` needs no person.
+- **R-HAND-4 MUST** `brief --task` prints, directly after its first line, the last note of the task
+  in todo that starts with `handover —` or `takeover —`, as
+  `Last handover: <text after the dash> (<agent of the note>, <date of the note>)`.
+- **R-HAND-5 MUST** The name given to todo is the value of TODO_AGENT when it is set, otherwise the
+  writer's name. When todo refuses or fails, the command fails with todo's message and writes no
+  journal line.
 
 ### 5.12 Remote mode — REMOTE
 

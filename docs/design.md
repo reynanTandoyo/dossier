@@ -1544,3 +1544,12 @@ pub fn line(item: &Item) -> String;
 | `search` | `<words…>` | under each result the linked lines (`links::linked`, `links::line`), at most three; `--json` gives each result `"linked": [{"id", "title"}]`, an empty list when none |
 | `brief --task` | `--task <id>` | under each entry line the linked lines; a linked entry that the brief already lists as a line of its own is not repeated; the linked lines count against the brief's line limit (R-CTX-1) |
 | `which --binding` | `<path> [--session <id>]` | under each entry the linked lines; JSON: each entry gets `"linked": [{"id", "title"}]`; guard's refusal therefore shows them too |
+
+## 22. Handover and takeover (R-HAND-1 to R-HAND-5, D54)
+
+| Command | Arguments | Result |
+|---|---|---|
+| `handover` | `<task> --note <text>` | `handover <task> --note "<text>"` is refused (Code::Refused) while the writer holds files taken for the task, naming each file and the commands `dossier return <file> --done` and `--abandon`. Otherwise it adds to the task in todo the note `handover — <text>`, gives the task back in todo (`todo release`), and writes a journal line with the event `handover` and the text as detail. |
+| `takeover` | `<task> [--said-by <person>]` | `takeover <task>` claims the task in todo for the writer, with `--force` when someone else holds it, adds the note `takeover — <writer> took over from <previous holder>` (`from nobody` when the task was open; ` (said by <person>)` at its end when given), and writes a journal line with the event `takeover`. For every file taken for the task by another person it prints `<path>: taken by <person> on <time> and not returned; changes on their PC are not on the server`, then once `take them with: dossier take <paths> --task <task> --force`. Last it prints what `brief --task <task>` prints. It never copies a file itself. |
+
+Both are writing commands (WRITING in src/ctx.rs) and run on the server in remote mode; takeover never copies files (R-FILE-4), it prints the take command for them.
