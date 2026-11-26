@@ -61,6 +61,8 @@ const INVESTIGATIONS_LINES: usize = 14;
 const INVESTIGATIONS_LIMIT: usize = 5;
 /// The section of an investigation that holds its solution (format.md §28).
 const SOLUTION: &str = "Solution";
+/// The start of a todo note that hands a task over or takes it over (R-HAND-4).
+const HANDOVER_NOTES: [&str; 2] = ["handover —", "takeover —"];
 
 /// What `brief --task` chose for one task: the lines it prints, and the entries those lines name,
 /// each with the reason it was chosen (R-CTX-6).
@@ -137,6 +139,8 @@ pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection> {
 
     let (term_rows, terms) = terms_lines(ctx, &about);
     let mut out = vec![task_line(task, &about.title)];
+    // The last handover note goes directly after the first line (R-HAND-4).
+    out.extend(handover_line(&data));
     // The entries named by a summary line, each with its reason, in the order of `out`.
     let mut chosen: Vec<(String, &'static str)> = Vec::new();
     // The project entry lines, in the order of `out`, each with where its linked lines go.
@@ -944,16 +948,40 @@ fn task_texts(data: &Value, title: &str) -> Vec<String> {
     if let Some(Value::Object(fields)) = data.get("fields") {
         texts.extend(fields.values().flat_map(text_values));
     }
-    let notes = [data.get("notes"), inner(data, "notes")]
+    texts.extend(notes_of(data).into_iter().flat_map(note_texts));
+    texts
+}
+
+/// The notes of the task: the list under `notes` at the top of the data or under `fields`, or one
+/// note when that is not a list. Empty when there are none.
+fn notes_of(data: &Value) -> Vec<&Value> {
+    match [data.get("notes"), inner(data, "notes")]
         .into_iter()
         .flatten()
-        .find(|notes| !notes.is_null());
-    match notes {
-        Some(Value::Array(items)) => texts.extend(items.iter().flat_map(note_texts)),
-        Some(note) => texts.extend(note_texts(note)),
-        None => {}
+        .find(|notes| !notes.is_null())
+    {
+        Some(Value::Array(items)) => items.iter().collect(),
+        Some(note) => vec![note],
+        None => Vec::new(),
     }
-    texts
+}
+
+/// The handover line (R-HAND-4): the last note whose text starts with `handover —` or `takeover —`,
+/// as `Last handover: <text after the dash> (<agent of the note>, <date of the note>)`. None when
+/// there is no such note.
+fn handover_line(data: &Value) -> Option<String> {
+    notes_of(data).into_iter().rev().find_map(|note| {
+        let text = note.get("text").and_then(Value::as_str)?;
+        let rest = HANDOVER_NOTES
+            .iter()
+            .find_map(|start| text.strip_prefix(start))?;
+        Some(format!(
+            "Last handover: {} ({}, {})",
+            rest.trim(),
+            first_text([note.get("agent")]),
+            first_text([note.get("date")]),
+        ))
+    })
 }
 
 /// The text of one note: the `text` of a note that is an object, else the note itself.

@@ -3378,3 +3378,55 @@ fn a_linked_entry_that_is_superseded_is_not_shown_under_the_decision() {
     assert!(!text.contains("linked: DEC-001"), "{text}");
     assert!(!text.contains("Early plan"), "{text}");
 }
+
+/// Writes the stand-in for todo of `project`, which shows the task T-132 with the notes `notes`.
+fn stand_in_with_notes(project: &Project, notes: serde_json::Value) {
+    let envelope = serde_json::json!({
+        "schema": "todo.show.v1",
+        "ok": true,
+        "data": {"id": "T-132", "title": "Speedline check", "status": "open", "notes": notes},
+        "warnings": []
+    })
+    .to_string();
+    project.write_stand_in(
+        "todo",
+        &format!("@echo off\r\necho {envelope}\r\n"),
+        &format!("#!/bin/sh\nprintf '%s\\n' '{envelope}'\n"),
+    );
+}
+
+#[test]
+fn brief_task_prints_the_last_handover_note_directly_after_its_first_line() {
+    let project = Project::new();
+    stand_in_with_notes(
+        &project,
+        serde_json::json!([
+            {"date": "2026-11-19", "agent": "planner", "text": "added"},
+            {"date": "2026-11-20", "agent": "anna", "text": "handover — Done: mesh; next: run 3"},
+            {"date": "2026-11-21", "agent": "ben", "text": "takeover — ben took over from anna"}
+        ]),
+    );
+
+    let text = brief(&project, &["--task", "T-132"], None);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(
+        lines.first(),
+        Some(&"Task T-132 · Speedline check"),
+        "{text}"
+    );
+    assert_eq!(
+        lines.get(1),
+        Some(&"Last handover: ben took over from anna (ben, 2026-11-21)"),
+        "{text}"
+    );
+
+    stand_in_with_notes(
+        &project,
+        serde_json::json!([{"date": "2026-11-19", "agent": "planner", "text": "added"}]),
+    );
+    let text = brief(&project, &["--task", "T-132"], None);
+    assert!(
+        !text.lines().any(|line| line.starts_with("Last handover:")),
+        "{text}"
+    );
+}
