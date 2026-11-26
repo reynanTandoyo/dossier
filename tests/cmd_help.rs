@@ -48,6 +48,56 @@ fn help_of_a_command_without_examples_prints_only_its_description() {
 }
 
 #[test]
+fn help_takeover_prints_the_description_and_three_example_lines() {
+    let folder = tempfile::tempdir().unwrap();
+    let output = help(folder.path(), &["takeover"])
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let text = String::from_utf8(output).expect("the standard output is UTF-8");
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 6, "{text}");
+    assert_eq!(
+        lines[0],
+        "takeover: Takes over a task, also one a colleague holds, and shows its progress"
+    );
+    assert_eq!(lines[1], "Examples (PowerShell):");
+    assert_eq!(lines[4], "Example (Linux shell):");
+    for example in [lines[2], lines[3], lines[5]] {
+        assert!(
+            example.trim_start().starts_with("dossier takeover"),
+            "{example}"
+        );
+    }
+}
+
+#[test]
+fn help_handover_prints_the_description_and_three_example_lines() {
+    let folder = tempfile::tempdir().unwrap();
+    let output = help(folder.path(), &["handover"])
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let text = String::from_utf8(output).expect("the standard output is UTF-8");
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(lines.len(), 6, "{text}");
+    assert_eq!(
+        lines[0],
+        "handover: Gives your task back in todo with a note of what is done and what is next"
+    );
+    assert_eq!(lines[1], "Examples (PowerShell):");
+    assert_eq!(lines[4], "Example (Linux shell):");
+    for example in [lines[2], lines[3], lines[5]] {
+        assert!(
+            example.trim_start().starts_with("dossier handover"),
+            "{example}"
+        );
+    }
+}
+
+#[test]
 fn help_as_json_gives_the_command_description_and_its_three_examples() {
     let folder = tempfile::tempdir().unwrap();
     let output = help(folder.path(), &["decide", "--json"])

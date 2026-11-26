@@ -407,6 +407,16 @@ pub fn of(command: &str) -> Option<[&'static str; 3]> {
             "dossier return results\\speedline.csv --done",
             "dossier return results/speedline.csv --abandon",
         ],
+        "handover" => [
+            "dossier handover T-042 --note 'Speedline runs 12 to 16 are done; the tip mesh is next.'",
+            "dossier handover T-042 --note 'Transient run 21 stopped at iteration 40; the log is in results.'",
+            "dossier handover T-043 --note 'Waiting for the rig data; nothing else is open.'",
+        ],
+        "takeover" => [
+            "dossier takeover T-042",
+            "dossier takeover T-042 --said-by 'anna'",
+            "dossier takeover T-043 --said-by ben",
+        ],
         "review-session" => [
             "dossier review-session notes\\session-2026-11-20.md",
             "dossier review-session C:\\Temp\\transcript.jsonl --claude --limit 12000",

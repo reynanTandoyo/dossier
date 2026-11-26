@@ -18,7 +18,7 @@ pub struct Args {
 
 /// Every command of all phases of docs/design.md, in the order of the help overview, each with a
 /// description of at most five words.
-pub const COMMANDS: [(&str, &str); 89] = [
+pub const COMMANDS: [(&str, &str); 91] = [
     ("init", "Creates the dossier folder here"),
     ("where", "Shows folders and project code"),
     ("people", "Adds or extends a person"),
@@ -101,6 +101,14 @@ pub const COMMANDS: [(&str, &str); 89] = [
     ("gave-up", "Closes an investigation unsolved"),
     ("take", "Records who took a file"),
     ("return", "Checks or ends a take"),
+    (
+        "handover",
+        "Gives your task back in todo with a note of what is done and what is next",
+    ),
+    (
+        "takeover",
+        "Takes over a task, also one a colleague holds, and shows its progress",
+    ),
     ("review-session", "Material from a session file"),
     ("session", "Converts a transcript"),
     ("session-end", "Starts the session review"),

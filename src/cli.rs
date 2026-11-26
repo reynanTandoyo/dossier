@@ -127,6 +127,8 @@ pub enum Command {
     GaveUp(cmd::gave_up::Args),
     Take(cmd::take::Args),
     Return(cmd::return_cmd::Args),
+    Handover(cmd::handover::Args),
+    Takeover(cmd::takeover::Args),
     ReviewSession(cmd::review_session::Args),
     Session(cmd::session::Args),
     SessionEnd(cmd::session_end::Args),
@@ -294,6 +296,8 @@ pub fn main_exit() -> u8 {
         Command::GaveUp(a) => ("gave-up", gated(&check, || cmd::gave_up::run(a, g))),
         Command::Take(a) => ("take", gated(&check, || cmd::take::run(a, g))),
         Command::Return(a) => ("return", gated(&check, || cmd::return_cmd::run(a, g))),
+        Command::Handover(a) => ("handover", gated(&check, || cmd::handover::run(a, g))),
+        Command::Takeover(a) => ("takeover", gated(&check, || cmd::takeover::run(a, g))),
         Command::ReviewSession(a) => (
             "review-session",
             gated(&check, || cmd::review_session::run(a, g)),
