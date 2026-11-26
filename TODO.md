@@ -11874,8 +11874,8 @@
 - note (2026-11-26, planner): added
 
 ### T-558 · brief: one line in a worker session, and --full
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-558
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-550
 - why: The brief at session start costs a worker about 1,500 tokens it does not need.
@@ -11891,8 +11891,12 @@
   5. Update the module comment of brief.rs with one sentence on the worker session. Run cargo test --test cmd_brief.
 - accept: With DOSSIER_ROLE=worker, brief without --task prints one line; --full, --on and --task are as in a planner's session.
 - verify: cargo test --test cmd_brief
+- verified: 2026-11-26
+- commit: a0302c6
 - reqs: R-AGENT-6, R-AGENT-3, R-CTX-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-558): done — brief in a worker session (DOSSIER_ROLE=worker) prints one line instead of the project brief; --full prints the brief, and --task and --on are unchanged
 
 ### T-559 · after: nothing after todo done and todo stuck in a worker session
 - status: open
