@@ -1,6 +1,6 @@
 //! The rules block that `dossier agents install` keeps in AGENTS.md.
 
-/// The rules text (agents/rules.md).
+/// The common rules (agents/rules.md, R-AGENT-1): the block in AGENTS.md and the skill hold them.
 pub const RULES: &str = include_str!("rules.md");
 
 /// The worker's text (agents/worker.md).
@@ -117,7 +117,8 @@ pub fn current(existing: &str, code_project: bool) -> bool {
         .contains(&block_body(code_project))
 }
 
-/// The Claude Code skill: a front matter (name: dossier, description: one line) and RULES.
+/// The Claude Code skill: a front matter (name: dossier, description: one line) and the common
+/// rules (RULES).
 pub fn skill() -> String {
     format!(
         "---\nname: dossier\ndescription: Record and read the project's decisions, assumptions, findings and lessons with the dossier command.\n---\n\n{}\n",
@@ -210,8 +211,8 @@ fn ends_with_blank_line(text: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::{
-        BEGIN, END, NOT_IN_CODE_PROJECTS, RULES, WORKER, WORKER_MAX_LINES, block, current,
-        installed, lines_of, planner_for, skill, worker,
+        BEGIN, END, NOT_IN_CODE_PROJECTS, RULES, RULES_MAX_LINES, WORKER, WORKER_MAX_LINES, block,
+        current, installed, lines_of, planner_for, skill, worker,
     };
 
     /// The text with every LF turned into CRLF.
@@ -233,13 +234,49 @@ mod tests {
     }
 
     #[test]
-    fn in_a_code_project_the_block_leaves_out_runs_and_confidential_terms() {
-        let code_project = installed("", true);
-        assert!(!code_project.contains("dossier used"));
-        assert!(!code_project.contains("confidential"));
-        let normal = installed("", false);
-        assert!(normal.contains("dossier used"));
-        assert!(normal.contains("confidential"));
+    fn the_block_is_the_same_in_a_code_project() {
+        assert_eq!(installed("", true), installed("", false));
+    }
+
+    #[test]
+    fn a_block_of_version_1_2_is_not_current_and_is_replaced_by_the_common_rules_once() {
+        let old = format!(
+            "{BEGIN}\n# Working with the dossier\n\n- Start a session with `dossier brief`.\n{END}\n"
+        );
+        assert!(!current(&old, false));
+        let new = installed(&old, false);
+        assert!(current(&new, false));
+        assert_eq!(new.matches("# Working with the dossier").count(), 1);
+        assert!(
+            !new.lines()
+                .any(|line| line.starts_with("- Start a session"))
+        );
+    }
+
+    #[test]
+    fn the_common_rules_have_at_most_the_rules_line_limit() {
+        let lines = lines_of(RULES);
+        assert!(
+            lines <= RULES_MAX_LINES,
+            "the common rules have {lines} lines; the limit is {RULES_MAX_LINES}"
+        );
+    }
+
+    #[test]
+    fn the_common_rules_and_the_worker_text_have_at_most_fifteen_lines_together() {
+        let lines = lines_of(RULES) + lines_of(WORKER);
+        assert!(
+            lines <= 15,
+            "the common rules and the worker's text have {lines} lines together; the limit is 15"
+        );
+    }
+
+    #[test]
+    fn the_common_rules_end_with_the_lines_that_name_help_worker_and_help_planner() {
+        let lines: Vec<&str> = RULES.trim_end().lines().collect();
+        let last_two = &lines[lines.len() - 2..];
+        assert!(last_two[0].contains("`dossier help worker`"));
+        assert!(last_two[1].contains("`dossier help planner`"));
     }
 
     #[test]

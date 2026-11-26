@@ -52,27 +52,43 @@ fn help_agents_prints_the_heading_of_the_rules() {
 }
 
 #[test]
-fn help_agents_tells_the_llm_to_give_a_topic_and_a_code_pointer() {
+fn help_agents_prints_at_most_eight_lines() {
     let folder = tempfile::tempdir().unwrap();
-    dossier(folder.path(), &["help", "agents"])
+    let output = dossier(folder.path(), &["help", "agents"])
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let text = String::from_utf8(output).expect("the standard output is UTF-8");
+    assert!(
+        text.lines().count() <= 8,
+        "help agents prints {} lines; the limit is 8",
+        text.lines().count()
+    );
+}
+
+#[test]
+fn help_planner_tells_the_llm_to_give_a_topic_and_a_code_pointer() {
+    let folder = tempfile::tempdir().unwrap();
+    dossier(folder.path(), &["help", "planner"])
         .success()
         .stdout(contains("`--topic`"))
         .stdout(contains("`--code`"));
 }
 
 #[test]
-fn help_agents_tells_the_llm_to_add_an_agreed_topic_with_said_by() {
+fn help_planner_tells_the_llm_to_add_an_agreed_topic_with_said_by() {
     let folder = tempfile::tempdir().unwrap();
-    dossier(folder.path(), &["help", "agents"])
+    dossier(folder.path(), &["help", "planner"])
         .success()
         .stdout(contains("topics add"))
         .stdout(contains("--said-by"));
 }
 
 #[test]
-fn help_agents_tells_the_llm_to_hand_over_and_to_take_over_with_said_by() {
+fn help_planner_tells_the_llm_to_hand_over_and_to_take_over_with_said_by() {
     let folder = tempfile::tempdir().unwrap();
-    dossier(folder.path(), &["help", "agents"])
+    dossier(folder.path(), &["help", "planner"])
         .success()
         .stdout(contains("dossier handover"))
         .stdout(contains("dossier takeover"))
@@ -246,24 +262,16 @@ fn a_code_project_block_leaves_out_runs_and_confidential_terms_and_check_is_curr
 }
 
 #[test]
-fn a_normal_project_block_has_runs_and_confidential_terms() {
+fn the_block_holds_the_common_rules_only() {
     let project = Project::new();
     project
         .run("anna", &["agents", "install", "--yes"])
         .success();
     let text = project.read("AGENTS.md");
-    assert!(text.contains("dossier used"));
-    assert!(text.contains("confidential"));
-}
-
-#[test]
-fn help_agents_shows_runs_and_confidential_terms_in_a_code_project() {
-    let project = code_project();
-    project
-        .run("anna", &["help", "agents"])
-        .success()
-        .stdout(contains("dossier used"))
-        .stdout(contains("confidential"));
+    assert!(text.contains("dossier help worker"));
+    assert!(text.contains("dossier help planner"));
+    assert!(!text.contains("dossier used"));
+    assert!(!text.contains("dossier decide"));
 }
 
 #[test]
