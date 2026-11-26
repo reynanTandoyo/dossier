@@ -11977,6 +11977,373 @@
 - note (2026-11-26, planner): added
 - note (2026-11-26, planner): done — This repository's AGENTS.md holds the seven common lines, agents check passes with 1.3.0, and a worker now reads 13 lines (about 280 tokens) instead of 38 (about 1,070).
 
+### T-563 · Said-by: an LLM carries out its person's decision, and nobody needs a terminal
+- status: open
+- owner: —
+- priority: P1 · type: milestone
+- goal: R-SAID-1 to R-SAID-5 hold (D57): approve, reject, accept, decline, confirm, refute, retire, remove, restore, reopen, cleared, reviewed and confidential remove and none take --said-by; an LLM that names its own person runs them without a terminal and without a question; the entry and the journal name both; a worker session is always refused; the planner's rules say to ask first. TEST-14 passes and version 1.3.1 is ready to tag.
+- why: The owner works through an LLM. A draft he had already agreed to in the session still waited until he opened a terminal and typed dossier approve himself.
+- summary: The person says yes in the chat and the LLM runs the command for them, with both names on record.
+- note (2026-11-26, planner): added
+
+### T-564 · requirements.md and design.md: carrying out a person's decision with --said-by (D57)
+- status: open
+- owner: —
+- priority: P1 · difficulty: 3 · type: docs
+- milestone: T-563
+- why: Every task of this version names the requirements and the gate function it uses.
+- summary: The requirements and the design say which commands an LLM may run for its person, and how the check works.
+- final: Writing requirements and design is the planner's work.
+- files: docs/requirements.md, docs/design.md
+- read: docs/requirements.md, docs/design.md, DOSSIER/decisions
+- steps:
+  1. requirements.md: mark D6 as replaced and add D57 as recorded in the dossier (DEC-057); add section 5.5a with R-SAID-1 to R-SAID-5; extend R-DRAFT-4 and the planner's part of R-AGENT-1; add TEST-14 and the patch release 1.3.1.
+  2. design.md: add section 24 with `names::said_by_gate`, its five cases with their messages, and what every command of R-SAID-1 changes.
+- accept: requirements.md defines R-SAID-1 to 5 and TEST-14 and names D57; design.md section 24 fixes said_by_gate and the pattern for each command.
+- reqs: R-SAID-1 to R-SAID-5, TEST-14
+- note (2026-11-26, planner): added
+
+### T-565 · names.rs: the gate said_by_gate
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: Thirteen commands must decide in the same way whether an LLM may carry out a person's decision.
+- summary: One function decides whether a command that needs a person's decision may run: for a person, or for an LLM that names its person.
+- depends: T-564
+- files: src/names.rs
+- read: docs/design.md, docs/requirements.md, src/role.rs
+- steps:
+  1. src/names.rs: add `pub fn said_by_gate(who: &Who, said_by: Option<&str>, command: &str) -> Result<bool>` with the doc comment and exactly the five cases and messages of docs/design.md section 24, in that order. `said_by` is trimmed first, and an empty one counts as none. Names are compared in lower case. The role comes from `crate::role::current()`.
+  2. So that the cases can be tested without the environment, put them in a private function `gate(who, said_by, command, role: crate::role::Role) -> Result<bool>` and let `said_by_gate` call it with `crate::role::current()`.
+  3. Unit tests in src/names.rs for `gate`, with a person `anna` (name anna, person anna, is_llm false) and an LLM (name `anna - claude`, person anna, is_llm true): a person with no said_by is Ok(false); a person with `Anna` is Ok(false); a person with `ben` is Code::Usage; the LLM as a Worker is Code::Refused, also with `anna`; the LLM as a Planner with None, and with `  `, is Code::NeedsPerson with a message that holds `--said-by anna` and the command name; the LLM with `ben` is Code::NeedsPerson with a message that holds `acts for anna only`; the LLM with ` ANNA ` is Ok(true).
+  4. Run cargo test --lib names::
+- accept: names::said_by_gate exists with the five cases of design.md section 24 and their tests.
+- verify: cargo test --lib names::
+- reqs: R-SAID-1, R-SAID-4
+- note (2026-11-26, planner): added
+
+### T-566 · approve: an LLM runs it with --said-by
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: The person's yes is given in the session; the LLM must be able to carry it out.
+- summary: An LLM can run approve for its person after the person agreed, with both names on record.
+- depends: T-565
+- files: src/cmd/approve.rs, tests/cmd_approve.rs
+- read: docs/design.md, docs/requirements.md, src/names.rs
+- steps:
+  1. src/cmd/approve.rs, Args (or the action's fields, for a subcommand): add `/// The person who decided this; needed when an LLM runs the command (D57)` `#[arg(long, value_name = "PERSON")] pub said_by: Option<String>`.
+  2. src/cmd/approve.rs, `run`: replace the check `if who.is_llm { … Code::NeedsPerson … }` by `let said = names::said_by_gate(&who, args.said_by.as_deref(), "approve")?;` (add `use crate::names;` if it is missing), and refuse a run without a terminal (Code::NeedsTerminal) only when `said` is false.
+  3. src/cmd/approve.rs: pass `said` to `review`. In `review`, when `said` is true: do not call `show`; after the check `rules::problems` (a draft that is missing something is still skipped with its warning), do not ask: call `approve(tx, item, &current, who)?` and record `Verdict::Approved`. The cases before the question (not a draft, an ID given twice) stay as they are. With `said` false nothing changes.
+  4. Do not change what is written: `who` stays the name that runs the command, so the entry gets `by <who.person>` and the history line and the journal get `<person> via <llm>` as before for other commands. Update the module comment and the doc comment of `run`: an LLM runs it with --said-by (D57).
+  5. tests/cmd_approve.rs: add four tests, with the helpers the file already uses (the project has the person `anna` with the LLM `anna-claude`, and the person `ben`). (a) `anna-claude` without --said-by: exit code 1, the message holds `--said-by anna`, and nothing changed. (b) `anna-claude` with `--said-by anna`, with no terminal and no answers prepared: it succeeds; the entry has `status: approved` and `approved: … by anna`, and the output is `<ID>: approved`; a second draft named in the same command is approved too; the newest history line of the entry holds `anna via anna-claude: approved`; the newest journal line has the person `anna`, the name `anna-claude` and `llm` true. (c) `anna-claude` with `--said-by ben`: exit code 1, the message holds `acts for anna only`, nothing changed. (d) as (b) but with `.env("DOSSIER_ROLE", "worker")` on the prepared command (`project.command(...)`): exit code 1, the message holds `a worker decides nothing`, nothing changed. The existing tests pass unchanged, except an existing test that expects the old message for an LLM: change it to expect `--said-by anna`.
+  6. Run cargo test --test cmd_approve.
+- accept: approve --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
+- verify: cargo test --test cmd_approve
+- reqs: R-SAID-1 to R-SAID-4, TEST-14
+- note (2026-11-26, planner): added
+
+### T-567 · reject: an LLM runs it with --said-by
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: The person's yes is given in the session; the LLM must be able to carry it out.
+- summary: An LLM can run reject for its person after the person agreed, with both names on record.
+- depends: T-565
+- files: src/cmd/reject.rs, tests/cmd_reject.rs
+- read: docs/design.md, docs/requirements.md, src/names.rs
+- steps:
+  1. src/cmd/reject.rs, Args (or the action's fields, for a subcommand): add `/// The person who decided this; needed when an LLM runs the command (D57)` `#[arg(long, value_name = "PERSON")] pub said_by: Option<String>`.
+  2. src/cmd/reject.rs, `run`: replace the check `if who.is_llm { … Code::NeedsPerson … }` by `names::said_by_gate(&who, args.said_by.as_deref(), "reject")?;` (add `use crate::names;` if it is missing). This command needs no terminal and asks nothing, so the result of the gate is not used further.
+  3. Do not change what is written: `who` stays the name that runs the command, so the entry gets `by <who.person>` and the history line and the journal get `<person> via <llm>` as before for other commands. Update the module comment and the doc comment of `run`: an LLM runs it with --said-by (D57).
+  4. tests/cmd_reject.rs: add four tests, with the helpers the file already uses (the project has the person `anna` with the LLM `anna-claude`, and the person `ben`). (a) `anna-claude` without --said-by: exit code 1, the message holds `--said-by anna`, and nothing changed. (b) `anna-claude` with `--said-by anna`, with no terminal and no answers prepared: it succeeds; the entry has `status: rejected`; the newest history line of the entry holds `anna via anna-claude: rejected`; the newest journal line has the person `anna`, the name `anna-claude` and `llm` true. (c) `anna-claude` with `--said-by ben`: exit code 1, the message holds `acts for anna only`, nothing changed. (d) as (b) but with `.env("DOSSIER_ROLE", "worker")` on the prepared command (`project.command(...)`): exit code 1, the message holds `a worker decides nothing`, nothing changed. The existing tests pass unchanged, except an existing test that expects the old message for an LLM: change it to expect `--said-by anna`.
+  5. Run cargo test --test cmd_reject.
+- accept: reject --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
+- verify: cargo test --test cmd_reject
+- reqs: R-SAID-1 to R-SAID-4, TEST-14
+- note (2026-11-26, planner): added
+
+### T-568 · accept: an LLM runs it with --said-by
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: The person's yes is given in the session; the LLM must be able to carry it out.
+- summary: An LLM can run accept for its person after the person agreed, with both names on record.
+- depends: T-565
+- files: src/cmd/accept.rs, tests/cmd_accept.rs
+- read: docs/design.md, docs/requirements.md, src/names.rs
+- steps:
+  1. src/cmd/accept.rs, Args (or the action's fields, for a subcommand): add `/// The person who decided this; needed when an LLM runs the command (D57)` `#[arg(long, value_name = "PERSON")] pub said_by: Option<String>`.
+  2. src/cmd/accept.rs, `run`: replace the check `if who.is_llm { … Code::NeedsPerson … }` by `let said = names::said_by_gate(&who, args.said_by.as_deref(), "accept")?;` (add `use crate::names;` if it is missing), and refuse a run without a terminal (Code::NeedsTerminal) only when `said` is false.
+  3. src/cmd/accept.rs: the check `names::may_decide(&ctx.cfg, &who.person)` stays. When `said` is true, do not call `show` and do not ask: go on as after the answer `yes`.
+  4. tests/cmd_accept.rs: the test project must have anna among the deciders for (b), as the existing tests of a successful accept arrange it; add (e): when the LLM's person is not in deciders, `--said-by` is refused with `is not in deciders`.
+  5. Do not change what is written: `who` stays the name that runs the command, so the entry gets `by <who.person>` and the history line and the journal get `<person> via <llm>` as before for other commands. Update the module comment and the doc comment of `run`: an LLM runs it with --said-by (D57).
+  6. tests/cmd_accept.rs: add four tests, with the helpers the file already uses (the project has the person `anna` with the LLM `anna-claude`, and the person `ben`). (a) `anna-claude` without --said-by: exit code 1, the message holds `--said-by anna`, and nothing changed. (b) `anna-claude` with `--said-by anna`, with no terminal and no answers prepared: it succeeds; the proposal is an approved decision with `approved: … by anna`; the newest history line of the entry holds `anna via anna-claude: accepted`; the newest journal line has the person `anna`, the name `anna-claude` and `llm` true. (c) `anna-claude` with `--said-by ben`: exit code 1, the message holds `acts for anna only`, nothing changed. (d) as (b) but with `.env("DOSSIER_ROLE", "worker")` on the prepared command (`project.command(...)`): exit code 1, the message holds `a worker decides nothing`, nothing changed. The existing tests pass unchanged, except an existing test that expects the old message for an LLM: change it to expect `--said-by anna`.
+  7. Run cargo test --test cmd_accept.
+- accept: accept --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
+- verify: cargo test --test cmd_accept
+- reqs: R-SAID-1 to R-SAID-4, TEST-14
+- note (2026-11-26, planner): added
+
+### T-569 · decline: an LLM runs it with --said-by
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: The person's yes is given in the session; the LLM must be able to carry it out.
+- summary: An LLM can run decline for its person after the person agreed, with both names on record.
+- depends: T-565
+- files: src/cmd/decline.rs, tests/cmd_decline.rs
+- read: docs/design.md, docs/requirements.md, src/names.rs
+- steps:
+  1. src/cmd/decline.rs, Args (or the action's fields, for a subcommand): add `/// The person who decided this; needed when an LLM runs the command (D57)` `#[arg(long, value_name = "PERSON")] pub said_by: Option<String>`.
+  2. src/cmd/decline.rs, `run`: replace the check `if who.is_llm { … Code::NeedsPerson … }` by `let said = names::said_by_gate(&who, args.said_by.as_deref(), "decline")?;` (add `use crate::names;` if it is missing), and refuse a run without a terminal (Code::NeedsTerminal) only when `said` is false.
+  3. src/cmd/decline.rs: every other check (who may decide) stays as it is.
+  4. Do not change what is written: `who` stays the name that runs the command, so the entry gets `by <who.person>` and the history line and the journal get `<person> via <llm>` as before for other commands. Update the module comment and the doc comment of `run`: an LLM runs it with --said-by (D57).
+  5. tests/cmd_decline.rs: add four tests, with the helpers the file already uses (the project has the person `anna` with the LLM `anna-claude`, and the person `ben`). (a) `anna-claude` without --said-by: exit code 1, the message holds `--said-by anna`, and nothing changed. (b) `anna-claude` with `--said-by anna`, with no terminal and no answers prepared: it succeeds; the proposal has `status: declined`; the newest history line of the entry holds `anna via anna-claude: declined`; the newest journal line has the person `anna`, the name `anna-claude` and `llm` true. (c) `anna-claude` with `--said-by ben`: exit code 1, the message holds `acts for anna only`, nothing changed. (d) as (b) but with `.env("DOSSIER_ROLE", "worker")` on the prepared command (`project.command(...)`): exit code 1, the message holds `a worker decides nothing`, nothing changed. The existing tests pass unchanged, except an existing test that expects the old message for an LLM: change it to expect `--said-by anna`.
+  6. Run cargo test --test cmd_decline.
+- accept: decline --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
+- verify: cargo test --test cmd_decline
+- reqs: R-SAID-1 to R-SAID-4, TEST-14
+- note (2026-11-26, planner): added
+
+### T-570 · confirm: an LLM runs it with --said-by
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: The person's yes is given in the session; the LLM must be able to carry it out.
+- summary: An LLM can run confirm for its person after the person agreed, with both names on record.
+- depends: T-565
+- files: src/cmd/confirm.rs, tests/cmd_confirm.rs
+- read: docs/design.md, docs/requirements.md, src/names.rs
+- steps:
+  1. src/cmd/confirm.rs, Args (or the action's fields, for a subcommand): add `/// The person who decided this; needed when an LLM runs the command (D57)` `#[arg(long, value_name = "PERSON")] pub said_by: Option<String>`.
+  2. src/cmd/confirm.rs, `run`: replace the check `if who.is_llm { … Code::NeedsPerson … }` by `names::said_by_gate(&who, args.said_by.as_deref(), "confirm")?;` (add `use crate::names;` if it is missing). This command needs no terminal and asks nothing, so the result of the gate is not used further.
+  3. Do not change what is written: `who` stays the name that runs the command, so the entry gets `by <who.person>` and the history line and the journal get `<person> via <llm>` as before for other commands. Update the module comment and the doc comment of `run`: an LLM runs it with --said-by (D57).
+  4. tests/cmd_confirm.rs: add four tests, with the helpers the file already uses (the project has the person `anna` with the LLM `anna-claude`, and the person `ben`). (a) `anna-claude` without --said-by: exit code 1, the message holds `--said-by anna`, and nothing changed. (b) `anna-claude` with `--said-by anna`, with no terminal and no answers prepared: it succeeds; the assumption has `confirmed: … by anna`; the newest history line of the entry holds `anna via anna-claude: confirmed`; the newest journal line has the person `anna`, the name `anna-claude` and `llm` true. (c) `anna-claude` with `--said-by ben`: exit code 1, the message holds `acts for anna only`, nothing changed. (d) as (b) but with `.env("DOSSIER_ROLE", "worker")` on the prepared command (`project.command(...)`): exit code 1, the message holds `a worker decides nothing`, nothing changed. The existing tests pass unchanged, except an existing test that expects the old message for an LLM: change it to expect `--said-by anna`.
+  5. Run cargo test --test cmd_confirm.
+- accept: confirm --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
+- verify: cargo test --test cmd_confirm
+- reqs: R-SAID-1 to R-SAID-4, TEST-14
+- note (2026-11-26, planner): added
+
+### T-571 · refute: an LLM runs it with --said-by
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: The person's yes is given in the session; the LLM must be able to carry it out.
+- summary: An LLM can run refute for its person after the person agreed, with both names on record.
+- depends: T-565
+- files: src/cmd/refute.rs, tests/cmd_refute.rs
+- read: docs/design.md, docs/requirements.md, src/names.rs
+- steps:
+  1. src/cmd/refute.rs, Args (or the action's fields, for a subcommand): add `/// The person who decided this; needed when an LLM runs the command (D57)` `#[arg(long, value_name = "PERSON")] pub said_by: Option<String>`.
+  2. src/cmd/refute.rs: change the helper `person_at_terminal(&who)` to `person_at_terminal(&who, said_by: Option<&str>)`: it calls `names::said_by_gate(who, said_by, "refute")?` in place of its own check of `who.is_llm`, and refuses a run without a terminal only when the gate gave false. `run` passes `args.said_by.as_deref()`.
+  3. Do not change what is written: `who` stays the name that runs the command, so the entry gets `by <who.person>` and the history line and the journal get `<person> via <llm>` as before for other commands. Update the module comment and the doc comment of `run`: an LLM runs it with --said-by (D57).
+  4. tests/cmd_refute.rs: add four tests, with the helpers the file already uses (the project has the person `anna` with the LLM `anna-claude`, and the person `ben`). (a) `anna-claude` without --said-by: exit code 1, the message holds `--said-by anna`, and nothing changed. (b) `anna-claude` with `--said-by anna`, with no terminal and no answers prepared: it succeeds; the assumption has a `refuted` field that names anna; the newest history line of the entry holds `anna via anna-claude: refuted`; the newest journal line has the person `anna`, the name `anna-claude` and `llm` true. (c) `anna-claude` with `--said-by ben`: exit code 1, the message holds `acts for anna only`, nothing changed. (d) as (b) but with `.env("DOSSIER_ROLE", "worker")` on the prepared command (`project.command(...)`): exit code 1, the message holds `a worker decides nothing`, nothing changed. The existing tests pass unchanged, except an existing test that expects the old message for an LLM: change it to expect `--said-by anna`.
+  5. Run cargo test --test cmd_refute.
+- accept: refute --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
+- verify: cargo test --test cmd_refute
+- reqs: R-SAID-1 to R-SAID-4, TEST-14
+- note (2026-11-26, planner): added
+
+### T-572 · retire: an LLM runs it with --said-by
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: The person's yes is given in the session; the LLM must be able to carry it out.
+- summary: An LLM can run retire for its person after the person agreed, with both names on record.
+- depends: T-565
+- files: src/cmd/retire.rs, tests/cmd_retire.rs
+- read: docs/design.md, docs/requirements.md, src/names.rs
+- steps:
+  1. src/cmd/retire.rs, Args (or the action's fields, for a subcommand): add `/// The person who decided this; needed when an LLM runs the command (D57)` `#[arg(long, value_name = "PERSON")] pub said_by: Option<String>`.
+  2. src/cmd/retire.rs, `run`: replace the check `if who.is_llm { … Code::NeedsPerson … }` by `names::said_by_gate(&who, args.said_by.as_deref(), "retire")?;` (add `use crate::names;` if it is missing). This command needs no terminal and asks nothing, so the result of the gate is not used further.
+  3. Do not change what is written: `who` stays the name that runs the command, so the entry gets `by <who.person>` and the history line and the journal get `<person> via <llm>` as before for other commands. Update the module comment and the doc comment of `run`: an LLM runs it with --said-by (D57).
+  4. tests/cmd_retire.rs: add four tests, with the helpers the file already uses (the project has the person `anna` with the LLM `anna-claude`, and the person `ben`). (a) `anna-claude` without --said-by: exit code 1, the message holds `--said-by anna`, and nothing changed. (b) `anna-claude` with `--said-by anna`, with no terminal and no answers prepared: it succeeds; the entry has `status: retired`; the newest history line of the entry holds `anna via anna-claude: retired`; the newest journal line has the person `anna`, the name `anna-claude` and `llm` true. (c) `anna-claude` with `--said-by ben`: exit code 1, the message holds `acts for anna only`, nothing changed. (d) as (b) but with `.env("DOSSIER_ROLE", "worker")` on the prepared command (`project.command(...)`): exit code 1, the message holds `a worker decides nothing`, nothing changed. The existing tests pass unchanged, except an existing test that expects the old message for an LLM: change it to expect `--said-by anna`.
+  5. Run cargo test --test cmd_retire.
+- accept: retire --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
+- verify: cargo test --test cmd_retire
+- reqs: R-SAID-1 to R-SAID-4, TEST-14
+- note (2026-11-26, planner): added
+
+### T-573 · remove: an LLM runs it with --said-by
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: The person's yes is given in the session; the LLM must be able to carry it out.
+- summary: An LLM can run remove for its person after the person agreed, with both names on record.
+- depends: T-565
+- files: src/cmd/remove.rs, tests/cmd_remove.rs
+- read: docs/design.md, docs/requirements.md, src/names.rs
+- steps:
+  1. src/cmd/remove.rs, Args (or the action's fields, for a subcommand): add `/// The person who decided this; needed when an LLM runs the command (D57)` `#[arg(long, value_name = "PERSON")] pub said_by: Option<String>`.
+  2. src/cmd/remove.rs, `run`: replace the check `if who.is_llm { … Code::NeedsPerson … }` by `let said = names::said_by_gate(&who, args.said_by.as_deref(), "remove")?;` (add `use crate::names;` if it is missing), and refuse a run without a terminal (Code::NeedsTerminal) only when `said` is false.
+  3. src/cmd/remove.rs: `--yes` is still needed (the usage error stays). When `said` is true, do not ask for the ID to be typed: go on as after the right answer.
+  4. tests/cmd_remove.rs: in (a) to (d) pass `--yes`; for (b) the check of the history line is left out, because the entry file is gone: check that the file no longer exists and the journal line instead. Add (e): `--said-by anna` without `--yes` is the usage error as before.
+  5. Do not change what is written: `who` stays the name that runs the command, so the entry gets `by <who.person>` and the history line and the journal get `<person> via <llm>` as before for other commands. Update the module comment and the doc comment of `run`: an LLM runs it with --said-by (D57).
+  6. tests/cmd_remove.rs: add four tests, with the helpers the file already uses (the project has the person `anna` with the LLM `anna-claude`, and the person `ben`). (a) `anna-claude` without --said-by: exit code 1, the message holds `--said-by anna`, and nothing changed. (b) `anna-claude` with `--said-by anna`, with no terminal and no answers prepared: it succeeds; the entry file no longer exists and the output is `<ID>: removed`; the newest history line of the entry holds `anna via anna-claude: removed`; the newest journal line has the person `anna`, the name `anna-claude` and `llm` true. (c) `anna-claude` with `--said-by ben`: exit code 1, the message holds `acts for anna only`, nothing changed. (d) as (b) but with `.env("DOSSIER_ROLE", "worker")` on the prepared command (`project.command(...)`): exit code 1, the message holds `a worker decides nothing`, nothing changed. The existing tests pass unchanged, except an existing test that expects the old message for an LLM: change it to expect `--said-by anna`.
+  7. Run cargo test --test cmd_remove.
+- accept: remove --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
+- verify: cargo test --test cmd_remove
+- reqs: R-SAID-1 to R-SAID-4, TEST-14
+- note (2026-11-26, planner): added
+
+### T-574 · restore: an LLM runs it with --said-by
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: The person's yes is given in the session; the LLM must be able to carry it out.
+- summary: An LLM can run restore for its person after the person agreed, with both names on record.
+- depends: T-565
+- files: src/cmd/restore.rs, tests/cmd_restore.rs
+- read: docs/design.md, docs/requirements.md, src/names.rs
+- steps:
+  1. src/cmd/restore.rs, Args (or the action's fields, for a subcommand): add `/// The person who decided this; needed when an LLM runs the command (D57)` `#[arg(long, value_name = "PERSON")] pub said_by: Option<String>`.
+  2. src/cmd/restore.rs, `run`: replace the check `if who.is_llm { … Code::NeedsPerson … }` by `let said = names::said_by_gate(&who, args.said_by.as_deref(), "restore")?;` (add `use crate::names;` if it is missing), and refuse a run without a terminal (Code::NeedsTerminal) only when `said` is false.
+  3. src/cmd/restore.rs: when `said` is true, do not ask `restore … to snapshot …?`: go on as after the answer `yes`.
+  4. Do not change what is written: `who` stays the name that runs the command, so the entry gets `by <who.person>` and the history line and the journal get `<person> via <llm>` as before for other commands. Update the module comment and the doc comment of `run`: an LLM runs it with --said-by (D57).
+  5. tests/cmd_restore.rs: add four tests, with the helpers the file already uses (the project has the person `anna` with the LLM `anna-claude`, and the person `ben`). (a) `anna-claude` without --said-by: exit code 1, the message holds `--said-by anna`, and nothing changed. (b) `anna-claude` with `--said-by anna`, with no terminal and no answers prepared: it succeeds; the entry has the text of the snapshot again and the output is `<ID>: restored to snapshot <n>`; the newest history line of the entry holds `anna via anna-claude: restored`; the newest journal line has the person `anna`, the name `anna-claude` and `llm` true. (c) `anna-claude` with `--said-by ben`: exit code 1, the message holds `acts for anna only`, nothing changed. (d) as (b) but with `.env("DOSSIER_ROLE", "worker")` on the prepared command (`project.command(...)`): exit code 1, the message holds `a worker decides nothing`, nothing changed. The existing tests pass unchanged, except an existing test that expects the old message for an LLM: change it to expect `--said-by anna`.
+  6. Run cargo test --test cmd_restore.
+- accept: restore --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
+- verify: cargo test --test cmd_restore
+- reqs: R-SAID-1 to R-SAID-4, TEST-14
+- note (2026-11-26, planner): added
+
+### T-575 · reopen: an LLM runs it with --said-by
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: The person's yes is given in the session; the LLM must be able to carry it out.
+- summary: An LLM can run reopen for its person after the person agreed, with both names on record.
+- depends: T-565
+- files: src/cmd/reopen.rs, tests/cmd_reopen.rs
+- read: docs/design.md, docs/requirements.md, src/names.rs
+- steps:
+  1. src/cmd/reopen.rs, Args (or the action's fields, for a subcommand): add `/// The person who decided this; needed when an LLM runs the command (D57)` `#[arg(long, value_name = "PERSON")] pub said_by: Option<String>`.
+  2. src/cmd/reopen.rs: the check `if who.is_llm { … Code::NeedsPerson … }` is inside the case of a retired entry. Replace it there by `names::said_by_gate(&who, args.said_by.as_deref(), "reopen")?;` (add `use crate::names;` if it is missing). The other cases (an approved or rejected entry goes back to draft) stay open to an LLM without --said-by, as they are.
+  3. tests/cmd_reopen.rs: the four tests are about a retired entry. Add (e): an LLM reopens an approved entry without --said-by as before.
+  4. Do not change what is written: `who` stays the name that runs the command, so the entry gets `by <who.person>` and the history line and the journal get `<person> via <llm>` as before for other commands. Update the module comment and the doc comment of `run`: an LLM runs it with --said-by (D57).
+  5. tests/cmd_reopen.rs: add four tests, with the helpers the file already uses (the project has the person `anna` with the LLM `anna-claude`, and the person `ben`). (a) `anna-claude` without --said-by: exit code 1, the message holds `--said-by anna`, and nothing changed. (b) `anna-claude` with `--said-by anna`, with no terminal and no answers prepared: it succeeds; the retired entry has `status: approved` again; the newest history line of the entry holds `anna via anna-claude: reopened`; the newest journal line has the person `anna`, the name `anna-claude` and `llm` true. (c) `anna-claude` with `--said-by ben`: exit code 1, the message holds `acts for anna only`, nothing changed. (d) as (b) but with `.env("DOSSIER_ROLE", "worker")` on the prepared command (`project.command(...)`): exit code 1, the message holds `a worker decides nothing`, nothing changed. The existing tests pass unchanged, except an existing test that expects the old message for an LLM: change it to expect `--said-by anna`.
+  6. Run cargo test --test cmd_reopen.
+- accept: reopen --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
+- verify: cargo test --test cmd_reopen
+- reqs: R-SAID-1 to R-SAID-4, TEST-14
+- note (2026-11-26, planner): added
+
+### T-576 · reviewed: an LLM runs it with --said-by
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: The person's yes is given in the session; the LLM must be able to carry it out.
+- summary: An LLM can run reviewed for its person after the person agreed, with both names on record.
+- depends: T-565
+- files: src/cmd/reviewed.rs, tests/cmd_reviewed.rs
+- read: docs/design.md, docs/requirements.md, src/names.rs
+- steps:
+  1. src/cmd/reviewed.rs, Args (or the action's fields, for a subcommand): add `/// The person who decided this; needed when an LLM runs the command (D57)` `#[arg(long, value_name = "PERSON")] pub said_by: Option<String>`.
+  2. src/cmd/reviewed.rs, `run`: replace the check `if who.is_llm { … Code::NeedsPerson … }` by `let said = names::said_by_gate(&who, args.said_by.as_deref(), "reviewed")?;` (add `use crate::names;` if it is missing), and refuse a run without a terminal (Code::NeedsTerminal) only when `said` is false.
+  3. Do not change what is written: `who` stays the name that runs the command, so the entry gets `by <who.person>` and the history line and the journal get `<person> via <llm>` as before for other commands. Update the module comment and the doc comment of `run`: an LLM runs it with --said-by (D57).
+  4. tests/cmd_reviewed.rs: add four tests, with the helpers the file already uses (the project has the person `anna` with the LLM `anna-claude`, and the person `ben`). (a) `anna-claude` without --said-by: exit code 1, the message holds `--said-by anna`, and nothing changed. (b) `anna-claude` with `--said-by anna`, with no terminal and no answers prepared: it succeeds; the entry has its `reviewed` field set to the day of the test clock; the newest history line of the entry holds `anna via anna-claude: reviewed`; the newest journal line has the person `anna`, the name `anna-claude` and `llm` true. (c) `anna-claude` with `--said-by ben`: exit code 1, the message holds `acts for anna only`, nothing changed. (d) as (b) but with `.env("DOSSIER_ROLE", "worker")` on the prepared command (`project.command(...)`): exit code 1, the message holds `a worker decides nothing`, nothing changed. The existing tests pass unchanged, except an existing test that expects the old message for an LLM: change it to expect `--said-by anna`.
+  5. Run cargo test --test cmd_reviewed.
+- accept: reviewed --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
+- verify: cargo test --test cmd_reviewed
+- reqs: R-SAID-1 to R-SAID-4, TEST-14
+- note (2026-11-26, planner): added
+
+### T-577 · cleared: an LLM runs it with --said-by
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: The person's yes is given in the session; the LLM must be able to carry it out.
+- summary: An LLM can run cleared for its person after the person agreed, with both names on record.
+- depends: T-565
+- files: src/cmd/cleared.rs, tests/cmd_cleared.rs
+- read: docs/design.md, docs/requirements.md, src/names.rs
+- steps:
+  1. src/cmd/cleared.rs, Args (or the action's fields, for a subcommand): add `/// The person who decided this; needed when an LLM runs the command (D57)` `#[arg(long, value_name = "PERSON")] pub said_by: Option<String>`.
+  2. src/cmd/cleared.rs, `run`: replace the check `if who.is_llm { … Code::NeedsPerson … }` by `names::said_by_gate(&who, args.said_by.as_deref(), "cleared")?;` (add `use crate::names;` if it is missing). This command needs no terminal and asks nothing, so the result of the gate is not used further.
+  3. Do not change what is written: `who` stays the name that runs the command, so the entry gets `by <who.person>` and the history line and the journal get `<person> via <llm>` as before for other commands. Update the module comment and the doc comment of `run`: an LLM runs it with --said-by (D57).
+  4. tests/cmd_cleared.rs: add four tests, with the helpers the file already uses (the project has the person `anna` with the LLM `anna-claude`, and the person `ben`). (a) `anna-claude` without --said-by: exit code 1, the message holds `--said-by anna`, and nothing changed. (b) `anna-claude` with `--said-by anna`, with no terminal and no answers prepared: it succeeds; the `rests-on` mark is gone from the entry; the newest history line of the entry holds `anna via anna-claude: cleared`; the newest journal line has the person `anna`, the name `anna-claude` and `llm` true. (c) `anna-claude` with `--said-by ben`: exit code 1, the message holds `acts for anna only`, nothing changed. (d) as (b) but with `.env("DOSSIER_ROLE", "worker")` on the prepared command (`project.command(...)`): exit code 1, the message holds `a worker decides nothing`, nothing changed. The existing tests pass unchanged, except an existing test that expects the old message for an LLM: change it to expect `--said-by anna`.
+  5. Run cargo test --test cmd_cleared.
+- accept: cleared --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
+- verify: cargo test --test cmd_cleared
+- reqs: R-SAID-1 to R-SAID-4, TEST-14
+- note (2026-11-26, planner): added
+
+### T-578 · confidential: an LLM runs it with --said-by
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: The person's yes is given in the session; the LLM must be able to carry it out.
+- summary: An LLM can run confidential for its person after the person agreed, with both names on record.
+- depends: T-565
+- files: src/cmd/confidential.rs, tests/cmd_confidential.rs
+- read: docs/design.md, docs/requirements.md, src/names.rs
+- steps:
+  1. src/cmd/confidential.rs, Args (or the action's fields, for a subcommand): add `/// The person who decided this; needed when an LLM runs the command (D57)` `#[arg(long, value_name = "PERSON")] pub said_by: Option<String>`.
+  2. src/cmd/confidential.rs: the actions `Remove` and `None` gain the field `said_by` (not `Add`, `List` or `Scan`). The helper `acting_person(ctx, what)` becomes `acting_person(ctx, what, said_by: Option<&str>)`: it calls `names::said_by_gate(&who, said_by, what)?` in place of its own check of `who.is_llm`, and refuses a run without a terminal only when the gate gave false. `remove` and `none` pass the value on from `run`.
+  3. tests/cmd_confidential.rs: write the four tests for `confidential remove <term>` (the term was added before by anna), and add (e): `confidential none --yes --said-by anna` as anna-claude succeeds. These commands change the terms file, not an entry: in (b) check that the term is gone from `confidential list` and check the journal line; leave out the history line.
+  4. Do not change what is written: `who` stays the name that runs the command, so the entry gets `by <who.person>` and the history line and the journal get `<person> via <llm>` as before for other commands. Update the module comment and the doc comment of `run`: an LLM runs it with --said-by (D57).
+  5. tests/cmd_confidential.rs: add four tests, with the helpers the file already uses (the project has the person `anna` with the LLM `anna-claude`, and the person `ben`). (a) `anna-claude` without --said-by: exit code 1, the message holds `--said-by anna`, and nothing changed. (b) `anna-claude` with `--said-by anna`, with no terminal and no answers prepared: it succeeds; the term is no longer in `confidential list`; the newest history line of the entry holds `anna via anna-claude: removed`; the newest journal line has the person `anna`, the name `anna-claude` and `llm` true. (c) `anna-claude` with `--said-by ben`: exit code 1, the message holds `acts for anna only`, nothing changed. (d) as (b) but with `.env("DOSSIER_ROLE", "worker")` on the prepared command (`project.command(...)`): exit code 1, the message holds `a worker decides nothing`, nothing changed. The existing tests pass unchanged, except an existing test that expects the old message for an LLM: change it to expect `--said-by anna`.
+  6. Run cargo test --test cmd_confidential.
+- accept: confidential --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
+- verify: cargo test --test cmd_confidential
+- reqs: R-SAID-1 to R-SAID-4, TEST-14
+- note (2026-11-26, planner): added
+
+### T-579 · The planner's rules: ask your person, then run it with --said-by
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: The rules still told an LLM never to approve, which now sends the owner back to a terminal.
+- summary: The rules for the planner say to show the person the entry, ask, and carry out their yes with --said-by.
+- depends: T-564
+- files: src/agents/planner.md, tests/cmd_agents.rs
+- read: docs/design.md, docs/requirements.md
+- steps:
+  1. src/agents/planner.md: replace the two lines `- Never approve, reject, retire or remove an entry: a person does that.` and `- Never confirm or refute an assumption, never accept or decline a proposal: a person does that.` by these two lines, each one long line: `- A person decides what is approved, rejected, retired, removed, restored, accepted, declined, confirmed or refuted. Show your person the entry and ask; with their yes in this session, run the command yourself with `--said-by <person>`, for example `dossier approve <ID> --said-by <person>`.` and `- Never run one of these without that yes, and never ask your person to type a dossier command: you carry it out.`
+  2. tests/cmd_agents.rs: add a test: `help planner` holds `dossier approve <ID> --said-by <person>` and `never ask your person to type a dossier command`, and does not hold `Never approve, reject, retire or remove`. Change any existing expectation of the two removed lines.
+  3. Run cargo test --lib agents:: and cargo test --test cmd_agents.
+- accept: dossier help planner tells the LLM to ask its person and to run the command itself with --said-by.
+- verify: cargo test --lib agents:: && cargo test --test cmd_agents
+- reqs: R-SAID-5, R-AGENT-1
+- note (2026-11-26, planner): added
+
+### T-580 · Release 1.3.1
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: chore
+- milestone: T-563
+- why: The owner tags a release only from a version that builds, passes every check and says what it adds.
+- summary: The version number and the README are ready for the owner to tag release 1.3.1.
+- depends: T-566, T-567, T-568, T-569, T-570, T-571, T-572, T-573, T-574, T-575, T-576, T-577, T-578, T-579
+- files: Cargo.toml, Cargo.lock, README.md
+- read: docs/design.md, docs/requirements.md
+- steps:
+  1. Cargo.toml: version = "1.3.1"; run cargo build so that Cargo.lock follows (only the version line of the dossier package may change; otherwise stop and report).
+  2. README.md: set the status line at the top to version 1.3.1, and update the sample output where it shows the version. Add after the section `### What version 1.3 adds` a section `### What version 1.3.1 adds`: a person decides what is approved, rejected, accepted, declined, confirmed, refuted, retired, removed, restored, reopened, cleared and reviewed, and which confidential term is removed; the person need not type the command: after their yes in the session the LLM runs it with `--said-by <person>` (example: `dossier approve LES-004 --said-by anna`), without a terminal; the entry names the person and the history and journal name the person and the LLM; without `--said-by`, with another person's name, or in a worker session the LLM is refused; `close` and the warnings of `delivered` and `promote` still need a person at a terminal.
+  3. README.md: search for the places that say that `approve`, `accept`, `decline`, `refute`, `remove`, `restore`, `reviewed` or `confidential remove` need a person at a terminal or cannot be run by an LLM, and add to each that an LLM runs it with `--said-by <person>` after the person's yes. Do not rewrite anything else.
+  4. Run cargo fmt --all -- --check, cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features; all three must pass. Do not tag and do not push.
+- accept: Version 1.3.1 builds, passes every check, and the README says what it adds.
+- verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
+- reqs: REL-1, REL-2
+- note (2026-11-26, planner): added
+
 ## Questions
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.
