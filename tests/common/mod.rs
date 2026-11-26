@@ -124,7 +124,9 @@ impl Project {
     /// DOSSIER_ANSWERS or EDITOR. Run in the project folder, with DOSSIER_NOW set to `now`,
     /// DOSSIER_REGISTER and the stand-ins of DOSSIER_TODO, DOSSIER_SSH and DOSSIER_SCP,
     /// DOSSIER_AGENT set to `agent`, and DOSSIER_AGENT, USERNAME and USER removed when it is
-    /// empty; TODO_AGENT is always removed. `run_at` is `command(agent, now).args(args).assert()`.
+    /// empty; TODO_AGENT and DOSSIER_ROLE are always removed, so that a test run is never a
+    /// worker's unless the test sets DOSSIER_ROLE itself. `run_at` is
+    /// `command(agent, now).args(args).assert()`.
     pub fn command(&self, agent: &str, now: &str) -> assert_cmd::Command {
         let mut command =
             assert_cmd::Command::cargo_bin("dossier").expect("the dossier program is built");
@@ -139,6 +141,7 @@ impl Project {
             .env("DOSSIER_SSH", self.stand_in("ssh"))
             .env("DOSSIER_SCP", self.stand_in("scp"))
             .env_remove("TODO_AGENT")
+            .env_remove("DOSSIER_ROLE")
             // A test run inside an ssh session must not look like remote mode (R-REMOTE-12).
             .env_remove("SSH_CONNECTION");
         if agent.is_empty() {

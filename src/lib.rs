@@ -43,6 +43,7 @@ pub mod output;
 pub mod paths;
 pub mod picture;
 pub mod remote;
+pub mod role;
 pub mod secret;
 pub mod select;
 pub mod session;
