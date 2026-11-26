@@ -50,6 +50,12 @@ an LLM starts with the right context.
   project folders over ssh or a network share. Each has their own LLM.
 - **LLM agents**: Claude Code and others, working for one team member in one session. They read
   entries, write decisions the person made in the session, and propose drafts.
+  An LLM works in one of two roles (D55), and each role has its own rules text (R-AGENT-1), so
+  no agent carries rules it doesn't need. A **planner** is the session a person talks to: it
+  reads the dossier, records what the person decides and what is found, and plans the work in
+  `todo`. A **worker** is a cheaper model that finishes one fully described `todo` task: it
+  writes nothing to the dossier and says what it learned in its `todo` note. A worker's session
+  is marked by `DOSSIER_ROLE=worker` (R-AGENT-6, D56).
 - **Project lead**: the team member who plans a project and closes it.
 - **Later readers**: a team member or an LLM who opens a project after months, or starts a
   similar one.
@@ -103,7 +109,7 @@ an LLM starts with the right context.
 | D11 | Search is full-text plus fields. No embeddings. | A few thousand entries don't need them, and they would add a model to every write. |
 | D12 | Every change is recorded in a journal in the dossier's state folder. git is optional. | The project folders are not git repositories today, and the history must exist anyway. |
 | D13 | Every write needs a name (`--agent` or `DOSSIER_AGENT`, falling back to `TODO_AGENT`). The team settings say which names are people and which LLM belongs to whom. | Each entry must show whether a person or an LLM wrote it, and for whom. |
-| D14 | Agents learn the tool from one rules text (`dossier help agents`, installed into `AGENTS.md`). Claude Code hooks are an extra. No MCP server. | Same reasons as in `todo`: every agent can run a command, and hooks can only run commands. |
+| D14 | Agents learn the tool from one rules text (`dossier help agents`, installed into `AGENTS.md`). Claude Code hooks are an extra. No MCP server. *(Replaced by D55 on 2026-11-26: the rules are split by role.)* | Same reasons as in `todo`: every agent can run a command, and hooks can only run commands. |
 | D15 | Large simulation files are never stored or copied by the dossier itself. It records who took which file and checks before a file is returned. | The files are gigabytes; the risk is overwriting a colleague's work, not losing history. |
 | D18 | The dossier points to files; it doesn't hold them. Each task has a list of its files with a role for each (model, geometry, result, …), kept as paths relative to the project folder. | A reader must find the simulation file, the geometry and the results of a task without searching the disk, and the files stay where the programs expect them. |
 | D20 | An entry is never overwritten to change what it says. It is closed with an end date and replaced, and every entry carries the dates between which it was in force. | "What did we know and decide on the day the report went out" must have an answer. (Idea taken from the Graphiti project.) |
@@ -144,6 +150,8 @@ an LLM starts with the right context.
 | D52 | A person decides each topic of a project. An LLM that finds no fitting topic asks its person; with the person's yes it adds the topic itself with `topics add --said-by <person>`, and the journal names both. Replaces the reading of D50 that only a person may run `topics add`. (Owner, 2026-11-25.) | The owner wants an LLM to carry out an agreed topic, as it records an agreed decision with `decide --said-by`; the list stays short because every topic still needs a person's yes. |
 | D53 | Wherever an LLM is given entries (search, brief --task, which --binding and the refusal of guard), each entry's related entries (`link`) are shown under it: one level deep, titles only, at most three, only entries with status approved. (Owner, 2026-11-25.) | A link is the most precise relation in the dossier because someone made it on purpose; one level, titles and three at most keep the output short, and an old link must not feed a replaced rule. |
 | D54 | A task is handed over with `handover <task> --note`, which gives it back in todo with a note of what is done and what is next, once the writer has returned every file taken for it. Anyone in the team takes over a task at any time with `takeover <task>`; it is recorded who took over from whom, and the files the previous holder has not returned are named. An LLM may hand over its own task, and takes over only with `--said-by <person>`. The handover note is a todo note on the task. (Owner, 2026-11-26.) | A colleague who changes team or falls ill must not leave a task locked or its progress lost. The task belongs to todo (D38), so the note is a todo note; a small team trusts each other, so a takeover is recorded rather than restricted. |
+| D55 | The rules for LLMs are split by role, as in `todo`. A common block of at most 8 lines is what every agent reads: `agents install` writes it into `AGENTS.md`, `help agents` prints it and the skill holds it. `help worker` (at most 7 lines) holds the rules of a worker: it writes nothing to the dossier and reports what it learned in its `todo` note. `help planner` holds every other rule. A test fails when the common block or the worker text grows past its limit. Claude Code hooks stay an extra, and there is no MCP server. Replaces D14. (Owner, 2026-11-26.) | Weak worker models follow long rules badly. The single rules text had 38 lines, about 1,070 tokens, and most of it is the planner's business, so it could not be installed in a project that cheap workers work in. |
+| D56 | A session is a worker's when the environment variable `DOSSIER_ROLE` is `worker`; whoever starts the worker sets it. Any other value, or none, is a planner's session and behaves as before. In a worker session `brief` without `--task` prints one line in place of the project brief (`--full` prints the brief), and the hook after `todo` commands prints the entries for a claimed task but nothing after `todo done` and `todo stuck`. The planner runs `review-task` for a task a worker finished and records what its note says. (Owner, 2026-11-26.) | The brief at session start costs about 1,500 tokens that a worker with a complete work order does not need; after `todo claim` the hook already gives it the entries for its own task. An environment variable works with every agent program and needs no change to the installed hooks. |
 
 ---
 
@@ -564,7 +572,8 @@ Several commands choose entries that are related to a text: `decide` (R-CTX-13),
   approved decisions in full, newest first; the titles and IDs of the project's findings; the
   titles and IDs of the team lessons and how-tos that match the project's tags; and the number of
   drafts waiting. When the limit is reached, older decisions are shortened to their titles and a
-  last line says how many entries were left out and how to see them.
+  last line says how many entries were left out and how to see them. In a worker session it
+  prints one line instead (R-AGENT-6).
 - **R-CTX-2 MUST** `brief --task <task>` prints what matters for one task: the entries linked to
   the task; the decisions of the task's milestones; the team lessons and how-tos that match the
   task's `machine`, `analysis` and `software` fields and the words of its title, best matches
@@ -1071,24 +1080,51 @@ depend on which of the two a command was typed on.
 
 ### 5.17 Agents — AGENT
 
-- **R-AGENT-1 MUST** `help agents` prints the rules for LLMs, at most 40 lines: run `brief` at
-  the start and `brief --task` before a task; run `status` before proposing or starting work that
-  no task asks for; work only on a task you have claimed; follow the decisions in force
-  (R-CTX-12); never edit entry files directly; record a decision
-  with `decide --said-by` when the person makes one, at once; record observations with `found`;
-  after `todo done`, run `review-task` and propose lessons as drafts, or none; record a simulation
-  run with `ran` and other software use with `used`; record what you had to assume with
-  `assume`; take numbers from `values` and never from memory; suggest a decision with `propose`
-  when your person is not the one who decides; attach the files a task reads and produces with `attach`; look for an
-  existing script with `scripts` before writing one; never approve; never write a confidential term to the team dossier; use
-  `search` before proposing something new.
-- **R-AGENT-2 MUST** `agents install` writes these rules as a managed block into `AGENTS.md`
-  (below `todo`'s block, if there is one) and keeps every other line; `agents check` tells
-  whether the block is current.
-- **R-AGENT-3 SHOULD** `hooks install` adds Claude Code hooks: `brief` at session start, and a
-  guard that refuses direct edits of files under `DOSSIER/` and names the command to use.
-- **R-AGENT-4 SHOULD** `skill install` writes a Claude Code skill with the same rules and a few
-  worked examples.
+- **R-AGENT-1 MUST** The rules for LLMs are built into the program and split by role (§2, D55),
+  so no agent carries rules it doesn't need:
+  - The **common rules** are at most 8 lines. They are what `help agents` prints, what
+    `agents install` writes between the markers in `AGENTS.md` (R-AGENT-2) and what the skill
+    holds (R-AGENT-4). They say: what was decided, assumed, found and learned is in the `DOSSIER`
+    folder, and its files are never edited directly; a first edit of a file that is refused with
+    a list of entries is not an error: read them, then make the same edit again (R-CODE-8);
+    decisions in force bind every LLM (R-CTX-12). They end with one line per role naming its
+    text: workers run `dossier help worker`, the planner runs `dossier help planner`.
+  - **`help worker`** is at most 7 lines: a worker writes nothing to the dossier; it says what it
+    learned, had to assume or could not do in the note of `todo done` or `todo stuck`, and the
+    planner records it; after `todo claim` the entries for its task are printed and bind its work
+    (R-AGENT-5); it never edits files under `DOSSIER`, and a first edit that is refused with a
+    list of entries is not an error.
+  - **`help planner`** holds every other rule: use one unique name per agent; run `brief` at
+    the start and `brief --task` before a task; run `status` before proposing or starting work
+    that no task asks for; work only on a task you have claimed, and hand it over or take one
+    over as R-HAND says; record a decision with `decide --said-by` when the person makes one, at
+    once; record observations with `found`; open and continue investigations (R-INV); after
+    `todo done`, run `review-task` and propose lessons as drafts, or none; sum up a closed
+    milestone with `digest`; record a simulation run and other software use with `used`; record
+    what you had to assume with `assume`; take numbers from `values` and never from memory;
+    suggest a decision with `propose` when your person is not the one who decides; attach the
+    files a task reads and produces with `attach`; look for an existing tool before writing a
+    script; give every entry its topic and, where it is about code, a pointer (R-TOPIC-2,
+    R-CODE-7); use `search` before proposing something new; never approve, reject, confirm or
+    accept; never write a confidential term to the team dossier, or a credential anywhere; what
+    exit codes 1 and 3 mean. From version 1.3 it also says: start a worker with
+    `DOSSIER_ROLE=worker` (R-AGENT-6); a worker writes nothing to the dossier, so when a worker's
+    task is done or given back, run `review-task`, read its `todo` note and record what it shows.
+    In a code project `help planner` leaves out the lines about runs and confidential terms
+    (R-CODE-5).
+  - A test fails when the common rules grow past 8 lines or the worker's text past 7, so that
+    what a worker must read stays within 15 lines.
+- **R-AGENT-2 MUST** `agents install` writes the common rules as a managed block into `AGENTS.md`
+  (below `todo`'s block, if there is one) and keeps every other line; a block of an older version
+  is replaced in place. `agents check` tells whether the block is current. With `--yes`,
+  `agents install` also rewrites the skill file of R-AGENT-4 when the project has one, and
+  `agents check` also fails when that file is out of date, so that bringing a project to a new
+  version of the rules is one command.
+- **R-AGENT-3 SHOULD** `hooks install` adds Claude Code hooks: `brief` at session start (one line
+  in a worker session, R-AGENT-6), and a guard that refuses direct edits of files under
+  `DOSSIER/` and names the command to use.
+- **R-AGENT-4 SHOULD** `skill install` writes a Claude Code skill that holds the common rules of
+  R-AGENT-1.
 - **R-AGENT-5 SHOULD** `hooks install` also adds a Claude Code hook that runs after every shell
   command of the agent (D39). It reads the hook's payload, as `guard` does, and acts only when
   the command was a `todo` command that succeeded, typed directly or as `dossier todo …`
@@ -1106,7 +1142,16 @@ depend on which of the two a command was typed on.
   never changes a task (D38) or an entry, and stays silent when the folder has no dossier or
   `todo` is missing. Its text reaches the agent's context; how Claude Code passes it on is
   checked against Claude Code's documentation when the task is split. `hooks uninstall` removes
-  it with the others.
+  it with the others. In a worker session (R-AGENT-6) it prints the output of `brief --task`
+  after a claim and nothing after `todo done` and `todo stuck`: a worker records nothing, and the
+  planner runs `review-task` for the task (R-AGENT-1).
+- **R-AGENT-6 MUST** A session is a worker's when the environment variable `DOSSIER_ROLE` is
+  `worker` (case and surrounding spaces ignored); whoever starts the worker sets it. Any other
+  value, or none, is a planner's session, which behaves as before version 1.3 (D56). In a worker
+  session `brief` without `--task` and without `--on` prints one line in place of the project
+  brief: `dossier: worker session. The entries for your task are printed after todo claim; the
+  project brief is left out.` `brief --full` prints the project brief in any session.
+  `brief --task`, `guard` and every other command are the same in both roles.
 
 ### 5.18 Settings — CFG
 
@@ -1186,7 +1231,7 @@ depend on which of the two a command was typed on.
 | `connect`, `todo` | remote mode | MUST |
 | `confidential add/list/none` | confidential terms | MUST |
 | `check`, `diff`, `restore` | checking and recovery | MUST |
-| `people add`, `help`, `help agents`, `agents install`, `--version` | setup and help | MUST |
+| `people add`, `help`, `help agents`, `help worker`, `help planner`, `agents install`, `--version` | setup and help | MUST |
 | `summary`, `story`, `where`, `log`, `reviewed`, `team summary` | overviews | SHOULD |
 | `map set`, `map`, `init --code-project` | code projects | SHOULD |
 | `review-session`, `confidential scan`, `check --fix`, `connect --check` | extras | SHOULD |
@@ -1310,6 +1355,10 @@ On a PC, in a connected folder: `.dossier-connect`, holding the server and the p
   built, D43.) Run before `take` and `return` are used on real work (D47).
 - **TEST-12 MUST** Finding tests (`tests/retrieval.rs`): a test dossier of invented entries and a
   fixed list of searches, each with the entry that must be among the first three results.
+- **TEST-13 MUST** The limits of R-AGENT-1 are tested: the common rules have at most 8 lines, the
+  worker's text at most 7, and together at most 15. The tests of `brief` and of the hook after
+  `todo` commands cover a worker session (R-AGENT-6), and every test runs without the
+  `DOSSIER_ROLE` of the surrounding shell, so that a worker can run the test suite.
 
 ---
 
@@ -1504,6 +1553,23 @@ differently (D48 to D51).
 
 **It worked if:** in the project's own dossier, `search connection reuse` lists the two entries
 about connection reuse among its first three results, and every search of TEST-12 finds its entry.
+
+### Version 1.3 — Rules by role
+
+**Goal:** the rules and the session start fit weak worker models, the way `todo` already does
+(D55, D56).
+
+| Area | Requirements |
+|---|---|
+| Rules by role, with line limits | R-AGENT-1 |
+| `agents install`, `agents check` and the skill | R-AGENT-2, R-AGENT-4 |
+| A quiet session start and quiet hooks for a worker | R-AGENT-3, R-AGENT-5, R-AGENT-6, R-CTX-1 |
+| Tests of the limits and of the role | TEST-13 |
+
+**It worked if:** in a project with version 1.3, the text a worker must read (the block in
+`AGENTS.md` and `help worker`) is at most 15 lines, a worker session starts with one line in
+place of the project brief, the planner still gets the full rules and brief, and `agents check`
+passes after one `agents install --yes`.
 
 ### Added on 2026-11-22
 
