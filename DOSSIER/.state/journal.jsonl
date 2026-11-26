@@ -367,3 +367,5 @@
 {"time":"2026-11-26T21:04:15+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"agents","id":"AGENTS","event":"changed","detail":"rules block written"}
 {"time":"2026-11-26T21:05:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"found","id":"FND-014","event":"created","detail":"approved"}
 {"time":"2026-11-26T21:05:13+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"digest","id":"DIG-001","event":"created","detail":"draft"}
+{"time":"2026-11-26T21:40:49+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-057","event":"created","detail":"approved"}
+{"time":"2026-11-26T21:40:49+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-007","event":"superseded","detail":"by DEC-057"}

@@ -2,7 +2,7 @@
 # DEC-007 · D6: Approving needs a person at a terminal
 
 - kind: decision
-- status: approved
+- status: superseded
 - created: 2026-11-25T07:33:27+01:00
 - author: reyna
 - via: reyna - claude
@@ -11,11 +11,14 @@
 - code: src/cmd/approve.rs
 - topic: approval
 - related: DEC-006
+- valid-until: 2026-11-26T21:40:49+01:00
+- superseded-by: DEC-057
 - history: 2026-11-25T07:33:27+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:33:27+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:40:54+01:00 reyna via reyna - claude: changed — field code
 - history: 2026-11-25T20:45:12+01:00 reyna via reyna - claude: changed — field topic
 - history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related DEC-006
+- history: 2026-11-26T21:40:49+01:00 reyna via reyna - claude: superseded — by DEC-057
 
 ## Decision
 
