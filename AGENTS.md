@@ -73,6 +73,7 @@ cargo test --all-features
 - Before a task, run `dossier brief --task <id>`.
 - Before work that no task asks for, run `dossier status`.
 - Work only on a task you have claimed in `todo`.
+- When you stop before a task is done, give it back with `dossier handover <id> --note "<done; next>"`; return the files you took first. Take over a colleague's task only with your person's yes: `dossier takeover <id> --said-by <person>`.
 - Decisions in force bind you: if your task contradicts one, stop and ask your person; never work around it.
 - When your person decides something, record it at once: `dossier decide "<decision>" --reason "<why>" --said-by <person>`.
 - If `dossier decide` lists related decisions, run it again with `--replaces <ID>` when yours replaces one, or `--besides` when both stay in force.
@@ -82,7 +83,6 @@ cargo test --all-features
 - When something fails and you start looking for the cause, open an investigation: `dossier problem "<what goes wrong>" --task <id>`, or continue the open one; read its attempts first (`dossier show <ID>`).
 - Record one line for each hypothesis, also the failed ones, not one for each compile or run: `dossier tried <ID> "<hypothesis>" --failed|--worked|--unclear --result "<what happened>"`; close with `dossier solved <ID> "<what solved it>"`.
 - Attach the files a task reads and writes with `dossier attach <task> <path> --role <role>`.
-- Record a simulation run with `dossier used <software> --version <v> --task <task> --model <file> --output <path>`.
 - Record what you had to assume with `dossier assume "<assumption>" --reason "<why>"`.
 - After `todo done <id>`, run `dossier review-task <id>`, then propose lessons with `dossier learn` (it needs `--valid-for`, `--evidence` and `--confidence`), or propose none if nothing was learned.
 - When a milestone is closed in todo, sum it up: run `dossier digest <milestone>`, then write at most 15 lines with `dossier digest <milestone> --write --stdin`; a person approves it.
@@ -97,8 +97,6 @@ cargo test --all-features
 - Your first edit of a file may be refused with a list of entries in force for it. They bind your change: read them (`dossier show <ID>` prints one in full), then make the edit again.
 - Never approve, reject, retire or remove an entry: a person does that.
 - Never confirm or refute an assumption, never accept or decline a proposal: a person does that.
-- When your person says a name or term is confidential, record it at once: `dossier confidential add "<term>"`.
-- Never write a confidential term into the team dossier; propose team knowledge with `dossier promote <ID>`.
 - Never write a password, key or token into an entry; write where it is kept. The dossier refuses text that looks like one.
 - Exit code `1`: a rule refused the change; read the message and do not repeat the command unchanged.
 - Exit code `3`: busy; run the same command again.

@@ -11694,6 +11694,7 @@
 - verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
 - reqs: REL-1, REL-2
 - note (2026-11-26, planner): added
+- note (2026-11-26, planner): Checked on Windows (2458 tests), WSL Fedora 44 (2462) and CI; tagged v1.2.0 and published: https://github.com/reynanTandoyo/dossier/releases/tag/v1.2.0
 
 ## Questions
 
