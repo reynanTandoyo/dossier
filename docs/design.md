@@ -1555,3 +1555,76 @@ pub fn line(item: &Item) -> String;
 | `takeover` | `<task> [--said-by <person>]` | `takeover <task>` claims the task in todo for the writer, with `--force` when someone else holds it, adds the note `takeover — <writer> took over from <previous holder>` (`from nobody` when the task was open; ` (said by <person>)` at its end when given), and writes a journal line with the event `takeover`. For every file taken for the task by another person it prints `<path>: taken by <person> on <time> and not returned; changes on their PC are not on the server`, then once `take them with: dossier take <paths> --task <task> --force`. Last it prints what `brief --task <task>` prints. It never copies a file itself. |
 
 Both are writing commands (WRITING in src/ctx.rs) and run on the server in remote mode; takeover never copies files (R-FILE-4), it prints the take command for them.
+
+## 23. Rules by role and worker sessions (R-AGENT-1 to R-AGENT-6, D55, D56)
+
+The rules text is three files in `src/agents`: `rules.md` (the common rules), `worker.md` and
+`planner.md`. Section 3's `agents` part is replaced by this one.
+
+```rust
+// agents/mod.rs
+pub const RULES: &str = include_str!("rules.md");      // the common rules
+pub const WORKER: &str = include_str!("worker.md");
+pub const PLANNER: &str = include_str!("planner.md");
+pub const RULES_MAX_LINES: usize = 8;                  // R-AGENT-1
+pub const WORKER_MAX_LINES: usize = 7;                 // R-AGENT-1
+pub const BEGIN: &str = "<!-- dossier:begin -->";
+pub const END: &str = "<!-- dossier:end -->";
+/// The lines of a rules text: `text.trim().lines().count()`, so empty lines count.
+pub fn lines_of(text: &str) -> usize;
+/// WORKER with LF line endings and without its trailing line breaks.
+pub fn worker() -> String;
+/// PLANNER the same way; in a code project without the lines that start with one of
+/// NOT_IN_CODE_PROJECTS (R-CODE-5).
+pub fn planner_for(code_project: bool) -> String;
+pub fn block() -> String;                              // BEGIN, the common rules, END
+/// The text of AGENTS.md with the block added (after todo's block if there is one, else at the
+/// end) or replaced; every other line unchanged. A block of an older version is replaced.
+pub fn installed(existing: &str) -> String;
+pub fn current(existing: &str) -> bool;
+/// The Claude Code skill: the front matter, then the common rules.
+pub fn skill() -> String;
+/// Whether `existing` is the skill of this version (CRLF counts as LF).
+pub fn skill_current(existing: &str) -> bool;
+
+// role.rs
+pub const VARIABLE: &str = "DOSSIER_ROLE";
+pub enum Role { Planner, Worker }                      // Debug, Clone, Copy, PartialEq, Eq
+/// Worker when `value`, trimmed and in lower case, is `worker`; otherwise Planner.
+pub fn of(value: Option<&str>) -> Role;
+/// `of` the environment variable VARIABLE.
+pub fn current() -> Role;
+```
+
+Tests in `agents/mod.rs` fail when `lines_of(RULES)` is above RULES_MAX_LINES, when
+`lines_of(WORKER)` is above WORKER_MAX_LINES, or when their sum is above 15 (TEST-13).
+
+**help.** `help agents` prints the common rules, `help worker` the worker's text, `help planner`
+`planner_for` of the project found from the current folder (not a code project when no dossier is
+found). Each has the JSON data `{"rules": <text>}`. The message for an unknown topic names
+`agents, worker, planner`.
+
+**agents.** `agents install --yes` writes the block and, when
+`.claude/skills/dossier/SKILL.md` exists in the current folder and is not `skill_current`,
+rewrites it with `skill()`. Its text is `AGENTS.md: rules block written`, with the second line
+`.claude/skills/dossier/SKILL.md: skill written` when the skill was rewritten; the data is
+`{"written": true, "skill": <whether the skill was rewritten>}`. Each write has its own journal
+line: the block as before, the skill with the ID `SKILL` and the detail `skill written`.
+`agents check` fails with Code::Refused when the block is not current (message unchanged), and
+with `.claude/skills/dossier/SKILL.md is out of date; run: dossier agents install --yes` when the
+skill file exists and is not current.
+
+**brief.** `Args` gains `pub full: bool` (`--full`, conflicts with `--task`). After the context
+is loaded: when there is no `--task`, no `--on` and no `--full`, and `role::current()` is Worker,
+the output is the one line WORKER_LINE with the data
+`{"code": <project code>, "role": "worker", "lines": [WORKER_LINE]}`:
+
+```
+dossier: worker session. The entries for your task are printed after todo claim; the project brief is left out.
+```
+
+**after.** In a worker session the event Claimed gives its text as before; Done and Stuck give
+none, so nothing is printed.
+
+**Tests.** `Project::command` in `tests/common/mod.rs` removes `DOSSIER_ROLE`, as it removes
+`TODO_AGENT`; a test of a worker session sets it on the prepared command.

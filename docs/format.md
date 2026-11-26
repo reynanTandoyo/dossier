@@ -789,3 +789,14 @@ entry ID per line: the entries that the PreToolUse hook `dossier guard` has show
 older than 30 days are removed. `which <path> --binding --session <id>` leaves out the entries
 listed in that session's file (R-CODE-8). The folder is listed in .state/.gitignore, so the files
 of a session never reach git.
+
+## 37. Rules by role and the role of a session (D55, D56)
+
+The block between `<!-- dossier:begin -->` and `<!-- dossier:end -->` in `AGENTS.md` holds the
+common rules: at most 8 lines, the same for every project. Version 1.2 and older wrote the whole
+rules text there (up to 38 lines); `agents install --yes` replaces such a block in place. The
+skill file `.claude/skills/dossier/SKILL.md` holds its front matter and the same common rules.
+
+The environment variable `DOSSIER_ROLE` marks the role of a session. The value `worker`, in any
+case and with spaces around it ignored, makes it a worker's session; any other value, or no
+variable, a planner's. Nothing about the role is stored in the dossier.
