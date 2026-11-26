@@ -12184,3 +12184,9 @@
 - owner: —
 - type: idea
 - note (2026-11-26, planner): added
+
+### T-562 · approve, reject and accept with --said-by <person>: an LLM asks its person in the session and, with the person's yes, runs the command itself, as topics add does since D52. Today D6 needs a person at a terminal, so every draft waits until the owner types the command. Needs the owner's decision, because it replaces D6.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-26, planner): added
