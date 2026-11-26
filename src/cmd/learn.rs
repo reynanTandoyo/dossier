@@ -154,6 +154,7 @@ fn update(
     confidence: &str,
     review: Option<&str>,
 ) -> Result<Output> {
+    check_topics(&ctx.cfg.topics, args.topic.as_deref())?;
     let who = ctx.writer()?.clone();
     tx::write(ctx, |tx| {
         let item = store::get(&tx.ctx().dossier, id)?;
@@ -231,6 +232,35 @@ fn update(
             json!({"id": entry_id, "status": status}),
         ))
     })
+}
+
+/// When the project has topics, each comma-separated piece of `--topic`, trimmed, must equal a
+/// topic of the list ignoring case, as `set` checks it (R-TOPIC-2). Code::Usage names the unknown
+/// piece and the topics of the project. Used by `--update`, which does not go through create.
+fn check_topics(topics: &[String], topic: Option<&str>) -> Result<()> {
+    if topics.is_empty() {
+        return Ok(());
+    }
+    let Some(value) = given(topic) else {
+        return Ok(());
+    };
+    for name in value
+        .split(',')
+        .map(str::trim)
+        .filter(|name| !name.is_empty())
+    {
+        let wanted = name.to_lowercase();
+        if !topics.iter().any(|topic| topic.to_lowercase() == wanted) {
+            return Err(Error::new(
+                Code::Usage,
+                format!(
+                    "unknown topic {name}; the topics of this project: {} (dossier topics)",
+                    topics.join(", ")
+                ),
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// The new lesson: its sections, its fields (confidence, task, the review date and the tags that

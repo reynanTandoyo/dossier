@@ -573,3 +573,64 @@ fn without_code_no_code_line_is_written() {
     assert!(!text.contains("\n- code:"), "{text}");
     assert_eq!(entry_of(&project, "LES-001").field("code"), None);
 }
+
+#[test]
+fn an_update_with_a_topic_off_the_list_is_refused_and_the_lesson_is_unchanged() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+    project
+        .run("anna", &learn(&["--confidence", "measured"]))
+        .success()
+        .stdout("LES-001: added (approved)\n");
+    let before = std::fs::read_to_string(project.entry_file("LES-001")).expect("the entry file");
+    let journal_before = project.entry_journal().len();
+
+    project
+        .run(
+            "anna",
+            &learn(&[
+                "--confidence",
+                "measured",
+                "--update",
+                "LES-001",
+                "--topic",
+                "valves",
+            ]),
+        )
+        .code(2)
+        .stderr(contains(
+            "unknown topic valves; the topics of this project: pumps, rig (dossier topics)",
+        ));
+
+    let after = std::fs::read_to_string(project.entry_file("LES-001")).expect("the entry file");
+    assert_eq!(after, before);
+    assert_eq!(project.entry_journal().len(), journal_before);
+}
+
+#[test]
+fn an_update_with_a_topic_on_the_list_is_written() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps", "rig"]);
+    project
+        .run("anna", &learn(&["--confidence", "measured"]))
+        .success();
+
+    project
+        .run(
+            "anna",
+            &learn(&[
+                "--confidence",
+                "measured",
+                "--update",
+                "LES-001",
+                "--topic",
+                "rig",
+            ]),
+        )
+        .success()
+        .stdout("LES-001: updated\n");
+    assert_eq!(
+        entry_of(&project, "LES-001").field("topic").as_deref(),
+        Some("rig")
+    );
+}
