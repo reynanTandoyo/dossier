@@ -1,15 +1,16 @@
-//! The `reviewed` command (docs/design.md section 12, R-LIFE-7, D33): a person at a terminal
-//! confirms that an entry still holds. The `reviewed` field gets the time and the person, the
-//! `review` field gets the next review date given with `--next` or is removed (format.md §23),
-//! and the history line `reviewed` names the next date. An LLM cannot confirm. On an approved
-//! lesson, how-to or tool the new text is recorded as its approved text, as `set` does for a
-//! person's change (approval::guarded), so the confirmation is not taken for a hand change.
+//! The `reviewed` command (docs/design.md section 12, R-LIFE-7, D33): a person at a terminal, or
+//! an LLM with `--said-by <person>` (D57), confirms that an entry still holds. The `reviewed` field
+//! gets the time and the person, the `review` field gets the next review date given with `--next`
+//! or is removed (format.md §23), and the history line `reviewed` names the next date. On an
+//! approved lesson, how-to or tool the new text is recorded as its approved text, as `set` does for
+//! a person's change (approval::guarded), so the confirmation is not taken for a hand change.
 
 use crate::approval;
 use crate::cli::Global;
 use crate::ctx::Ctx;
 use crate::entry::{Entry, Status};
 use crate::error::{Code, Error, Result};
+use crate::names;
 use crate::output::Output;
 use crate::store;
 use crate::term;
@@ -34,22 +35,22 @@ pub struct Args {
     /// The next date to review the entry on, as YYYY-MM-DD; without it the review date is removed
     #[arg(long, value_name = "date")]
     pub next: Option<String>,
+
+    /// The person who decided this; needed when an LLM runs the command (D57)
+    #[arg(long, value_name = "PERSON")]
+    pub said_by: Option<String>,
 }
 
-/// Runs `reviewed`: checks that a person acts at a terminal and that `--next` is a date, then,
-/// in one transaction, sets `reviewed` to `<time> by <person>` and sets or removes `review`. The
+/// Runs `reviewed`: checks who acts (names::said_by_gate, D57), that a person is at a terminal
+/// unless an LLM confirms for its person with `--said-by`, and that `--next` is a date. Then, in
+/// one transaction, sets `reviewed` to `<time> by <person>` and sets or removes `review`. The
 /// first output line is `<ID>: reviewed`, with `, next review <date>` after it when a date was
 /// given. The data is {id, reviewed, review}, where review is null when no date was given.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "reviewed")?;
     let who = ctx.writer()?.clone();
-    if who.is_llm {
-        return Err(Error::new(
-            Code::NeedsPerson,
-            format!("reviewed is for a person; {} is an LLM", who.name),
-        ));
-    }
-    if !term::is_terminal() {
+    let said = names::said_by_gate(&who, args.said_by.as_deref(), "reviewed")?;
+    if !said && !term::is_terminal() {
         return Err(Error::new(
             Code::NeedsTerminal,
             "this command must be run by a person at a terminal",

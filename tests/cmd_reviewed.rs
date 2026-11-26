@@ -1,7 +1,8 @@
-//! Runs the built program for `reviewed`: a person at a terminal confirms that an entry still
-//! holds. The entry gets `reviewed` with the time and the person, its review date is set to
-//! `--next` or removed, and a history line `reviewed` names the next date. An LLM and a missing
-//! terminal are refused, a date that is not YYYY-MM-DD is refused, and nothing is written in
+//! Runs the built program for `reviewed`: a person at a terminal, or an LLM with `--said-by
+//! <person>` (D57), confirms that an entry still holds. The entry gets `reviewed` with the time and
+//! the person, its review date is set to `--next` or removed, and a history line `reviewed` names
+//! the next date. An LLM without `--said-by` or for another person, a worker session, a person
+//! without a terminal, and a date that is not YYYY-MM-DD are refused, and nothing is written in
 //! those cases. Each test runs in its own temporary project folder, with the clock fixed by
 //! `common::Project` (2026-11-20T10:00:00+01:00).
 
@@ -161,14 +162,110 @@ fn an_llm_cannot_confirm_and_nothing_is_written() {
     reviewed_as(&project, "anna-claude", &["DEC-001"])
         .failure()
         .code(1)
-        .stderr(contains(
-            "error: reviewed is for a person; anna-claude is an LLM",
-        ));
+        .stderr(contains("--said-by anna"));
     reviewed_as(&project, "anna-claude", &["DEC-001", "--json"])
         .code(1)
         .stdout(contains("\"code\":\"NEEDS_PERSON\""));
 
     assert_eq!(text_of(&project, "DEC-001"), before);
+}
+
+#[test]
+fn an_llm_without_said_by_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    decision_due_for_review(&project);
+    let before = text_of(&project, "DEC-001");
+
+    project
+        .command("anna-claude", NOW)
+        .args(["reviewed", "DEC-001"])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(contains("--said-by anna"));
+
+    assert_eq!(
+        text_of(&project, "DEC-001"),
+        before,
+        "the file is unchanged"
+    );
+}
+
+#[test]
+fn an_llm_with_said_by_confirms_without_a_terminal_or_a_question() {
+    let project = Project::new();
+    decision_due_for_review(&project);
+    // No answers are prepared and no terminal is attached, so nothing can be asked: the entry is
+    // confirmed as the person decided (D57).
+    project
+        .command("anna-claude", NOW)
+        .args(["reviewed", "DEC-001", "--said-by", "anna"])
+        .assert()
+        .success()
+        .stdout("DEC-001: reviewed\n")
+        .stderr("");
+
+    let entry = entry_of(&project, "DEC-001");
+    assert_eq!(
+        entry.field("reviewed").as_deref(),
+        Some(format!("{NOW} by anna").as_str())
+    );
+    assert_eq!(
+        entry.history().last().map(String::as_str),
+        Some("2026-11-20T10:00:00+01:00 anna via anna-claude: reviewed")
+    );
+
+    let journal = project.entry_journal();
+    let last = journal.last().expect("a journal line");
+    assert_eq!(last.command, "reviewed");
+    assert_eq!(last.id, "DEC-001");
+    assert_eq!(last.event, "reviewed");
+    assert_eq!(last.person, "anna");
+    assert_eq!(last.name, "anna-claude");
+    assert!(last.llm);
+}
+
+#[test]
+fn an_llm_with_said_by_for_another_person_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    decision_due_for_review(&project);
+    let before = text_of(&project, "DEC-001");
+
+    project
+        .command("anna-claude", NOW)
+        .args(["reviewed", "DEC-001", "--said-by", "ben"])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(contains("acts for anna only"));
+
+    assert_eq!(
+        text_of(&project, "DEC-001"),
+        before,
+        "the file is unchanged"
+    );
+}
+
+#[test]
+fn a_worker_session_confirms_nothing_even_with_said_by() {
+    let project = Project::new();
+    decision_due_for_review(&project);
+    let before = text_of(&project, "DEC-001");
+
+    project
+        .command("anna-claude", NOW)
+        .env("DOSSIER_ROLE", "worker")
+        .args(["reviewed", "DEC-001", "--said-by", "anna"])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(contains("a worker decides nothing"));
+
+    assert_eq!(
+        text_of(&project, "DEC-001"),
+        before,
+        "the file is unchanged"
+    );
 }
 
 #[test]
