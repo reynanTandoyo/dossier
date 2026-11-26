@@ -11403,10 +11403,8 @@
 - note (2026-11-26, planner): added
 
 ### T-536 · brief --task: the last handover and the last takeover on their own lines
-- status: claimed
+- status: done
 - owner: haiku-T-536
-- claimed: 2026-11-26T07:36+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: fix
 - milestone: T-535
 - why: After a takeover, brief --task showed only 'ben took over from anna' and hid the previous holder's note of what is done and next (idea T-534).
@@ -11420,14 +11418,16 @@
   4. Run cargo test --test cmd_brief.
 - accept: brief --task shows the last handover note and the last takeover note on separate lines.
 - verify: cargo test --test cmd_brief
+- verified: 2026-11-26
+- commit: bc10d75
 - reqs: R-HAND-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-536): done
 
 ### T-537 · topics add: a name that is not in the settings gets the unknown-name refusal
-- status: claimed
+- status: done
 - owner: haiku-T-537
-- claimed: 2026-11-26T07:36+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: fix
 - milestone: T-535
 - why: topics add with an unknown name was refused with 'this command needs a name' instead of the unknown-name error of R-CFG-4, because topics is not a writing command in src/ctx.rs (idea T-497).
@@ -11441,14 +11441,16 @@
   4. Run cargo test --test cmd_topics.
 - accept: topics add refuses an unknown name with the unknown-name error; topics still lists without a known name.
 - verify: cargo test --test cmd_topics
+- verified: 2026-11-26
+- commit: 6182964
 - reqs: R-CFG-4, R-TOPIC-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-537): done
 
 ### T-538 · set: empty pieces of a topic value are skipped, as create skips them
-- status: claimed
+- status: done
 - owner: haiku-T-538
-- claimed: 2026-11-26T07:36+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: fix
 - milestone: T-535
 - why: set refused topic=rig, with 'unknown topic ' and an empty name while create skips the empty piece (idea T-498).
@@ -11461,14 +11463,16 @@
   3. Run cargo test --test cmd_set.
 - accept: set skips empty pieces of a topic value and still refuses unknown topics.
 - verify: cargo test --test cmd_set
+- verified: 2026-11-26
+- commit: 33d500a
 - reqs: R-TOPIC-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-538): done
 
 ### T-539 · learn --update: a topic not on the project's list is refused
-- status: claimed
+- status: done
 - owner: haiku-T-539
-- claimed: 2026-11-26T07:36+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: fix
 - milestone: T-535
 - why: learn --update --topic wrote a topic that is not on the list, because the update path does not go through create::create (idea T-500, R-TOPIC-2).
@@ -11481,8 +11485,12 @@
   3. Run cargo test --test cmd_learn.
 - accept: learn --update refuses a topic that is not on the project's list.
 - verify: cargo test --test cmd_learn
+- verified: 2026-11-26
+- commit: 65c6d6c
 - reqs: R-TOPIC-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-539): done
 
 ### T-540 · which --binding: only entries in force today, by valid-from and valid-until
 - status: claimed
@@ -11505,10 +11513,8 @@
 - note (2026-11-26, planner): added
 
 ### T-541 · guard: a session name with other characters counts as no session
-- status: claimed
+- status: done
 - owner: haiku-T-541
-- claimed: 2026-11-26T07:36+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: fix
 - milestone: T-535
 - why: A session_id with characters other than ASCII letters, digits and - made shown::unseen return everything and record nothing, so guard would refuse every edit of a bound file for ever (idea T-501).
@@ -11521,12 +11527,18 @@
   3. Run cargo test --test cmd_guard.
 - accept: guard treats a session name with other characters as no session.
 - verify: cargo test --test cmd_guard
+- verified: 2026-11-26
+- commit: 69cd366
 - reqs: R-CODE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-541): done
 
 ### T-542 · search: linked entries are looked up only for the results that are printed
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-542
+- claimed: 2026-11-26T07:49+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: fix
 - milestone: T-535
 - why: search computed the linked entries of every entry that passed the filter, also partial candidates later cut, so a large dossier cost O(n^2) (idea T-521).
@@ -11543,8 +11555,10 @@
 - note (2026-11-26, planner): added
 
 ### T-543 · agents install: a code project's rules leave out runs and confidential terms
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-543
+- claimed: 2026-11-26T07:49+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: fix
 - milestone: T-535
 - why: agents install wrote the whole rules text into a code project, with the parts about simulation runs and confidential customer terms that R-CODE-5 says to leave out (idea T-510).
@@ -11581,8 +11595,10 @@
 - note (2026-11-26, planner): added
 
 ### T-545 · after: no usage-record reminder in a code project
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-545
+- claimed: 2026-11-26T07:49+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: fix
 - milestone: T-535
 - why: In a code project the after hook ends every todo done with 'No usage record for T-...', which is about simulation runs that a code project does not have (R-CODE-5; seen while working on the dossier project, 2026-11-25).
@@ -11599,8 +11615,10 @@
 - note (2026-11-26, planner): added
 
 ### T-546 · check UNIT: a name must hold a letter, so 10:30 is not a setting
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-546
+- claimed: 2026-11-26T07:49+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P3 · difficulty: 1 · type: fix
 - milestone: T-535
 - why: check read a line such as 10:30 as the name 10 with the value 30 and warned about a missing unit (idea T-429).
@@ -11617,8 +11635,10 @@
 - note (2026-11-26, planner): added
 
 ### T-547 · add: a text line starting with ## is refused
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-547
+- claimed: 2026-11-26T07:49+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: fix
 - milestone: T-535
 - why: add (and other commands taking multi-line text) did not refuse a line starting with '## ', which opens a new section in the entry file; problem and digest --write refuse it (idea T-420).
