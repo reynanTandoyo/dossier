@@ -12160,8 +12160,8 @@
 - note (2026-11-26, haiku-T-570): done — confirm accepts --said-by: an LLM with its person's --said-by confirms the assumption with no terminal or question, recorded as the person in the entry and journal; without it, for another person, or in a worker session it is refused. Four new tests and the LLM test's message updated; cargo test --test cmd_confirm (13 pass), fmt, clippy and the full suite pass.
 
 ### T-571 · refute: an LLM runs it with --said-by
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-571
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-563
 - why: The person's yes is given in the session; the LLM must be able to carry it out.
@@ -12177,8 +12177,12 @@
   5. Run cargo test --test cmd_refute.
 - accept: refute --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
 - verify: cargo test --test cmd_refute
+- verified: 2026-11-26
+- commit: 777e862
 - reqs: R-SAID-1 to R-SAID-4, TEST-14
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-571): done — refute now takes --said-by: an LLM with its person's --said-by refutes the assumption without a terminal or a question, as the person decided; without it, for another person, or in a worker session it is refused; the four new tests and the updated LLM test pass with the full suite, clippy and fmt.
 
 ### T-572 · retire: an LLM runs it with --said-by
 - status: open
