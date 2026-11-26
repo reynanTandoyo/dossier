@@ -11679,10 +11679,8 @@
 - note (2026-11-26, haiku-T-547): done
 
 ### T-549 · Release 1.2.0: handover and takeover, and the known bugs fixed
-- status: claimed
+- status: done
 - owner: planner
-- claimed: 2026-11-26T08:36+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: chore
 - why: Milestones T-525 (handover and takeover) and T-535 (known bugs) are finished and the owner wants them released.
 - summary: Version 1.2.0 is built, checked on Windows and Linux, tagged and published on GitHub.
@@ -11694,9 +11692,14 @@
   3. Run fmt, clippy and all tests on Windows and in WSL; after CI passes, tag v1.2.0.
 - accept: Version 1.2.0 builds, passes every check, and the README says what it adds.
 - verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
+- verified: 2026-11-26
+- commit: 60a12e0
 - reqs: REL-1, REL-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
 - note (2026-11-26, planner): Checked on Windows (2458 tests), WSL Fedora 44 (2462) and CI; tagged v1.2.0 and published: https://github.com/reynanTandoyo/dossier/releases/tag/v1.2.0
+- note (2026-11-26, planner): forced done outside files: docs/design.md, docs/requirements.md
+- note (2026-11-26, planner): done — Released 1.2.0; the release commit also updated R-USE-7 in requirements.md and design.md section 14 (no usage-record reminder in a code project, from T-545).
 
 ## Questions
 
