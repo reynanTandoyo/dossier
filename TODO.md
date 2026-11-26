@@ -11561,21 +11561,25 @@
 - owner: haiku-T-543
 - claimed: 2026-11-26T07:49+01:00
 - session: a546c85a-ec3d-4847-bbed-ed0de9db2905
-- priority: P1 · difficulty: 1 · type: fix
+- priority: P1 · difficulty: 2 · type: fix
 - milestone: T-535
 - why: agents install wrote the whole rules text into a code project, with the parts about simulation runs and confidential customer terms that R-CODE-5 says to leave out (idea T-510).
 - summary: An LLM in a software project no longer reads rules about simulation runs and customer secrets.
-- files: src/agents/rules.md, src/cmd/agents.rs, tests/cmd_agents.rs
-- read: src/agents/mod.rs, src/agents/rules.md, src/cmd/agents.rs, src/config.rs
+- files: src/agents/mod.rs, src/cmd/agents.rs, tests/cmd_agents.rs, docs/design.md
+- read: src/agents/mod.rs, src/cmd/agents.rs, src/config.rs, docs/design.md
 - steps:
-  1. src/agents/rules.md: end each of these rule lines with the marker ` <!-- full -->`: the line about `dossier used` (simulation runs), the line `When your person says a name or term is confidential...`, and the line `Never write a confidential term into the team dossier...`.
-  2. src/cmd/agents.rs, where the rules block is built from agents::RULES: when the dossier found from the current folder (or --dossier) has `code_project = true`, leave out every line that ends with ` <!-- full -->`; otherwise keep those lines and remove the marker. Without a dossier, keep the lines without the marker. `help agents` shows the full text without markers.
-  3. tests/cmd_agents.rs: in a project made with `init --code-project`, the written AGENTS.md block has no `dossier used` and no `confidential`; in a normal project it has both; no written block contains `<!-- full -->`.
-  4. Run cargo test --test cmd_agents.
-- accept: A code project's rules block leaves out the lines about runs and confidential terms; no block shows the marker.
-- verify: cargo test --test cmd_agents
+  1. src/agents/rules.md stays unchanged: no markers. help agents and the skill keep printing the full rules.
+  2. src/agents/mod.rs: add `const NOT_IN_CODE_PROJECTS: [&str; 3]` with the beginnings of the three rule lines a code project leaves out (R-CODE-5): `- Record a simulation run`, `- When your person says a name or term is confidential`, `- Never write a confidential term into the team dossier`. Add `pub fn rules_for(code_project: bool) -> String`: the rules as `rules_lf` gives them, without the lines that start with one of those beginnings when `code_project` is true.
+  3. src/agents/mod.rs: `block`, `installed` and `current` take a second parameter `code_project: bool` and build the block from `rules_for(code_project)` (block_body follows). `skill` keeps the full rules. Update their doc comments and the unit tests in the file: every existing test passes `false`; add one test that `installed("", true)` holds no `dossier used` and no `confidential`, and `installed("", false)` holds both.
+  4. src/cmd/agents.rs: find the dossier from the current folder or --dossier as record_write does; when found, load its settings (config::load) and take `code_project` from them; without a dossier or settings it is false. Pass it to `agents::installed` and `agents::current`.
+  5. docs/design.md, section `### agents`: give block, installed and current the parameter `code_project: bool`, add `pub fn rules_for(code_project: bool) -> String;` with the comment `// the rules without the lines of NOT_IN_CODE_PROJECTS in a code project (R-CODE-5)`.
+  6. tests/cmd_agents.rs: in a project made with `init --code-project`, `agents install --yes` writes a block without `dossier used` and without `confidential`, and `agents check` then reports the block as current; in a normal project the block has both; `help agents` still shows both.
+  7. Run cargo test --test cmd_agents and cargo test --lib agents::, then the full checks.
+- accept: A code project's rules block leaves out the lines about runs and confidential terms, agents check accepts it, and help agents and the skill keep the full rules.
+- verify: cargo test --test cmd_agents && cargo test --lib agents::
 - reqs: R-CODE-5, R-AGENT-1
 - note (2026-11-26, planner): added
+- note (2026-11-26, planner): forced set (owner was haiku-T-543)
 
 ### T-544 · agents install: its journal line names the LLM as an LLM
 - status: open
