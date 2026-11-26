@@ -12135,8 +12135,8 @@
 - note (2026-11-26, haiku-T-569): done — decline now runs for an LLM with --said-by <person> (D57): a person is unchanged; an LLM without it, for another person, or in a worker session is refused; with its person it writes the proposal as declined, naming the person and the LLM. The four new tests and the updated existing test in tests/cmd_decline.rs pass, and fmt, clippy and the full suite pass.
 
 ### T-570 · confirm: an LLM runs it with --said-by
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-570
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-563
 - why: The person's yes is given in the session; the LLM must be able to carry it out.
@@ -12152,8 +12152,12 @@
   5. Run cargo test --test cmd_confirm.
 - accept: confirm --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
 - verify: cargo test --test cmd_confirm
+- verified: 2026-11-26
+- commit: 628f7d6
 - reqs: R-SAID-1 to R-SAID-4, TEST-14
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-570): done — confirm accepts --said-by: an LLM with its person's --said-by confirms the assumption with no terminal or question, recorded as the person in the entry and journal; without it, for another person, or in a worker session it is refused. Four new tests and the LLM test's message updated; cargo test --test cmd_confirm (13 pass), fmt, clippy and the full suite pass.
 
 ### T-571 · refute: an LLM runs it with --said-by
 - status: open
