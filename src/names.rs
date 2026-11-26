@@ -73,6 +73,51 @@ pub fn may_decide(cfg: &Config, person: &str) -> bool {
     cfg.deciders.is_empty() || cfg.deciders.iter().any(|decider| same(decider, person))
 }
 
+/// The gate of a command that carries out a person's decision (R-SAID-1, R-SAID-4).
+/// Ok(false): a person runs the command. Ok(true): an LLM runs it for its person.
+/// `said_by` is trimmed; empty counts as none. `command` is the name used in the messages.
+pub fn said_by_gate(who: &Who, said_by: Option<&str>, command: &str) -> Result<bool> {
+    gate(who, said_by, command, crate::role::current())
+}
+
+/// `said_by_gate` with the role given, so that the cases can be tested without the environment.
+fn gate(who: &Who, said_by: Option<&str>, command: &str, role: crate::role::Role) -> Result<bool> {
+    let said_by = said_by.and_then(given);
+    if !who.is_llm {
+        return match said_by {
+            Some(said_by) if !same(&said_by, &who.person) => Err(Error::new(
+                Code::Usage,
+                format!("--said-by is for an LLM; {} is a person", who.name),
+            )),
+            _ => Ok(false),
+        };
+    }
+    if role == crate::role::Role::Worker {
+        return Err(Error::new(
+            Code::Refused,
+            "a worker decides nothing: say it in your todo note",
+        ));
+    }
+    match said_by {
+        None => Err(Error::new(
+            Code::NeedsPerson,
+            format!(
+                "{command} carries out a person's decision: ask your person, and with their yes \
+                 run it again with --said-by {}",
+                who.person
+            ),
+        )),
+        Some(said_by) if !same(&said_by, &who.person) => Err(Error::new(
+            Code::NeedsPerson,
+            format!(
+                "{} acts for {} only; --said-by names {said_by}",
+                who.name, who.person
+            ),
+        )),
+        Some(_) => Ok(true),
+    }
+}
+
 /// For commands that run before or without people in the settings (init, people add): the name
 /// from `flag`, DOSSIER_AGENT or TODO_AGENT, else the operating-system user (USERNAME, USER),
 /// else "unknown"; person = name; is_llm = false. Never an error.
@@ -412,6 +457,78 @@ mod tests {
         assert!(may_decide(&cfg, "ANNA"));
         assert!(!may_decide(&cfg, "Ben"));
         assert!(!may_decide(&cfg, "anna-claude"));
+    }
+
+    #[test]
+    fn a_person_needs_no_said_by_and_its_own_name_is_accepted() {
+        let anna = who("anna", "anna", false);
+        let ran = gate(&anna, None, "approve", crate::role::Role::Planner).expect("a person runs");
+        assert!(!ran);
+        let ran = gate(&anna, Some("Anna"), "approve", crate::role::Role::Planner)
+            .expect("its own name is accepted");
+        assert!(!ran);
+    }
+
+    #[test]
+    fn a_person_with_another_said_by_is_a_usage_error() {
+        let anna = who("anna", "anna", false);
+        let error = gate(&anna, Some("ben"), "approve", crate::role::Role::Planner)
+            .expect_err("another name is refused");
+        assert_eq!(error.code, Code::Usage);
+        assert_eq!(error.exit(), 2);
+        assert_eq!(error.message, "--said-by is for an LLM; anna is a person");
+    }
+
+    #[test]
+    fn an_llm_as_a_worker_is_refused_with_or_without_said_by() {
+        let llm = who("anna - claude", "anna", true);
+        for said_by in [None, Some("anna")] {
+            let error = gate(&llm, said_by, "approve", crate::role::Role::Worker)
+                .expect_err("a worker decides nothing");
+            assert_eq!(error.code, Code::Refused, "{said_by:?}");
+            assert_eq!(
+                error.message,
+                "a worker decides nothing: say it in your todo note"
+            );
+        }
+    }
+
+    #[test]
+    fn an_llm_without_said_by_needs_a_person_and_names_the_person_to_ask() {
+        let llm = who("anna - claude", "anna", true);
+        for said_by in [None, Some("  ")] {
+            let error = gate(&llm, said_by, "approve", crate::role::Role::Planner)
+                .expect_err("an LLM needs its person");
+            assert_eq!(error.code, Code::NeedsPerson, "{said_by:?}");
+            assert!(error.message.contains("approve"), "{}", error.message);
+            assert!(
+                error.message.contains("--said-by anna"),
+                "{}",
+                error.message
+            );
+        }
+    }
+
+    #[test]
+    fn an_llm_with_another_person_in_said_by_is_refused() {
+        let llm = who("anna - claude", "anna", true);
+        let error = gate(&llm, Some("ben"), "approve", crate::role::Role::Planner)
+            .expect_err("an LLM acts for its person only");
+        assert_eq!(error.code, Code::NeedsPerson);
+        assert!(
+            error.message.contains("acts for anna only"),
+            "{}",
+            error.message
+        );
+        assert!(error.message.contains("ben"), "{}", error.message);
+    }
+
+    #[test]
+    fn an_llm_with_its_person_in_any_case_and_spaces_runs_for_it() {
+        let llm = who("anna - claude", "anna", true);
+        let ran = gate(&llm, Some(" ANNA "), "approve", crate::role::Role::Planner)
+            .expect("the LLM runs for its person");
+        assert!(ran);
     }
 
     #[test]
