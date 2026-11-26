@@ -6,6 +6,7 @@
 - Before a task, run `dossier brief --task <id>`.
 - Before work that no task asks for, run `dossier status`.
 - Work only on a task you have claimed in `todo`.
+- When you stop before a task is done, give it back with `dossier handover <id> --note "<done; next>"`; return the files you took first. Take over a colleague's task only with your person's yes: `dossier takeover <id> --said-by <person>`.
 - Decisions in force bind you: if your task contradicts one, stop and ask your person; never work around it.
 - When your person decides something, record it at once: `dossier decide "<decision>" --reason "<why>" --said-by <person>`.
 - If `dossier decide` lists related decisions, run it again with `--replaces <ID>` when yours replaces one, or `--besides` when both stay in force.
