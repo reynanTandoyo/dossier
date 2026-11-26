@@ -11711,8 +11711,8 @@
 - note (2026-11-26, planner): added
 
 ### T-551 · requirements.md: rules by role and worker sessions (D55, D56)
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · difficulty: 3 · type: docs
 - milestone: T-550
 - why: Every task of this version names the requirements it builds.
@@ -11725,12 +11725,15 @@
   2. Section 3: add D55 and D56 as recorded in the dossier (DEC-055, DEC-056) and mark D14 as replaced.
   3. Rewrite R-AGENT-1 to R-AGENT-4 for the split, add the worker session to R-AGENT-5 and R-CTX-1, add R-AGENT-6 (DOSSIER_ROLE) and TEST-13, and add the section `Version 1.3 — Rules by role` to the releases.
 - accept: requirements.md defines the rules by role with their limits, R-AGENT-6 and TEST-13, and names D55 and D56.
+- commit: 04fa5a1
 - reqs: R-AGENT-1 to R-AGENT-6, R-CTX-1, TEST-13
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, planner): done — The requirements describe the rules by role with their line limits, how a worker's session is known, and what it prints.
 
 ### T-552 · design.md and format.md: the three rules texts, role.rs and the outputs of version 1.3
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · difficulty: 2 · type: docs
 - milestone: T-550
 - why: Every signature and output text a worker uses is fixed in design.md.
@@ -11744,8 +11747,11 @@
   2. format.md: add section 37: what the block in AGENTS.md and the skill file hold from version 1.3, and the environment variable DOSSIER_ROLE.
   3. Check that the tasks of this milestone name the same signatures and texts.
 - accept: design.md section 23 and format.md section 37 hold every signature and output text the tasks of this milestone name.
+- commit: c5e4519
 - reqs: R-AGENT-1 to R-AGENT-6
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, planner): done — The design fixes the three rules texts, the role of a session, and the outputs of help, agents, brief and after.
 
 ### T-553 · role.rs: whether a session is a worker's
 - status: open
