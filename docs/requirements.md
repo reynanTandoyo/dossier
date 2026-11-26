@@ -400,7 +400,8 @@ Some commands carry out what only a person may decide (D5, D57). The person need
 
 - **R-SAID-1 MUST** These commands take `--said-by <person>`: `approve`, `reject`, `accept`,
   `decline`, `confirm`, `refute`, `retire`, `remove`, `restore`, `reopen` (of a retired entry),
-  `cleared`, `reviewed`, and `confidential remove` and `confidential none`. A person runs them as
+  `cleared`, `reviewed`, `supersede`, `value approve`, `value reject`, `team member remove`,
+  `team name remove`, and `confidential remove` and `confidential none`. A person runs them as
   before. An LLM without `--said-by` is refused (exit code 1) with a message that tells it to
   ask its person and to run the command again with `--said-by <person>`. An LLM with `--said-by`
   naming its own person (D34; case ignored) runs the command for that person. Any other name is
