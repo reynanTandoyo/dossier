@@ -11196,8 +11196,8 @@
 - note (2026-11-26, planner): added
 
 ### T-526 · requirements.md and design.md: D54 and R-HAND, handover and takeover
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-526
 - priority: P1 · difficulty: 1 · type: docs
 - milestone: T-525
 - why: Every task of this milestone names R-HAND-1 to R-HAND-5 and the outputs fixed in design.md section 22.
@@ -11215,12 +11215,18 @@
   8. docs/design.md: at the end add `## 22. Handover and takeover (R-HAND-1 to R-HAND-5, D54)` and a table `| Command | Arguments | Result |` with one row for `handover` (`<task> --note <text>`) and one for `takeover` (`<task> [--said-by <person>]`), whose Result cells repeat R-HAND-1 and R-HAND-2 with every output line exactly as written there, and the line `Both are writing commands (WRITING in src/ctx.rs) and run on the server in remote mode; takeover never copies files (R-FILE-4), it prints the take command for them.`
 - accept: requirements.md defines D54 and R-HAND-1 to R-HAND-5, and design.md section 22 gives the two commands and their outputs.
 - verify: git grep -q -F "**R-HAND-5 MUST**" -- docs/requirements.md && git grep -q -F "## 22. Handover and takeover" -- docs/design.md
+- verified: 2026-11-26
+- commit: 4a8a7e5
 - reqs: R-HAND-1 to R-HAND-5, D54
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-526): done
 
 ### T-527 · The handover and takeover commands: registered, with help lines and examples
-- status: open
-- owner: —
+- status: claimed
+- owner: sonnet-T-527
+- claimed: 2026-11-26T06:53+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 2 · type: feature
 - milestone: T-525
 - why: Two new commands are registered in the shared command lists; the later tasks fill in their behaviour in their own files.
@@ -11285,8 +11291,10 @@
 - note (2026-11-26, planner): added
 
 ### T-530 · brief --task: the last handover note under the task line
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-530
+- claimed: 2026-11-26T06:53+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-525
 - why: Whoever takes over a task must see first what the previous holder said is done and next (R-HAND-4).
