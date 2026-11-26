@@ -11537,10 +11537,8 @@
 - note (2026-11-26, haiku-T-541): done
 
 ### T-542 · search: linked entries are looked up only for the results that are printed
-- status: claimed
+- status: done
 - owner: haiku-T-542
-- claimed: 2026-11-26T07:49+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: fix
 - milestone: T-535
 - why: search computed the linked entries of every entry that passed the filter, also partial candidates later cut, so a large dossier cost O(n^2) (idea T-521).
@@ -11553,8 +11551,12 @@
   3. Run cargo test --test cmd_search.
 - accept: search looks up linked entries only for printed results, with unchanged output.
 - verify: cargo test --test cmd_search
+- verified: 2026-11-26
+- commit: 2020931
 - reqs: R-FIND-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-542): done
 
 ### T-543 · agents install: a code project's rules leave out runs and confidential terms
 - status: claimed
