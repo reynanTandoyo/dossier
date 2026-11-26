@@ -1,18 +1,21 @@
 //! The `help` command: an overview of the commands, the description and examples of one command,
-//! or the rules text for LLMs.
+//! or the rules text for LLMs: the common rules, a worker's text or a planner's text.
 
 use crate::agents;
 use crate::cli::Global;
+use crate::config;
 use crate::error::{Code, Error, Result};
 use crate::examples;
+use crate::find;
 use crate::output::Output;
 use serde_json::json;
 
 /// The arguments of `help`.
 #[derive(clap::Args, Debug)]
 pub struct Args {
-    /// `agents` prints the rules for LLMs; a command name prints its description and examples;
-    /// without a topic, the commands in one overview
+    /// `agents` prints the common rules for LLMs, `worker` and `planner` the rules of one role; a
+    /// command name prints its description and examples; without a topic, the commands in one
+    /// overview
     pub topic: Option<String>,
 }
 
@@ -113,20 +116,40 @@ pub const COMMANDS: [(&str, &str); 91] = [
 ];
 
 /// Runs `help`.
-pub fn run(args: &Args, _g: &Global) -> Result<Output> {
+pub fn run(args: &Args, g: &Global) -> Result<Output> {
     match args.topic.as_deref() {
         None => Ok(overview()),
         Some("agents") => Ok(Output::with(agents::RULES, json!({"rules": agents::RULES}))),
+        Some("worker") => Ok(rules(agents::worker())),
+        Some("planner") => Ok(rules(agents::planner_for(code_project(g)?))),
         Some(other) => match COMMANDS.iter().find(|(name, _)| *name == other) {
             Some((name, description)) => Ok(command_help(name, description)),
             None => Err(Error::new(
                 Code::Usage,
                 format!(
-                    "unknown help topic '{other}'; the topics are: agents, and the command names \
-                     that `dossier help` lists"
+                    "unknown help topic '{other}'; the topics are: agents, worker, planner, and \
+                     the command names that `dossier help` lists"
                 ),
             )),
         },
+    }
+}
+
+/// A rules text as the output: the text itself, and the data `{"rules": <text>}`.
+fn rules(text: String) -> Output {
+    let data = json!({"rules": text});
+    Output::with(text, data)
+}
+
+/// Whether the dossier found from the current folder, or the --dossier folder, is a code project
+/// (its settings say `code_project = true`). Without a dossier it is not one, and that is not an
+/// error.
+fn code_project(g: &Global) -> Result<bool> {
+    let cwd = std::env::current_dir()?;
+    match find::find(&cwd, g.dossier.as_deref()) {
+        Ok(dossier) => Ok(config::load(&dossier)?.code_project),
+        Err(error) if error.code == Code::NoDossier => Ok(false),
+        Err(error) => Err(error),
     }
 }
 

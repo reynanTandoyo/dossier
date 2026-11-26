@@ -1,5 +1,6 @@
-//! Runs the built program for `agents` and `help agents`: the rules block in AGENTS.md, and the
-//! rules text. No dossier is needed; each test runs in its own temporary folder. In a project,
+//! Runs the built program for `agents`, `help agents`, `help worker` and `help planner`: the rules
+//! block in AGENTS.md, and the rules text. No dossier is needed; each test runs in its own
+//! temporary folder. In a project,
 //! writing the block is recorded in the journal with who and when (D29).
 
 mod common;
@@ -85,6 +86,55 @@ fn help_agents_as_json_gives_the_rules_text() {
         .success()
         .stdout(contains("\"schema\":\"dossier.help.v1\""))
         .stdout(contains("\"rules\":\"# Working with the dossier"));
+}
+
+#[test]
+fn help_worker_prints_the_worker_text_in_at_most_seven_lines() {
+    let folder = tempfile::tempdir().unwrap();
+    let output = dossier(folder.path(), &["help", "worker"])
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let text = String::from_utf8(output).expect("the standard output is UTF-8");
+    assert!(text.starts_with("# Worker rules (dossier help worker)\n"));
+    assert!(
+        text.lines().count() <= 7,
+        "help worker prints {} lines; the limit is 7",
+        text.lines().count()
+    );
+}
+
+#[test]
+fn help_planner_in_an_empty_folder_holds_decide_used_and_the_worker_marker() {
+    let folder = tempfile::tempdir().unwrap();
+    dossier(folder.path(), &["help", "planner"])
+        .success()
+        .stdout(starts_with("# Planner rules (dossier help planner)\n"))
+        .stdout(contains("dossier decide"))
+        .stdout(contains("dossier used"))
+        .stdout(contains("DOSSIER_ROLE=worker"));
+}
+
+#[test]
+fn help_planner_in_a_code_project_holds_decide_and_leaves_out_runs_and_confidential_terms() {
+    let project = code_project();
+    let text = project.stdout("anna", &["help", "planner"]);
+    assert!(text.contains("dossier decide"));
+    assert!(!text.contains("dossier used"));
+    assert!(!text.contains("confidential"));
+}
+
+#[test]
+fn help_planner_as_json_gives_the_rules_in_its_data() {
+    let folder = tempfile::tempdir().unwrap();
+    let output = dossier(folder.path(), &["help", "planner", "--json"])
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let value: serde_json::Value = serde_json::from_slice(&output).expect("the output is JSON");
+    assert!(value["data"]["rules"].is_string());
 }
 
 #[test]
