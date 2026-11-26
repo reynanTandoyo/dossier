@@ -11701,6 +11701,239 @@
 - note (2026-11-26, planner): forced done outside files: docs/design.md, docs/requirements.md
 - note (2026-11-26, planner): done — Released 1.2.0; the release commit also updated R-USE-7 in requirements.md and design.md section 14 (no usage-record reminder in a code project, from T-545).
 
+### T-550 · Rules by role: a worker reads at most 15 lines and starts without the project brief
+- status: open
+- owner: —
+- priority: P1 · type: milestone
+- goal: R-AGENT-1 to R-AGENT-6 hold in their form of version 1.3 (D55, D56): the block in AGENTS.md and `help worker` together have at most 15 lines, with tests on the limits; `help planner` holds every other rule; a session with DOSSIER_ROLE=worker gets one line in place of the project brief and nothing after todo done and todo stuck; `agents install --yes` brings a project of version 1.2 to the new rules, and `agents check` passes. Version 1.3.0 is ready to tag.
+- why: Cheap worker models follow long rules badly. The single rules text (38 lines, about 1,070 tokens) and the brief at session start (about 1,500 tokens) are mostly the planner's business, so the rules block could not be installed in a project that workers work in.
+- summary: The rules for LLMs are split into a short part for everyone, a short part for workers and the rest for the planner, and a worker's session starts quietly.
+- note (2026-11-26, planner): added
+
+### T-551 · requirements.md: rules by role and worker sessions (D55, D56)
+- status: open
+- owner: —
+- priority: P1 · difficulty: 3 · type: docs
+- milestone: T-550
+- why: Every task of this version names the requirements it builds.
+- summary: The requirements say how the rules are split by role and how a worker's session is known and kept quiet.
+- final: Writing requirements is the planner's work.
+- files: docs/requirements.md
+- read: docs/requirements.md, DOSSIER/decisions
+- steps:
+  1. Section 2: describe the two roles of an LLM, planner and worker.
+  2. Section 3: add D55 and D56 as recorded in the dossier (DEC-055, DEC-056) and mark D14 as replaced.
+  3. Rewrite R-AGENT-1 to R-AGENT-4 for the split, add the worker session to R-AGENT-5 and R-CTX-1, add R-AGENT-6 (DOSSIER_ROLE) and TEST-13, and add the section `Version 1.3 — Rules by role` to the releases.
+- accept: requirements.md defines the rules by role with their limits, R-AGENT-6 and TEST-13, and names D55 and D56.
+- reqs: R-AGENT-1 to R-AGENT-6, R-CTX-1, TEST-13
+- note (2026-11-26, planner): added
+
+### T-552 · design.md and format.md: the three rules texts, role.rs and the outputs of version 1.3
+- status: open
+- owner: —
+- priority: P1 · difficulty: 2 · type: docs
+- milestone: T-550
+- why: Every signature and output text a worker uses is fixed in design.md.
+- summary: The design and format documents fix the functions, texts and outputs of the rules by role.
+- final: Design work: the signatures and outputs for the tasks of this milestone.
+- depends: T-551
+- files: docs/design.md, docs/format.md
+- read: docs/design.md, docs/format.md, docs/requirements.md
+- steps:
+  1. design.md: add section 23 with the signatures of agents/mod.rs and role.rs, and the outputs of help, agents install, agents check, brief and after in a worker session.
+  2. format.md: add section 37: what the block in AGENTS.md and the skill file hold from version 1.3, and the environment variable DOSSIER_ROLE.
+  3. Check that the tasks of this milestone name the same signatures and texts.
+- accept: design.md section 23 and format.md section 37 hold every signature and output text the tasks of this milestone name.
+- reqs: R-AGENT-1 to R-AGENT-6
+- note (2026-11-26, planner): added
+
+### T-553 · role.rs: whether a session is a worker's
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-550
+- why: Two commands must agree on what makes a session a worker's, and a worker must be able to run the tests.
+- summary: One place reads the environment variable that marks a worker's session, and the tests ignore it.
+- depends: T-552
+- files: src/role.rs, src/lib.rs, tests/common/mod.rs
+- read: docs/design.md, docs/requirements.md
+- steps:
+  1. src/lib.rs: add `pub mod role;` in alphabetical order.
+  2. src/role.rs: `pub const VARIABLE: &str = "DOSSIER_ROLE";`, `#[derive(Debug, Clone, Copy, PartialEq, Eq)] pub enum Role { Planner, Worker }`, `pub fn of(value: Option<&str>) -> Role` (Worker when the value, trimmed and in lower case, is `worker`; otherwise Planner) and `pub fn current() -> Role` (`of` the environment variable VARIABLE; a variable that is not set or not Unicode counts as none). Each item gets a doc comment.
+  3. Unit tests in src/role.rs: of(None), of(Some("")), of(Some("planner")) and of(Some("workers")) are Planner; of(Some("worker")), of(Some(" Worker ")) and of(Some("WORKER")) are Worker. Do not test `current`: tests must not change the environment.
+  4. tests/common/mod.rs, `Project::command`: add `.env_remove("DOSSIER_ROLE")` directly after `.env_remove("TODO_AGENT")`, and add to the doc comment of `command` that DOSSIER_ROLE is always removed, so that a worker can run the tests.
+  5. Run cargo test --lib role:: and cargo build --all-targets.
+- accept: role::of and role::current exist with tests, and every command a test prepares runs without DOSSIER_ROLE.
+- verify: cargo test --lib role:: && cargo build --all-targets
+- reqs: R-AGENT-6, TEST-13
+- note (2026-11-26, planner): added
+
+### T-554 · agents: the worker's text and the planner's text
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-550
+- why: A worker needs six lines, not thirty-eight; the rest belongs to the planner.
+- summary: Adds the short rules text for workers and the full one for the planner, beside the existing text.
+- depends: T-552
+- files: src/agents/worker.md, src/agents/planner.md, src/agents/mod.rs
+- read: docs/design.md, src/agents/rules.md
+- steps:
+  1. Create src/agents/worker.md with exactly these lines (each ` ⏎ ` below is a line break; the second line is empty), ending with one line break: # Worker rules (dossier help worker) ⏎  ⏎ - You write nothing to the dossier: run no `dossier` command that records, changes or approves anything. ⏎ - Say what you learned, had to assume or could not do in your todo note: `todo done <id> --note "<what>"` or `todo stuck <id> --note "<what>"`. The planner records it. ⏎ - After `todo claim`, the entries for your task are printed (or run `dossier brief --task <id>`). They bind your work; `dossier show <ID>` prints one in full. ⏎ - Never edit files under `DOSSIER/`. When your first edit of another file is refused with a list of entries, that is not an error: read them, then make the same edit again.
+  2. Create src/agents/planner.md: the first line is `# Planner rules (dossier help planner)`, the second is empty, then every line of src/agents/rules.md that starts with `- `, in the same order and unchanged, except these three, which are left out: the line that starts `- Decisions in force bind you`, the line that starts `- Never edit files under `, and the line that starts `- Your first edit of a file may be refused`.
+  3. src/agents/planner.md: directly after the line `- Work only on a task you have claimed in `todo`.` add these two lines: - Workers write nothing to the dossier. Start each with `DOSSIER_ROLE=worker` in its environment: its session then starts without the project brief, and it gets only the entries for its task. ⏎ - When a worker's task is done or given back, run `dossier review-task <id>`, read its `todo` note, and record what it shows (`found`, `assume`, `learn`, `problem`).
+  4. src/agents/mod.rs: add `pub const WORKER: &str = include_str!("worker.md");`, `pub const PLANNER: &str = include_str!("planner.md");`, `pub const RULES_MAX_LINES: usize = 8;`, `pub const WORKER_MAX_LINES: usize = 7;`, `pub fn lines_of(text: &str) -> usize` (`text.trim().lines().count()`), `pub fn worker() -> String` (WORKER with CRLF replaced by LF and without trailing line breaks) and `pub fn planner_for(code_project: bool) -> String` (PLANNER the same way; in a code project without the lines that start with one of NOT_IN_CODE_PROJECTS). Do not change RULES, rules_for, block, installed, current or skill.
+  5. Unit tests in src/agents/mod.rs: lines_of(WORKER) is at most WORKER_MAX_LINES, with a message that names both numbers; worker() starts with `# Worker rules (dossier help worker)` and holds `todo done` and `todo stuck`; planner_for(false) holds `dossier used`, `dossier decide`, `DOSSIER_ROLE=worker` and `dossier review-task`; planner_for(true) holds no line that starts with one of NOT_IN_CODE_PROJECTS; planner_for(false) holds no line that starts `- Never edit files under`.
+  6. Run cargo test --lib agents::
+- accept: agents::worker and agents::planner_for give the two texts; the worker's text is within its limit; the existing rules text is unchanged.
+- verify: cargo test --lib agents::
+- reqs: R-AGENT-1
+- note (2026-11-26, planner): added
+
+### T-555 · help worker and help planner
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-550
+- why: Each role reads its own text with one command, as in todo.
+- summary: Adds the two help topics that print the rules of a worker and of the planner.
+- depends: T-554
+- files: src/cmd/help.rs, tests/cmd_agents.rs, tests/cmd_help.rs
+- read: docs/design.md, src/agents/mod.rs, src/cmd/agents.rs
+- steps:
+  1. src/cmd/help.rs, `run`: add the topic `worker`: `Output::with(agents::worker(), json!({"rules": agents::worker()}))`.
+  2. src/cmd/help.rs, `run`: add the topic `planner`: the text is `agents::planner_for(code_project)`, with the same JSON shape. `code_project` is found as the function `code_project` in src/cmd/agents.rs finds it (the dossier from the current folder or --dossier; its settings' `code_project`; false when no dossier is found): add a private function of the same body to help.rs and use the parameter `g`.
+  3. src/cmd/help.rs: the message for an unknown topic becomes `unknown help topic '<other>'; the topics are: agents, worker, planner, and the command names that `dossier help` lists`.
+  4. tests/cmd_agents.rs: add tests: `help worker` succeeds, starts with `# Worker rules (dossier help worker)` and prints at most 7 lines; `help planner` in an empty folder holds `dossier decide`, `dossier used` and `DOSSIER_ROLE=worker`; `help planner` in a code project (the helper `code_project()` of this file) holds `dossier decide` and neither `dossier used` nor `confidential`; `help planner --json` has the key `rules` in its data. Leave the existing tests of `help agents` as they are.
+  5. tests/cmd_help.rs: only if a test there expects the old text of the unknown-topic message beyond `unknown help topic '<name>'`, change it to the new text.
+  6. Update the module comment of help.rs. Run cargo test --test cmd_agents and cargo test --test cmd_help.
+- accept: dossier help worker and dossier help planner print the texts of the two roles; help agents is unchanged.
+- verify: cargo test --test cmd_agents && cargo test --test cmd_help
+- reqs: R-AGENT-1
+- note (2026-11-26, planner): added
+
+### T-556 · agents: the rules text becomes the common rules of at most 8 lines
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-550
+- why: The block in AGENTS.md is read by every agent, so it must hold only what every agent needs.
+- summary: The rules block that agents install writes shrinks to seven lines that every agent reads, with a test on its length.
+- depends: T-555
+- files: src/agents/rules.md, src/agents/mod.rs, tests/cmd_agents.rs
+- read: docs/design.md
+- steps:
+  1. Replace the content of src/agents/rules.md by exactly these lines (each ` ⏎ ` below is a line break; the second line is empty), ending with one line break: # Working with the dossier ⏎  ⏎ - What was decided, assumed, found and learned is in the `DOSSIER` folder. Never edit files there directly; use the `dossier` commands. ⏎ - Your first edit of a file may be refused with a list of entries in force for it. That is not an error: read them, then make the same edit again. ⏎ - Decisions in force bind you: if your task contradicts one, stop and say so; never work around it. ⏎ - Workers: run `dossier help worker`. ⏎ - Planner: run `dossier help planner`.
+  2. src/agents/mod.rs: leave every signature as it is in this task (rules_for, block, installed and current keep their `code_project` parameter, and rules_for keeps its filter, which now finds nothing). Change the doc comments: RULES is the common rules (R-AGENT-1), and the skill holds the common rules.
+  3. Unit tests in src/agents/mod.rs: add `lines_of(RULES) <= RULES_MAX_LINES` and `lines_of(RULES) + lines_of(WORKER) <= 15`, each with a message that names the numbers; add that RULES ends with the two lines that name `dossier help worker` and `dossier help planner`. Replace the test `in_a_code_project_the_block_leaves_out_runs_and_confidential_terms` by one that says `installed("", true) == installed("", false)`. Add: a text that holds a block of version 1.2 (BEGIN, the heading, `- Start a session with `dossier brief`.`, END) is not `current`, and `installed` of it holds the common rules once and no line `- Start a session`.
+  4. tests/cmd_agents.rs: the tests that expect a rule of the planner from `help agents` (the topic and the code pointer, adding a topic with --said-by, handover and takeover) now run `help planner` with the same expectations; rename them from help_agents_… to help_planner_…. Remove `help_agents_shows_runs_and_confidential_terms_in_a_code_project`. `a_normal_project_block_has_runs_and_confidential_terms` becomes `the_block_holds_the_common_rules_only`: the installed AGENTS.md holds `dossier help worker` and `dossier help planner` and does not hold `dossier used` or `dossier decide`. Change any other expectation of this file that names a line that left the block. Add: `help agents` prints at most 8 lines.
+  5. Run cargo test --lib agents::, cargo test --test cmd_agents and cargo test --test cmd_skill.
+- accept: help agents, the block of agents install and the skill hold the common rules of at most 8 lines; together with the worker's text they are within 15 lines, and a test fails otherwise.
+- verify: cargo test --lib agents:: && cargo test --test cmd_agents && cargo test --test cmd_skill
+- reqs: R-AGENT-1, R-AGENT-2, R-AGENT-4, TEST-13
+- note (2026-11-26, planner): added
+
+### T-557 · agents install renews the skill too, and agents check covers it
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-550
+- why: Bringing a project from version 1.2 to the new rules must be one command.
+- summary: One command renews the rules block and, where a project has it, the skill file; the check covers both.
+- depends: T-556
+- files: src/agents/mod.rs, src/cmd/agents.rs, tests/cmd_agents.rs
+- read: docs/design.md, src/cmd/skill.rs
+- steps:
+  1. src/agents/mod.rs: remove the parameter `code_project` from `block`, `installed` and `current`, and remove `rules_for` (use the common rules with LF line endings directly); `planner_for` keeps its parameter. Add `pub fn skill_current(existing: &str) -> bool`: `existing` with CRLF replaced by LF equals `skill()`. Change the unit tests to the new signatures, and add one for skill_current (the skill text is current, also with CRLF; the text with one line changed is not).
+  2. src/cmd/agents.rs: call `agents::installed(&existing)` and `agents::current(&existing)`; remove the function `code_project` if nothing else in this file uses it.
+  3. src/cmd/agents.rs, `install` with --yes and no --dry-run: after the block is written, when the file `.claude/skills/dossier/SKILL.md` exists in the current folder and is not `agents::skill_current`, replace it with `agents::skill()` (`crate::atomic::replace`) and append a journal line as `record_write` does, with the ID `SKILL` and the detail `skill written`. The text is `AGENTS.md: rules block written`, and then the second line `.claude/skills/dossier/SKILL.md: skill written` when the skill was rewritten. The data is `{"written": true, "skill": <whether the skill was rewritten>}`; without --yes and with --dry-run the data gains `"skill": false`.
+  4. src/cmd/agents.rs, `check`: when the block is not current, fail as before. Otherwise, when the skill file exists and is not current, fail with Code::Refused and the message `.claude/skills/dossier/SKILL.md is out of date; run: dossier agents install --yes`. Otherwise succeed as before.
+  5. tests/cmd_agents.rs: add tests: (a) an AGENTS.md that holds a block of version 1.2 (the markers around the heading and the line `- Start a session with `dossier brief`.`): `agents check` fails, `agents install --yes` succeeds, `agents check` then succeeds, and every line outside the block is unchanged; (b) with a file `.claude/skills/dossier/SKILL.md` that holds old text: after `agents install --yes` the file equals `dossier::agents::skill()`, the output has the line about the skill, and the journal has one line with the ID `SKILL`; (c) without that file `agents install --yes` creates no `.claude` folder; (d) with a current block and an old skill file `agents check` fails and names the skill file; (e) --json of install has `skill`. Change the existing expectations of the install data where they compare the whole data.
+  6. Update the module comment of src/cmd/agents.rs. Run cargo test --lib agents::, cargo test --test cmd_agents and cargo test --test cmd_skill.
+- accept: agents install --yes renews the block and an existing skill file, and agents check fails when either is out of date.
+- verify: cargo test --lib agents:: && cargo test --test cmd_agents && cargo test --test cmd_skill
+- reqs: R-AGENT-2, R-AGENT-4
+- note (2026-11-26, planner): added
+
+### T-558 · brief: one line in a worker session, and --full
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-550
+- why: The brief at session start costs a worker about 1,500 tokens it does not need.
+- summary: In a worker's session the session-start brief is one line; the planner still gets the whole brief.
+- depends: T-553
+- files: src/cmd/brief.rs, tests/cmd_brief.rs
+- read: docs/design.md, docs/requirements.md
+- steps:
+  1. src/cmd/brief.rs, Args: add `/// Prints the project brief also in a worker session (R-AGENT-6)` `#[arg(long, conflicts_with = "task")] pub full: bool`.
+  2. src/cmd/brief.rs: add `const WORKER_LINE: &str = "dossier: worker session. The entries for your task are printed after todo claim; the project brief is left out.";` with a doc comment.
+  3. src/cmd/brief.rs, `run`: directly after `Ctx::load`, when `args.task` is None, `args.on` is None, `args.full` is false and `crate::role::current()` is `Role::Worker`, return `Output::with(WORKER_LINE, json!({"code": ctx.cfg.code, "role": "worker", "lines": [WORKER_LINE]}))`. Everything else stays as it is.
+  4. tests/cmd_brief.rs: add tests, each on a project with one approved decision, preparing the command with `project.command("anna", <the time the file uses>)` and `.env("DOSSIER_ROLE", …)`: (a) with `worker`, `brief` prints exactly WORKER_LINE and a line break; (b) with ` Worker `, the same; (c) with `planner`, and without the variable, `brief` prints `## Decisions in force`; (d) with `worker`, `brief --full` prints `## Decisions in force`; (e) with `worker`, `brief --on <today's date of the test clock>` prints `## Decisions in force`; (f) with `worker`, `brief --json` has `role` = `worker` in its data; (g) `brief --full --task T-001` is a usage error.
+  5. Update the module comment of brief.rs with one sentence on the worker session. Run cargo test --test cmd_brief.
+- accept: With DOSSIER_ROLE=worker, brief without --task prints one line; --full, --on and --task are as in a planner's session.
+- verify: cargo test --test cmd_brief
+- reqs: R-AGENT-6, R-AGENT-3, R-CTX-1
+- note (2026-11-26, planner): added
+
+### T-559 · after: nothing after todo done and todo stuck in a worker session
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-550
+- why: After todo done a worker was told to review the task and propose lessons, which is the planner's work.
+- summary: In a worker's session the hook after todo commands gives the entries for a claimed task and stays silent otherwise.
+- depends: T-553
+- files: src/cmd/after.rs, tests/cmd_after.rs
+- read: docs/design.md, docs/requirements.md, src/hooks.rs
+- steps:
+  1. src/cmd/after.rs, `text_of`: when `crate::role::current()` is `Role::Worker`, the events Done and Stuck give an empty text; Claimed is unchanged. Say so in the doc comments of `run` and `text_of`, with R-AGENT-6.
+  2. tests/cmd_after.rs: add a helper beside `run_after` that sets `DOSSIER_ROLE` to `worker` on the prepared command. Add tests: in a worker session a `todo done` payload gives no output and exit code 0; a `todo stuck` payload gives no output; a claim payload gives the same output as without the role. The existing tests pass unchanged.
+  3. Run cargo test --test cmd_after.
+- accept: In a worker session dossier after prints the task's entries after a claim and nothing after todo done and todo stuck.
+- verify: cargo test --test cmd_after
+- reqs: R-AGENT-5, R-AGENT-6
+- note (2026-11-26, planner): added
+
+### T-560 · Release 1.3.0
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: chore
+- milestone: T-550
+- why: The owner tags a release only from a version that builds, passes every check and says what it adds.
+- summary: The version number and the README are ready for the owner to tag release 1.3.0.
+- depends: T-557, T-558, T-559
+- files: Cargo.toml, Cargo.lock, README.md
+- read: docs/design.md, docs/requirements.md
+- steps:
+  1. Cargo.toml: version = "1.3.0"; run cargo build so that Cargo.lock follows (only the version line of the dossier package may change; otherwise stop and report).
+  2. README.md: set the status line at the top to version 1.3, and update the sample output where it shows the version. Add, after the newest `### What version … adds` section, a section `### What version 1.3 adds` with these parts: the rules are split by role (`dossier help agents`: the common rules that `agents install` writes into AGENTS.md, at most 8 lines; `dossier help worker`, at most 7 lines; `dossier help planner`, everything else); a worker's session is started with `DOSSIER_ROLE=worker` and then gets one line in place of the project brief (`dossier brief --full` prints it) and nothing after `todo done` and `todo stuck`; the planner runs `dossier review-task` for a worker's task.
+  3. README.md, in the same section: `After an upgrade from 1.2, run dossier agents install --yes once in each project: it replaces the long rules block in AGENTS.md by the short one and renews the skill file if the project has one. The hooks need no change.` Where the README still says that `help agents` prints all rules, or lists the rules of a planner as the block's content, correct it.
+  4. Run cargo fmt --all -- --check, cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features; all three must pass. Do not tag and do not push: the owner does that.
+- accept: Version 1.3.0 builds, passes every check, and the README says what it adds and how to upgrade.
+- verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
+- reqs: REL-1, REL-2
+- note (2026-11-26, planner): added
+
+### T-561 · This repository's AGENTS.md gets the short rules block
+- status: open
+- owner: —
+- priority: P1 · difficulty: 2 · type: chore
+- milestone: T-550
+- why: This repository is worked by cheap workers too, and its AGENTS.md still carries the long block of version 1.2.
+- summary: The project's own AGENTS.md is brought to the short rules with the new program, and the result is measured.
+- final: Run with the released program in this repository and measured by the planner.
+- depends: T-560
+- files: AGENTS.md
+- read: docs/requirements.md
+- steps:
+  1. Build the release program (cargo build --release) and run it in this repository: `target/release/dossier agents install --yes`, then `target/release/dossier agents check`.
+  2. Check that only the lines between the dossier markers of AGENTS.md changed.
+  3. Measure in a temporary project with the new program: the lines of the block and of `help worker`, the output of `brief` with and without DOSSIER_ROLE=worker, and their sizes; report them to the owner beside the numbers of version 1.2.
+- accept: AGENTS.md of this repository holds the common rules, agents check passes with the new program, and the sizes before and after are reported.
+- reqs: R-AGENT-2
+- note (2026-11-26, planner): added
+
 ## Questions
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.
