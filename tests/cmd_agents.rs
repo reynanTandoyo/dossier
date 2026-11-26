@@ -99,6 +99,20 @@ fn help_planner_tells_the_llm_to_hand_over_and_to_take_over_with_said_by() {
 }
 
 #[test]
+fn help_planner_tells_the_llm_to_run_its_persons_decision_with_said_by() {
+    let folder = tempfile::tempdir().unwrap();
+    let output = dossier(folder.path(), &["help", "planner"])
+        .success()
+        .get_output()
+        .stdout
+        .clone();
+    let text = String::from_utf8(output).expect("the standard output is UTF-8");
+    assert!(text.contains("dossier approve <ID> --said-by <person>"));
+    assert!(text.contains("never ask your person to type a dossier command"));
+    assert!(!text.contains("Never approve, reject, retire or remove"));
+}
+
+#[test]
 fn help_agents_as_json_gives_the_rules_text() {
     let folder = tempfile::tempdir().unwrap();
     dossier(folder.path(), &["help", "agents", "--json"])

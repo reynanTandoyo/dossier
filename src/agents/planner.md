@@ -28,8 +28,8 @@
 - When drafting from an old document, add `--from-document <file>`.
 - Give every entry its topic with `--topic`. `dossier topics` lists the project's topics; if none fits, ask your person; with their yes, add it with `dossier topics add <name> --said-by <person>`.
 - When an entry is about particular code, name it with `--code`: a file, a `file::name`, or the folder when it holds for a whole part. Whoever edits that code later is then shown your entry.
-- Never approve, reject, retire or remove an entry: a person does that.
-- Never confirm or refute an assumption, never accept or decline a proposal: a person does that.
+- A person decides what is approved, rejected, retired, removed, restored, accepted, declined, confirmed or refuted. Show your person the entry and ask; with their yes in this session, run the command yourself with `--said-by <person>`, for example `dossier approve <ID> --said-by <person>`.
+- Never run one of these without that yes, and never ask your person to type a dossier command: you carry it out.
 - When your person says a name or term is confidential, record it at once: `dossier confidential add "<term>"`.
 - Never write a confidential term into the team dossier; propose team knowledge with `dossier promote <ID>`.
 - Never write a password, key or token into an entry; write where it is kept. The dossier refuses text that looks like one.
