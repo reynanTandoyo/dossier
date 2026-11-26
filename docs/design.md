@@ -1063,7 +1063,7 @@ the current folder with the output captured, so that remote mode works without m
 | Event | Text |
 |---|---|
 | `Claimed(id)` | the output of `brief --task <id>` |
-| `Done(id)` | the output of `review-task <id>`; then, when `list --kind usage --task <id> --all --json` gives no entry: `No usage record for <id>: if software was used, record it with dossier used <software> --version <v> --task <id>` |
+| `Done(id)` | the output of `review-task <id>`; then, when `list --kind usage --task <id> --all --json` gives no entry: `No usage record for <id>: if software was used, record it with dossier used <software> --version <v> --task <id>`, except in a code project (`code_project = true`, R-CODE-5) |
 | `Stuck(id)` | `<id> was given back. Record what was missing or did not work, so that the planner finds it: dossier found "<what was tried>" --dead-end --task <id>, or dossier assume "<what was assumed>" --reason "<why>" --task <id>` |
 
 A run of the program that does not end with exit 0 adds nothing. When the text is not empty,

@@ -11394,13 +11394,15 @@
 - note (2026-11-26, haiku-T-533): done
 
 ### T-535 · 1.2.0: the known bugs of 1.0 to 1.1 fixed
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - goal: The ideas found while building and testing 1.0, 1.1 and the handover commands that are bugs are fixed (T-420, T-429, T-497, T-498, T-499, T-500, T-501, T-510, T-521, T-524, T-534), so 1.2.0 ships handover and takeover without known faults.
 - why: The owner asked to fix every known bug before releasing handover and takeover as 1.2.0 (2026-11-26).
 - summary: Small faults found by the workers and by testing on the project's own dossier are fixed before the next release.
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, planner): done — Eleven known bugs of 1.0 to 1.1 fixed: handover lines in brief --task, topics checks in topics add, set and learn --update, which --binding by valid-until, guard session names, search cost, code-project rules and reminder, agents journal, ## lines in add, and 10:30 in check.
 
 ### T-536 · brief --task: the last handover and the last takeover on their own lines
 - status: done
@@ -11588,10 +11590,8 @@
 - note (2026-11-26, haiku-T-543): done
 
 ### T-544 · agents install: its journal line names the LLM as an LLM
-- status: claimed
+- status: done
 - owner: haiku-T-544
-- claimed: 2026-11-26T08:09+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: fix
 - milestone: T-535
 - why: With DOSSIER_AGENT 'reyna - claude', agents install wrote person 'reyna - claude' and llm false into the journal (idea T-524), because it uses names::unchecked instead of resolving the name as other commands do (D34).
@@ -11605,8 +11605,12 @@
   3. Run cargo test --test cmd_agents.
 - accept: agents install records an LLM writer as an LLM of its person.
 - verify: cargo test --test cmd_agents
+- verified: 2026-11-26
+- commit: 08d6733
 - reqs: D34, D29
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-544): done
 
 ### T-545 · after: no usage-record reminder in a code project
 - status: done
@@ -11673,6 +11677,23 @@
 - by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
 - note (2026-11-26, haiku-T-547): done
+
+### T-549 · Release 1.2.0: handover and takeover, and the known bugs fixed
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: chore
+- why: Milestones T-525 (handover and takeover) and T-535 (known bugs) are finished and the owner wants them released.
+- summary: Version 1.2.0 is built, checked on Windows and Linux, tagged and published on GitHub.
+- files: Cargo.toml, Cargo.lock, README.md
+- read: docs/requirements.md
+- steps:
+  1. Cargo.toml: version = "1.2.0"; cargo build so that Cargo.lock follows.
+  2. README.md: status line `**Status: v1.2**`; a section `### What version 1.2 adds` on handover, takeover and the fixes; the server sample shows 1.2.0.
+  3. Run fmt, clippy and all tests on Windows and in WSL; after CI passes, tag v1.2.0.
+- accept: Version 1.2.0 builds, passes every check, and the README says what it adds.
+- verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
+- reqs: REL-1, REL-2
+- note (2026-11-26, planner): added
 
 ## Questions
 

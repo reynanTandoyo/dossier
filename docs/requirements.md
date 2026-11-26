@@ -1096,7 +1096,8 @@ depend on which of the two a command was typed on.
   - after a task was claimed (`todo next --claim`, `todo claim <id>`): the output of
     `brief --task <id>` (R-CTX-2);
   - after `todo done <id>`: the output of `review-task <id>` (R-DRAFT-1) and, when the task has
-    no usage record, one line that reminds the agent to add one if software was used (R-USE-7);
+    no usage record, one line that reminds the agent to add one if software was used (R-USE-7),
+    except in a code project (R-CODE-5);
   - after `todo stuck <id>`: one line that tells the agent to record what was missing or did not
     work, with `found --dead-end` or `assume`, or to open an investigation with
     `problem … --task <id>` (R-INV-9), so that the planner finds it in `brief --task`.

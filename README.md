@@ -4,7 +4,7 @@
 while doing its projects. People and their LLMs write to it and read from it, so that neither has
 to rely on memory.
 
-**Status: v1.1.1**
+**Status: v1.2**
 
 - [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the seven phases it is
   built in.
@@ -1148,6 +1148,64 @@ Fixes found by using 1.1 on this project's own dossier:
   and the journal names both (decision D52); without `--said-by`, an LLM is still refused. Run
   `dossier agents install --yes` once to get the updated rule for LLMs.
 
+### What version 1.2 adds
+
+#### Handover and takeover of a task
+
+A task in `todo` is held by whoever claimed it. When that person changes team, or falls ill, the
+task must not stay locked and what was done must not get lost (decision D54).
+
+When you stop before a task is done, give it back with a note of what is done and what is next:
+
+```
+$ dossier handover T-012 --note "Done: mesh and runs 1-2. Next: run 3 with the finer grid."
+T-012 handed over: handover — Done: mesh and runs 1-2. Next: run 3 with the finer grid.
+```
+
+`handover` refuses while you still hold files taken for the task (`dossier take`), and names
+them: return them first with `dossier return <file> --done`, or `--abandon` to drop your changes,
+so no work stays on your PC. Then it writes the note on the task in `todo`, gives the task back,
+and records the handover in the journal.
+
+When a colleague cannot give a task back, anyone in the team takes it over at any time:
+
+```
+$ dossier takeover T-012
+T-012 taken over from anna
+model.sim: taken by anna on 2026-11-26T07:26:58+01:00 and not returned; changes on their PC are not on the server
+take them with: dossier take model.sim --task T-012 --force
+
+Task T-012 · Run the speedline
+Last handover: Done: mesh and runs 1-2. Next: run 3 with the finer grid. (anna, 2026-11-20)
+Last takeover: ben took over from anna (ben, 2026-11-26)
+…
+```
+
+The task becomes yours in `todo`, the takeover is recorded with who took over from whom, the files
+the colleague has not returned are named with the command to take them, and the task's progress
+follows: its last handover note, findings, investigations, files and decisions. `takeover` never
+copies a file itself. An LLM may hand over its own task; to take over a colleague's task it needs
+its person's yes: `dossier takeover T-012 --said-by <person>`. Both commands accept `--dry-run`.
+
+#### Fixes
+
+- `brief --task` shows the last handover note and the last takeover on their own lines.
+- `which --binding`, and so the check before an edit, shows only entries in force today: an
+  approved entry past its `valid-until` no longer binds a file.
+- `guard` treats a session name with unusual characters as no session, so it never refuses the
+  same edit over and over.
+- `topics add` refuses a name that is not in the settings with the right message; `set` and
+  `learn --update` check topics as writing a new entry does.
+- A code project's rules for LLMs leave out the parts about simulation runs and confidential
+  terms, and its hook after `todo done` no longer reminds about usage records.
+- `add` refuses a text line that starts with `##`, which would open a new section.
+- `check` no longer reads a time such as `10:30` as a setting without a unit.
+- `search` looks up linked entries only for the results it prints, so it stays fast on a large
+  dossier.
+
+After an upgrade, run `dossier agents install --yes` once in each project: the rules now explain
+`handover` and `takeover`.
+
 ## What it needs
 
 - [`todo`](https://github.com/reynanTandoyo/todo) 0.8 or newer. `todo` keeps the tasks of a
@@ -1357,7 +1415,7 @@ lines:
 
 ```
 ssh: ok
-dossier on the server: 1.1.1
+dossier on the server: 1.2.0
 todo on the server: 0.8.0
 dossier folder: ok (P-001)
 ```
