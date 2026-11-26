@@ -11930,8 +11930,8 @@
 - note (2026-11-26, haiku-T-559): done — In a worker session (DOSSIER_ROLE=worker) the hook after todo done and todo stuck prints nothing; the claim still prints its brief, and planner sessions are unchanged.
 
 ### T-560 · Release 1.3.0
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-560
 - priority: P1 · difficulty: 1 · type: chore
 - milestone: T-550
 - why: The owner tags a release only from a version that builds, passes every check and says what it adds.
@@ -11946,8 +11946,12 @@
   4. Run cargo fmt --all -- --check, cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features; all three must pass. Do not tag and do not push: the owner does that.
 - accept: Version 1.3.0 builds, passes every check, and the README says what it adds and how to upgrade.
 - verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
+- verified: 2026-11-26
+- commit: 8bc5d09
 - reqs: REL-1, REL-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-560): done — Release 1.3.0: Cargo.toml and Cargo.lock say 1.3.0, and the README has a 1.3 section on the rules by role; fmt, clippy and all tests pass. Not tagged, not pushed.
 
 ### T-561 · This repository's AGENTS.md gets the short rules block
 - status: open
