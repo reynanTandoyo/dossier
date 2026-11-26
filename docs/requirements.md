@@ -400,8 +400,7 @@ Some commands carry out what only a person may decide (D5, D57). The person need
 
 - **R-SAID-1 MUST** These commands take `--said-by <person>`: `approve`, `reject`, `accept`,
   `decline`, `confirm`, `refute`, `retire`, `remove`, `restore`, `reopen` (of a retired entry),
-  `cleared`, `reviewed`, `supersede`, `value approve`, `value reject`, `team member remove`,
-  `team name remove`, and `confidential remove` and `confidential none`. A person runs them as
+  `cleared`, `reviewed`, and `confidential remove` and `confidential none`. A person runs them as
   before. An LLM without `--said-by` is refused (exit code 1) with a message that tells it to
   ask its person and to run the command again with `--said-by <person>`. An LLM with `--said-by`
   naming its own person (D34; case ignored) runs the command for that person. Any other name is
@@ -420,8 +419,10 @@ Some commands carry out what only a person may decide (D5, D57). The person need
   your person the entry and ask; with their yes in this session, run the command with
   `--said-by <person>`; never without it.
 
-Not covered in version 1.3.1, and still a person's at a terminal: `close`, which asks about each
-finding, and the warnings that `delivered` and `promote` ask a person to confirm.
+Not covered in version 1.3.1, and still for a person only: `supersede`, `value approve`,
+`value reject`, `team member remove` and `team name remove` (planned, same pattern), `close`,
+which asks about each finding, and the warnings that `delivered` and `promote` ask a person to
+confirm.
 
 ### 5.6 Life of an entry — LIFE
 

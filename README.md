@@ -4,7 +4,7 @@
 while doing its projects. People and their LLMs write to it and read from it, so that neither has
 to rely on memory.
 
-**Status: v1.3**
+**Status: v1.3.1**
 
 - [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the seven phases it is
   built in.
@@ -1232,6 +1232,22 @@ After an upgrade from 1.2, run `dossier agents install --yes` once in each proje
 long rules block in `AGENTS.md` by the short one and renews the skill file if the project has one.
 The hooks need no change.
 
+### What version 1.3.1 adds
+
+A person decides what is approved, rejected, accepted, declined, confirmed, refuted, retired,
+removed, restored, reopened, cleared and reviewed, and which confidential term is removed. The
+person need not type the command: after their yes in the session, the LLM runs it with
+`--said-by <person>`, without a terminal and without the question a person is asked.
+
+```
+dossier approve LES-004 --said-by anna
+```
+
+The entry names the person, and its history and the journal name the person and the LLM
+(`anna via anna-claude`). Without `--said-by`, with another person's name, or in a worker's
+session, the LLM is refused. `supersede`, `value approve`, `value reject`, the two `team`
+removals and `close` still need a person.
+
 ## What it needs
 
 - [`todo`](https://github.com/reynanTandoyo/todo) 0.8 or newer. `todo` keeps the tasks of a
@@ -1442,7 +1458,7 @@ lines:
 
 ```
 ssh: ok
-dossier on the server: 1.3.0
+dossier on the server: 1.3.1
 todo on the server: 0.8.0
 dossier folder: ok (P-001)
 ```
