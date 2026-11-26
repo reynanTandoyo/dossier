@@ -12007,8 +12007,8 @@
 - note (2026-11-26, planner): done — The requirements name the thirteen commands an LLM may run for its person, and the design fixes the one check they share.
 
 ### T-565 · names.rs: the gate said_by_gate
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-565
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-563
 - why: Thirteen commands must decide in the same way whether an LLM may carry out a person's decision.
@@ -12023,8 +12023,12 @@
   4. Run cargo test --lib names::
 - accept: names::said_by_gate exists with the five cases of design.md section 24 and their tests.
 - verify: cargo test --lib names::
+- verified: 2026-11-26
+- commit: 7df744d
 - reqs: R-SAID-1, R-SAID-4
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-565): done — Added names::said_by_gate, the one check that decides whether an LLM may carry out its person's decision with --said-by: a person runs as before, an LLM in a worker session is refused, an LLM without --said-by or for another person is refused, and an LLM with its person runs. Six unit tests in src/names.rs pass; the full suite, clippy and fmt pass.
 
 ### T-566 · approve: an LLM runs it with --said-by
 - status: open
