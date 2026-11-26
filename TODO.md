@@ -11565,6 +11565,7 @@
 - milestone: T-535
 - why: agents install wrote the whole rules text into a code project, with the parts about simulation runs and confidential customer terms that R-CODE-5 says to leave out (idea T-510).
 - summary: An LLM in a software project no longer reads rules about simulation runs and customer secrets.
+- final: Changes the signatures of agents::block, installed and current with design.md, and their callers: four files.
 - files: src/agents/mod.rs, src/cmd/agents.rs, tests/cmd_agents.rs, docs/design.md
 - read: src/agents/mod.rs, src/cmd/agents.rs, src/config.rs, docs/design.md
 - steps:
@@ -11579,6 +11580,7 @@
 - verify: cargo test --test cmd_agents && cargo test --lib agents::
 - reqs: R-CODE-5, R-AGENT-1
 - note (2026-11-26, planner): added
+- note (2026-11-26, planner): forced set (owner was haiku-T-543)
 - note (2026-11-26, planner): forced set (owner was haiku-T-543)
 
 ### T-544 · agents install: its journal line names the LLM as an LLM
