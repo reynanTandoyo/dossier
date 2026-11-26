@@ -12289,8 +12289,8 @@
 - note (2026-11-26, haiku-T-575): done — reopen takes --said-by: an LLM reopens a retired entry for its person with --said-by (D57, names::said_by_gate); without it or for another person it is refused, and a worker session is refused; approved or rejected entries are unchanged; five tests in tests/cmd_reopen.rs, all checks pass.
 
 ### T-576 · reviewed: an LLM runs it with --said-by
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-576
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-563
 - why: The person's yes is given in the session; the LLM must be able to carry it out.
@@ -12306,8 +12306,12 @@
   5. Run cargo test --test cmd_reviewed.
 - accept: reviewed --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
 - verify: cargo test --test cmd_reviewed
+- verified: 2026-11-26
+- commit: 453ddef
 - reqs: R-SAID-1 to R-SAID-4, TEST-14
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-576): done — reviewed now takes --said-by: an LLM confirms an entry for its own person without a terminal (a worker is still refused, and another person's name is refused); a person still needs a terminal as before. Four new tests and one updated message expectation in tests/cmd_reviewed.rs pass; the full suite, clippy and fmt pass.
 
 ### T-577 · cleared: an LLM runs it with --said-by
 - status: open
