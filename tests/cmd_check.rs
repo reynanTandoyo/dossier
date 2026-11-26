@@ -1681,6 +1681,23 @@ fn a_setting_with_a_unit_or_a_word_and_an_exponent_is_not_a_warning() {
 }
 
 #[test]
+fn a_name_without_a_letter_is_no_setting_but_a_named_number_still_is_a_warning() {
+    let project = Project::new();
+    how_to_with_settings(&project, "anna", "10:30\ninlet pressure: 4");
+    let file = project.entry_file("HOW-001");
+    let line = line_of(&text_of(&project, "HOW-001"), "inlet pressure: 4");
+
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+    assert_eq!(
+        warnings(&project),
+        format!(
+            "warning: {}\n",
+            unit_warning(&shown(&file), line, "HOW-001", "inlet pressure: 4")
+        )
+    );
+}
+
+#[test]
 fn a_number_without_a_unit_in_a_draft_how_to_is_not_a_warning() {
     let project = Project::new();
     how_to_with_settings(&project, "anna-claude", "CFL: 5");

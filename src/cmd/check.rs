@@ -1130,8 +1130,8 @@ fn unit_section(entry: &Entry) -> Option<&'static str> {
 }
 
 /// The UNIT reports (R-ENTRY-11): each line of the Statement of an approved lesson, or of the
-/// Settings of an approved how-to, that is `<name>: <value>` or `<name> = <value>` with a value
-/// that is only a number (`is_bare_number`). Each is on its line in the file.
+/// Settings of an approved how-to, that is `<name>: <value>` or `<name> = <value>` (see
+/// `bare_number_line`). Each is on its line in the file.
 fn unit_reports(root: &Path, items: &[Item]) -> Vec<Found> {
     let mut found = Vec::new();
     for item in items {
@@ -1157,11 +1157,13 @@ fn unit_reports(root: &Path, items: &[Item]) -> Vec<Found> {
     found
 }
 
-/// Whether a line is `<name>: <value>` or `<name> = <value>` (R-ENTRY-11) with a name and a value
-/// that is only a number. The line is split at its first `:` or `=`, and the value is trimmed.
+/// Whether a line is `<name>: <value>` or `<name> = <value>` (R-ENTRY-11) with a name that holds a
+/// letter and a value that is only a number. The line is split at its first `:` or `=`, and the
+/// value is trimmed. A name without a letter, such as the `10` of `10:30`, is not a setting.
 fn bare_number_line(text: &str) -> bool {
-    text.split_once([':', '='])
-        .is_some_and(|(name, value)| !name.trim().is_empty() && is_bare_number(value.trim()))
+    text.split_once([':', '=']).is_some_and(|(name, value)| {
+        name.chars().any(char::is_alphabetic) && is_bare_number(value.trim())
+    })
 }
 
 /// Whether a value is only a number (R-ENTRY-11): an optional sign, digits with at most one `.` or
