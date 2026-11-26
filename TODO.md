@@ -12390,7 +12390,7 @@
 - milestone: T-563
 - why: The owner tags a release only from a version that builds, passes every check and says what it adds.
 - summary: The version number and the README are ready for the owner to tag release 1.3.1.
-- depends: T-566, T-567, T-568, T-569, T-570, T-571, T-572, T-573, T-574, T-575, T-576, T-577, T-578, T-579
+- depends: T-566, T-567, T-568, T-569, T-570, T-571, T-572, T-573, T-574, T-575, T-576, T-577, T-578, T-579, T-581, T-582, T-583, T-584, T-585
 - files: Cargo.toml, Cargo.lock, README.md
 - read: docs/design.md, docs/requirements.md
 - steps:
@@ -12401,6 +12401,102 @@
 - accept: Version 1.3.1 builds, passes every check, and the README says what it adds.
 - verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
 - reqs: REL-1, REL-2
+- note (2026-11-26, planner): added
+
+### T-581 · requirements.md: R-SAID-1 also names supersede, value approve and reject, and the team removals
+- status: done
+- owner: planner
+- priority: P1 · difficulty: 2 · type: docs
+- milestone: T-563
+- why: The first list of commands left out four that also refuse an LLM, found while the others were built.
+- summary: The requirement lists every command an LLM may run for its person.
+- final: A one-line correction of the requirements by the planner.
+- files: docs/requirements.md
+- read: docs/requirements.md
+- steps:
+  1. R-SAID-1: add `supersede`, `value approve`, `value reject`, `team member remove` and `team name remove` to the list of commands.
+  2. The patch release 1.3.1 section stays as it is: it names R-SAID-1.
+- accept: R-SAID-1 names every command that takes --said-by in version 1.3.1.
+- commit: 5cff02e
+- reqs: R-SAID-1
+- by: Reynan Henry Tandoyo
+- note (2026-11-26, planner): added
+- note (2026-11-26, planner): done — The requirement now lists all eighteen commands an LLM may run for its person.
+
+### T-582 · supersede: an LLM runs it with --said-by
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: The person's yes is given in the session; the LLM must be able to carry it out.
+- summary: An LLM can replace one entry by another for its person after the person agreed.
+- files: src/cmd/supersede.rs, tests/cmd_supersede.rs
+- read: docs/design.md, docs/requirements.md, src/names.rs
+- steps:
+  1. src/cmd/supersede.rs, Args: add `/// The person who decided this; needed when an LLM runs the command (D57)` `#[arg(long, value_name = "PERSON")] pub said_by: Option<String>`.
+  2. src/cmd/supersede.rs, `run`: replace the check `if who.is_llm { … Code::NeedsPerson … }` by `names::said_by_gate(&who, args.said_by.as_deref(), "supersede")?;` (add `use crate::names;` if it is missing). The command needs no terminal and asks nothing. Do not change what is written. Update the module comment and the doc comment of `run` (D57).
+  3. tests/cmd_supersede.rs: add four tests, with the helpers the file already uses (the project has the person `anna` with the LLM `anna-claude`, and the person `ben`). (a) `anna-claude` without --said-by: exit code 1, the message holds `--said-by anna`, and nothing changed. (b) `anna-claude` with `--said-by anna`, with no terminal and no answers prepared: it succeeds; the old entry has `status: superseded` and names the new one, and its newest history line holds `anna via anna-claude`; the newest journal line has the person `anna`, the name `anna-claude` and `llm` true. (c) `anna-claude` with `--said-by ben`: exit code 1, the message holds `acts for anna only`, nothing changed. (d) as (b) but with `.env("DOSSIER_ROLE", "worker")` on the prepared command (`project.command(...)`): exit code 1, the message holds `a worker decides nothing`, nothing changed. The existing tests pass unchanged, except an existing test that expects the old message for an LLM: change it to expect `--said-by anna`.
+  4. Run cargo test --test cmd_supersede.
+- accept: supersede --said-by <its person> works for an LLM; without it, with another name, or in a worker session it is refused.
+- verify: cargo test --test cmd_supersede
+- reqs: R-SAID-1 to R-SAID-4, TEST-14
+- note (2026-11-26, planner): added
+
+### T-583 · value approve and value reject: an LLM runs them with --said-by
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: The person's yes is given in the session; the LLM must be able to carry it out.
+- summary: An LLM can approve or reject a proposed key value for its person after the person agreed.
+- files: src/cmd/value.rs, tests/cmd_value.rs
+- read: docs/design.md, docs/requirements.md, src/names.rs
+- steps:
+  1. src/cmd/value.rs: the actions `Approve` and `Reject` gain the field `/// The person who decided this; needed when an LLM runs the command (D57)` `#[arg(long, value_name = "PERSON")] said_by: Option<String>`. Change their doc comments from `(a person at a terminal)` to `(a person, or an LLM with --said-by)`.
+  2. src/cmd/value.rs: the helper `person_at_terminal(who, command)` becomes `person_at_terminal(who, command, said_by: Option<&str>)`: it calls `names::said_by_gate(who, said_by, command)?` in place of its own check of `who.is_llm`, and refuses a run without a terminal only when the gate gave false. `approve` and `reject` take the value from `run` and pass it on. `value set` and its own `--said-by` are not changed. Do not change what is written. Update the doc comments (D57).
+  3. tests/cmd_value.rs: add four tests, with the helpers the file already uses (the project has the person `anna` with the LLM `anna-claude`, and the person `ben`). (a) `anna-claude` without --said-by: exit code 1, the message holds `--said-by anna`, and nothing changed. (b) `anna-claude` with `--said-by anna`, with no terminal and no answers prepared: it succeeds; the proposed value is in force (for `value approve`), and the newest history line of the value holds `anna via anna-claude`; the newest journal line has the person `anna`, the name `anna-claude` and `llm` true. (c) `anna-claude` with `--said-by ben`: exit code 1, the message holds `acts for anna only`, nothing changed. (d) as (b) but with `.env("DOSSIER_ROLE", "worker")` on the prepared command (`project.command(...)`): exit code 1, the message holds `a worker decides nothing`, nothing changed. The existing tests pass unchanged, except an existing test that expects the old message for an LLM: change it to expect `--said-by anna`. Write (a) to (d) for `value approve`, and add (e): `value reject <name> --said-by anna` as anna-claude succeeds and the proposal is gone.
+  4. Run cargo test --test cmd_value.
+- accept: value approve and value reject work for an LLM with --said-by <its person>, and are refused otherwise.
+- verify: cargo test --test cmd_value
+- reqs: R-SAID-1 to R-SAID-4, TEST-14
+- note (2026-11-26, planner): added
+
+### T-584 · team member remove and team name remove: an LLM runs them with --said-by
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: The person's yes is given in the session; the LLM must be able to carry it out.
+- summary: An LLM can remove a member or a plain name from the team for its person after the person agreed.
+- files: src/cmd/team.rs, tests/cmd_team.rs
+- read: docs/design.md, docs/requirements.md, src/names.rs
+- steps:
+  1. src/cmd/team.rs: `MemberAction::Remove` and `NameAction::Remove` gain the field `/// The person who decided this; needed when an LLM runs the command (D57)` `#[arg(long, value_name = "PERSON")] said_by: Option<String>`. Change their doc comments from `a person at a terminal does it` to `a person does it, or an LLM with --said-by`.
+  2. src/cmd/team.rs, `remove_member` and `remove_name`: each takes `said_by: Option<&str>` as a new last parameter, calls `names::said_by_gate(who, said_by, "team member remove")?` (or `"team name remove"`) in place of its check of `who.is_llm`, and refuses a run without a terminal only when the gate gave false. `member` and `plain_name` pass the value on. Every other check stays. Do not change what is written. Update the doc comments (D57).
+  3. tests/cmd_team.rs: add four tests, with the helpers the file already uses (the project has the person `anna` with the LLM `anna-claude`, and the person `ben`). (a) `anna-claude` without --said-by: exit code 1, the message holds `--said-by anna`, and nothing changed. (b) `anna-claude` with `--said-by anna`, with no terminal and no answers prepared: it succeeds; the member is gone from `members` of the settings; the newest journal line has the person `anna`, the name `anna-claude` and `llm` true. (c) `anna-claude` with `--said-by ben`: exit code 1, the message holds `acts for anna only`, nothing changed. (d) as (b) but with `.env("DOSSIER_ROLE", "worker")` on the prepared command (`project.command(...)`): exit code 1, the message holds `a worker decides nothing`, nothing changed. The existing tests pass unchanged, except an existing test that expects the old message for an LLM: change it to expect `--said-by anna`. Write (a) to (d) for `team member remove`, in a team dossier prepared as the existing tests of a successful removal prepare it, and add (e): `team name remove <name> --said-by anna` as anna-claude succeeds. If the existing tests show that an LLM's person must be a member for any team write, keep that: it is one of the other checks.
+  4. Run cargo test --test cmd_team.
+- accept: team member remove and team name remove work for an LLM with --said-by <its person>, and are refused otherwise.
+- verify: cargo test --test cmd_team
+- reqs: R-SAID-1 to R-SAID-4, TEST-14
+- note (2026-11-26, planner): added
+
+### T-585 · Help texts no longer say that a terminal is needed
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-563
+- why: An LLM that reads `approve: Approves drafts, at a terminal` concludes that it cannot run the command.
+- summary: The one-line descriptions of the commands stop naming the terminal.
+- files: src/cmd/help.rs, src/cmd/confidential.rs, tests/cmd_help.rs
+- read: docs/requirements.md
+- steps:
+  1. src/cmd/help.rs, COMMANDS: change these descriptions: approve `Approves drafts`; remove `Deletes an entry for good`; accept `Accepts a proposal`; decline `Declines a proposal`; refute `Refutes an assumption`.
+  2. src/cmd/confidential.rs: in the doc comments of the actions `Remove` and `None`, replace `a person at a terminal` by `a person, or an LLM with --said-by`.
+  3. tests/cmd_help.rs: add a test: the overview of `dossier help` holds no line with the word `terminal`, and `dossier help approve` starts with `approve: Approves drafts`. Change any existing expectation of an old description, here or reported by the full test run in a file of this task.
+  4. Run cargo test --test cmd_help and cargo test --test cmd_agents.
+- accept: dossier help names no terminal for approve, remove, accept, decline and refute.
+- verify: cargo test --test cmd_help && cargo test --test cmd_agents
+- reqs: R-SAID-1
 - note (2026-11-26, planner): added
 
 ## Questions
