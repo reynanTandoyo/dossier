@@ -11186,6 +11186,142 @@
 - note (2026-11-25, planner): done
 - note (2026-11-25, planner): Checked on Windows (2420 tests), WSL Fedora 44 (2424) and CI; tagged v1.1.1 and published: https://github.com/reynanTandoyo/dossier/releases/tag/v1.1.1
 
+### T-525 · Handover and takeover of a task
+- status: open
+- owner: —
+- priority: P1 · type: milestone
+- goal: A person or LLM gives a task back with handover <task> --note after returning its files, and anyone takes over a task at any time with takeover <task>; both are recorded in todo and in the journal, takeover names the files the previous holder has not returned, an LLM takes over only with --said-by, and brief --task shows the last handover note (D54, R-HAND-1 to R-HAND-5).
+- why: A colleague who changes team or falls ill must not leave a task locked or its progress lost (owner, 2026-11-26).
+- summary: A task can be handed over with a note of what is done and what is next, and taken over by a colleague, without losing files or progress.
+- note (2026-11-26, planner): added
+
+### T-526 · requirements.md and design.md: D54 and R-HAND, handover and takeover
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: docs
+- milestone: T-525
+- why: Every task of this milestone names R-HAND-1 to R-HAND-5 and the outputs fixed in design.md section 22.
+- summary: The requirements and the design say how a task is handed over and taken over.
+- files: docs/requirements.md, docs/design.md
+- read: docs/requirements.md, docs/design.md, src/todo_bridge.rs, src/taken.rs
+- steps:
+  1. docs/requirements.md, section 3: after the row of D53 add `| D54 | A task is handed over with ``handover <task> --note``, which gives it back in todo with a note of what is done and what is next, once the writer has returned every file taken for it. Anyone in the team takes over a task at any time with ``takeover <task>``; it is recorded who took over from whom, and the files the previous holder has not returned are named. An LLM may hand over its own task, and takes over only with ``--said-by <person>``. The handover note is a todo note on the task. (Owner, 2026-11-26.) | A colleague who changes team or falls ill must not leave a task locked or its progress lost. The task belongs to todo (D38), so the note is a todo note; a small team trusts each other, so a takeover is recorded rather than restricted. |` (doubled backticks stand for single ones). Line 3: `Draft 14, 2026-11-26 (owner's decisions: D28 to D54).`
+  2. Directly before the heading `### 5.12 Remote mode — REMOTE` add the heading `### 5.11j Handover and takeover — HAND`, a blank line, the paragraph `A task is held in todo by the person or LLM that claimed it. These two commands move it to someone else without losing what was done (D54).`, a blank line and five items wrapped at 100 characters like the items of 5.11i:
+  3. `- **R-HAND-1 MUST** ``handover <task> --note "<text>"`` is refused (Code::Refused) while the writer holds files taken for the task, naming each file and the commands ``dossier return <file> --done`` and ``--abandon``. Otherwise it adds to the task in todo the note ``handover — <text>``, gives the task back in todo (``todo release``), and writes a journal line with the event ``handover`` and the text as detail.`
+  4. `- **R-HAND-2 MUST** ``takeover <task>`` claims the task in todo for the writer, with ``--force`` when someone else holds it, adds the note ``takeover — <writer> took over from <previous holder>`` (``from nobody`` when the task was open; `` (said by <person>)`` at its end when given), and writes a journal line with the event ``takeover``. For every file taken for the task by another person it prints ``<path>: taken by <person> on <time> and not returned; changes on their PC are not on the server``, then once ``take them with: dossier take <paths> --task <task> --force``. Last it prints what ``brief --task <task>`` prints. It never copies a file itself.`
+  5. `- **R-HAND-3 MUST** An LLM runs ``takeover`` only with ``--said-by <person>``, resolved as ``decide`` resolves it; without it Code::NeedsPerson. ``handover`` needs no person.`
+  6. `- **R-HAND-4 MUST** ``brief --task`` prints, directly after its first line, the last note of the task in todo that starts with ``handover —`` or ``takeover —``, as ``Last handover: <text after the dash> (<agent of the note>, <date of the note>)``.`
+  7. `- **R-HAND-5 MUST** The name given to todo is the value of TODO_AGENT when it is set, otherwise the writer's name. When todo refuses or fails, the command fails with todo's message and writes no journal line.`
+  8. docs/design.md: at the end add `## 22. Handover and takeover (R-HAND-1 to R-HAND-5, D54)` and a table `| Command | Arguments | Result |` with one row for `handover` (`<task> --note <text>`) and one for `takeover` (`<task> [--said-by <person>]`), whose Result cells repeat R-HAND-1 and R-HAND-2 with every output line exactly as written there, and the line `Both are writing commands (WRITING in src/ctx.rs) and run on the server in remote mode; takeover never copies files (R-FILE-4), it prints the take command for them.`
+- accept: requirements.md defines D54 and R-HAND-1 to R-HAND-5, and design.md section 22 gives the two commands and their outputs.
+- verify: git grep -q -F "**R-HAND-5 MUST**" -- docs/requirements.md && git grep -q -F "## 22. Handover and takeover" -- docs/design.md
+- reqs: R-HAND-1 to R-HAND-5, D54
+- note (2026-11-26, planner): added
+
+### T-527 · The handover and takeover commands: registered, with help lines and examples
+- status: open
+- owner: —
+- priority: P1 · difficulty: 2 · type: feature
+- milestone: T-525
+- why: Two new commands are registered in the shared command lists; the later tasks fill in their behaviour in their own files.
+- summary: dossier knows the two new commands, shows them in its help with examples, and treats them as writing commands.
+- final: Registers two commands in nine shared files; cannot be cut to three.
+- depends: T-526
+- files: src/cli.rs, src/cmd/mod.rs, src/cmd/handover.rs, src/cmd/takeover.rs, src/cmd/help.rs, src/examples.rs, src/ctx.rs, tests/cmd_agents.rs, tests/cmd_help.rs
+- read: docs/design.md, src/cmd/topics.rs, src/cli.rs, src/cmd/mod.rs, src/cmd/help.rs, src/examples.rs, src/ctx.rs
+- steps:
+  1. Register `handover` and `takeover` exactly as `topics` is registered (follow T-463 in git log): the subcommand in src/cli.rs, the modules in src/cmd/mod.rs, a help line each in src/cmd/help.rs (handover: `Gives your task back in todo with a note of what is done and what is next`; takeover: `Takes over a task, also one a colleague holds, and shows its progress`), two examples each in src/examples.rs in the style of the others.
+  2. src/cmd/handover.rs: `Args` with `task: String` (positional, the todo task such as T-042) and `--note <text>` (required); `run` returns Code::NotImplemented with the message `handover is not available yet`. src/cmd/takeover.rs: `Args` with `task: String` and `--said-by <person>` (optional); `run` returns Code::NotImplemented with `takeover is not available yet`. Module comments name R-HAND and D54.
+  3. src/ctx.rs: add `handover` and `takeover` to WRITING (array length +2).
+  4. tests/cmd_agents.rs and tests/cmd_help.rs: update the expected command list and help overview so the two commands appear where the order puts them; `help handover` and `help takeover` show their line and examples.
+  5. Run cargo test --test cmd_agents and cargo test --test cmd_help, then the full checks.
+- accept: handover and takeover are registered commands with help lines and examples, listed as writing commands, and still answer not available yet.
+- verify: cargo test --test cmd_agents && cargo test --test cmd_help
+- reqs: R-HAND-1, R-HAND-2, R-OUT-5
+- note (2026-11-26, planner): added
+
+### T-528 · handover: give a task back with a note, after its files are returned
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-525
+- why: A colleague who leaves a task must not leave it locked or lose what was done (R-HAND-1, R-HAND-5).
+- summary: handover gives a task back in todo with a note of what is done and what is next, and refuses while the writer still holds files taken for it.
+- depends: T-527
+- files: src/cmd/handover.rs, tests/cmd_handover.rs
+- read: docs/requirements.md, docs/design.md, src/todo_bridge.rs, src/taken.rs, src/journal.rs, src/cmd/take.rs, tests/cmd_brief.rs
+- steps:
+  1. src/cmd/handover.rs, `run`: load the context with `Ctx::load(g, "handover")` and the writer with `ctx.writer()`. Load the takes with `taken::load(&ctx.dossier, &ctx.cfg.code)` and `taken::all`; keep those whose `task` is the task (ignoring case) and whose `person` is the writer's person name. When there are any, fail with Code::Refused and the message: the line `<task>: return the files you took first:`, then one line per file `  <path> (taken <time>)`, then the line `dossier return <file> --done (or --abandon to drop your changes)`.
+  2. The todo name is the value of the environment variable TODO_AGENT when it is set and not empty, otherwise the writer's name. Run `todo_bridge::json(&ctx.root, &["note", <task>, "handover — <text>", "--agent", <todo name>])`, then `todo_bridge::json(&ctx.root, &["release", <task>, "--agent", <todo name>])`. When either fails, return its error unchanged and write nothing else.
+  3. Append one journal line (`journal::append(&ctx.state, ...)` as other commands build their Record) with the event `handover`, the task as id and the text as detail. Print `<task> handed over: handover — <text>`. JSON data: `{"task", "note"}`.
+  4. tests/cmd_handover.rs (new, with tests/common as tests/cmd_brief.rs uses a todo stand-in): the stand-in todo records its arguments in a file and answers `{"ok":true,"data":{}}`: a handover calls todo note with `handover — Done: mesh; next: run 3` and then todo release for the task, and the journal has the line; with TODO_AGENT=anna-worker the todo calls pass `--agent anna-worker`; a writer who took a file for the task (dossier take, as tests/cmd_take.rs does) is refused with exit code of Code::Refused, the message names the file, and todo was not called; a stand-in todo that fails makes handover fail and writes no journal line.
+  5. Run cargo test --test cmd_handover.
+- accept: handover gives the task back in todo with its note and a journal line, and refuses while the writer holds files taken for the task.
+- verify: cargo test --test cmd_handover
+- reqs: R-HAND-1, R-HAND-5
+- note (2026-11-26, planner): added
+
+### T-529 · takeover: take over a task, name the unreturned files, show the progress
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-525
+- why: When a colleague is ill or gone, another must be able to carry on with everything recorded (R-HAND-2, R-HAND-3, R-HAND-5).
+- summary: takeover claims a task for the writer, records who took over from whom, warns about files the previous holder has not returned, and shows the task's progress.
+- depends: T-527
+- files: src/cmd/takeover.rs, tests/cmd_takeover.rs
+- read: docs/requirements.md, docs/design.md, src/todo_bridge.rs, src/taken.rs, src/journal.rs, src/cmd/decide.rs, src/cmd/after.rs
+- steps:
+  1. src/cmd/takeover.rs, `run`: load the context with `Ctx::load(g, "takeover")` and the writer. An LLM writer without --said-by fails with Code::NeedsPerson and `ask your person; with their yes: dossier takeover <task> --said-by <person>`. Resolve --said-by exactly as decide does.
+  2. The todo name is TODO_AGENT when set and not empty, otherwise the writer's name. Read the task with `todo_bridge::json(&ctx.root, &["show", <task>])`; its `owner` (null or empty: nobody) is the previous holder. Claim with `["claim", <task>, "--agent", <todo name>]`, adding `"--force"` when the previous holder is someone else. Add the note `takeover — <writer> took over from <previous holder or nobody>`, with ` (said by <person>)` at its end when given. When a todo call fails, return its error unchanged and write nothing else. When the writer already holds the task, print `<task> is already yours` and change nothing.
+  3. Append a journal line with the event `takeover`, the task as id and the note text as detail. Print `<task> taken over from <previous holder or nobody>`.
+  4. From `taken::all`, for each take whose task is the task and whose person is not the writer, print `<path>: taken by <person> on <time> and not returned; changes on their PC are not on the server`; when there are any, print once `take them with: dossier take <paths separated by spaces> --task <task> --force`. Never copy or take a file.
+  5. Last, run this program again with `brief --task <task>` (a private copy of `own` from src/cmd/after.rs) and append its output after a blank line. JSON data: `{"task", "from", "files": [{"path", "person", "time"}]}`.
+  6. tests/cmd_takeover.rs (new, todo stand-in that records its arguments and answers show with an owner): a person takes over T-7 held by `ben`: claim with --force and the note `takeover — anna took over from ben` are sent, the journal has the line; an open task is claimed without --force and the note says `from nobody`; an LLM without --said-by is refused with Code::NeedsPerson and todo is not called; with `--said-by anna` the note ends with `(said by anna)`; a file ben took for T-7 is named with the warning line and the take command; a failing todo writes no journal line.
+  7. Run cargo test --test cmd_takeover.
+- accept: takeover claims the task for the writer with the recorded note, names the files others still hold with the command to take them, and shows the brief.
+- verify: cargo test --test cmd_takeover
+- reqs: R-HAND-2, R-HAND-3, R-HAND-5
+- note (2026-11-26, planner): added
+
+### T-530 · brief --task: the last handover note under the task line
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: feature
+- milestone: T-525
+- why: Whoever takes over a task must see first what the previous holder said is done and next (R-HAND-4).
+- summary: brief --task shows the last handover or takeover note of the task right under its title.
+- depends: T-526
+- files: src/brief_task.rs, tests/cmd_brief.rs
+- read: docs/requirements.md, src/brief_task.rs
+- steps:
+  1. src/brief_task.rs: from the task's todo data already read (`show`), take the notes (objects with `date`, `agent`, `text`); find the last whose text starts with `handover —` or `takeover —`. When there is one, insert directly after the first line of the brief: `Last handover: <text after the first dash and its space> (<agent>, <date>)`. The line counts against the brief's limit like the others.
+  2. tests/cmd_brief.rs: a todo stand-in whose task has the notes `added`, `handover — Done: mesh; next: run 3` (agent anna, 2026-11-20) and `takeover — ben took over from anna` (agent ben, 2026-11-21): the second line of brief --task is `Last handover: ben took over from anna (ben, 2026-11-21)`; a task without such notes has no such line. Adjust nothing else.
+  3. Run cargo test --test cmd_brief.
+- accept: brief --task shows the last handover or takeover note of the task under its first line.
+- verify: cargo test --test cmd_brief
+- reqs: R-HAND-4
+- note (2026-11-26, planner): added
+
+### T-531 · The agent rules: hand over a task with a note; take over only with your person's yes
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: docs
+- milestone: T-525
+- why: An LLM learns the tool from the rules text (D14); it must know when and how to hand over and take over (D54).
+- summary: The rules for LLMs say how to give a task back with a note and that taking over needs the person's yes.
+- depends: T-528, T-529
+- files: src/agents/rules.md, tests/cmd_agents.rs
+- read: src/agents/rules.md, docs/requirements.md
+- steps:
+  1. src/agents/rules.md, near the rule about working only on a claimed task, add: `When you stop before a task is done, give it back with `dossier handover <id> --note "<done; next>"`; return the files you took first. Take over a colleague's task only with your person's yes: `dossier takeover <id> --said-by <person>`.` Keep the rules within their line limit (R-AGENT-1).
+  2. tests/cmd_agents.rs: check that help agents names `dossier handover` and `takeover`.
+  3. Run cargo test --test cmd_agents.
+- accept: The installed rules tell an LLM how to hand over a task and that takeover needs its person's yes.
+- verify: cargo test --test cmd_agents
+- reqs: R-AGENT-1, D54
+- note (2026-11-26, planner): added
+
 ## Questions
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.
