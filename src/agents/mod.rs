@@ -3,6 +3,18 @@
 /// The rules text (agents/rules.md).
 pub const RULES: &str = include_str!("rules.md");
 
+/// The worker's text (agents/worker.md).
+pub const WORKER: &str = include_str!("worker.md");
+
+/// The planner's text (agents/planner.md).
+pub const PLANNER: &str = include_str!("planner.md");
+
+/// The most lines of the common rules (R-AGENT-1).
+pub const RULES_MAX_LINES: usize = 8;
+
+/// The most lines of the worker's text (R-AGENT-1).
+pub const WORKER_MAX_LINES: usize = 7;
+
 /// The line that starts the block.
 pub const BEGIN: &str = "<!-- dossier:begin -->";
 
@@ -113,6 +125,40 @@ pub fn skill() -> String {
     )
 }
 
+/// The number of lines of a rules text: `text.trim().lines().count()`, so empty lines count.
+pub fn lines_of(text: &str) -> usize {
+    text.trim().lines().count()
+}
+
+/// `text` with LF line endings and without its trailing line breaks.
+fn lf_without_final_breaks(text: &str) -> String {
+    text.replace("\r\n", "\n")
+        .trim_end_matches(['\r', '\n'])
+        .to_string()
+}
+
+/// WORKER with LF line endings and without its trailing line breaks.
+pub fn worker() -> String {
+    lf_without_final_breaks(WORKER)
+}
+
+/// PLANNER the same way; in a code project (`code_project`) without the lines that start with one
+/// of NOT_IN_CODE_PROJECTS (R-CODE-5).
+pub fn planner_for(code_project: bool) -> String {
+    let text = lf_without_final_breaks(PLANNER);
+    if !code_project {
+        return text;
+    }
+    text.lines()
+        .filter(|line| {
+            !NOT_IN_CODE_PROJECTS
+                .iter()
+                .any(|start| line.starts_with(start))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// The byte range of the managed block in `text`: from its BEGIN to the end of its END. An END is
 /// paired with the nearest BEGIN before it, so a stray marker is not taken for the block's start.
 fn managed_span(text: &str) -> Option<(usize, usize)> {
@@ -163,7 +209,10 @@ fn ends_with_blank_line(text: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{BEGIN, END, RULES, block, current, installed, skill};
+    use super::{
+        BEGIN, END, NOT_IN_CODE_PROJECTS, RULES, WORKER, WORKER_MAX_LINES, block, current,
+        installed, lines_of, planner_for, skill, worker,
+    };
 
     /// The text with every LF turned into CRLF.
     fn crlf(text: &str) -> String {
@@ -308,5 +357,55 @@ mod tests {
         ));
         assert!(!text.contains('\r'));
         assert!(text.ends_with('\n') && !text.ends_with("\n\n"));
+    }
+
+    #[test]
+    fn worker_text_has_at_most_the_worker_line_limit() {
+        let lines = lines_of(WORKER);
+        assert!(
+            lines <= WORKER_MAX_LINES,
+            "the worker's text has {lines} lines; the limit is {WORKER_MAX_LINES}"
+        );
+    }
+
+    #[test]
+    fn worker_text_starts_with_its_heading_and_names_todo_done_and_stuck() {
+        let text = worker();
+        assert!(text.starts_with("# Worker rules (dossier help worker)"));
+        assert!(text.contains("todo done"));
+        assert!(text.contains("todo stuck"));
+    }
+
+    #[test]
+    fn planner_text_holds_the_rules_that_the_worker_text_leaves_out() {
+        let text = planner_for(false);
+        for part in [
+            "dossier used",
+            "dossier decide",
+            "DOSSIER_ROLE=worker",
+            "dossier review-task",
+        ] {
+            assert!(text.contains(part), "the planner's text lacks `{part}`");
+        }
+    }
+
+    #[test]
+    fn planner_text_of_a_code_project_leaves_out_the_runs_and_confidential_terms() {
+        let text = planner_for(true);
+        assert!(!text.lines().any(|line| {
+            NOT_IN_CODE_PROJECTS
+                .iter()
+                .any(|start| line.starts_with(start))
+        }));
+        assert!(text.contains("dossier decide"));
+    }
+
+    #[test]
+    fn planner_text_does_not_hold_the_rule_about_editing_under_dossier() {
+        assert!(
+            !planner_for(false)
+                .lines()
+                .any(|line| line.starts_with("- Never edit files under `"))
+        );
     }
 }
