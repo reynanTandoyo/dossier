@@ -379,8 +379,10 @@ The `SessionStart` hook runs `dossier brief` when a session starts. The `PreTool
 `dossier guard` before an edit. An edit to a file inside a `DOSSIER` folder is blocked, and the
 message says to use the dossier commands. The `PostToolUse` hook runs `dossier after` after a shell
 command. After a task is claimed, finished or given back with `todo`, the hook shows the agent the
-task's brief, the review material, or a reminder. The skill file tells Claude how to use the
-commands. `dossier hooks uninstall --yes` removes the three hooks.
+task's brief, the review material, or a reminder. In a worker's session (`DOSSIER_ROLE=worker`)
+`dossier brief` prints one line in place of the project brief, and `dossier after` shows only the
+task's brief after a claim. The skill file holds the common rules, as `AGENTS.md` does.
+`dossier hooks uninstall --yes` removes the three hooks.
 
 ### What version 0.3 adds
 
