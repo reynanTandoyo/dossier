@@ -8,6 +8,7 @@ mod common;
 use common::Project;
 use predicates::str::contains;
 use serde_json::json;
+use std::fs;
 
 /// Invented contents of the files of the tests.
 const MODEL: &str = "invented model data\n";
@@ -444,6 +445,48 @@ fn binding_leaves_out_a_superseded_decision() {
     assert_eq!(
         project.stdout("", &["which", "src/pump/seal.rs", "--binding"]),
         ""
+    );
+}
+
+/// Sets `valid-until` of the entry `id` to `stamp` by hand, as a person would edit its file: the
+/// tool writes that field itself, so `set` refuses it. The line is put under `valid-from`.
+fn end_by_hand(project: &Project, id: &str, stamp: &str) {
+    let path = project.entry_file(id);
+    let text = fs::read_to_string(&path).expect("the entry file");
+    let from_line = text
+        .lines()
+        .find(|line| line.starts_with("- valid-from: "))
+        .expect("a valid-from line")
+        .to_string();
+    let edited = text.replacen(
+        &format!("{from_line}\n"),
+        &format!("{from_line}\n- valid-until: {stamp}\n"),
+        1,
+    );
+    fs::write(&path, edited).expect("the entry is changed by hand");
+}
+
+#[test]
+fn binding_leaves_out_an_approved_entry_whose_valid_until_is_before_today() {
+    let project = Project::new();
+    decide_about_pump(&project);
+    end_by_hand(&project, "DEC-001", "2026-11-19T10:00:00+01:00");
+    project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Replace the seal every 5000 hours.",
+            "--reason",
+            "Invented wear data.",
+            "--title",
+            "Seal wear",
+        ],
+    );
+    project.stdout("anna", &["set", "DEC-002", "--field", "code=src/pump"]);
+
+    assert_eq!(
+        project.stdout("", &["which", "src/pump/seal.rs", "--binding"]),
+        "DEC-002 · decision · Seal wear\n  Replace the seal every 5000 hours.\n"
     );
 }
 
