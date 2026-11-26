@@ -12,6 +12,14 @@ pub const END: &str = "<!-- dossier:end -->";
 /// The line that ends todo's block in AGENTS.md.
 const TODO_END: &str = "<!-- todo:end -->";
 
+/// The beginnings of the rule lines that a code project leaves out (R-CODE-5): the simulation runs
+/// and the confidential terms.
+const NOT_IN_CODE_PROJECTS: [&str; 3] = [
+    "- Record a simulation run",
+    "- When your person says a name or term is confidential",
+    "- Never write a confidential term into the team dossier",
+];
+
 /// The rules text with LF line endings and without its trailing line breaks.
 fn rules_lf() -> String {
     RULES
@@ -20,23 +28,40 @@ fn rules_lf() -> String {
         .to_string()
 }
 
-/// The block without its final line break: BEGIN, the rules, END.
-fn block_body() -> String {
-    format!("{BEGIN}\n{}\n{END}", rules_lf())
+/// The rules text as `rules_lf` gives it; in a code project (`code_project`) without the lines
+/// that start with one of NOT_IN_CODE_PROJECTS (R-CODE-5).
+pub fn rules_for(code_project: bool) -> String {
+    let text = rules_lf();
+    if !code_project {
+        return text;
+    }
+    text.lines()
+        .filter(|line| {
+            !NOT_IN_CODE_PROJECTS
+                .iter()
+                .any(|start| line.starts_with(start))
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
-/// The block: BEGIN, the rules, END, each line ending with LF.
-pub fn block() -> String {
-    format!("{}\n", block_body())
+/// The block without its final line break: BEGIN, the rules for `code_project`, END.
+fn block_body(code_project: bool) -> String {
+    format!("{BEGIN}\n{}\n{END}", rules_for(code_project))
 }
 
-/// The text of AGENTS.md with the block added (after todo's block if there is one, else at the
-/// end) or replaced; every other line unchanged.
-pub fn installed(existing: &str) -> String {
+/// The block: BEGIN, the rules for `code_project`, END, each line ending with LF.
+pub fn block(code_project: bool) -> String {
+    format!("{}\n", block_body(code_project))
+}
+
+/// The text of AGENTS.md with the block for `code_project` added (after todo's block if there is
+/// one, else at the end) or replaced; every other line unchanged.
+pub fn installed(existing: &str, code_project: bool) -> String {
     if let Some((start, end)) = managed_span(existing) {
         // Replace BEGIN through END in place; the line break after END stays as it is.
         let style = style_before(existing, start);
-        let body = block_body();
+        let body = block_body(code_project);
         let mut out = String::with_capacity(existing.len() + body.len());
         out.push_str(&existing[..start]);
         out.push_str(&with_style(&body, style));
@@ -47,18 +72,18 @@ pub fn installed(existing: &str) -> String {
         // A blank line, then the block, right after todo's END line. A last line without a line
         // break gets one first.
         let style = style_before(existing, after);
-        let mut out = String::with_capacity(existing.len() + block().len() + 4);
+        let mut out = String::with_capacity(existing.len() + block(code_project).len() + 4);
         out.push_str(&existing[..after]);
         if !existing[..after].ends_with('\n') {
             out.push_str(style);
         }
         out.push_str(style);
-        out.push_str(&with_style(&block(), style));
+        out.push_str(&with_style(&block(code_project), style));
         out.push_str(&existing[after..]);
         return out;
     }
     if existing.is_empty() {
-        return block();
+        return block(code_project);
     }
     // Append: a blank line first, unless the text already ends with one.
     let style = style_before(existing, existing.len());
@@ -69,13 +94,15 @@ pub fn installed(existing: &str) -> String {
         }
         out.push_str(style);
     }
-    out.push_str(&with_style(&block(), style));
+    out.push_str(&with_style(&block(code_project), style));
     out
 }
 
-/// Whether the block in `existing` is current.
-pub fn current(existing: &str) -> bool {
-    existing.replace("\r\n", "\n").contains(&block_body())
+/// Whether the block in `existing` is current for `code_project`.
+pub fn current(existing: &str, code_project: bool) -> bool {
+    existing
+        .replace("\r\n", "\n")
+        .contains(&block_body(code_project))
 }
 
 /// The Claude Code skill: a front matter (name: dossier, description: one line) and RULES.
@@ -145,15 +172,25 @@ mod tests {
 
     #[test]
     fn block_starts_with_begin_and_ends_with_end_and_a_line_break() {
-        let block = block();
+        let block = block(false);
         assert!(block.starts_with(&format!("{BEGIN}\n")));
         assert!(block.ends_with(&format!("\n{END}\n")));
     }
 
     #[test]
     fn installs_into_an_empty_text() {
-        assert_eq!(installed(""), block());
-        assert!(current(&installed("")));
+        assert_eq!(installed("", false), block(false));
+        assert!(current(&installed("", false), false));
+    }
+
+    #[test]
+    fn in_a_code_project_the_block_leaves_out_runs_and_confidential_terms() {
+        let code_project = installed("", true);
+        assert!(!code_project.contains("dossier used"));
+        assert!(!code_project.contains("confidential"));
+        let normal = installed("", false);
+        assert!(normal.contains("dossier used"));
+        assert!(normal.contains("confidential"));
     }
 
     #[test]
@@ -161,9 +198,9 @@ mod tests {
         let before = "# Project\n\n<!-- todo:begin -->\n# Work\n<!-- todo:end -->\n\nNotes\n";
         let expected = format!(
             "# Project\n\n<!-- todo:begin -->\n# Work\n<!-- todo:end -->\n\n{}\nNotes\n",
-            block()
+            block(false)
         );
-        assert_eq!(installed(before), expected);
+        assert_eq!(installed(before, false), expected);
     }
 
     #[test]
@@ -174,46 +211,49 @@ mod tests {
             "# Project\n\n<!-- todo:begin -->\n<!-- todo:end -->\n",
         ];
         for before in texts {
-            let once = installed(before);
-            assert_eq!(installed(&once), once);
+            let once = installed(before, false);
+            assert_eq!(installed(&once, false), once);
         }
     }
 
     #[test]
     fn current_is_false_before_and_true_after_installing() {
         let before = "# Project\n\n<!-- todo:begin -->\n<!-- todo:end -->\n";
-        assert!(!current(before));
-        assert!(current(&installed(before)));
+        assert!(!current(before, false));
+        assert!(current(&installed(before, false), false));
     }
 
     #[test]
     fn replaces_an_older_block_in_place_and_keeps_the_other_lines() {
         let old = format!("# Project\n\n{BEGIN}\nold rules\n{END}\n\nNotes\n");
-        assert!(!current(&old));
-        let new = installed(&old);
-        assert_eq!(new, format!("# Project\n\n{}\nNotes\n", block()));
-        assert!(current(&new));
+        assert!(!current(&old, false));
+        let new = installed(&old, false);
+        assert_eq!(new, format!("# Project\n\n{}\nNotes\n", block(false)));
+        assert!(current(&new, false));
     }
 
     #[test]
     fn appends_after_a_text_without_a_todo_block() {
         assert_eq!(
-            installed("# Project\n\nNotes\n"),
-            format!("# Project\n\nNotes\n\n{}", block())
+            installed("# Project\n\nNotes\n", false),
+            format!("# Project\n\nNotes\n\n{}", block(false))
         );
     }
 
     #[test]
     fn appends_without_a_second_blank_line_after_a_blank_line() {
         assert_eq!(
-            installed("# Project\n\n"),
-            format!("# Project\n\n{}", block())
+            installed("# Project\n\n", false),
+            format!("# Project\n\n{}", block(false))
         );
     }
 
     #[test]
     fn appends_a_line_break_and_a_blank_line_to_a_text_without_a_final_line_break() {
-        assert_eq!(installed("# Project"), format!("# Project\n\n{}", block()));
+        assert_eq!(
+            installed("# Project", false),
+            format!("# Project\n\n{}", block(false))
+        );
     }
 
     #[test]
@@ -222,28 +262,28 @@ mod tests {
         let expected = format!(
             "{}{}{}",
             crlf("# Project\n\n<!-- todo:begin -->\n# Work\n<!-- todo:end -->\n\n"),
-            crlf(&block()),
+            crlf(&block(false)),
             crlf("\nNotes\n")
         );
-        let after = installed(&before);
+        let after = installed(&before, false);
         assert_eq!(after, expected);
-        assert!(current(&after));
-        assert_eq!(installed(&after), after);
+        assert!(current(&after, false));
+        assert_eq!(installed(&after, false), after);
     }
 
     #[test]
     fn crlf_text_without_todo_block_gets_crlf_lines_when_appended() {
         assert_eq!(
-            installed("# Project\r\n"),
-            format!("# Project\r\n\r\n{}", crlf(&block()))
+            installed("# Project\r\n", false),
+            format!("# Project\r\n\r\n{}", crlf(&block(false)))
         );
     }
 
     #[test]
     fn a_stray_begin_marker_does_not_take_other_lines_with_it() {
         let before = format!("{BEGIN}\nkeep me\n");
-        let once = installed(&before);
-        let twice = installed(&once);
+        let once = installed(&before, false);
+        let twice = installed(&once, false);
         assert_eq!(twice, once);
         assert!(twice.contains("keep me"));
     }

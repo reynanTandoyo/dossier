@@ -31,6 +31,17 @@ fn journal_of(project: &Project) -> Vec<dossier::journal::Record> {
     dossier::journal::read(&project.root().join("DOSSIER").join(".state")).unwrap()
 }
 
+/// A code project: `init --code P-002 --code-project` run in a temporary folder of its own.
+fn code_project() -> Project {
+    let project = Project {
+        dir: tempfile::tempdir().unwrap(),
+    };
+    project
+        .run("anna", &["init", "--code", "P-002", "--code-project"])
+        .success();
+    project
+}
+
 #[test]
 fn help_agents_prints_the_heading_of_the_rules() {
     let folder = tempfile::tempdir().unwrap();
@@ -165,6 +176,44 @@ fn unknown_help_topic_is_a_usage_error() {
     dossier(folder.path(), &["help", "nothing"])
         .code(2)
         .stderr(contains("unknown help topic 'nothing'"));
+}
+
+#[test]
+fn a_code_project_block_leaves_out_runs_and_confidential_terms_and_check_is_current() {
+    let project = code_project();
+    project
+        .run("anna", &["agents", "install", "--yes"])
+        .success()
+        .stdout(contains("AGENTS.md: rules block written"));
+    let text = project.read("AGENTS.md");
+    assert!(text.contains("<!-- dossier:begin -->"));
+    assert!(!text.contains("dossier used"));
+    assert!(!text.contains("confidential"));
+    project
+        .run("anna", &["agents", "check"])
+        .success()
+        .stdout(contains("AGENTS.md: rules block is current"));
+}
+
+#[test]
+fn a_normal_project_block_has_runs_and_confidential_terms() {
+    let project = Project::new();
+    project
+        .run("anna", &["agents", "install", "--yes"])
+        .success();
+    let text = project.read("AGENTS.md");
+    assert!(text.contains("dossier used"));
+    assert!(text.contains("confidential"));
+}
+
+#[test]
+fn help_agents_shows_runs_and_confidential_terms_in_a_code_project() {
+    let project = code_project();
+    project
+        .run("anna", &["help", "agents"])
+        .success()
+        .stdout(contains("dossier used"))
+        .stdout(contains("confidential"));
 }
 
 #[test]

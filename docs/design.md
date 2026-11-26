@@ -458,11 +458,13 @@ The ssh program is `ssh`, or the value of `DOSSIER_SSH` (tests point it at a sta
 pub const RULES: &str = include_str!("rules.md");
 pub const BEGIN: &str = "<!-- dossier:begin -->";
 pub const END: &str = "<!-- dossier:end -->";
-pub fn block() -> String;                                  // BEGIN, rules, END
-/// The text of AGENTS.md with the block added (after todo's block if there is one, else at the
-/// end) or replaced; every other line unchanged.
-pub fn installed(existing: &str) -> String;
-pub fn current(existing: &str) -> bool;
+pub fn block(code_project: bool) -> String;                // BEGIN, rules, END
+// the rules without the lines of NOT_IN_CODE_PROJECTS in a code project (R-CODE-5)
+pub fn rules_for(code_project: bool) -> String;
+/// The text of AGENTS.md with the block for `code_project` added (after todo's block if there is
+/// one, else at the end) or replaced; every other line unchanged.
+pub fn installed(existing: &str, code_project: bool) -> String;
+pub fn current(existing: &str, code_project: bool) -> bool;
 ```
 
 ## 4. cli.rs

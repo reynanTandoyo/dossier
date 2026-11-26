@@ -4,6 +4,7 @@
 
 use crate::agents;
 use crate::cli::Global;
+use crate::config;
 use crate::error::{Code, Error, Result};
 use crate::find;
 use crate::journal;
@@ -44,7 +45,7 @@ pub enum Action {
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     match &args.action {
         Action::Install { yes } => install(*yes, g),
-        Action::Check => check(),
+        Action::Check => check(g),
     }
 }
 
@@ -62,11 +63,12 @@ fn read_existing(path: &Path) -> Result<String> {
     }
 }
 
-/// Writes the rules block into AGENTS.md when `yes` is given and the run is not a dry run.
+/// Writes the rules block into AGENTS.md when `yes` is given and the run is not a dry run. In a
+/// code project the block leaves out the runs and the confidential terms (R-CODE-5).
 fn install(yes: bool, g: &Global) -> Result<Output> {
     let path = agents_file()?;
     let existing = read_existing(&path)?;
-    let text = agents::installed(&existing);
+    let text = agents::installed(&existing, code_project(g)?);
     if !yes {
         return Ok(Output::with(
             "would write the rules block to AGENTS.md; add --yes",
@@ -111,10 +113,22 @@ fn record_write(g: &Global) -> Result<()> {
     journal::append(&dossier.join(STATE), &record)
 }
 
+/// Whether the dossier found from the current folder, or the --dossier folder, is a code project
+/// (its settings say `code_project = true`). Without a dossier it is not one, and that is not an
+/// error.
+fn code_project(g: &Global) -> Result<bool> {
+    let cwd = std::env::current_dir()?;
+    match find::find(&cwd, g.dossier.as_deref()) {
+        Ok(dossier) => Ok(config::load(&dossier)?.code_project),
+        Err(error) if error.code == Code::NoDossier => Ok(false),
+        Err(error) => Err(error),
+    }
+}
+
 /// Succeeds when the rules block in AGENTS.md is current; otherwise Code::Refused.
-fn check() -> Result<Output> {
+fn check(g: &Global) -> Result<Output> {
     let existing = read_existing(&agents_file()?)?;
-    if agents::current(&existing) {
+    if agents::current(&existing, code_project(g)?) {
         return Ok(Output::with(
             "AGENTS.md: rules block is current",
             json!({"current": true}),
