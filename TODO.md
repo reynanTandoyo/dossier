@@ -12031,8 +12031,8 @@
 - note (2026-11-26, haiku-T-565): done — Added names::said_by_gate, the one check that decides whether an LLM may carry out its person's decision with --said-by: a person runs as before, an LLM in a worker session is refused, an LLM without --said-by or for another person is refused, and an LLM with its person runs. Six unit tests in src/names.rs pass; the full suite, clippy and fmt pass.
 
 ### T-566 · approve: an LLM runs it with --said-by
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-566
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-563
 - why: The person's yes is given in the session; the LLM must be able to carry it out.
@@ -12049,8 +12049,12 @@
   6. Run cargo test --test cmd_approve.
 - accept: approve --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
 - verify: cargo test --test cmd_approve
+- verified: 2026-11-26
+- commit: 0ad48dd
 - reqs: R-SAID-1 to R-SAID-4, TEST-14
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-566): done — approve takes --said-by <person>: an LLM carries out its person's decision (D57), each draft that can be approved is approved without a question and the entry and journal name the person and the LLM; a person without a terminal is still refused, a worker session is refused. Four new tests in tests/cmd_approve.rs and the message test changed to --said-by; the approve tests (23), fmt, clippy and the full suite pass.
 
 ### T-567 · reject: an LLM runs it with --said-by
 - status: open
