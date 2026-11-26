@@ -1,8 +1,9 @@
-//! The `accept` command: a decider puts a proposal in force (R-WRITE-12, D28). Only a person, at a
-//! terminal, and a person named in `deciders` (names::may_decide) can accept. The proposal is
-//! shown on standard error and the person answers `yes`; any other answer changes nothing. An
-//! accepted proposal is an approved decision: `approved` names the person who accepted it and
-//! when, and `valid-from` is the time of the acceptance.
+//! The `accept` command: a decider puts a proposal in force (R-WRITE-12, D28). A person at a
+//! terminal, or an LLM with `--said-by <person>` (D57), can accept; the person must be named in
+//! `deciders` (names::may_decide). A person is shown the proposal on standard error and answers
+//! `yes`; any other answer changes nothing. With `--said-by` nothing is shown or asked. An accepted
+//! proposal is an approved decision: `approved` names the person who accepted it and when, and
+//! `valid-from` is the time of the acceptance.
 
 use crate::cli::Global;
 use crate::ctx::Ctx;
@@ -24,21 +25,22 @@ const ACCEPTED: &str = "accepted";
 pub struct Args {
     /// The ID of the proposal to accept, such as DEC-012; any case, with or without a place prefix
     pub id: String,
+
+    /// The person who decided this; needed when an LLM runs the command (D57)
+    #[arg(long, value_name = "PERSON")]
+    pub said_by: Option<String>,
 }
 
-/// Runs `accept`: checks who acts, then shows the proposal and asks whether to accept it. A `yes`
-/// makes it an approved decision in one transaction; any other answer writes nothing. The output
-/// is `<ID>: accepted` or `<ID>: nothing changed`; the data is {id, status, accepted}.
+/// Runs `accept`: checks who acts (names::said_by_gate, D57) and, unless an LLM carries out its
+/// person's decision with `--said-by`, that a person is at a terminal. A person is shown the
+/// proposal and asked whether to accept it; a `yes` makes it an approved decision in one
+/// transaction, any other answer writes nothing. With `--said-by` nothing is shown or asked. The
+/// output is `<ID>: accepted` or `<ID>: nothing changed`; the data is {id, status, accepted}.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "accept")?;
     let who = ctx.writer()?.clone();
-    if who.is_llm {
-        return Err(Error::new(
-            Code::NeedsPerson,
-            format!("accept is for a person; {} is an LLM", who.name),
-        ));
-    }
-    if !term::is_terminal() {
+    let said = names::said_by_gate(&who, args.said_by.as_deref(), "accept")?;
+    if !said && !term::is_terminal() {
         return Err(Error::new(
             Code::NeedsTerminal,
             "this command must be run by a person at a terminal",
@@ -68,13 +70,15 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
                 ));
             }
         }
-        show(&item.entry.text());
-        let answer = term::ask(&format!("{id}: accept? (yes/no) "))?;
-        if !answer.eq_ignore_ascii_case("yes") {
-            return Ok(Output::with(
-                format!("{id}: nothing changed"),
-                json!({"id": id, "status": Status::Proposed.name(), "accepted": false}),
-            ));
+        if !said {
+            show(&item.entry.text());
+            let answer = term::ask(&format!("{id}: accept? (yes/no) "))?;
+            if !answer.eq_ignore_ascii_case("yes") {
+                return Ok(Output::with(
+                    format!("{id}: nothing changed"),
+                    json!({"id": id, "status": Status::Proposed.name(), "accepted": false}),
+                ));
+            }
         }
         accept(tx, &item, &who);
         Ok(Output::with(

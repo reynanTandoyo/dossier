@@ -1,7 +1,7 @@
-//! Runs the built program for `accept`: a decider at a terminal puts a proposal in force. Only a
-//! person named in `deciders` may accept, only at a terminal, and only a proposal can be accepted.
-//! Each test runs in its own project folder (common::Project), with the clock fixed at
-//! 2026-11-20T10:00:00+01:00 unless a test says otherwise.
+//! Runs the built program for `accept`: a decider puts a proposal in force, at a terminal or, for
+//! an LLM, with `--said-by <person>` (D57). Only a person named in `deciders` may accept, and only
+//! a proposal can be accepted. Each test runs in its own project folder (common::Project), with the
+//! clock fixed at 2026-11-20T10:00:00+01:00 unless a test says otherwise.
 
 mod common;
 
@@ -159,7 +159,7 @@ fn anna_claude_is_an_llm_so_it_is_refused_even_though_its_person_decides() {
     accept_with(&project, "anna-claude", LATER, "yes", id)
         .failure()
         .code(1)
-        .stderr(contains("accept is for a person; anna-claude is an LLM"));
+        .stderr(contains("--said-by anna"));
 
     assert_eq!(bytes_of(&project, id), before, "the file is unchanged");
     assert_eq!(entry_of(&project, id).status(), Some(Status::Proposed));
@@ -303,4 +303,116 @@ fn a_refusal_in_json_names_its_code() {
         .failure()
         .code(1)
         .stdout(contains("\"code\":\"REFUSED\""));
+}
+
+#[test]
+fn an_llm_without_said_by_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    let id = ben_decides(&project);
+    let before = bytes_of(&project, id);
+
+    accept_with(&project, "anna-claude", LATER, "yes", id)
+        .failure()
+        .code(1)
+        .stderr(contains("--said-by anna"));
+
+    assert_eq!(bytes_of(&project, id), before, "the file is unchanged");
+    assert_eq!(entry_of(&project, id).status(), Some(Status::Proposed));
+}
+
+#[test]
+fn an_llm_with_said_by_accepts_without_a_terminal_or_a_question() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    let id = ben_decides(&project);
+    // No answers are prepared and no terminal is attached, so nothing can be asked: the proposal
+    // is accepted as the person decided (D57).
+    project
+        .command("anna-claude", LATER)
+        .args(["accept", id, "--said-by", "anna"])
+        .assert()
+        .success()
+        .stdout("DEC-001: accepted\n")
+        .stderr("");
+
+    let entry = entry_of(&project, id);
+    assert_eq!(entry.status(), Some(Status::Approved));
+    assert_eq!(
+        entry.field("approved").as_deref(),
+        Some(format!("{LATER} by anna").as_str())
+    );
+    assert_eq!(
+        entry.history().last().map(String::as_str),
+        Some(format!("{LATER} anna via anna-claude: accepted").as_str())
+    );
+
+    let journal = project.entry_journal();
+    let last = journal.last().expect("a journal line");
+    assert_eq!(last.command, "accept");
+    assert_eq!(last.id, "DEC-001");
+    assert_eq!(last.event, "accepted");
+    assert_eq!(last.person, "anna");
+    assert_eq!(last.name, "anna-claude");
+    assert!(last.llm);
+}
+
+#[test]
+fn an_llm_with_said_by_for_another_person_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    let id = ben_decides(&project);
+    let before = bytes_of(&project, id);
+
+    project
+        .command("anna-claude", LATER)
+        .args(["accept", id, "--said-by", "ben"])
+        .assert()
+        .code(1)
+        .stderr(contains("acts for anna only"));
+
+    assert_eq!(bytes_of(&project, id), before, "the file is unchanged");
+    assert_eq!(entry_of(&project, id).status(), Some(Status::Proposed));
+}
+
+#[test]
+fn a_worker_session_decides_nothing_even_with_said_by() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    let id = ben_decides(&project);
+    let before = bytes_of(&project, id);
+
+    project
+        .command("anna-claude", LATER)
+        .env("DOSSIER_ROLE", "worker")
+        .args(["accept", id, "--said-by", "anna"])
+        .assert()
+        .code(1)
+        .stderr(contains("a worker decides nothing"));
+
+    assert_eq!(bytes_of(&project, id), before, "the file is unchanged");
+    assert_eq!(entry_of(&project, id).status(), Some(Status::Proposed));
+}
+
+#[test]
+fn an_llm_whose_person_is_not_a_decider_is_refused_even_with_said_by() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    let id = ben_decides(&project);
+    // Only ben is named in deciders from here on, so anna is not one.
+    let text = project
+        .read("DOSSIER/dossier.toml")
+        .replace("deciders = [\"anna\"]", "deciders = [\"ben\"]");
+    project.write("DOSSIER/dossier.toml", &text);
+    let before = bytes_of(&project, id);
+
+    project
+        .command("anna-claude", LATER)
+        .args(["accept", id, "--said-by", "anna"])
+        .assert()
+        .code(1)
+        .stderr(contains("anna is not in deciders"));
+
+    assert_eq!(bytes_of(&project, id), before, "the file is unchanged");
+    assert_eq!(entry_of(&project, id).status(), Some(Status::Proposed));
 }
