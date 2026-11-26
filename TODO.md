@@ -12388,14 +12388,14 @@
 - note (2026-11-26, haiku-T-579): done — The planner's rules now say a person decides, and an LLM asks and then runs the decision command with --said-by, instead of never approving; help planner shows the new rule, with one new test in tests/cmd_agents.rs.
 
 ### T-580 · Release 1.3.1
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · difficulty: 1 · type: chore
 - milestone: T-563
 - why: The owner tags a release only from a version that builds, passes every check and says what it adds.
 - summary: The version number and the README are ready for the owner to tag release 1.3.1.
 - depends: T-566, T-567, T-568, T-569, T-570, T-571, T-572, T-573, T-574, T-575, T-576, T-577, T-578, T-579
-- files: Cargo.toml, Cargo.lock, README.md
+- files: Cargo.toml, Cargo.lock, README.md, docs/requirements.md
 - read: docs/design.md, docs/requirements.md
 - steps:
   1. Cargo.toml: version = "1.3.1"; run cargo build so that Cargo.lock follows (only the version line of the dossier package may change; otherwise stop and report).
@@ -12404,8 +12404,12 @@
   4. Run cargo fmt --all -- --check, cargo clippy --all-targets --all-features -- -D warnings and cargo test --all-features; all three must pass. Do not tag and do not push.
 - accept: Version 1.3.1 builds, passes every check, and the README says what it adds.
 - verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
+- verified: 2026-11-26
+- commit: 77b13ed
 - reqs: REL-1, REL-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, planner): done — Version 1.3.1 builds and passes every check; approve and twelve more commands run for an LLM with --said-by.
 
 ### T-581 · requirements.md: R-SAID-1 also names supersede, value approve and reject, and the team removals
 - status: done
