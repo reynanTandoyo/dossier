@@ -48,6 +48,17 @@ fn run_after(project: &Project, payload: &str) -> assert_cmd::assert::Assert {
         .assert()
 }
 
+/// Runs `after` as a worker's session (DOSSIER_ROLE=worker, R-AGENT-6) in the project folder with
+/// `payload` on standard input.
+fn run_after_as_worker(project: &Project, payload: &str) -> assert_cmd::assert::Assert {
+    project
+        .command("anna", "2026-11-20T10:00:00+01:00")
+        .env("DOSSIER_ROLE", "worker")
+        .arg("after")
+        .write_stdin(payload)
+        .assert()
+}
+
 /// The additionalContext of the one JSON line that `after` printed. Panics when the output is not
 /// exactly one such line.
 fn context_of(stdout: &[u8]) -> String {
@@ -251,6 +262,43 @@ fn an_open_investigation_with_an_attempt_of_the_task_is_named_once() {
     let output = run_after(&project, &payload).success();
     let context = context_of(&output.get_output().stdout);
     assert!(!context.contains("is still open"), "{context}");
+}
+
+#[test]
+fn a_worker_session_gets_nothing_after_todo_done() {
+    let project = Project::new();
+    write_todo(&project, SHOW_T001);
+    let payload = shell("todo done T-001 --commit HEAD --agent haiku", "");
+    run_after_as_worker(&project, &payload)
+        .success()
+        .stdout(is_empty());
+}
+
+#[test]
+fn a_worker_session_gets_nothing_after_todo_stuck() {
+    let project = Project::new();
+    write_todo(&project, SHOW_T001);
+    let payload = shell("todo stuck T-001 --note \"no data\" --agent haiku", "");
+    run_after_as_worker(&project, &payload)
+        .success()
+        .stdout(is_empty());
+}
+
+#[test]
+fn a_worker_session_gets_the_same_brief_after_a_claim() {
+    let project = Project::new();
+    write_todo(&project, SHOW_T001);
+    project.stdout("anna", &["found", FINDING, "--task", "T-001"]);
+    let payload = shell(
+        "todo next --claim --brief --agent haiku",
+        "T-001 · P2 · claimed · haiku · after: the invented task\n",
+    );
+    let planner = run_after(&project, &payload).success();
+    let planner_stdout = planner.get_output().stdout.clone();
+    let worker = run_after_as_worker(&project, &payload).success();
+    assert_eq!(worker.get_output().stdout, planner_stdout);
+    let context = context_of(&worker.get_output().stdout);
+    assert!(context.contains(FINDING), "{context}");
 }
 
 /// A temporary project folder made with `init --code P-001 --code-project` (format.md §19), with

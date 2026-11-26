@@ -9,6 +9,7 @@ use crate::error::Result;
 use crate::find;
 use crate::hooks::{self, TodoEvent};
 use crate::output::Output;
+use crate::role::{self, Role};
 use serde_json::Value;
 use std::io::Read;
 use std::process::{Command, Stdio};
@@ -19,7 +20,8 @@ pub struct Args {}
 
 /// Runs `after`: reads the Claude Code payload from standard input and, when it holds a todo
 /// event, prints the event's text as `hooks::context` gives it. Any other input, and an event
-/// with no text, prints nothing and succeeds.
+/// with no text, prints nothing and succeeds. In a worker session (R-AGENT-6) a Done or Stuck
+/// event has no text, so nothing is printed for it; see `text_of`.
 pub fn run(_args: &Args, _g: &Global) -> Result<Output> {
     let payload = read_payload();
     let Some(event) = hooks::todo_event(&payload) else {
@@ -42,8 +44,13 @@ fn read_payload() -> String {
 }
 
 /// The text of an event (design.md section 14): the parts that ran, each without its trailing
-/// line breaks, joined with one empty line. Empty when no part gives text.
+/// line breaks, joined with one empty line. Empty when no part gives text. In a worker session
+/// (R-AGENT-6) Done and Stuck give no text, because a worker records nothing and the planner
+/// reviews the task; Claimed gives its text in every session.
 fn text_of(event: &TodoEvent) -> String {
+    if role::current() == Role::Worker && !matches!(event, TodoEvent::Claimed(_)) {
+        return String::new();
+    }
     let parts = match event {
         TodoEvent::Claimed(id) => vec![own(&["brief", "--task", id.as_str()])],
         TodoEvent::Done(id) => vec![
