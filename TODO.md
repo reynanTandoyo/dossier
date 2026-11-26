@@ -11987,8 +11987,8 @@
 - note (2026-11-26, planner): added
 
 ### T-564 · requirements.md and design.md: carrying out a person's decision with --said-by (D57)
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · difficulty: 3 · type: docs
 - milestone: T-563
 - why: Every task of this version names the requirements and the gate function it uses.
@@ -12000,8 +12000,11 @@
   1. requirements.md: mark D6 as replaced and add D57 as recorded in the dossier (DEC-057); add section 5.5a with R-SAID-1 to R-SAID-5; extend R-DRAFT-4 and the planner's part of R-AGENT-1; add TEST-14 and the patch release 1.3.1.
   2. design.md: add section 24 with `names::said_by_gate`, its five cases with their messages, and what every command of R-SAID-1 changes.
 - accept: requirements.md defines R-SAID-1 to 5 and TEST-14 and names D57; design.md section 24 fixes said_by_gate and the pattern for each command.
+- commit: f738083
 - reqs: R-SAID-1 to R-SAID-5, TEST-14
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, planner): done — The requirements name the thirteen commands an LLM may run for its person, and the design fixes the one check they share.
 
 ### T-565 · names.rs: the gate said_by_gate
 - status: open
