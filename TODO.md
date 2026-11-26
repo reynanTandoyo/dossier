@@ -11324,10 +11324,8 @@
 - note (2026-11-26, haiku-T-530): done
 
 ### T-531 · The agent rules: hand over a task with a note; take over only with your person's yes
-- status: claimed
+- status: done
 - owner: haiku-T-531
-- claimed: 2026-11-26T07:13+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: docs
 - milestone: T-525
 - why: An LLM learns the tool from the rules text (D14); it must know when and how to hand over and take over (D54).
@@ -11341,14 +11339,16 @@
   3. Run cargo test --test cmd_agents.
 - accept: The installed rules tell an LLM how to hand over a task and that takeover needs its person's yes.
 - verify: cargo test --test cmd_agents
+- verified: 2026-11-26
+- commit: 6d2bb49
 - reqs: R-AGENT-1, D54
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-531): done
 
 ### T-532 · handover: --dry-run calls no todo command and writes nothing
-- status: claimed
+- status: done
 - owner: haiku-T-532
-- claimed: 2026-11-26T07:13+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: fix
 - milestone: T-525
 - why: With --dry-run every dossier command changes nothing (R-WRITE dry runs), but handover still noted and released the task in todo and wrote a journal line (found in T-529).
@@ -11361,8 +11361,12 @@
   3. Run cargo test --test cmd_handover.
 - accept: handover --dry-run changes nothing in todo or the journal and says what it would do.
 - verify: cargo test --test cmd_handover
+- verified: 2026-11-26
+- commit: ec11b4d
 - reqs: R-HAND-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-532): done
 
 ### T-533 · takeover: --dry-run changes nothing, and the brief uses the same dossier
 - status: claimed
