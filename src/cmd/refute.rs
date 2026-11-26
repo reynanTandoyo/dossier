@@ -1,7 +1,8 @@
-//! The `refute` command (docs/design.md section 9, R-WRITE-15): a person at a terminal finds an
-//! approved assumption wrong. The assumption becomes `wrong`, with `refuted` and `valid-until` set
-//! and the `--by` text as its Confirmation. Then every entry and file that rests on it gets the
-//! field `rests-on` with its ID and one history line, and everything marked is printed.
+//! The `refute` command (docs/design.md section 9, R-WRITE-15): a person at a terminal, or an LLM
+//! with `--said-by <person>` (D57), finds an approved assumption wrong. The assumption becomes
+//! `wrong`, with `refuted` and `valid-until` set and the `--by` text as its Confirmation. Then
+//! every entry and file that rests on it gets the field `rests-on` with its ID and one history
+//! line, and everything marked is printed.
 //!
 //! What rests on the assumption is what its Affects section names (format.md §14): a task marks
 //! the approved entries whose `task` is that task and the non-detached files of its list; an
@@ -15,7 +16,7 @@ use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
 use crate::filelist;
-use crate::names::Who;
+use crate::names::{self, Who};
 use crate::output::Output;
 use crate::paths;
 use crate::store;
@@ -44,16 +45,20 @@ pub struct Args {
     /// Who found it wrong and how, such as "anna, from the rig measurements"
     #[arg(long, value_name = "who and how")]
     pub by: String,
+
+    /// The person who decided this; needed when an LLM runs the command (D57)
+    #[arg(long, value_name = "PERSON")]
+    pub said_by: Option<String>,
 }
 
-/// Runs `refute`: checks who acts and the assumption, then writes the assumption and every mark in
-/// one transaction. The first output line is `<ID>: refuted`; then one line per marked entry, one
-/// per marked file, one per value named and one per text not recognised. The data has the same
-/// lists.
+/// Runs `refute`: checks who acts (an LLM runs it with `--said-by`, D57) and the assumption, then
+/// writes the assumption and every mark in one transaction. The first output line is
+/// `<ID>: refuted`; then one line per marked entry, one per marked file, one per value named and
+/// one per text not recognised. The data has the same lists.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "refute")?;
     let who = ctx.writer()?.clone();
-    person_at_terminal(&who)?;
+    person_at_terminal(&who, args.said_by.as_deref())?;
     let by = args.by.trim();
     if by.is_empty() {
         return Err(bad(
@@ -378,15 +383,11 @@ fn check_assumption(entry: &Entry) -> Result<()> {
     }
 }
 
-/// Refuses an LLM (Code::NeedsPerson) and a run with no terminal (Code::NeedsTerminal).
-fn person_at_terminal(who: &Who) -> Result<()> {
-    if who.is_llm {
-        return Err(Error::new(
-            Code::NeedsPerson,
-            format!("refute is for a person; {} is an LLM", who.name),
-        ));
-    }
-    if !term::is_terminal() {
+/// Checks who acts with names::said_by_gate (D57), then refuses a run with no terminal
+/// (Code::NeedsTerminal) unless an LLM carries out its person's decision with `--said-by`.
+fn person_at_terminal(who: &Who, said_by: Option<&str>) -> Result<()> {
+    let said = names::said_by_gate(who, said_by, "refute")?;
+    if !said && !term::is_terminal() {
         return Err(Error::new(
             Code::NeedsTerminal,
             "this command must be run by a person at a terminal",

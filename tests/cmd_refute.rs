@@ -1,7 +1,7 @@
-//! Runs the built program for `refute`: a person at a terminal finds an approved assumption wrong,
-//! and everything that rests on it is marked (R-WRITE-15). Each test runs in its own project folder
-//! (common::Project), with the clock fixed at 2026-11-20T10:00:00+01:00 unless a test says
-//! otherwise.
+//! Runs the built program for `refute`: a person at a terminal, or an LLM with `--said-by`
+//! `<person>` (D57), finds an approved assumption wrong, and everything that rests on it is marked
+//! (R-WRITE-15). Each test runs in its own project folder (common::Project), with the clock fixed
+//! at 2026-11-20T10:00:00+01:00 unless a test says otherwise.
 
 mod common;
 
@@ -328,7 +328,112 @@ fn an_llm_is_refused_even_at_a_terminal() {
         .assert()
         .failure()
         .code(1)
-        .stderr(contains("refute is for a person; anna-claude is an LLM"));
+        .stderr(contains("--said-by anna"));
+    assert!(entry_of(&project, "ASM-001").field("refuted").is_none());
+}
+
+#[test]
+fn an_llm_without_said_by_is_refused_and_nothing_is_written() {
+    let project = scenario();
+    let assumption = std::fs::read(project.entry_file("ASM-001")).expect("the entry is read");
+    let model = project.read("DOSSIER/files/T-042.md");
+
+    project
+        .command("anna-claude", NOW)
+        .args(["refute", "ASM-001", "--by", "anna"])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(contains("--said-by anna"));
+
+    assert_eq!(
+        std::fs::read(project.entry_file("ASM-001")).expect("the entry is read"),
+        assumption,
+        "the file is unchanged"
+    );
+    assert_eq!(project.read("DOSSIER/files/T-042.md"), model);
+    assert!(entry_of(&project, "DEC-001").list("rests-on").is_empty());
+}
+
+#[test]
+fn an_llm_with_said_by_refutes_without_a_terminal_or_a_question() {
+    let project = scenario();
+    // No answers are prepared and no terminal is attached, so nothing can be asked: the
+    // assumption is refuted as the person decided (D57).
+    project
+        .command("anna-claude", NOW)
+        .args([
+            "refute",
+            "ASM-001",
+            "--by",
+            "anna, from the rig measurements",
+            "--said-by",
+            "anna",
+        ])
+        .assert()
+        .success()
+        .stdout(contains("ASM-001: refuted"));
+
+    let assumption = entry_of(&project, "ASM-001");
+    assert_eq!(assumption.field("state").as_deref(), Some("wrong"));
+    assert_eq!(
+        assumption.field("refuted").as_deref(),
+        Some("2026-11-20T10:00:00+01:00 by anna"),
+        "the refutation names the person"
+    );
+    assert_eq!(
+        assumption.history().last().map(String::as_str),
+        Some("2026-11-20T10:00:00+01:00 anna via anna-claude: refuted")
+    );
+    assert_eq!(entry_of(&project, "DEC-001").list("rests-on"), ["ASM-001"]);
+
+    let journal = project.entry_journal();
+    let last = journal.last().expect("a journal line");
+    assert_eq!(last.person, "anna");
+    assert_eq!(last.name, "anna-claude");
+    assert!(last.llm);
+}
+
+#[test]
+fn an_llm_with_said_by_for_another_person_is_refused_and_nothing_is_written() {
+    let project = scenario();
+    let assumption = std::fs::read(project.entry_file("ASM-001")).expect("the entry is read");
+
+    project
+        .command("anna-claude", NOW)
+        .args(["refute", "ASM-001", "--by", "ben", "--said-by", "ben"])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(contains("acts for anna only"));
+
+    assert_eq!(
+        std::fs::read(project.entry_file("ASM-001")).expect("the entry is read"),
+        assumption,
+        "the file is unchanged"
+    );
+    assert!(entry_of(&project, "DEC-001").list("rests-on").is_empty());
+}
+
+#[test]
+fn a_worker_session_decides_nothing_even_with_said_by() {
+    let project = scenario();
+    let assumption = std::fs::read(project.entry_file("ASM-001")).expect("the entry is read");
+
+    project
+        .command("anna-claude", NOW)
+        .env("DOSSIER_ROLE", "worker")
+        .args(["refute", "ASM-001", "--by", "anna", "--said-by", "anna"])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(contains("a worker decides nothing"));
+
+    assert_eq!(
+        std::fs::read(project.entry_file("ASM-001")).expect("the entry is read"),
+        assumption,
+        "the file is unchanged"
+    );
     assert!(entry_of(&project, "ASM-001").field("refuted").is_none());
 }
 
