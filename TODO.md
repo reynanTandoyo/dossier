@@ -12237,8 +12237,8 @@
 - note (2026-11-26, haiku-T-573): done — remove: an LLM with --said-by <its person> removes the entry without a terminal or a question (said_by_gate decides; a person still types the ID); an LLM without it, for another person, or in a worker session is refused; 5 tests added or changed in tests/cmd_remove.rs, the cmd_remove suite (13 tests), fmt, clippy and the full suite pass.
 
 ### T-574 · restore: an LLM runs it with --said-by
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-574
 - priority: P1 · difficulty: 1 · type: feature
 - milestone: T-563
 - why: The person's yes is given in the session; the LLM must be able to carry it out.
@@ -12255,8 +12255,12 @@
   6. Run cargo test --test cmd_restore.
 - accept: restore --said-by <its person> works for an LLM without a terminal; without it, with another name, or in a worker session it is refused.
 - verify: cargo test --test cmd_restore
+- verified: 2026-11-26
+- commit: c466d2e
 - reqs: R-SAID-1 to R-SAID-4, TEST-14
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-574): done — restore takes --said-by <person>: an LLM with its person's --said-by restores the snapshot without a terminal or a question (gate names::said_by_gate); a person still confirms with yes; an LLM without it, for another person, or in a worker session changes nothing. Four new tests in tests/cmd_restore.rs and the one old LLM test now expects --said-by anna; cargo test --test cmd_restore, fmt, clippy and the full suite pass.
 
 ### T-575 · reopen: an LLM runs it with --said-by
 - status: open
