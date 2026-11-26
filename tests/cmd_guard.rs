@@ -216,6 +216,21 @@ fn an_edit_with_an_empty_session_is_allowed_without_output() {
 }
 
 #[test]
+fn a_session_name_with_other_characters_counts_as_no_session() {
+    let project = Project::new();
+    decide_about_pump(&project);
+    let payload = edit_in_session("src/pump/seal.rs", Some("a/b"));
+    run_guard(&project, &payload)
+        .success()
+        .stdout(is_empty())
+        .stderr(is_empty());
+    run_guard(&project, &payload)
+        .success()
+        .stdout(is_empty())
+        .stderr(is_empty());
+}
+
+#[test]
 fn an_edit_of_a_file_that_nothing_points_to_is_allowed_without_output() {
     let project = Project::new();
     decide_about_pump(&project);

@@ -35,11 +35,11 @@ pub fn run(_args: &Args, _g: &Global) -> Result<Output> {
 
 /// The message to refuse an edit with when the entries in force that bind the edited file have not
 /// been shown to the session yet (`which --binding --session`); None to allow. Without a file or
-/// without a session nothing is checked, and an empty session counts as none: every edit in it
-/// would be refused again.
+/// without a session nothing is checked, and an empty or unusual session counts as none: every edit
+/// in it would be refused again.
 fn binding_message(payload: &str) -> Option<String> {
     let path = hooks::edited_path(payload)?;
-    let session = hooks::session_of(payload).filter(|session| !session.is_empty())?;
+    let session = hooks::session_of(payload).filter(|session| plain_session(session))?;
     let text = own(&[
         "which",
         "--binding",
@@ -54,6 +54,15 @@ fn binding_message(payload: &str) -> Option<String> {
     Some(format!(
         "Entries in force for {path}; read them, then make your edit again (dossier show <ID> prints one in full):\n{entries}"
     ))
+}
+
+/// True for a session name of ASCII letters, digits and `-` only, the names `shown` keeps; any other
+/// name counts as no session, because `shown` would give every entry for it and record nothing.
+fn plain_session(session: &str) -> bool {
+    !session.is_empty()
+        && session
+            .chars()
+            .all(|character| character.is_ascii_alphanumeric() || character == '-')
 }
 
 /// The standard output of this program run again with `args`, None unless it ends with exit 0.
