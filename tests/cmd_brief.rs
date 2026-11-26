@@ -3396,7 +3396,7 @@ fn stand_in_with_notes(project: &Project, notes: serde_json::Value) {
 }
 
 #[test]
-fn brief_task_prints_the_last_handover_note_directly_after_its_first_line() {
+fn brief_task_prints_the_last_handover_and_takeover_directly_after_its_first_line() {
     let project = Project::new();
     stand_in_with_notes(
         &project,
@@ -3416,7 +3416,45 @@ fn brief_task_prints_the_last_handover_note_directly_after_its_first_line() {
     );
     assert_eq!(
         lines.get(1),
-        Some(&"Last handover: ben took over from anna (ben, 2026-11-21)"),
+        Some(&"Last handover: Done: mesh; next: run 3 (anna, 2026-11-20)"),
+        "{text}"
+    );
+    assert_eq!(
+        lines.get(2),
+        Some(&"Last takeover: ben took over from anna (ben, 2026-11-21)"),
+        "{text}"
+    );
+
+    stand_in_with_notes(
+        &project,
+        serde_json::json!([
+            {"date": "2026-11-19", "agent": "planner", "text": "added"},
+            {"date": "2026-11-21", "agent": "ben", "text": "takeover — ben took over from anna"}
+        ]),
+    );
+    let text = brief(&project, &["--task", "T-132"], None);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(
+        lines.get(1),
+        Some(&"Last takeover: ben took over from anna (ben, 2026-11-21)"),
+        "{text}"
+    );
+    assert!(
+        !text.lines().any(|line| line.starts_with("Last handover:")),
+        "{text}"
+    );
+
+    stand_in_with_notes(
+        &project,
+        serde_json::json!([
+            {"date": "2026-11-21", "text": "takeover — ben took over from anna"}
+        ]),
+    );
+    let text = brief(&project, &["--task", "T-132"], None);
+    let lines: Vec<&str> = text.lines().collect();
+    assert_eq!(
+        lines.get(1),
+        Some(&"Last takeover: ben took over from anna (2026-11-21)"),
         "{text}"
     );
 
@@ -3426,7 +3464,9 @@ fn brief_task_prints_the_last_handover_note_directly_after_its_first_line() {
     );
     let text = brief(&project, &["--task", "T-132"], None);
     assert!(
-        !text.lines().any(|line| line.starts_with("Last handover:")),
+        !text
+            .lines()
+            .any(|line| line.starts_with("Last handover:") || line.starts_with("Last takeover:")),
         "{text}"
     );
 }

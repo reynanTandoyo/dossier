@@ -896,9 +896,10 @@ someone else without losing what was done (D54).
   what `brief --task <task>` prints. It never copies a file itself.
 - **R-HAND-3 MUST** An LLM runs `takeover` only with `--said-by <person>`, resolved as `decide`
   resolves it; without it Code::NeedsPerson. `handover` needs no person.
-- **R-HAND-4 MUST** `brief --task` prints, directly after its first line, the last note of the task
-  in todo that starts with `handover —` or `takeover —`, as
-  `Last handover: <text after the dash> (<agent of the note>, <date of the note>)`.
+- **R-HAND-4 MUST** `brief --task` prints, directly after its first line,
+  `Last handover: <text> (<agent>, <date>)` for the last note of the task in todo that starts with
+  `handover —`, and `Last takeover: <text> (<agent>, <date>)` for the last that starts with
+  `takeover —`, each only when there is one.
 - **R-HAND-5 MUST** The name given to todo is the value of TODO_AGENT when it is set, otherwise the
   writer's name. When todo refuses or fails, the command fails with todo's message and writes no
   journal line.

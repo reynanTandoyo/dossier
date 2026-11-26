@@ -61,8 +61,12 @@ const INVESTIGATIONS_LINES: usize = 14;
 const INVESTIGATIONS_LIMIT: usize = 5;
 /// The section of an investigation that holds its solution (format.md §28).
 const SOLUTION: &str = "Solution";
-/// The start of a todo note that hands a task over or takes it over (R-HAND-4).
-const HANDOVER_NOTES: [&str; 2] = ["handover —", "takeover —"];
+/// The start of a todo note that hands a task over or takes it over, with the label of its line
+/// (R-HAND-4).
+const HANDOVER_NOTES: [(&str, &str); 2] = [
+    ("handover —", "Last handover"),
+    ("takeover —", "Last takeover"),
+];
 
 /// What `brief --task` chose for one task: the lines it prints, and the entries those lines name,
 /// each with the reason it was chosen (R-CTX-6).
@@ -139,8 +143,8 @@ pub fn select(ctx: &Ctx, task: &str, limit: usize) -> Result<Selection> {
 
     let (term_rows, terms) = terms_lines(ctx, &about);
     let mut out = vec![task_line(task, &about.title)];
-    // The last handover note goes directly after the first line (R-HAND-4).
-    out.extend(handover_line(&data));
+    // The handover lines go directly after the first line (R-HAND-4).
+    out.extend(handover_lines(&data));
     // The entries named by a summary line, each with its reason, in the order of `out`.
     let mut chosen: Vec<(String, &'static str)> = Vec::new();
     // The project entry lines, in the order of `out`, each with where its linked lines go.
@@ -966,22 +970,42 @@ fn notes_of(data: &Value) -> Vec<&Value> {
     }
 }
 
-/// The handover line (R-HAND-4): the last note whose text starts with `handover —` or `takeover —`,
-/// as `Last handover: <text after the dash> (<agent of the note>, <date of the note>)`. None when
-/// there is no such note.
-fn handover_line(data: &Value) -> Option<String> {
-    notes_of(data).into_iter().rev().find_map(|note| {
+/// The handover lines (R-HAND-4): for each of HANDOVER_NOTES, the last note whose text starts with
+/// its start, as `Last handover: <text after the dash> (<agent of the note>, <date of the note>)`,
+/// or `Last takeover: ...` for the takeover notes. A kind with no such note gives no line.
+fn handover_lines(data: &Value) -> Vec<String> {
+    let notes = notes_of(data);
+    HANDOVER_NOTES
+        .iter()
+        .filter_map(|(start, label)| last_note_line(&notes, start, label))
+        .collect()
+}
+
+/// The line of the last of `notes` whose text starts with `start`: `<label>: <text after the dash>`,
+/// then the agent and date of the note as `who_when` gives them. None when there is no such note.
+fn last_note_line(notes: &[&Value], start: &str, label: &str) -> Option<String> {
+    notes.iter().rev().find_map(|note| {
         let text = note.get("text").and_then(Value::as_str)?;
-        let rest = HANDOVER_NOTES
-            .iter()
-            .find_map(|start| text.strip_prefix(start))?;
-        Some(format!(
-            "Last handover: {} ({}, {})",
-            rest.trim(),
-            first_text([note.get("agent")]),
-            first_text([note.get("date")]),
-        ))
+        let rest = text.strip_prefix(start)?;
+        Some(format!("{label}: {}{}", rest.trim(), who_when(note)))
     })
+}
+
+/// The ` (<agent>, <date>)` that ends a handover line. A part the note does not have is left out,
+/// so the result is ` (<date>)`, ` (<agent>)` or nothing when the note has neither.
+fn who_when(note: &Value) -> String {
+    let parts: Vec<String> = [
+        first_text([note.get("agent")]),
+        first_text([note.get("date")]),
+    ]
+    .into_iter()
+    .filter(|part| !part.is_empty())
+    .collect();
+    if parts.is_empty() {
+        String::new()
+    } else {
+        format!(" ({})", parts.join(", "))
+    }
 }
 
 /// The text of one note: the `text` of a note that is an object, else the note itself.
