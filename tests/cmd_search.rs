@@ -198,6 +198,43 @@ fn partial_results_weigh_each_word_by_every_entry_searched() {
 }
 
 #[test]
+fn partial_results_cut_to_ten_still_show_their_linked_lines() {
+    let project = Project::new();
+    project
+        .run("anna", &["found", "Invented follow-up on the rig"])
+        .success();
+    // Fifteen decisions hold `rotor` and no `valve`, and each links the finding FND-001.
+    for n in 1..=15 {
+        project
+            .run(
+                "anna",
+                &[
+                    "decide",
+                    &format!("Rotor limit set number {n}"),
+                    "--reason",
+                    "Invented reason for the test.",
+                ],
+            )
+            .success();
+        project
+            .run("anna", &["link", &format!("DEC-{n:03}"), "FND-001"])
+            .success();
+    }
+
+    // All fifteen weigh the same, so the first ten by ID are listed, each with its linked line; the
+    // last five are cut and not listed.
+    let lines: String = (1..=10)
+        .map(|n| {
+            format!(
+                "DEC-{n:03}  Rotor limit set number {n}\n  linked: FND-001 · Invented follow-up on the rig\n"
+            )
+        })
+        .collect();
+    let expected = format!("some of the words:\n{lines}0 matches, 10 with some of the words\n");
+    assert_eq!(project.stdout("", &["search", "valve", "rotor"]), expected);
+}
+
+#[test]
 fn one_typed_word_never_lists_partial_results() {
     let project = Project::new();
     valve_and_rotor(&project);

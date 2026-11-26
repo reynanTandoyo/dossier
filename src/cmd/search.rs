@@ -163,31 +163,34 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let now = time::now();
     let today = time::date(&now);
     let mut hits: Vec<Hit> = Vec::new();
-    // Every entry the search looks at, the full matches and the others, that passes the filter,
-    // with the dossier it is in and its linked entries (homes[i] belongs to searched[i]).
+    // The entries of each place as read, with the place's Ctx. links::linked looks a linked entry up
+    // among all of them, also those the filter leaves out, so they are kept whole.
+    let mut dossiers: Vec<(&Ctx, Vec<Item>)> = Vec::new();
+    // Every entry the search looks at, the full matches and the others: a copy of each entry that
+    // passes the filter, with the index in `dossiers` of its place (homes[i] belongs to searched[i]).
+    // Linked entries are looked up only for the results that are printed.
     let mut searched: Vec<Item> = Vec::new();
-    let mut homes: Vec<(&Ctx, Vec<Linked>)> = Vec::new();
+    let mut homes: Vec<usize> = Vec::new();
     for scanned in places {
         let (items, found) = store::all(&scanned.dossier);
         warnings.extend(found);
-        let under = linked_each(&items, |item| args.filter.matches(item));
-        for (item, linked) in items.into_iter().zip(under) {
-            if let Some(linked) = linked {
-                searched.push(item);
-                homes.push((scanned, linked));
-            }
+        for item in items.iter().filter(|item| args.filter.matches(item)) {
+            searched.push(copy_of(item));
+            homes.push(dossiers.len());
         }
+        dossiers.push((scanned, items));
     }
     // The weight of each word counts every entry searched, so a word that is common in the whole
     // dossier weighs little, even when the entries that hold it are the full matches.
     let index = select::Index::of(&searched);
-    // The entries that pass the filter but lack a word, each with the dossier it is in.
-    let mut partial: Vec<(&Ctx, Item, Vec<Linked>)> = Vec::new();
-    for (item, (scanned, linked)) in searched.into_iter().zip(homes) {
-        if holds_every(&item.entry, &words) {
-            hits.push(hit(scanned, item, &words, today, linked));
-        } else {
-            partial.push((scanned, item, linked));
+    // The entries that pass the filter but lack a word, each with the index of its place.
+    let mut partial: Vec<(usize, Item)> = Vec::new();
+    for (item, home) in searched.into_iter().zip(homes) {
+        if !holds_every(&item.entry, &words) {
+            partial.push((home, item));
+        } else if let Some((ctx, lookup)) = dossiers.get(home) {
+            let linked = linked_for(lookup, &item.entry);
+            hits.push(hit(ctx, item, &words, today, linked));
         }
     }
     // Newest first within a group, then by ID in the order `store::all` uses. An entry of each
@@ -200,7 +203,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             hit.place == TEAM,
         )
     });
-    hits.extend(partial_hits(partial, &words, &index, today));
+    hits.extend(partial_hits(partial, &dossiers, &words, &index, today));
 
     Ok(render(&hits, args.full, warnings))
 }
@@ -232,23 +235,23 @@ fn similar(id: &str, args: &Args, g: &Global) -> Result<Output> {
 
     let places: Vec<&Ctx> = std::iter::once(&ctx).chain(team.as_ref()).collect();
     let mut warnings = Vec::new();
+    // The entries of each place as read, kept whole for the linked lookups (see run).
+    let mut dossiers: Vec<(&Ctx, Vec<Item>)> = Vec::new();
+    // The candidates: a copy of each entry that passes the filter and is not the entry itself, with
+    // the index in `dossiers` of its place. Linked entries are looked up only for the results shown.
     let mut items: Vec<Item> = Vec::new();
-    // The linked entries of each item in `items`, and its place, at the same index.
-    let mut unders: Vec<Vec<Linked>> = Vec::new();
-    let mut homes: Vec<&Ctx> = Vec::new();
+    let mut homes: Vec<usize> = Vec::new();
     for place in places {
         let (found, problems) = store::all(&place.dossier);
         warnings.extend(problems);
-        let under = linked_each(&found, |item| {
-            item.path != target.path && args.filter.matches(item)
-        });
-        for (item, linked) in found.into_iter().zip(under) {
-            if let Some(linked) = linked {
-                items.push(item);
-                unders.push(linked);
-                homes.push(place);
-            }
+        for item in found
+            .iter()
+            .filter(|item| item.path != target.path && args.filter.matches(item))
+        {
+            items.push(copy_of(item));
+            homes.push(dossiers.len());
         }
+        dossiers.push((place, found));
     }
 
     let now = time::now();
@@ -256,12 +259,11 @@ fn similar(id: &str, args: &Args, g: &Global) -> Result<Output> {
     let hits: Vec<Hit> = select::top(&items, &query, SIMILAR_LIMIT)
         .into_iter()
         .filter_map(|picked| {
-            // `best` returns references into `items`, so the index of each one is its position.
+            // `top` returns references into `items`, so the index of each one is its position.
             let index = items
                 .iter()
                 .position(|candidate| std::ptr::eq(candidate, picked))?;
-            let place = *homes.get(index)?;
-            let linked = unders.get(index)?.clone();
+            let (place, lookup) = dossiers.get(*homes.get(index)?)?;
             let item = Item {
                 path: picked.path.clone(),
                 raw: picked.raw.clone(),
@@ -275,7 +277,7 @@ fn similar(id: &str, args: &Args, g: &Global) -> Result<Output> {
                 line: item.entry.title(),
                 reason: select::why(picked, &query),
                 matched: None,
-                linked,
+                linked: linked_for(lookup, &item.entry),
                 item,
             })
         })
@@ -421,12 +423,14 @@ fn holds_every(entry: &Entry, words: &[Wanted]) -> bool {
 
 /// The entries that hold only some of the search words, best first (select::ranked_in over the
 /// words and their glossary spellings), at most `PARTIAL_LIMIT`, each as a result with its title as
-/// the line. `partial` holds each entry with the dossier it is in and its linked entries; `index` is
-/// the select::Index of every entry searched, full matches included, so the weights do not depend
-/// on the partial entries alone; `today` is the day of the run, YYYY-MM-DD. Nothing is listed when
-/// one word was typed: its entries hold it or not.
+/// the line. `partial` holds each entry with the index in `dossiers` of its place; `index` is the
+/// select::Index of every entry searched, full matches included, so the weights do not depend on
+/// the partial entries alone; `today` is the day of the run, YYYY-MM-DD. Only the entries listed get
+/// their linked entries, looked up among the entries of their place. Nothing is listed when one word
+/// was typed: its entries hold it or not.
 fn partial_hits(
-    partial: Vec<(&Ctx, Item, Vec<Linked>)>,
+    partial: Vec<(usize, Item)>,
+    dossiers: &[(&Ctx, Vec<Item>)],
     words: &[Wanted],
     index: &select::Index,
     today: &str,
@@ -441,11 +445,7 @@ fn partial_hits(
             .flat_map(|wanted| wanted.spellings.clone())
             .collect(),
     };
-    let (homes, rest): (Vec<&Ctx>, Vec<(Item, Vec<Linked>)>) = partial
-        .into_iter()
-        .map(|(home, item, linked)| (home, (item, linked)))
-        .unzip();
-    let (items, unders): (Vec<Item>, Vec<Vec<Linked>>) = rest.into_iter().unzip();
+    let (homes, items): (Vec<usize>, Vec<Item>) = partial.into_iter().unzip();
     // The index in `items` of each entry that `select::ranked_in` picks, best first.
     let order: Vec<usize> = select::ranked_in(&items, &query, index)
         .into_iter()
@@ -456,18 +456,18 @@ fn partial_hits(
                 .position(|candidate| std::ptr::eq(candidate, picked))
         })
         .collect();
-    let mut slots: Vec<Option<(Item, Vec<Linked>)>> =
-        items.into_iter().zip(unders).map(Some).collect();
+    let mut slots: Vec<Option<Item>> = items.into_iter().map(Some).collect();
     order
         .into_iter()
         .filter_map(|index| {
-            let home = *homes.get(index)?;
-            let (item, linked) = slots.get_mut(index)?.take()?;
+            let (ctx, lookup) = dossiers.get(*homes.get(index)?)?;
+            let item = slots.get_mut(index)?.take()?;
+            let linked = linked_for(lookup, &item.entry);
             Some(Hit {
-                place: place_of(home),
+                place: place_of(ctx),
                 group: 2,
                 created: created(&item.entry),
-                mark: mark(home, &item, today),
+                mark: mark(ctx, &item, today),
                 line: item.entry.title(),
                 reason: None,
                 matched: Some(Matched::Some),
@@ -508,21 +508,23 @@ fn hit(ctx: &Ctx, item: Item, words: &[Wanted], today: &str, linked: Vec<Linked>
     }
 }
 
-/// The linked entries of each entry of `items` that `keep` accepts, in the order of `items`, and
-/// None for the others. An entry's linked entries are looked up among all of `items`, so that a
-/// linked entry the filter leaves out is still shown (links::linked).
-fn linked_each(items: &[Item], keep: impl Fn(&Item) -> bool) -> Vec<Option<Vec<Linked>>> {
-    items
-        .iter()
-        .map(|item| {
-            keep(item).then(|| {
-                links::linked(&item.entry, items, links::LINKED_LIMIT)
-                    .into_iter()
-                    .map(linked_of)
-                    .collect()
-            })
-        })
+/// The linked entries shown under the result `entry`, one of the entries `items` of its place: they
+/// are looked up among all of `items`, so that a linked entry the filter leaves out is still shown
+/// (links::linked).
+fn linked_for(items: &[Item], entry: &Entry) -> Vec<Linked> {
+    links::linked(entry, items, links::LINKED_LIMIT)
+        .into_iter()
+        .map(linked_of)
         .collect()
+}
+
+/// A copy of an entry as `store::all` read it: its path, its exact bytes and its parsed entry.
+fn copy_of(item: &Item) -> Item {
+    Item {
+        path: item.path.clone(),
+        raw: item.raw.clone(),
+        entry: item.entry.clone(),
+    }
 }
 
 /// The line and the JSON data of a linked entry shown under a result.
