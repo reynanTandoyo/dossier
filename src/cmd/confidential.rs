@@ -1,9 +1,9 @@
 //! The `confidential` command (docs/design.md section 12, format.md §24): the confidential terms of
 //! the project. Anyone in the project may add a term, an LLM too (D32, R-CONF-1), and `list` shows
-//! the terms and whether a person stated there are none. A person at a terminal removes a term or
-//! states that there are none (D32, R-CONF-5). `scan` looks for the terms in the team dossier, for
-//! the terms added after a team write (R-CONF-6). The terms belong to the project, so `--team` is
-//! refused.
+//! the terms and whether a person stated there are none. A person at a terminal, or an LLM with
+//! `--said-by <person>` (D57), removes a term or states that there are none (D32, R-CONF-5). `scan`
+//! looks for the terms in the team dossier, for the terms added after a team write (R-CONF-6).
+//! The terms belong to the project, so `--team` is refused.
 
 use crate::blockfile::BlockFile;
 use crate::cli::Global;
@@ -11,7 +11,7 @@ use crate::conf;
 use crate::ctx::Ctx;
 use crate::error::{Code, Error, Result};
 use crate::glossary;
-use crate::names::Who;
+use crate::names::{self, Who};
 use crate::output::Output;
 use crate::store;
 use crate::teamfiles;
@@ -48,6 +48,9 @@ pub enum Action {
     Remove {
         /// The term as listed; any spelling of its separators and case finds it
         term: String,
+        /// The person who decided this; needed when an LLM runs the command (D57)
+        #[arg(long, value_name = "PERSON")]
+        said_by: Option<String>,
     },
     /// Lists the confidential terms, and whether a person stated there are none
     List,
@@ -56,12 +59,16 @@ pub enum Action {
         /// Confirms the statement; without it nothing is written
         #[arg(long)]
         yes: bool,
+        /// The person who decided this; needed when an LLM runs the command (D57)
+        #[arg(long, value_name = "PERSON")]
+        said_by: Option<String>,
     },
     /// Looks for the project's terms in the team dossier; exit 1 with each hit when there are some
     Scan,
 }
 
-/// Runs `confidential`. `--team` is refused before anything is loaded, for every subcommand.
+/// Runs `confidential`. `--team` is refused before anything is loaded, for every subcommand. An LLM
+/// runs `remove` and `none` with `--said-by <person>` (D57).
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     if g.team {
         return Err(Error::new(Code::Usage, TEAM_REFUSED));
@@ -69,9 +76,9 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "confidential")?;
     match &args.action {
         Action::Add { term } => add(&ctx, term),
-        Action::Remove { term } => remove(&ctx, term),
+        Action::Remove { term, said_by } => remove(&ctx, term, said_by.as_deref()),
         Action::List => list(&ctx),
-        Action::None { yes } => none(&ctx, *yes),
+        Action::None { yes, said_by } => none(&ctx, *yes, said_by.as_deref()),
         Action::Scan => scan(&ctx),
     }
 }
@@ -137,8 +144,8 @@ fn add(ctx: &Ctx, term: &str) -> Result<Output> {
 /// separators and case, as `add` finds it. A term that is not listed, or is listed and already
 /// removed, is Code::NotFound and nothing is written. The block keeps its history and gets the
 /// field `removed: <time> by <person>` and a history line `removed` (format.md §24).
-fn remove(ctx: &Ctx, term: &str) -> Result<Output> {
-    let who = acting_person(ctx, "confidential remove")?;
+fn remove(ctx: &Ctx, term: &str, said_by: Option<&str>) -> Result<Output> {
+    let who = acting_person(ctx, "confidential remove", said_by)?;
     let term = term.trim();
     if conf::normalize(term).is_empty() {
         return Err(bad("the term is empty"));
@@ -188,8 +195,8 @@ fn list(ctx: &Ctx) -> Result<Output> {
 /// terminal with `--yes`. Refused while a term is listed. The block `(no confidential terms)` gets
 /// the field `stated: <time> by <person>` and a history line `stated`; stating again moves the
 /// time on.
-fn none(ctx: &Ctx, yes: bool) -> Result<Output> {
-    let who = acting_person(ctx, "confidential none")?;
+fn none(ctx: &Ctx, yes: bool, said_by: Option<&str>) -> Result<Output> {
+    let who = acting_person(ctx, "confidential none", said_by)?;
     if !yes {
         return Err(Error::new(
             Code::Usage,
@@ -303,18 +310,13 @@ fn count_matches(n: usize) -> String {
     }
 }
 
-/// The name that acts, when it is a person at a terminal. An LLM is Code::NeedsPerson, and a run
-/// with no terminal to answer at is Code::NeedsTerminal (D32). `what` names the subcommand in the
-/// refusal.
-fn acting_person(ctx: &Ctx, what: &str) -> Result<Who> {
+/// The name that acts. names::said_by_gate decides who may act (D57): an LLM carries out its
+/// person's decision with `said_by`. A run that is not said_by an LLM and has no terminal to answer
+/// at is Code::NeedsTerminal (D32). `what` names the subcommand in the refusals.
+fn acting_person(ctx: &Ctx, what: &str, said_by: Option<&str>) -> Result<Who> {
     let who = ctx.writer()?.clone();
-    if who.is_llm {
-        return Err(Error::new(
-            Code::NeedsPerson,
-            format!("{what} is for a person; {} is an LLM", who.name),
-        ));
-    }
-    if !term::is_terminal() {
+    let said = names::said_by_gate(&who, said_by, what)?;
+    if !said && !term::is_terminal() {
         return Err(Error::new(
             Code::NeedsTerminal,
             "this command must be run by a person at a terminal",

@@ -1,9 +1,9 @@
 //! Runs the built program for `confidential`: anyone in the project adds a term, an LLM too (D32);
 //! the terms are listed with a count; a term already listed is refused in any spelling of its
-//! separators; a removed term is added again (R-CONF-1, format.md §24). A person at a terminal
-//! removes a term or states that there are none (D32, R-CONF-5). `scan` finds the terms in the team
-//! dossier, also those added after the team write (R-CONF-6). `--team` is refused, since the terms
-//! belong to the project. Each test runs in its own project folder, with the clock fixed by
+//! separators; a removed term is added again (R-CONF-1, format.md §24). A person at a terminal, or
+//! an LLM with `--said-by <person>` (D57), removes a term or states that there are none (D32,
+//! R-CONF-5). `scan` finds the terms in the team dossier, also those added after the team write
+//! (R-CONF-6). `--team` is refused, since the terms belong to the project. Each test runs in its own project folder, with the clock fixed by
 //! `common::Project` (2026-11-20T10:00:00+01:00).
 
 mod common;
@@ -283,9 +283,7 @@ fn removing_a_term_needs_a_person_at_a_terminal_and_a_name() {
         .assert()
         .failure()
         .code(1)
-        .stderr(contains(
-            "confidential remove is for a person; anna-claude is an LLM",
-        ));
+        .stderr(contains("--said-by anna"));
     project
         .run("anna", &["confidential", "remove", "NT-450"])
         .failure()
@@ -298,6 +296,97 @@ fn removing_a_term_needs_a_person_at_a_terminal_and_a_name() {
         .failure()
         .code(2)
         .stderr(contains("needs a name"));
+    assert_eq!(terms_text(&project), before);
+}
+
+#[test]
+fn an_llm_removing_a_term_without_said_by_is_refused_and_nothing_changes() {
+    let project = Project::new();
+    project
+        .run("anna-claude", &["confidential", "add", "NT-450"])
+        .success();
+    let before = terms_text(&project);
+    project
+        .run("anna-claude", &["confidential", "remove", "NT-450"])
+        .failure()
+        .code(1)
+        .stderr(contains("--said-by anna"));
+    assert_eq!(terms_text(&project), before);
+}
+
+#[test]
+fn an_llm_with_said_by_removes_a_term_without_a_terminal_or_a_question() {
+    let project = Project::new();
+    project
+        .run("anna-claude", &["confidential", "add", "NT-450"])
+        .success();
+    project
+        .run("ben", &["confidential", "add", "Falcon"])
+        .success();
+    // No answers are prepared and no terminal is attached, so nothing can be asked (D57).
+    project
+        .run(
+            "anna-claude",
+            &["confidential", "remove", "NT-450", "--said-by", "anna"],
+        )
+        .success()
+        .stdout(contains("NT-450: removed"));
+    let expected = format!(
+        "{HEADING}## NT-450\n\n- removed: {NOW} by anna\n- history: {NOW} anna via anna-claude: added\n- history: {NOW} anna via anna-claude: removed\n\n## Falcon\n\n- history: {NOW} ben: added\n\n"
+    );
+    assert_eq!(terms_text(&project), expected);
+    assert_eq!(
+        project.stdout("anna", &["confidential", "list"]),
+        "Falcon\n1 term\n"
+    );
+
+    let records = project.entry_journal();
+    let last = records.last().expect("the removal is in the journal");
+    assert_eq!(last.id, "CONFIDENTIAL");
+    assert_eq!(last.event, "removed");
+    assert_eq!(last.detail, "NT-450");
+    assert_eq!(last.name, "anna-claude");
+    assert_eq!(last.person, "anna");
+    assert!(last.llm);
+    assert_eq!(last.command, "confidential");
+}
+
+#[test]
+fn an_llm_with_said_by_for_another_person_is_refused_and_nothing_changes() {
+    let project = Project::new();
+    project
+        .run("anna-claude", &["confidential", "add", "NT-450"])
+        .success();
+    let before = terms_text(&project);
+    project
+        .run(
+            "anna-claude",
+            &["confidential", "remove", "NT-450", "--said-by", "ben"],
+        )
+        .failure()
+        .code(1)
+        .stderr(contains("acts for anna only"));
+    assert_eq!(terms_text(&project), before);
+}
+
+#[test]
+fn a_worker_session_removes_nothing_even_with_said_by() {
+    let project = Project::new();
+    project
+        .run("anna-claude", &["confidential", "add", "NT-450"])
+        .success();
+    project
+        .run("ben", &["confidential", "add", "Falcon"])
+        .success();
+    let before = terms_text(&project);
+    project
+        .command("anna-claude", NOW)
+        .env("DOSSIER_ROLE", "worker")
+        .args(["confidential", "remove", "NT-450", "--said-by", "anna"])
+        .assert()
+        .failure()
+        .code(1)
+        .stderr(contains("a worker decides nothing"));
     assert_eq!(terms_text(&project), before);
 }
 
@@ -315,9 +404,7 @@ fn none_needs_yes_a_person_and_a_terminal_and_writes_nothing_without_them() {
         .assert()
         .failure()
         .code(1)
-        .stderr(contains(
-            "confidential none is for a person; anna-claude is an LLM",
-        ));
+        .stderr(contains("--said-by anna"));
     project
         .run("anna", &["confidential", "none", "--yes"])
         .failure()
@@ -329,6 +416,28 @@ fn none_needs_yes_a_person_and_a_terminal_and_writes_nothing_without_them() {
         !project.root().join("DOSSIER/confidential.md").exists(),
         "nothing is written"
     );
+}
+
+#[test]
+fn an_llm_with_said_by_states_there_are_none_without_a_terminal() {
+    let project = Project::new();
+    project
+        .command("anna-claude", NOW)
+        .args(["confidential", "none", "--yes", "--said-by", "anna"])
+        .assert()
+        .success()
+        .stdout(contains("(no confidential terms): stated"));
+    assert_eq!(
+        project.stdout("anna", &["confidential", "list"]),
+        format!("no confidential terms stated by anna at {NOW}\n")
+    );
+
+    let records = project.entry_journal();
+    let last = records.last().expect("the statement is in the journal");
+    assert_eq!(last.event, "stated");
+    assert_eq!(last.person, "anna");
+    assert_eq!(last.name, "anna-claude");
+    assert!(last.llm);
 }
 
 #[test]
