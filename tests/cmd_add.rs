@@ -508,3 +508,62 @@ fn other_kinds_get_no_state_field() {
         "{text}"
     );
 }
+
+#[test]
+fn a_section_text_with_a_heading_line_is_refused_and_nothing_is_written() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "add",
+                "finding",
+                "--title",
+                "Heading inside a section",
+                "--section",
+                "Observation=Seen.\n## Extra\nMore.",
+            ],
+        )
+        .code(1)
+        .stderr(contains(
+            "Observation must not hold a line starting with the heading mark ##",
+        ));
+    assert!(folder_is_empty(
+        &project.root().join("DOSSIER").join("findings")
+    ));
+}
+
+#[test]
+fn a_body_line_with_leading_spaces_before_the_heading_mark_is_refused() {
+    let project = Project::new();
+    project
+        .command("anna", NOW)
+        .args(["add", "finding", "--title", "Indented heading", "--stdin"])
+        .write_stdin("## Observation\n\nSeen.\n   ## Extra\n")
+        .assert()
+        .code(1)
+        .stderr(contains(
+            "Observation must not hold a line starting with the heading mark ##",
+        ));
+    assert!(folder_is_empty(
+        &project.root().join("DOSSIER").join("findings")
+    ));
+}
+
+#[test]
+fn a_section_line_with_a_hash_tag_or_a_level_three_heading_is_written() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &[
+            "add",
+            "finding",
+            "--title",
+            "Tag and level three",
+            "--section",
+            "Observation=Seen.\n#tag\n### Note",
+        ],
+    );
+    let text = text_of(&project, "FND-001");
+    assert!(text.contains("\n#tag\n### Note\n"), "{text}");
+}

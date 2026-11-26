@@ -92,6 +92,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         None => Vec::new(),
     };
     sections.extend(section_pairs(&args.sections)?);
+    check_sections(&sections)?;
     let new = New {
         kind,
         title,
@@ -177,6 +178,22 @@ fn section_pairs(items: &[String]) -> Result<Vec<(String, String)>> {
             Ok((name.to_string(), text.to_string()))
         })
         .collect()
+}
+
+/// Refuses (Code::BadValue) a section whose text has a line that starts with the heading mark
+/// `## ` after its leading spaces: such a line would open a new section in the entry file.
+fn check_sections(sections: &[(String, String)]) -> Result<()> {
+    for (name, text) in sections {
+        let opens_section = text
+            .lines()
+            .any(|line| line.trim_start_matches(' ').starts_with("## "));
+        if opens_section {
+            return Err(bad(format!(
+                "{name} must not hold a line starting with the heading mark ##"
+            )));
+        }
+    }
+    Ok(())
 }
 
 /// The text of `--from <file>` or of standard input with `--stdin`, or None when neither is
