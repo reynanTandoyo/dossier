@@ -4,7 +4,9 @@
 //! current folder.
 
 use crate::cli::Global;
+use crate::config;
 use crate::error::Result;
+use crate::find;
 use crate::hooks::{self, TodoEvent};
 use crate::output::Output;
 use serde_json::Value;
@@ -84,14 +86,29 @@ fn data_of(args: &[&str]) -> Option<Value> {
 }
 
 /// The reminder that a finished task has no usage record: given when `list --kind usage` answers
-/// with an empty `data` for the task. None when it does not answer or the task has a record.
+/// with an empty `data` for the task. None when it does not answer, when the task has a record, or
+/// when the dossier found from the current folder is a code project (R-CODE-5), which has no
+/// simulation runs to record.
 fn usage_reminder(id: &str) -> Option<String> {
+    if code_project_here() {
+        return None;
+    }
     let data = data_of(&["list", "--kind", "usage", "--task", id, "--all", "--json"])?;
     data.as_array()?.is_empty().then(|| {
         format!(
             "No usage record for {id}: if software was used, record it with dossier used <software> --version <v> --task {id}"
         )
     })
+}
+
+/// Whether the dossier found from the current folder is a code project (format.md §19). False when
+/// no dossier is found or its settings do not load.
+fn code_project_here() -> bool {
+    std::env::current_dir()
+        .ok()
+        .and_then(|cwd| find::find(&cwd, None).ok())
+        .and_then(|dossier| config::load(&dossier).ok())
+        .is_some_and(|cfg| cfg.code_project)
 }
 
 /// The lines for the investigations of a finished task that are still open (design.md section 15,

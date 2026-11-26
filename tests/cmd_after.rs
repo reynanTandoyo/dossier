@@ -252,3 +252,34 @@ fn an_open_investigation_with_an_attempt_of_the_task_is_named_once() {
     let context = context_of(&output.get_output().stdout);
     assert!(!context.contains("is still open"), "{context}");
 }
+
+/// A temporary project folder made with `init --code P-001 --code-project` (format.md §19), with
+/// the person anna added. The clock is the one of the other tests.
+fn code_project() -> Project {
+    let project = Project {
+        dir: tempfile::TempDir::new().expect("a temporary project folder"),
+    };
+    project
+        .command("anna", "2026-11-20T10:00:00+01:00")
+        .args(["init", "--code", "P-001", "--code-project"])
+        .assert()
+        .success();
+    project
+        .command("anna", "2026-11-20T10:00:00+01:00")
+        .args(["people", "add", "anna", "--llm", "anna-claude"])
+        .assert()
+        .success();
+    project
+}
+
+#[test]
+fn a_finished_task_in_a_code_project_gives_no_usage_reminder() {
+    let project = code_project();
+    write_todo(&project, SHOW_T001);
+    project.stdout("anna", &["found", FINDING, "--task", "T-001"]);
+    let payload = shell("todo done T-001 --commit HEAD --agent haiku", "");
+    let output = run_after(&project, &payload).success();
+    let context = context_of(&output.get_output().stdout);
+    assert!(context.contains("# Review of T-001"), "{context}");
+    assert!(!context.contains("No usage record"), "{context}");
+}
