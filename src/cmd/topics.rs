@@ -45,10 +45,12 @@ pub enum Action {
 /// Runs `topics`: with no action the topics of the settings with their entry counts, with `add` a
 /// topic is added to the list.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
-    let ctx = Ctx::load(g, "topics")?;
     match &args.action {
-        None => list(&ctx),
-        Some(Action::Add { name, said_by }) => add(&ctx, name, said_by.as_deref()),
+        None => list(&Ctx::load(g, "topics")?),
+        Some(Action::Add { name, said_by }) => {
+            let ctx = Ctx::load(g, "topics add")?;
+            add(&ctx, name, said_by.as_deref())
+        }
     }
 }
 

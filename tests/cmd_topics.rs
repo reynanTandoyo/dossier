@@ -273,3 +273,21 @@ fn a_dry_run_says_what_it_would_write_and_writes_nothing() {
     assert_eq!(project.read("DOSSIER/dossier.toml"), before);
     assert!(!project.stdout("", &["log"]).contains("topic added"));
 }
+
+#[test]
+fn a_name_that_is_not_in_the_settings_is_refused_to_add_a_topic_and_can_still_list_them() {
+    let project = Project::new();
+    project_has_topics(&project, &["pumps"]);
+    let before = project.read("DOSSIER/dossier.toml");
+
+    project
+        .run("carl", &["topics", "add", "rig"])
+        .failure()
+        .code(1)
+        .stderr(contains(
+            "'carl' is neither a person nor an LLM in dossier.toml",
+        ));
+
+    assert_eq!(project.read("DOSSIER/dossier.toml"), before);
+    assert_eq!(project.stdout("carl", &["topics"]), "pumps  0\n");
+}
