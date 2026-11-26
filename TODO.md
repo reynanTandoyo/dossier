@@ -11187,13 +11187,15 @@
 - note (2026-11-25, planner): Checked on Windows (2420 tests), WSL Fedora 44 (2424) and CI; tagged v1.1.1 and published: https://github.com/reynanTandoyo/dossier/releases/tag/v1.1.1
 
 ### T-525 · Handover and takeover of a task
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · type: milestone
 - goal: A person or LLM gives a task back with handover <task> --note after returning its files, and anyone takes over a task at any time with takeover <task>; both are recorded in todo and in the journal, takeover names the files the previous holder has not returned, an LLM takes over only with --said-by, and brief --task shows the last handover note (D54, R-HAND-1 to R-HAND-5).
 - why: A colleague who changes team or falls ill must not leave a task locked or its progress lost (owner, 2026-11-26).
 - summary: A task can be handed over with a note of what is done and what is next, and taken over by a colleague, without losing files or progress.
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, planner): done — handover gives a task back with a note after its files are returned, takeover claims it with a record and names unreturned files, brief --task shows the last handover note, and the agent rules say when to use them (D54); tested end to end with the real todo.
 
 ### T-526 · requirements.md and design.md: D54 and R-HAND, handover and takeover
 - status: done
@@ -11369,10 +11371,8 @@
 - note (2026-11-26, haiku-T-532): done
 
 ### T-533 · takeover: --dry-run changes nothing, and the brief uses the same dossier
-- status: claimed
+- status: done
 - owner: haiku-T-533
-- claimed: 2026-11-26T07:13+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 1 · type: fix
 - milestone: T-525
 - why: takeover --dry-run still claimed and noted the task in todo and wrote a journal line, and the brief it appends lost --dossier and --project, so run from another folder it printed nothing (found in T-529).
@@ -11386,8 +11386,12 @@
   4. Run cargo test --test cmd_takeover.
 - accept: takeover --dry-run changes nothing, and the appended brief comes from the dossier the command was run for.
 - verify: cargo test --test cmd_takeover
+- verified: 2026-11-26
+- commit: 1fe58bf
 - reqs: R-HAND-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
+- note (2026-11-26, haiku-T-533): done
 
 ## Questions
 
@@ -11573,3 +11577,9 @@
 - owner: —
 - type: idea
 - note (2026-11-25, planner): added
+
+### T-534 · brief --task shows as Last handover the last handover OR takeover note (R-HAND-4), so after a takeover it shows 'ben took over from anna' and hides the previous holder's note with what is done and what is next. Show the last handover note (done/next) and, on its own line, the last takeover (found in the end-to-end test of 2026-11-26).
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-26, planner): added
