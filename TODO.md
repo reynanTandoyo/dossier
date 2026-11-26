@@ -11559,10 +11559,8 @@
 - note (2026-11-26, haiku-T-542): done
 
 ### T-543 · agents install: a code project's rules leave out runs and confidential terms
-- status: claimed
+- status: done
 - owner: haiku-T-543
-- claimed: 2026-11-26T07:49+01:00
-- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P1 · difficulty: 2 · type: fix
 - milestone: T-535
 - why: agents install wrote the whole rules text into a code project, with the parts about simulation runs and confidential customer terms that R-CODE-5 says to leave out (idea T-510).
@@ -11580,14 +11578,20 @@
   7. Run cargo test --test cmd_agents and cargo test --lib agents::, then the full checks.
 - accept: A code project's rules block leaves out the lines about runs and confidential terms, agents check accepts it, and help agents and the skill keep the full rules.
 - verify: cargo test --test cmd_agents && cargo test --lib agents::
+- verified: 2026-11-26
+- commit: a4d8d19
 - reqs: R-CODE-5, R-AGENT-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-26, planner): added
 - note (2026-11-26, planner): forced set (owner was haiku-T-543)
 - note (2026-11-26, planner): forced set (owner was haiku-T-543)
+- note (2026-11-26, haiku-T-543): done
 
 ### T-544 · agents install: its journal line names the LLM as an LLM
-- status: open
-- owner: —
+- status: claimed
+- owner: haiku-T-544
+- claimed: 2026-11-26T08:09+01:00
+- session: a546c85a-ec3d-4847-bbed-ed0de9db2905
 - priority: P2 · difficulty: 1 · type: fix
 - milestone: T-535
 - why: With DOSSIER_AGENT 'reyna - claude', agents install wrote person 'reyna - claude' and llm false into the journal (idea T-524), because it uses names::unchecked instead of resolving the name as other commands do (D34).
