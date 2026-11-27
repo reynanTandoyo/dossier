@@ -12620,8 +12620,8 @@
 - note (2026-11-27, planner): done — Released 1.3.2: checked on Windows (2553 tests), WSL Fedora 44 (2557) and CI; https://github.com/reynanTandoyo/dossier/releases/tag/v1.3.2
 
 ### T-603 · Release 1.3.3: the planner rules ask for tags
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P1 · difficulty: 1 · type: chore
 - why: The owner wants an LLM to tag every entry it writes (D58); every writing command already takes --tags, but no rule asked for them.
 - summary: The rules for LLMs ask for two to five tags on every entry, and the version with that rule is released and installed.
@@ -12633,8 +12633,12 @@
   3. Version 1.3.3 with a README note; checks on Windows and WSL; tag after CI.
 - accept: help planner asks for tags, and 1.3.3 is released.
 - verify: cargo test --test cmd_agents
+- verified: 2026-11-27
+- commit: ef81e2f
 - reqs: R-AGENT-1, D58
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, planner): done — Released 1.3.3: help planner asks for two to five tags per entry (D58); checked on Windows, WSL and CI.
 
 ## Questions
 
