@@ -12,11 +12,13 @@
 - topic: remote
 - related: DEC-010
 - tags: server, install
+- settle-by: which -a dossier on the team server before the install
 - history: 2026-11-25T07:34:44+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:34:44+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:45:13+01:00 reyna via reyna - claude: changed — field topic
 - history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related DEC-010
 - history: 2026-11-27T19:12:38+01:00 reyna via reyna - claude: changed — field tags
+- history: 2026-11-27T21:27:15+01:00 reyna via reyna - claude: changed — field settle-by
 
 ## Assumption
 

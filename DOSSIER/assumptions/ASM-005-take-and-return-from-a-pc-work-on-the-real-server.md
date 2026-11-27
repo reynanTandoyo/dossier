@@ -14,6 +14,7 @@
 - topic: files, remote
 - related: DEC-047, INV-001
 - tags: take, return, server, wsl
+- settle-by: the manual server test T-412 (TEST-10)
 - history: 2026-11-25T07:34:44+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:34:44+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:40:57+01:00 reyna via reyna - claude: changed — field code
@@ -21,6 +22,7 @@
 - history: 2026-11-25T21:45:11+01:00 reyna via reyna - claude: changed — related DEC-047
 - history: 2026-11-25T21:45:11+01:00 reyna via reyna - claude: changed — related INV-001
 - history: 2026-11-27T19:12:38+01:00 reyna via reyna - claude: changed — field tags
+- history: 2026-11-27T21:27:15+01:00 reyna via reyna - claude: changed — field settle-by
 
 ## Assumption
 

@@ -12,11 +12,13 @@
 - topic: team
 - related: DEC-036
 - tags: code-project, git
+- settle-by: a project where two people write one code-project dossier from separate clones
 - history: 2026-11-25T07:34:44+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:34:44+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:45:14+01:00 reyna via reyna - claude: changed — field topic
 - history: 2026-11-25T21:45:14+01:00 reyna via reyna - claude: changed — related DEC-036
 - history: 2026-11-27T19:12:38+01:00 reyna via reyna - claude: changed — field tags
+- history: 2026-11-27T21:27:15+01:00 reyna via reyna - claude: changed — field settle-by
 
 ## Assumption
 
