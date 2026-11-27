@@ -60,6 +60,10 @@ pub struct Args {
     /// default (R-LIFE-7)
     #[arg(long)]
     pub review: Option<String>,
+    /// Where the check is that catches the mistake: a test, a lint rule, a hook or a step of a
+    /// review; the lesson then owes this check until dossier checked says it is there (R-WRITE-18)
+    #[arg(long, value_name = "TEXT", conflicts_with = "update")]
+    pub check: Option<String>,
     /// Tag: a comma-separated list of machines, such as axial compressor
     #[arg(long)]
     pub machine: Option<String>,
@@ -263,10 +267,15 @@ fn check_topics(topics: &[String], topic: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-/// The new lesson: its sections, its fields (confidence, task, the review date and the tags that
-/// were given) and who said it. Empty options are left out.
+/// The new lesson: its sections, its fields (confidence, the check it owes, task, the review date
+/// and the tags that were given) and who said it. Empty options are left out. A check given with
+/// `--check` is written as owed (R-WRITE-18).
 fn lesson(args: &Args, confidence: &str, review: Option<&str>) -> New {
     let mut fields = vec![("confidence".to_string(), confidence.to_string())];
+    if let Some(check) = given(args.check.as_deref()) {
+        fields.push(("check".to_string(), check));
+        fields.push(("check-state".to_string(), "owed".to_string()));
+    }
     if let Some(task) = given(args.task.as_deref()) {
         fields.push(("task".to_string(), task.to_uppercase()));
     }

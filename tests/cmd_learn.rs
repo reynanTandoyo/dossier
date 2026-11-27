@@ -634,3 +634,107 @@ fn an_update_with_a_topic_on_the_list_is_written() {
         Some("rig")
     );
 }
+
+#[test]
+fn a_persons_lesson_with_check_names_the_check_and_owes_it() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &learn(&[
+                "--confidence",
+                "measured",
+                "--check",
+                "tests/pump.rs::seal_leak",
+            ]),
+        )
+        .success()
+        .stdout("LES-001: added (approved)\n");
+
+    let text = std::fs::read_to_string(project.entry_file("LES-001")).expect("the entry file");
+    assert!(
+        text.contains(
+            "\n- confidence: measured\n- check: tests/pump.rs::seal_leak\n- check-state: owed\n"
+        ),
+        "{text}"
+    );
+    let entry = entry_of(&project, "LES-001");
+    assert_eq!(
+        entry.field("check").as_deref(),
+        Some("tests/pump.rs::seal_leak")
+    );
+    assert_eq!(entry.field("check-state").as_deref(), Some("owed"));
+}
+
+#[test]
+fn without_check_no_check_lines_are_written() {
+    let project = Project::new();
+    project
+        .run("anna", &learn(&["--confidence", "measured"]))
+        .success();
+
+    let text = std::fs::read_to_string(project.entry_file("LES-001")).expect("the entry file");
+    assert!(!text.contains("\n- check:"), "{text}");
+    assert!(!text.contains("\n- check-state:"), "{text}");
+    let entry = entry_of(&project, "LES-001");
+    assert_eq!(entry.field("check"), None);
+    assert_eq!(entry.field("check-state"), None);
+}
+
+#[test]
+fn check_with_update_is_a_usage_error_and_the_lesson_is_unchanged() {
+    let project = Project::new();
+    project
+        .run("anna", &learn(&["--confidence", "measured"]))
+        .success()
+        .stdout("LES-001: added (approved)\n");
+    let before = std::fs::read_to_string(project.entry_file("LES-001")).expect("the entry file");
+    let journal_before = project.entry_journal().len();
+
+    project
+        .run(
+            "anna",
+            &learn(&[
+                "--confidence",
+                "measured",
+                "--update",
+                "LES-001",
+                "--check",
+                "tests/pump.rs::seal_leak",
+            ]),
+        )
+        .code(2)
+        .stderr(contains("cannot be used with"));
+
+    let after = std::fs::read_to_string(project.entry_file("LES-001")).expect("the entry file");
+    assert_eq!(after, before);
+    assert_eq!(project.entry_journal().len(), journal_before);
+}
+
+#[test]
+fn an_llms_lesson_with_check_is_a_draft_that_holds_both_lines() {
+    let project = Project::new();
+    project
+        .run(
+            "anna-claude",
+            &learn(&[
+                "--confidence",
+                "guess",
+                "--check",
+                "tests/pump.rs::seal_leak",
+            ]),
+        )
+        .success()
+        .stdout("LES-001: added (draft, waiting for approval)\n");
+
+    let text = std::fs::read_to_string(project.entry_file("LES-001")).expect("the entry file");
+    assert!(
+        text.contains(
+            "\n- confidence: guess\n- check: tests/pump.rs::seal_leak\n- check-state: owed\n"
+        ),
+        "{text}"
+    );
+    let entry = entry_of(&project, "LES-001");
+    assert_eq!(entry.status(), Some(Status::Draft));
+    assert_eq!(entry.field("check-state").as_deref(), Some("owed"));
+}
