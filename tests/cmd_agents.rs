@@ -89,6 +89,19 @@ fn help_planner_tells_the_llm_to_give_tags_and_to_reuse_them() {
 }
 
 #[test]
+fn help_planner_tells_the_llm_to_revisit_settle_check_sweep_and_link() {
+    let folder = tempfile::tempdir().unwrap();
+    dossier(folder.path(), &["help", "planner"])
+        .success()
+        .stdout(contains("--revisit-if"))
+        .stdout(contains("--settle-by"))
+        .stdout(contains("--check"))
+        .stdout(contains("dossier checked"))
+        .stdout(contains("dossier sweep"))
+        .stdout(contains("--as refines|contradicts"));
+}
+
+#[test]
 fn help_planner_tells_the_llm_to_add_an_agreed_topic_with_said_by() {
     let folder = tempfile::tempdir().unwrap();
     dossier(folder.path(), &["help", "planner"])

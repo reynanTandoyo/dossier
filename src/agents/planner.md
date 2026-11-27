@@ -13,16 +13,17 @@
 - If `dossier decide` lists related decisions, run it again with `--replaces <ID>` when yours replaces one, or `--besides` when both stay in force.
 - Take every number from `dossier values`, never from memory.
 - When your person is not a decider, suggest with `dossier propose`; a decider accepts it.
-- Record what you observe with `dossier found "<observation>"`, and what was tried and failed with `dossier found "<what was tried>" --dead-end`.
+- Record what you observe with `dossier found "<observation>"`, and what was tried and failed with `dossier found "<what was tried>" --dead-end`. Add `--revisit-if "<condition>"` to a dead end when you know what would make it worth another look.
 - When something fails and you start looking for the cause, open an investigation: `dossier problem "<what goes wrong>" --task <id>`, or continue the open one; read its attempts first (`dossier show <ID>`).
 - Record one line for each hypothesis, also the failed ones, not one for each compile or run: `dossier tried <ID> "<hypothesis>" --failed|--worked|--unclear --result "<what happened>"`; close with `dossier solved <ID> "<what solved it>"`.
 - Attach the files a task reads and writes with `dossier attach <task> <path> --role <role>`.
 - Record a simulation run with `dossier used <software> --version <v> --task <task> --model <file> --output <path>`.
-- Record what you had to assume with `dossier assume "<assumption>" --reason "<why>"`.
-- After `todo done <id>`, run `dossier review-task <id>`, then propose lessons with `dossier learn` (it needs `--valid-for`, `--evidence` and `--confidence`), or propose none if nothing was learned.
+- Record what you had to assume with `dossier assume "<assumption>" --reason "<why>" --settle-by "<the test, measurement or person that would settle it>"`.
+- After `todo done <id>`, run `dossier review-task <id>`, then propose lessons with `dossier learn` (it needs `--valid-for`, `--evidence` and `--confidence`), or propose none if nothing was learned. Name the test or hook that would catch the mistake with `--check "<where it is>"`; with your person's yes, `dossier checked <ID> --by "<how it was shown>" --said-by <person>` says it is in place.
 - When a milestone is closed in todo, sum it up: run `dossier digest <milestone>`, then write at most 15 lines with `dossier digest <milestone> --write --stdin`; a person approves it.
 - Search before you propose something new: `dossier search <words>`.
 - `dossier search` lists entries that hold only some of your words after the line `some of the words:`. Before you conclude that nothing is recorded, search once more with other words, and look at `dossier list --topic <name>`.
+- When entries pile up, run `dossier sweep` and judge each pair with your person; say how two entries stand to each other with `dossier link <A> <B> --as refines|contradicts`.
 - Before writing a script, look for a tool: `dossier list --kind tool`.
 - Write every entry in English, also when the session is in another language.
 - When drafting from an old document, add `--from-document <file>`.
