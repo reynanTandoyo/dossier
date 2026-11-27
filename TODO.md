@@ -12641,13 +12641,15 @@
 - note (2026-11-27, planner): done — Released 1.3.3: help planner asks for two to five tags per entry (D58); checked on Windows, WSL and CI.
 
 ### T-604 · Entries say what comes next: revisit-if, settle-by, typed links, lesson checks and sweep
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P2 · type: milestone
 - goal: R-RULED-1 to R-RULED-3, R-WRITE-17, R-WRITE-18, R-ENTRY-21, R-CTX-17 to R-CTX-19, R-SWEEP-1 and R-SWEEP-2 hold, and R-WRITE-9, R-FIND-5 and R-CHECK-1 cover typed links (D59 to D63): a ruled-out option says when to look at it again and is shown when the question comes back; an open assumption names what would settle it; a link can say refines or contradicts, and a contradiction between entries in force shows in status; a lesson names the check that carries it, owed or checked; sweep lists entries in force that look alike and changes nothing. TEST-15 passes and version 1.4.0 is ready to tag.
 - why: The owner had the toppingout logbook studied on 2026-11-27 and chose five of its eleven ideas (D59 to D63); six were rejected or put off (D64).
 - summary: Five small additions taken from a study of another team's logbook: entries can say when a ruled-out option is looked at again, what would settle an assumption, how two entries stand to each other and which test guards a lesson, and one command lists entries that look alike.
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, planner): done — all 19 tasks done; v1.4.0 released
 
 ### T-605 · requirements.md, format.md and design.md: revisit-if, settle-by, typed links, lesson checks and sweep (D59 to D64)
 - status: done
@@ -13092,8 +13094,8 @@
 - note (2026-11-27, worker-T-622): done — planner rules for revisit-if, settle-by, check, sweep, typed links
 
 ### T-623 · Release 1.4.0: entries say what comes next
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P2 · difficulty: 2 · type: chore
 - milestone: T-604
 - why: The five additions reach the owner's PC and the team only with a released and installed version.
@@ -13109,8 +13111,14 @@
   4. With the owner's yes: push, wait for CI, tag v1.4.0, install; then dossier digest for milestone T-604.
 - accept: Version 1.4.0 is tagged and installed, and the checks pass on Windows, WSL and CI.
 - verify: cargo test --all-features
+- attempts: 1
+- verified: 2026-11-27
+- commit: 8bf6f58
 - reqs: TEST-15
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, planner): verify failed — timed out after 300 seconds
+- note (2026-11-27, planner): done — v1.4.0 tagged and released; Windows 2620, WSL 2624 and CI passed; installed; TEST-15 run on the project's dossier
 
 ## Questions
 

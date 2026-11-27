@@ -472,3 +472,5 @@
 {"time":"2026-11-27T21:27:15+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"ASM-003","event":"changed","detail":"field settle-by"}
 {"time":"2026-11-27T21:27:15+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"ASM-004","event":"changed","detail":"field settle-by"}
 {"time":"2026-11-27T21:27:15+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"set","id":"ASM-005","event":"changed","detail":"field settle-by"}
+{"time":"2026-11-27T21:34:43+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"agents","id":"AGENTS","event":"changed","detail":"rules block written"}
+{"time":"2026-11-27T21:46:22+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"digest","id":"DIG-002","event":"created","detail":"draft"}
