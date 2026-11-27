@@ -12549,13 +12549,17 @@
 - files: src/taken.rs, src/cmd/take.rs, src/cmd/return_cmd.rs
 - read: src/taken.rs, src/cmd/take.rs, src/cmd/return_cmd.rs
 - steps:
-  1. Compare stored_paths, stored_path and ensure_file in src/cmd/take.rs and src/cmd/return_cmd.rs. When they differ in more than comments, stop and give the task back with todo stuck naming the difference.
-  2. Move one copy of the three functions into src/taken.rs as `pub fn` with their doc comments (the signatures stay as they are, with `ctx: &Ctx` and `cwd: &Path`), and remove both private copies; take.rs and return_cmd.rs call `taken::...` instead.
-  3. Run cargo test --test cmd_take and cargo test --test cmd_return, then the full checks.
+  1. The copies differ only in their error texts (take: "cannot be taken", "take takes files"; return: "cannot be returned", "return takes files"). Both texts stay exactly as they are.
+  2. Move one copy of stored_paths, stored_path and ensure_file into src/taken.rs as `pub fn` with their doc comments, each with two more parameters at the end: `command: &str` (`take` or `return`) and `done: &str` (`taken` or `returned`). The messages are built from them: `the project folder itself cannot be <done>` and `<path> is not a file; <command> takes files`, so each command prints what it printed before. stored_paths passes both on to stored_path.
+  3. src/cmd/take.rs calls them with `"take", "taken"`, src/cmd/return_cmd.rs with `"return", "returned"`; remove both private copies.
+  4. Run cargo test --test cmd_take and cargo test --test cmd_return (tests/cmd_take.rs line 219 checks the take wording and must pass unchanged), then the full checks.
 - accept: stored_paths, stored_path and ensure_file exist once, in taken.rs, and take and return behave as before.
 - verify: cargo test --test cmd_take && cargo test --test cmd_return
+- attempts: 1
 - reqs: R-FILE-1, R-FILE-3
 - note (2026-11-27, planner): added
+- note (2026-11-27, haiku-T-588): stuck — Step 1 found more than comments. stored_paths is identical in take.rs and return_cmd.rs, but stored_path and ensure_file differ in their error text: stored_path says 'the project folder itself cannot be taken' (take.rs:233) vs 'cannot be returned' (return_cmd.rs:262), and ensure_file says '{} is not a file; take takes files' (take.rs:258) vs '... return takes files' (return_cmd.rs:287). tests/cmd_take.rs:219 asserts the take wording. One shared copy with the signatures as fixed would change one command's message; a parameter for the verb would change the signature. Not done without a decision on the messages or the signature.
+- note (2026-11-27, planner): unblocked
 
 ### T-589 · filter.rs: the in-force rule, the whole-date check and newest-first in one place
 - status: open
