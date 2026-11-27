@@ -47,6 +47,9 @@ pub struct Args {
     /// The topics it is about, from the project's list (dossier topics), comma-separated
     #[arg(long)]
     pub topic: Option<String>,
+    /// When this should be looked at again if it is declined, or what would reopen what it rejects (R-RULED-1)
+    #[arg(long, value_name = "CONDITION")]
+    pub revisit_if: Option<String>,
 }
 
 /// Runs `propose`: creates the proposal in one transaction and says its ID, its status and how a
@@ -95,6 +98,9 @@ fn new_proposal(args: &Args) -> New {
         .collect();
     if let Some(task) = non_empty(args.task.as_deref()) {
         fields.push(("task".to_string(), task.to_uppercase()));
+    }
+    if let Some(condition) = non_empty(args.revisit_if.as_deref()) {
+        fields.push(("revisit-if".to_string(), condition));
     }
     let title = non_empty(args.title.as_deref()).unwrap_or_else(|| default_title(&args.decision));
     New {

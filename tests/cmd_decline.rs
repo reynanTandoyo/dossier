@@ -47,6 +47,41 @@ fn ben_proposes(project: &Project) -> &'static str {
     "DEC-001"
 }
 
+/// Ben proposes a decision with `propose` and `--revisit-if <condition>`: a proposal, DEC-001.
+/// Returns its ID.
+fn ben_proposes_with_condition(project: &Project, condition: &str) -> &'static str {
+    project.stdout(
+        "ben",
+        &[
+            "propose",
+            "Use the transient runs for the last three points.",
+            "--reason",
+            "Steady runs converged where the transient run already showed rotating stall.",
+            "--revisit-if",
+            condition,
+        ],
+    );
+    "DEC-001"
+}
+
+/// Runs `decline` as anna at LATER with `--revisit-if <condition>`, at a terminal.
+fn decline_with_revisit_if(
+    project: &Project,
+    id: &str,
+    condition: &str,
+) -> assert_cmd::assert::Assert {
+    project
+        .command("anna", LATER)
+        .env("DOSSIER_ANSWERS", "")
+        .args(["decline", id, "--reason", REASON, "--revisit-if", condition])
+        .assert()
+}
+
+/// The text of the entry file with `id`.
+fn text_of(project: &Project, id: &str) -> String {
+    std::fs::read_to_string(project.entry_file(id)).expect("the entry file is read")
+}
+
 /// Runs `decline` as `agent` at `now` with `reason`, at a terminal (DOSSIER_ANSWERS is set; the
 /// command asks nothing, the variable only makes the run a terminal).
 fn decline_with(
@@ -425,4 +460,94 @@ fn a_worker_session_decides_nothing_even_with_said_by() {
 
     assert_eq!(bytes_of(&project, id), before, "the file is unchanged");
     assert_eq!(entry_of(&project, id).status(), Some(Status::Proposed));
+}
+
+#[test]
+fn propose_with_revisit_if_writes_the_condition_as_a_field() {
+    let project = Project::new();
+    let id = ben_proposes_with_condition(&project, "the team grows past five");
+
+    let entry = entry_of(&project, id);
+    assert_eq!(entry.status(), Some(Status::Proposed));
+    assert_eq!(
+        entry.field("revisit-if").as_deref(),
+        Some("the team grows past five")
+    );
+    assert!(
+        text_of(&project, id).contains("\n- revisit-if: the team grows past five\n"),
+        "the field line is in the file"
+    );
+}
+
+#[test]
+fn decline_with_revisit_if_keeps_the_condition_and_adds_one_history_line() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    let id = ben_proposes(&project);
+    let history_before = entry_of(&project, id).history().len();
+
+    decline_with_revisit_if(&project, id, "the licence allows it")
+        .success()
+        .stdout("DEC-001: declined\n");
+
+    let entry = entry_of(&project, id);
+    assert_eq!(entry.status(), Some(Status::Declined));
+    assert_eq!(entry.field("declined-reason").as_deref(), Some(REASON));
+    assert_eq!(
+        entry.field("revisit-if").as_deref(),
+        Some("the licence allows it")
+    );
+    assert!(
+        text_of(&project, id).contains("\n- revisit-if: the licence allows it\n"),
+        "the field line is in the file"
+    );
+    assert_eq!(
+        entry.history().len(),
+        history_before + 1,
+        "the declining is one history line"
+    );
+    assert_eq!(
+        entry.history().last().map(String::as_str),
+        Some(format!("{LATER} anna: declined — {REASON}").as_str())
+    );
+}
+
+#[test]
+fn a_declined_proposal_keeps_its_condition_when_declined_without_a_new_one() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    let id = ben_proposes_with_condition(&project, "the team grows past five");
+
+    decline_with(&project, "anna", LATER, id, REASON)
+        .success()
+        .stdout("DEC-001: declined\n");
+
+    let entry = entry_of(&project, id);
+    assert_eq!(entry.status(), Some(Status::Declined));
+    assert_eq!(
+        entry.field("revisit-if").as_deref(),
+        Some("the team grows past five")
+    );
+}
+
+#[test]
+fn a_new_revisit_if_at_decline_replaces_the_condition_of_the_proposal() {
+    let project = Project::new();
+    only_anna_decides(&project);
+    let id = ben_proposes_with_condition(&project, "the team grows past five");
+
+    decline_with_revisit_if(&project, id, "the licence allows it")
+        .success()
+        .stdout("DEC-001: declined\n");
+
+    let entry = entry_of(&project, id);
+    assert_eq!(
+        entry.field("revisit-if").as_deref(),
+        Some("the licence allows it")
+    );
+    assert_eq!(
+        text_of(&project, id).matches("- revisit-if:").count(),
+        1,
+        "one condition line, not two"
+    );
 }

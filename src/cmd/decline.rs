@@ -2,7 +2,8 @@
 //! terminal, or an LLM with `--said-by <person>` (D57), can decline; the person must be named in
 //! `deciders` (names::may_decide), and only a proposal can be declined. The declined proposal is
 //! kept, hidden like a rejected draft: its status is `declined`, the reason is in
-//! `declined-reason`, and the history line `declined` carries it too.
+//! `declined-reason`, and the history line `declined` carries it too. A condition given with
+//! `--revisit-if` says when the declined proposal should be looked at again (R-RULED-1).
 
 use crate::cli::Global;
 use crate::ctx::Ctx;
@@ -26,6 +27,9 @@ pub struct Args {
     /// Why the proposal is turned down; kept in the entry
     #[arg(long)]
     pub reason: String,
+    /// When the declined proposal should be looked at again (R-RULED-1)
+    #[arg(long, value_name = "CONDITION")]
+    pub revisit_if: Option<String>,
 
     /// The person who decided this; needed when an LLM runs the command (D57)
     #[arg(long, value_name = "PERSON")]
@@ -34,8 +38,8 @@ pub struct Args {
 
 /// Runs `decline`: checks who acts (names::said_by_gate, D57) and, unless an LLM carries out its
 /// person's decision with `--said-by`, that a person is at a terminal. Then, in one transaction,
-/// sets the proposal to `declined`, keeps the reason and adds the history line. The output is
-/// `<ID>: declined`; the data is {id, status}.
+/// sets the proposal to `declined`, keeps the reason and, when given, the `revisit-if` condition,
+/// and adds the history line. The output is `<ID>: declined`; the data is {id, status}.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let ctx = Ctx::load(g, "decline")?;
     let who = ctx.writer()?.clone();
@@ -78,6 +82,14 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         let mut entry = item.entry.clone();
         entry.set_field("status", Status::Declined.name());
         entry.set_field("declined-reason", reason);
+        let condition = args
+            .revisit_if
+            .as_deref()
+            .map(str::trim)
+            .filter(|c| !c.is_empty());
+        if let Some(condition) = condition {
+            entry.set_field("revisit-if", condition);
+        }
         entry.add_history(&time, &who, DECLINED, reason);
         let text = entry.text();
         tx.put(
