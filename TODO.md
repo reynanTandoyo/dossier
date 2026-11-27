@@ -12508,6 +12508,71 @@
 - reqs: R-SAID-1
 - note (2026-11-26, planner): added
 
+### T-586 · 1.3.2: the last known bug and two tidy-ups
+- status: open
+- owner: —
+- priority: P2 · type: milestone
+- goal: The after hook reacts only to a real todo command, never to the words todo done inside another command (idea T-548), and the helpers copied between take and return and the date rule copied into four files live in one place each (ideas T-404, T-415).
+- why: The owner asked to clear the remaining ideas that are bugs or cheap tidy-ups (2026-11-27).
+- summary: The hook stops reacting to commit messages that mention todo done, and duplicated code is shared.
+- note (2026-11-27, planner): added
+
+### T-587 · after: only a command that starts with todo is a todo event
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: fix
+- milestone: T-586
+- why: The after hook read 'todo done <word>' anywhere in a shell command, also inside a git commit message, and answered with a review of a task named after the next word (idea T-548).
+- summary: The hook reacts only to a real todo command, not to the words todo done inside another command such as a commit message.
+- files: src/hooks.rs
+- read: src/hooks.rs
+- steps:
+  1. src/hooks.rs, todo_arguments: the program of a part is its first word after any leading environment assignments (a word of the form NAME=value, where NAME holds no `/` or `\\`). Only when that program word is `todo`, or is `dossier` followed by `todo`, return the words after it; otherwise None. A `todo` or `dossier` later in the part is no longer a program. Update the doc comment.
+  2. Unit tests in src/hooks.rs: `git commit -m "T-1: todo done does work"` gives no event; `TODO_AGENT=anna todo done T-5 --commit HEAD` gives Done(T-5); `cd x && todo claim T-2` still gives Claimed(T-2); `dossier todo done T-3` still gives Done(T-3); `echo todo done T-4` gives no event; all existing tests of todo_event pass unchanged.
+  3. Run cargo test --lib hooks::
+- accept: todo_event finds a todo command only as the first program of a command part.
+- verify: cargo test --lib hooks::
+- reqs: R-AGENT-5
+- note (2026-11-27, planner): added
+
+### T-588 · taken.rs: the path helpers of take and return in one place
+- status: open
+- owner: —
+- priority: P3 · difficulty: 1 · type: chore
+- milestone: T-586
+- why: take.rs and return_cmd.rs each hold a copy of stored_paths, stored_path and ensure_file, made in T-322 under the three-file limit (idea T-404).
+- summary: take and return share one copy of their path helpers; nothing changes for users.
+- files: src/taken.rs, src/cmd/take.rs, src/cmd/return_cmd.rs
+- read: src/taken.rs, src/cmd/take.rs, src/cmd/return_cmd.rs
+- steps:
+  1. Compare stored_paths, stored_path and ensure_file in src/cmd/take.rs and src/cmd/return_cmd.rs. When they differ in more than comments, stop and give the task back with todo stuck naming the difference.
+  2. Move one copy of the three functions into src/taken.rs as `pub fn` with their doc comments (the signatures stay as they are, with `ctx: &Ctx` and `cwd: &Path`), and remove both private copies; take.rs and return_cmd.rs call `taken::...` instead.
+  3. Run cargo test --test cmd_take and cargo test --test cmd_return, then the full checks.
+- accept: stored_paths, stored_path and ensure_file exist once, in taken.rs, and take and return behave as before.
+- verify: cargo test --test cmd_take && cargo test --test cmd_return
+- reqs: R-FILE-1, R-FILE-3
+- note (2026-11-27, planner): added
+
+### T-589 · filter.rs: the in-force rule, the whole-date check and newest-first in one place
+- status: open
+- owner: —
+- priority: P3 · difficulty: 2 · type: chore
+- milestone: T-586
+- why: is_whole_date is copied into filter.rs, brief.rs, digest.rs and which.rs, the in-force rule into which.rs and digest.rs, and newest_first into brief.rs and digest.rs (ideas T-415 and T-540).
+- summary: The rules for which entries are in force on a day, and how entries are sorted newest first, exist once; nothing changes for users.
+- final: One rule copied into four files; sharing it touches all four.
+- files: src/filter.rs, src/cmd/brief.rs, src/digest.rs, src/cmd/which.rs
+- read: src/filter.rs, src/cmd/brief.rs, src/digest.rs, src/cmd/which.rs
+- steps:
+  1. Compare the copies: is_whole_date in filter.rs, brief.rs, digest.rs and which.rs; filter.rs in_force_on with digest.rs on_day and which.rs in_force_today; newest_first in brief.rs and digest.rs. When two copies of one rule give different results for some input, stop and give the task back with todo stuck naming the difference.
+  2. src/filter.rs: make `in_force_on(entry: &Entry, day: &str) -> bool` and `is_whole_date(text: &str) -> bool` public with their doc comments, and add `pub fn newest_first(a: &Entry, b: &Entry) -> Ordering` moved from brief.rs.
+  3. brief.rs, digest.rs and which.rs: remove their copies and call the filter.rs functions; keep every call site's behaviour. digest.rs `on_day` and which.rs `in_force_today` become one-line calls or disappear.
+  4. Run cargo test --all-features (the rules are used by many commands).
+- accept: is_whole_date, the in-force rule and newest_first exist once, in filter.rs, and every command behaves as before.
+- verify: cargo test --test cmd_brief && cargo test --test cmd_which && cargo test --test cmd_digest
+- reqs: R-CTX-1, R-CTX-14, R-CODE-8
+- note (2026-11-27, planner): added
+
 ## Questions
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.
@@ -12570,10 +12635,11 @@
 ## Ideas
 
 ### T-404 · take.rs and return_cmd.rs both hold stored_path and ensure_file (copied in T-322 under the three-file limit); move them to one place, for example taken.rs.
-- status: open
+- status: dropped
 - owner: —
 - type: idea
 - note (2026-11-23, planner): added
+- note (2026-11-27, planner): dropped — Done by T-588.
 
 ### T-412 · TEST-10 (D47): before take and return are used on real work, run the manual test on the real server: write refused on the network share; connect --check and approve from PowerShell; take, take again (kept), edit, return --check and --done of a file over 1 GB with a space in its path, checksums compared on both sides; two people: refused take, take --force, the first person's return --done refused; an interrupted copy leaves no half file and the same take copies again; the returned file's permissions let colleagues write (sftp-server umask, see the note on T-054). Plan: docs/requirements.md TEST-10. Promote to a task when large files go into use.
 - status: open
@@ -12608,10 +12674,11 @@
 - note (2026-11-24, haiku-T-413): done
 
 ### T-415 · src/digest.rs copies the date rule and the newest-first sort of filter.rs and cmd/brief.rs (T-330, three-file limit); share them in one place.
-- status: open
+- status: dropped
 - owner: —
 - type: idea
 - note (2026-11-24, planner): added
+- note (2026-11-27, planner): dropped — Done by T-589.
 
 ### T-420 · add (and the other commands that take a multi-line text) do not refuse a line starting with ## , which opens a new section in the entry file; problem and digest --write refuse it (found in T-379).
 - status: dropped
@@ -12621,10 +12688,11 @@
 - note (2026-11-26, planner): dropped — Fixed as a task of milestone 1.2.0 (2026-11-26).
 
 ### T-426 · Entry::set_field appends a new field at the end of the field block, so approve writes approved and valid-from after the tags and check --fix later reorders most approved entries (found in T-397). Insert a new known field at its FIELD_ORDER place instead; many exact-text tests will need their expected files updated.
-- status: open
+- status: dropped
 - owner: —
 - type: idea
 - note (2026-11-24, planner): added
+- note (2026-11-27, planner): dropped — Dropped: cosmetic; check --fix already puts fields in their order, and the change would rewrite many exact-text tests (owner agreed 2026-11-27).
 
 ### T-429 · check UNIT: a line such as 10:30 reads as name 10 with value 30 and warns; the name should have to contain a letter (found in T-349).
 - status: dropped
@@ -12711,13 +12779,15 @@
 - note (2026-11-26, planner): dropped — Fixed as a task of milestone 1.2.0 (2026-11-26).
 
 ### T-548 · The after hook reads 'todo done <word>' anywhere in a shell command, also inside a git commit message (-m "... todo done does ..."), and answers with a review of task DOES (found in T-545, 2026-11-26). Match only a todo command at the start of the command line or after ;, && or |.
-- status: open
+- status: dropped
 - owner: —
 - type: idea
 - note (2026-11-26, planner): added
+- note (2026-11-27, planner): dropped — Fixed by T-587.
 
 ### T-562 · approve, reject and accept with --said-by <person>: an LLM asks its person in the session and, with the person's yes, runs the command itself, as topics add does since D52. Today D6 needs a person at a terminal, so every draft waits until the owner types the command. Needs the owner's decision, because it replaces D6.
-- status: open
+- status: dropped
 - owner: —
 - type: idea
 - note (2026-11-26, planner): added
+- note (2026-11-27, planner): dropped — Done in 1.3.1: approve, reject and accept take --said-by (D57).
