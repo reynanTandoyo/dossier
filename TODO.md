@@ -1,5 +1,5 @@
 <!-- todo-format: 3 -->
-<!-- todo-tool: 1.0.0 -->
+<!-- todo-tool: 1.1.0 -->
 # dossier
 
 <!-- todo:begin -->
@@ -12598,8 +12598,8 @@
 - note (2026-11-27, haiku-T-589): done — Consolidated: filter.rs in_force_on and is_whole_date are public, newest_first moved in; which.rs, brief.rs and digest.rs use them and their copies are gone; verify, fmt, clippy and the full test run pass.
 
 ### T-602 · Release 1.3.2: the after hook and two tidy-ups
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P2 · difficulty: 1 · type: chore
 - milestone: T-586
 - why: Milestone T-586 is finished; the owner wants it released and installed.
@@ -12612,8 +12612,12 @@
   3. Run fmt, clippy and all tests on Windows and in WSL; after CI passes, tag v1.3.2.
 - accept: Version 1.3.2 builds, passes every check, and the README says what it changes.
 - verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
+- verified: 2026-11-27
+- commit: 0ddf7d3
 - reqs: REL-1, REL-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, planner): done — Released 1.3.2: checked on Windows (2553 tests), WSL Fedora 44 (2557) and CI; https://github.com/reynanTandoyo/dossier/releases/tag/v1.3.2
 
 ## Questions
 
