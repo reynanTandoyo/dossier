@@ -3558,3 +3558,66 @@ fn full_is_refused_with_task() {
         .failure()
         .code(2);
 }
+
+/// Sets the settle-by field of the entry `id` as anna.
+fn set_settle_by(project: &Project, id: &str, text: &str) {
+    let field = format!("settle-by={text}");
+    project
+        .run("anna", &["set", id, "--field", field.as_str()])
+        .success();
+}
+
+#[test]
+fn an_open_assumption_with_settle_by_says_what_would_settle_it() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "assume",
+                "The inlet profile is uniform.",
+                "--reason",
+                "No measured profile was delivered.",
+                "--title",
+                "Uniform inlet profile",
+            ],
+        )
+        .success();
+    set_settle_by(&project, "ASM-001", "the rig test in March");
+
+    let text = brief(&project, &[], None);
+
+    assert!(
+        text.lines().any(
+            |line| line == "ASM-001 · Uniform inlet profile — settle by: the rig test in March"
+        ),
+        "{text}"
+    );
+}
+
+#[test]
+fn an_open_assumption_without_settle_by_is_printed_as_before() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "assume",
+                "The inlet profile is uniform.",
+                "--reason",
+                "No measured profile was delivered.",
+                "--title",
+                "Uniform inlet profile",
+            ],
+        )
+        .success();
+
+    let text = brief(&project, &[], None);
+
+    assert!(
+        text.lines()
+            .any(|line| line == "ASM-001 · Uniform inlet profile"),
+        "{text}"
+    );
+    assert!(!text.contains("settle by"), "{text}");
+}

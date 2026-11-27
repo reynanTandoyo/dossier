@@ -26,6 +26,9 @@
 //! The open investigations (R-INV-5) come after the open assumptions, one line each with its number
 //! of attempts and its last attempt. With `--on` their state and attempts are those of now.
 //!
+//! An open assumption that names what would settle it (`settle-by`, R-CTX-17) prints that text
+//! after its title, before its marks.
+//!
 //! The approved digests in force (R-CTX-15) come after the key values, under `## Digests`: each
 //! one's heading and its Summary, indented. The decisions and findings that a digest sums up are
 //! left out and counted after the digests, one line per digest that sums up any:
@@ -101,6 +104,9 @@ const REFUTED: &str = "refuted";
 
 /// The field that names the topics of an entry (R-TOPIC-1).
 const TOPIC: &str = "topic";
+
+/// The field that says what would settle an assumption (R-WRITE-17).
+const SETTLE_BY: &str = "settle-by";
 
 /// The variable that is set when the command was started through ssh (R-REMOTE-12).
 const SSH_VARIABLE: &str = "SSH_CONNECTION";
@@ -393,7 +399,14 @@ impl Brief {
             assumptions: shown(items, Kind::Assumption, day)
                 .into_iter()
                 .filter(|item| is_open(&item.entry, day))
-                .map(|item| line(&item.entry, &review_marks(&ctx.state, item), &wrong))
+                .map(|item| {
+                    let suffix = format!(
+                        "{}{}",
+                        settle_suffix(&item.entry),
+                        review_marks(&ctx.state, item)
+                    );
+                    line(&item.entry, &suffix, &wrong)
+                })
                 .collect(),
             investigations: investigations_of(items, &ctx.state, day, &wrong),
             findings: findings
@@ -960,6 +973,18 @@ fn indented(body: &str) -> Vec<String> {
             }
         })
         .collect()
+}
+
+/// The text after an open assumption that says what would settle it (R-CTX-17): the settle-by
+/// field with the words before it, or nothing.
+fn settle_suffix(entry: &Entry) -> String {
+    let text = entry.field(SETTLE_BY).unwrap_or_default();
+    let text = text.trim();
+    if text.is_empty() {
+        String::new()
+    } else {
+        format!(" — settle by: {text}")
+    }
 }
 
 /// An entry as one line: its heading, then `suffix`, then its rests-on mark.
