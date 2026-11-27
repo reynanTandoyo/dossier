@@ -12671,8 +12671,8 @@
 - note (2026-11-27, planner): done — The requirements, the file format and the design describe the five additions; each worker task points to them.
 
 ### T-606 · Field order and check know the seven new fields
-- status: open
-- owner: —
+- status: done
+- owner: worker-T-606
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-604
 - why: Every command of this milestone writes one of the new fields; they need a fixed place in the entry file, and check must not let a typed link point to nothing.
@@ -12686,12 +12686,16 @@
   4. Run cargo test --lib entry:: and cargo test --test cmd_check.
 - accept: FIELD_ORDER holds the seven fields of format.md section 38 in their places, and check reports a refines, refined-by or contradicts field that names a missing entry.
 - verify: cargo test --test cmd_check
+- verified: 2026-11-27
+- commit: af61c50
 - reqs: R-CHECK-1, R-WRITE-9
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, worker-T-606): done — FIELD_ORDER 54, check knows typed links; full suite passed
 
 ### T-607 · ruled.rs: which entries rule something out, and the line shown for each
-- status: open
-- owner: —
+- status: done
+- owner: worker-T-607
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-604
 - why: decide and search show what was ruled out before, with the condition for looking again; both use this one module so they show the same.
@@ -12705,8 +12709,12 @@
   4. Run cargo test --lib ruled::.
 - accept: src/ruled.rs has the constants and functions of design.md section 25.2 with unit tests, and the crate builds without warnings.
 - verify: cargo test --lib ruled::
+- verified: 2026-11-27
+- commit: 371b305
 - reqs: R-RULED-2
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, worker-T-607): done — ruled.rs with 6 unit tests; full suite 2560 passed
 
 ### T-608 · decide: --revisit-if, and what was ruled out before
 - status: open
@@ -12792,8 +12800,8 @@
 - note (2026-11-27, planner): added
 
 ### T-612 · links.rs: typed links, their order and their labels
-- status: open
-- owner: —
+- status: done
+- owner: worker-T-612
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-604
 - why: search, brief --task, which --binding and status must all show typed links the same way, so the rule lives in one module (D61, D53).
@@ -12809,8 +12817,12 @@
   6. Run cargo test --lib links::.
 - accept: links.rs has LINK_FIELDS, field_of, label, typed_line and contradictions as design.md section 25.4 fixes them, and linked walks the four fields in order.
 - verify: cargo test --lib links::
+- verified: 2026-11-27
+- commit: 314a084
 - reqs: R-FIND-5, R-CTX-18
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, worker-T-612): done — LINK_FIELDS, field_of, label, typed_line, contradictions; full suite 2561 passed
 
 ### T-613 · link: --as refines and --as contradicts
 - status: open
@@ -12877,8 +12889,8 @@
 - note (2026-11-27, planner): added
 
 ### T-616 · brief: an open assumption says what would settle it
-- status: open
-- owner: —
+- status: done
+- owner: worker-T-616
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-604
 - why: The brief is what every session starts with; an assumption shown there with its test gets settled sooner (D60).
@@ -12892,8 +12904,12 @@
   4. Run cargo test --test cmd_brief.
 - accept: brief prints ` — settle by: <text>` at the end of the line of each open assumption that carries settle-by.
 - verify: cargo test --test cmd_brief
+- verified: 2026-11-27
+- commit: 3dc9b16
 - reqs: R-CTX-17
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, worker-T-616): done — brief shows settle by; full suite passed
 
 ### T-617 · status: what would settle an assumption, lessons that owe a check, and contradictions
 - status: open
@@ -12938,8 +12954,8 @@
 - note (2026-11-27, planner): added
 
 ### T-619 · The checked and sweep commands: registered, with help lines and examples
-- status: open
-- owner: —
+- status: done
+- owner: worker-T-619
 - priority: P2 · difficulty: 2 · type: feature
 - milestone: T-604
 - why: Two new commands are registered in the shared command lists; the later tasks fill in their behaviour in their own files.
@@ -12955,8 +12971,12 @@
   5. Run cargo test --test cmd_agents and cargo test --test cmd_help, then the full checks.
 - accept: checked and sweep are registered commands with help lines and examples, checked is a writing command that asks for a terminal in remote mode, and both still answer not available yet.
 - verify: cargo test --test cmd_agents && cargo test --test cmd_help
+- verified: 2026-11-27
+- commit: 6f66b9b
 - reqs: R-WRITE-18, R-SWEEP-1, R-OUT-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, worker-T-619): done — registered checked and sweep; planner shortened the help lines to five words (next commit)
 
 ### T-620 · checked: a person says that a lesson's check catches its mistake
 - status: open
