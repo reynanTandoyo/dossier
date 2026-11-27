@@ -154,9 +154,10 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
 /// The `--binding` form (R-CODE-6, R-CODE-8): the approved entries in force whose `code` covers
 /// `stored`, in the order of the store, each as `<ID> · <kind> · <title>` and, when it has one, the
 /// first line of its statement (`statement_line`) indented by two spaces. Under each entry come its
-/// linked entries (`links::linked`, `links::line`), except those this output lists as entries of
-/// their own. With `session`, the entries that session has not been shown yet are kept
-/// (`shown::unseen`), and the linked entries of an entry are shown with it, never recorded.
+/// linked entries (`links::linked`, `links::typed_line`; JSON gives each its `type`), except those
+/// this output lists as entries of their own. With `session`, the entries that session has not
+/// been shown yet are kept (`shown::unseen`), and the linked entries of an entry are shown with
+/// it, never recorded.
 /// Nothing else is printed. An entry counts only when it is in force today (`filter::in_force_on`).
 fn binding(ctx: &Ctx, stored: &str, session: Option<&str>) -> Result<Output> {
     let (items, warnings) = store::all(&ctx.dossier);
@@ -191,11 +192,17 @@ fn binding(ctx: &Ctx, stored: &str, session: Option<&str>) -> Result<Output> {
             lines.push(format!("  {text}"));
         }
         for other in &linked {
-            lines.push(links::line(other));
+            lines.push(links::typed_line(entry, other));
         }
         let linked_json: Vec<serde_json::Value> = linked
             .iter()
-            .map(|other| json!({"id": other.entry.id(), "title": other.entry.title()}))
+            .map(|other| {
+                json!({
+                    "id": other.entry.id(),
+                    "title": other.entry.title(),
+                    "type": links::field_of(entry, other),
+                })
+            })
             .collect();
         entries.push(json!({
             "id": entry.id(),

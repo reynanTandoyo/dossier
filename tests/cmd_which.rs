@@ -604,9 +604,55 @@ fn binding_json_gives_each_entry_its_linked_entries() {
                 "kind": "decision",
                 "title": "Seal gap",
                 "text": "Keep the seal gap at 0.2 mm.",
-                "linked": [{"id": "FND-001", "title": "Seal leak"}],
+                "linked": [{"id": "FND-001", "title": "Seal leak", "type": "related"}],
             }],
         })
+    );
+}
+
+#[test]
+fn binding_names_the_type_of_each_link_in_text_and_json() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Keep the pump gap at 0.2 mm.",
+            "--reason",
+            "Invented tests leaked above it.",
+            "--title",
+            "Pump gap",
+            "--code",
+            "src/pump.rs",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Keep the pump gap at 0.3 mm.",
+            "--reason",
+            "Invented second test.",
+            "--title",
+            "Wider pump gap",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &["set", "DEC-001", "--field", "contradicts=DEC-002"],
+    );
+    project.write("src/pump.rs", "invented pump code\n");
+
+    assert_eq!(
+        project.stdout("", &["which", "src/pump.rs", "--binding"]),
+        "DEC-001 · decision · Pump gap\n  Keep the pump gap at 0.2 mm.\n  contradicts: DEC-002 · Wider pump gap\n"
+    );
+    let output = project.stdout("", &["which", "src/pump.rs", "--binding", "--json"]);
+    let value: serde_json::Value =
+        serde_json::from_str(output.trim_end()).expect("one line of JSON");
+    assert_eq!(
+        value["data"]["entries"][0]["linked"],
+        json!([{"id": "DEC-002", "title": "Wider pump gap", "type": "contradicts"}])
     );
 }
 

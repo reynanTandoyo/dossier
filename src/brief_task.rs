@@ -304,10 +304,10 @@ pub fn lines(ctx: &Ctx, task: &str, limit: usize) -> Result<Vec<String>> {
     select(ctx, task, limit).map(|selection| selection.lines)
 }
 
-/// Inserts the linked lines (`links::linked`, `links::line`, R-FIND-5) of each anchored entry into
-/// `out` at its anchor. An ID that the brief lists as a line of its own anywhere is left out. The
-/// anchors are taken from the last to the first, so each position still holds when it is used. A
-/// team entry has no anchor and gets no linked lines.
+/// Inserts the linked lines (`links::linked`, `links::typed_line`, R-FIND-5) of each anchored
+/// entry into `out` at its anchor. An ID that the brief lists as a line of its own anywhere is
+/// left out. The anchors are taken from the last to the first, so each position still holds when
+/// it is used. A team entry has no anchor and gets no linked lines.
 fn insert_linked(ctx: &Ctx, out: &mut Vec<String>, anchors: &[Anchor]) {
     if anchors.is_empty() {
         return;
@@ -321,7 +321,7 @@ fn insert_linked(ctx: &Ctx, out: &mut Vec<String>, anchors: &[Anchor]) {
         let linked: Vec<String> = links::linked(&item.entry, &all, links::LINKED_LIMIT)
             .into_iter()
             .filter(|found| !listed.contains(&found.entry.id()))
-            .map(links::line)
+            .map(|found| links::typed_line(&item.entry, found))
             .collect();
         out.splice(anchor.insert_at..anchor.insert_at, linked);
     }
