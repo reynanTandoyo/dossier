@@ -4,7 +4,7 @@
 while doing its projects. People and their LLMs write to it and read from it, so that neither has
 to rely on memory.
 
-**Status: v1.3.3**
+**Status: v1.4.0**
 
 - [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the seven phases it is
   built in.
@@ -1263,6 +1263,32 @@ writes, given with `--tags`, and tell it to reuse the tags already in use (decis
 weigh three times as much as words in the text when entries are searched or chosen as related, so
 tagged entries are found far more reliably.
 
+### What version 1.4 adds
+
+Entries now say what comes next (decisions D59 to D63).
+
+- **When to look again.** What was ruled out can say when it is worth another look:
+  `decide --revisit-if`, `propose --revisit-if`, `decline --revisit-if` and
+  `found --dead-end --revisit-if`. When a new decision touches the same question, `decide` lists
+  the declined proposals and dead ends on it (`ruled out: FND-003 … — revisit if: …`), and `search`
+  shows the condition under the result.
+- **What would settle an assumption.** `assume --settle-by "<the test, measurement or person>"`.
+  `brief` and `status` show it next to each open assumption, and `status` counts the open
+  assumptions that name nothing.
+- **Typed links.** `dossier link <A> <B> --as refines` or `--as contradicts`. `search`,
+  `brief --task` and `which --binding` name the type of each link (`contradicts:`, `refines:`,
+  `refined by:`, `linked:`), contradictions first. `status` lists two entries in force that
+  contradict each other.
+- **Lessons with a check.** `learn --check "<where the test or hook is>"` names the check that
+  catches the mistake; the lesson owes it until a person says it is in place with
+  `dossier checked LES-004 --by "<how it was shown>"` (an LLM adds `--said-by <person>`). `status`
+  counts the lessons that owe a check.
+- **sweep.** `dossier sweep` lists the pairs of entries in force that look alike and are not linked,
+  followed by the rules for judging them. It changes nothing; a person decides what follows.
+
+After an upgrade, run `dossier agents install --yes` once in each project: the planner rules now
+explain these options.
+
 ## What it needs
 
 - [`todo`](https://github.com/reynanTandoyo/todo) 0.8 or newer. `todo` keeps the tasks of a
@@ -1473,7 +1499,7 @@ lines:
 
 ```
 ssh: ok
-dossier on the server: 1.3.3
+dossier on the server: 1.4.0
 todo on the server: 0.8.0
 dossier folder: ok (P-001)
 ```
