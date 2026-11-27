@@ -1660,3 +1660,140 @@ it does so only when `said` is false. Where it asks a question (`term::ask`), it
 nothing first. Nothing else changes: `who` stays the LLM's name, so the field written is
 `… by <who.person>` and the history line and the journal are `<person> via <llm>` (R-SAID-3), as
 `names::label` and `tx` already write them.
+
+## 25. Entries say what comes next (D59 to D63, version 1.4)
+
+The fields are those of format.md §38. No existing signature changes; `links::line` stays for
+callers that have no entry at hand.
+
+### 25.1 Field order
+
+`entry::new::FIELD_ORDER` gains seven keys and has 54: `check`, `check-state` after `confidence`;
+`refines`, `refined-by`, `contradicts` after `related`; `revisit-if` after `declined-reason`;
+`settle-by` after `refuted`. `check` (cmd/check.rs) adds `refines`, `refined-by` and
+`contradicts` to the link fields whose IDs must exist (LINK).
+
+### 25.2 Ruled out (R-RULED-1 to 3)
+
+```rust
+// ruled.rs
+/// The most ruled-out entries that decide shows.
+pub const RULED_LIMIT: usize = 3;
+/// The field that holds the condition (format.md §38).
+pub const REVISIT_IF: &str = "revisit-if";
+/// Whether the entry rules something out on its own: a decision with status declined, or an
+/// approved finding whose outcome is `dead end`.
+pub fn is_ruled_out(item: &Item) -> bool;
+/// The trimmed revisit-if field of the entry; None when it is missing or empty.
+pub fn condition(entry: &Entry) -> Option<String>;
+/// The title, with ` — revisit if: <condition>` after it when the entry has a condition.
+pub fn titled(entry: &Entry) -> String;
+/// The entries of `items` most related to the query, best first, at most `limit` (select::top),
+/// each as `ruled out: <ID> <title> — revisit if: <condition>`, or with
+/// ` — no condition recorded` in place of the condition. `items` holds only ruled-out entries.
+pub fn lines(items: &[Item], query: &Query, limit: usize) -> Vec<String>;
+```
+
+| Command | Change |
+|---|---|
+| `decide` | `Args` gains `pub revisit_if: Option<String>` (`--revisit-if <CONDITION>`), written as the field `revisit-if` when not empty. `find_related` reads the entries once and returns `(Vec<(String, String)>, Vec<String>)`: the related decisions in force as (ID, `ruled::titled`), and `ruled::lines` over the entries that pass `ruled::is_ruled_out`, with the same widened query and RULED_LIMIT. `refusal` takes both and prints the ruled-out lines after the related ones. In the result each ruled-out line is a warning after the `related:` warnings, and the data gains `"ruled_out": [<line>…]`. Ruled-out lines alone never refuse. |
+| `propose` | `Args` gains `revisit_if`, written as the field. Nothing else changes. |
+| `found` | `Args` gains `revisit_if`; without `--dead-end` it is refused with Code::Usage, `--revisit-if needs --dead-end`. |
+| `decline` | `Args` gains `revisit_if`; the field is set in the same change as `declined-reason`. |
+| `search` | a result whose entry has a condition (`ruled::condition`) gets the line `  revisit if: <condition>` before its linked lines, and `"revisit_if"` in JSON (null when none). |
+
+### 25.3 Settle-by (R-WRITE-17, R-CTX-17)
+
+`assume` gains `pub settle_by: Option<String>` (`--settle-by <TEXT>`), written as the field
+`settle-by` when not empty. `brief` and `status` add ` — settle by: <text>` at the end of the
+line of an open assumption that has one, before its marks. `status` adds to the unsettled lines
+`<n> open assumption names nothing that would settle it` (`<n> open assumptions name nothing
+that would settle them`) when n is above zero, and `"assumptions_without_settle_by": n` to the
+unsettled data.
+
+### 25.4 Typed links (R-WRITE-9, R-FIND-5, R-CTX-18)
+
+```rust
+// links.rs
+/// The link fields in the order their entries are shown, each with the word before the colon.
+pub const LINK_FIELDS: [(&str, &str); 4] = [
+    ("contradicts", "contradicts"),
+    ("refines", "refines"),
+    ("refined-by", "refined by"),
+    ("related", "linked"),
+];
+/// As before, but over the fields of LINK_FIELDS in their order: the approved entries that
+/// "entry" names, at most limit, each once.
+pub fn linked<'a>(entry: &Entry, items: &'a [Item], limit: usize) -> Vec<&'a Item>;
+/// The word of the first field of LINK_FIELDS in which "entry" names "other"; "linked" when none.
+pub fn label(entry: &Entry, other: &Item) -> &'static str;
+/// Two spaces, the label, ": ", the ID, " · " and the title.
+pub fn typed_line(entry: &Entry, item: &Item) -> String;
+/// The pairs of approved entries of which one names the other in its contradicts field, each
+/// pair once, in the order of "items".
+pub fn contradictions<'a>(items: &[&'a Item]) -> Vec<(&'a Item, &'a Item)>;
+```
+
+`search`, `brief --task` and `which --binding` call `typed_line(entry, item)` where they called
+`line(item)`; in JSON each linked entry gains `"type"`: `contradicts`, `refines`, `refined-by`
+or `related`.
+
+`link` gains `pub as_type: Option<String>` (`--as <TYPE>`). No type: as before. `refines`: A gets
+B in `refines`, B gets A in `refined-by`; the text is `<A> refines <B>`. `contradicts`: each gets
+the other in `contradicts`; the text is `<A> contradicts <B>`. Any other value: Code::BadValue,
+`--as takes refines or contradicts`. When both sides already hold the link: `already linked`.
+The data gains `"as"`: `related`, `refines` or `contradicts`.
+
+`status` adds one unsettled line per pair of `links::contradictions` over the entries in scope:
+`<ID> and <ID> contradict each other`, and `"contradictions": [[<ID>, <ID>]…]` to the data.
+
+### 25.5 Lessons and their checks (R-ENTRY-21, R-WRITE-18, R-CTX-19)
+
+`learn` gains `pub check: Option<String>` (`--check <TEXT>`, conflicts with `--update`): a new
+lesson gets the fields `check` and `check-state: owed`. An existing lesson gets a check with
+`checked --check`, or as owed with `set <ID> --field check=… --field check-state=owed`.
+
+| Command | Arguments | Result |
+|---|---|---|
+| `checked` | `<ID> --by <text> [--check <text>] [--said-by <person>]` | The gate of section 24 with the command name `checked`, and the terminal rule of `reviewed`. Refuses (Code::Refused) an entry that is not a lesson (`<ID> is not a lesson`), a lesson that is neither a draft nor approved, and a lesson with no `check` when `--check` is not given (`<ID> names no check: give --check`). Sets `check` when given and `check-state: checked`, adds the history line `checked — <by>`, and records the approval checksum again when the lesson is approved (as `reviewed` does). Text `<ID>: checked`; data `{"id", "check", "by"}`. |
+
+`checked` is a writing command (WRITING in src/ctx.rs) and one of TERMINAL_COMMANDS in
+src/remote/forward.rs.
+
+`status` adds the unsettled line `<n> lesson owes a check: dossier list --kind lesson --where
+check-state=owed` (`<n> lessons owe a check: …`) for the approved lessons whose `check` is not
+empty and whose `check-state` is not `checked`, and `"lessons_owing_a_check": n` to the data.
+
+### 25.6 Sweep (R-SWEEP-1, R-SWEEP-2)
+
+| Command | Arguments | Result |
+|---|---|---|
+| `sweep` | `[--limit <n>]` (default 20) | Reads the entries once (`store::all`). The candidates are the approved decisions, findings, lessons and how-tos. One `select::Index::of` the candidates. For each candidate the query is its tag fields (`machine`, `analysis`, `software`, `tags`, `topic`) and the words of its title, as `search --similar` builds it; `select::ranked_in` gives the related candidates with their score. A pair is kept when the two are different entries and neither names the other in `related`, `refines`, `refined-by`, `contradicts`, `supersedes` or `superseded-by`; a pair found from both sides is kept once with the higher score. Order: score, highest first, then the two IDs. Text: `<n> pairs of entries in force look alike:` (`1 pair of entries in force looks alike:`), a blank line, then per pair two lines `<ID> · <kind> · <title>` and a blank line, then RULES. With no pair: `no entries in force look alike`, without the rules. Data: `{"pairs": [{"a": {"id", "kind", "title"}, "b": {…}, "score": n}…]}`. It takes no lock and writes nothing. |
+
+```rust
+// cmd/sweep.rs
+/// The rules printed after the pairs (R-SWEEP-2).
+const RULES: &str = "\
+Judge each pair with your person; change nothing without their yes:
+- Read both: dossier show <ID>.
+- They say the same: the newer replaces the older (dossier supersede <old> --by <new>).
+- One no longer holds: dossier retire <ID> --reason \"<why>\".
+- Both hold but pull against each other: dossier link <A> <B> --as contradicts, and ask which one holds.
+- One narrows the other: dossier link <narrower> <wider> --as refines.
+- They are only about the same thing: dossier link <A> <B>.
+- The same lesson under other conditions (Valid for) is not a duplicate.
+- Advice that depends on its context is not a contradiction.";
+```
+
+### 25.7 Rules and registration
+
+`src/agents/planner.md`: the line about dead ends ends with `Add --revisit-if "<condition>" when
+you know what would make it worth another look.`; the line about `assume` shows
+`--settle-by "<what would settle it>"`; the line about `learn` names `--check "<the test or hook
+that would catch the mistake>"`; and one new line after the line about `search`: `When entries
+pile up, run dossier sweep and judge each pair with your person; say how two entries stand to
+each other with dossier link <A> <B> --as refines|contradicts.`
+
+`checked` and `sweep` are registered wherever `reviewed` and `story` are: the `Command` enum and
+the dispatch in src/cli.rs, src/cmd/mod.rs, the list of src/cmd/help.rs, src/examples.rs, and the
+ordered command list of tests/cmd_agents.rs.

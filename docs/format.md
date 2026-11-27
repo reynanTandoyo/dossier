@@ -800,3 +800,46 @@ skill file `.claude/skills/dossier/SKILL.md` holds its front matter and the same
 The environment variable `DOSSIER_ROLE` marks the role of a session. The value `worker`, in any
 case and with spaces around it ignored, makes it a worker's session; any other value, or no
 variable, a planner's. Nothing about the role is stored in the dossier.
+
+---
+
+# Additions of 2026-11-27
+
+Still format version 1. Every rule of §2 to §37 holds; every change carries who and when (D29).
+
+## 38. Fields that say what comes next (D59 to D62)
+
+Seven optional fields. An older program keeps each of them as written (§3), and a file without
+them reads as before.
+
+| Field | On | Value | Written by |
+|---|---|---|---|
+| `check` | a lesson | one line: where the check is that catches the lesson's mistake (a test, a lint rule, a hook, a step of a review) | `learn --check`, `checked --check` |
+| `check-state` | a lesson with `check` | `owed` or `checked`; a lesson with `check` and no `check-state` counts as `owed` | `learn --check` (`owed`), `checked` (`checked`) |
+| `refines` | any entry | comma-separated IDs of the entries this one narrows | `link <this> <other> --as refines` |
+| `refined-by` | any entry | comma-separated IDs of the entries that narrow this one | `link <other> <this> --as refines` |
+| `contradicts` | any entry | comma-separated IDs; both entries name each other | `link --as contradicts` |
+| `revisit-if` | a decision in any status, a dead-end finding | one line: the condition under which what was ruled out is looked at again | `--revisit-if` on `decide`, `propose`, `found --dead-end`, `decline` |
+| `settle-by` | an assumption | one line: the test, measurement or person that would confirm or refute it | `assume --settle-by` |
+
+Their place in the field order (§5): `check` and `check-state` directly after `confidence`;
+`refines`, `refined-by` and `contradicts`, in this order, directly after `related`; `revisit-if`
+directly after `declined-reason`; `settle-by` directly after `refuted`.
+
+History (§6): `link --as` writes the event `changed` with the detail `refines <ID>`,
+`refined by <ID>` or `contradicts <ID>`, as the plain link writes `related <ID>`. `checked`
+writes the new event `checked`, with the `--by` text as its detail. The other commands write the
+field in the step they already record (`created`, `declined`).
+
+`checked` on an approved lesson records the approval checksum again (§22), so that the change of
+`check` and `check-state` is not taken for a hand change.
+
+```markdown
+- kind: lesson
+- status: approved
+- confidence: experience
+- check: tests/xos.rs::unix_branch_runs_on_linux
+- check-state: owed
+- related: FND-008
+- contradicts: LES-002
+```

@@ -1,6 +1,6 @@
 # dossier — requirements
 
-Draft 14, 2026-11-26 (owner's decisions: D28 to D54). Four points are still open (§12); everything else is decided (§3) until the
+Draft 15, 2026-11-27 (owner's decisions: D28 to D64). Four points are still open (§12); everything else is decided (§3) until the
 owner says otherwise.
 
 Each requirement has a priority, which says how important it is. When it is built is decided
@@ -153,6 +153,13 @@ an LLM starts with the right context.
 | D55 | The rules for LLMs are split by role, as in `todo`. A common block of at most 8 lines is what every agent reads: `agents install` writes it into `AGENTS.md`, `help agents` prints it and the skill holds it. `help worker` (at most 7 lines) holds the rules of a worker: it writes nothing to the dossier and reports what it learned in its `todo` note. `help planner` holds every other rule. A test fails when the common block or the worker text grows past its limit. Claude Code hooks stay an extra, and there is no MCP server. Replaces D14. (Owner, 2026-11-26.) | Weak worker models follow long rules badly. The single rules text had 38 lines, about 1,070 tokens, and most of it is the planner's business, so it could not be installed in a project that cheap workers work in. |
 | D56 | A session is a worker's when the environment variable `DOSSIER_ROLE` is `worker`; whoever starts the worker sets it. Any other value, or none, is a planner's session and behaves as before. In a worker session `brief` without `--task` prints one line in place of the project brief (`--full` prints the brief), and the hook after `todo` commands prints the entries for a claimed task but nothing after `todo done` and `todo stuck`. The planner runs `review-task` for a task a worker finished and records what its note says. (Owner, 2026-11-26.) | The brief at session start costs about 1,500 tokens that a worker with a complete work order does not need; after `todo claim` the hook already gives it the entries for its own task. An environment variable works with every agent program and needs no change to the installed hooks. |
 | D57 | A person decides what is approved, rejected, accepted, declined, confirmed, refuted, retired, removed, restored, reopened, cleared and reviewed, and which confidential term is removed. The person need not type the command: an LLM carries the decision out with `--said-by <its person>` after that person's yes in the session, without a terminal and without the question the command asks a person; the entry and the journal name both. Without `--said-by` an LLM is refused as before, and in a worker session always. Replaces D6. (Owner, 2026-11-26.) | The owner works through an LLM and does not want to type commands at a terminal; the same was decided for recording decisions (`decide --said-by`), topics (D52) and takeover (D54). The check that D5 needs is the person's yes in the session, and the journal records who said it and which LLM ran the command. |
+| D58 | An LLM gives every entry it writes two to five tags with `--tags`, reusing the tags already in use; the planner's rules say so. (Owner, 2026-11-27.) | Tags weigh three times in search and make an entry related on their own (R-FIND-2, R-FIND-3), but no rule asked for them, so the project's 82 entries had none. |
+| D59 | A decision, a proposal and a dead-end finding may say when what was ruled out is looked at again, in the field `revisit-if`. `decide` shows the most related ruled-out entries with their condition, and `search` prints the condition under a result that has one (R-RULED-1 to 3). (Owner, 2026-11-27.) | A *Rejected* section, a declined proposal and a dead end say why something was ruled out but not when that stops being true, and `decide` showed only the decisions in force. (Idea taken from the toppingout logbook, as D60 to D63.) |
+| D60 | An assumption may name what would settle it, in the field `settle-by`: the test, the measurement or the person. `brief` and `status` print it with each open assumption (R-WRITE-17, R-CTX-17). (Owner, 2026-11-27.) | Open assumptions pile up because nothing says how one gets settled: this project had five open and none named its test. |
+| D61 | A link may have a type: `link --as refines` or `--as contradicts`, next to the plain related link. Linked entries are shown with their type, still one level deep and at most three (D53), and two entries in force that contradict each other are listed by `status` (R-WRITE-9, R-FIND-5, R-CTX-18). (Owner, 2026-11-27.) | A plain link does not say that one entry narrows another or that two pull against each other, and a contradiction that can't be settled yet had no place except retiring one entry. |
+| D62 | A lesson may name the check that carries it, in the field `check` (a test, lint, hook or review step), with `check-state` `owed` or `checked`. `learn --check` writes it as owed; `checked`, a person's decision carried out with `--said-by` (D57), says the check was shown to fail on the mistake. `status` counts the lessons whose check is owed. `dossier` only points to the check; it never writes or runs one (R-ENTRY-21, R-WRITE-18, R-CTX-19). (Owner, 2026-11-27.) | A lesson in a brief is the weakest way to stop a mistake; a test or a hook stops it every time (the reason of D39). |
+| D63 | `sweep` lists the pairs of approved entries in force that look alike and are not linked yet, followed by rules for judging them. The LLM in the session proposes to its person what follows; `sweep` changes nothing (R-SWEEP-1, R-SWEEP-2). (Owner, 2026-11-27.) | Duplicates were caught only at the moment of writing (R-DRAFT-2, R-WRITE-11). Listing pairs needs no model (D7); judging them stays with a person (D5, D57). |
+| D64 | Not built from the same study: a mark on an entry when a file it names changed since approval; a structured handover note; splitting a closed investigation into three lists; a `critical` flag that orders the brief. Two more wait as ideas (I-11, I-12). (Owner, 2026-11-27.) | Files change with every task, so the mark would be on nearly every entry, and `check` (R-CODE-3) and the check before an edit (D51) cover the cases that matter; what was decided, found and assumed belongs in entries, not in a note (D54); `solved` with `found`, `propose` and `assume` already gives the three lists (R-INV-8); a flag on every decision needs a person's judgement and inflates, while standing decisions, digests and D51 already bring the binding entries. |
 
 ---
 
@@ -278,6 +285,13 @@ The exact format is fixed in [`docs/format.md`](format.md); where the two differ
 - **R-ENTRY-20 SHOULD** `check` warns about entries that look as if they were written in German
   (several of the most common German words in the text), naming the entry. It is a warning, not
   an error.
+- **R-ENTRY-21 MUST** A lesson may name the check that carries it (D62): the field `check` says
+  in one line where the check is that catches the mistake the lesson is about (a test, a lint
+  rule, a hook, a step of a review), and the field `check-state` is `owed` (there is no such
+  check yet, or it was not shown to catch the mistake) or `checked` (it exists and was shown to
+  fail on the mistake). A lesson with `check` and no `check-state` counts as owed. Both fields
+  are optional: many lessons are a matter of judgement and have no check. `dossier` only points
+  to the check; it never writes or runs one.
 - **R-ENTRY-12 MUST** A **script** entry has the fields `software` (the program it runs in or
   with), `language` (for example Java macro, Python), `path` (where the script file is, R-USE-9)
   and `checksum`, and the sections *Purpose*, *Inputs* (files, parameters, the state the model
@@ -348,11 +362,46 @@ Every write command needs a name (D13) and prints one line such as `DEC-012: add
   changes the title. Changing an approved lesson or how-to by an LLM turns it back into a draft
   and keeps the approved text available (R-HIST-2).
 - **R-WRITE-9 MUST** `link <ID> <other ID>` adds each entry to the other's `related` field.
+  With `--as refines` the first entry narrows the second: the first gets the second in its
+  `refines` field and the second gets the first in `refined-by`. With `--as contradicts` each
+  gets the other in its `contradicts` field: both hold, but they pull against each other, and a
+  person has not yet said which one gives way (D61). Any other type is refused.
+- **R-WRITE-17 MUST** `assume` takes `--settle-by "<text>"`: the test, the measurement or the
+  person that would confirm or refute the assumption. It is written as the field `settle-by`
+  and is optional (D60); an existing assumption gets one with `set <ID> --field settle-by=…`.
+- **R-WRITE-18 MUST** `learn` takes `--check "<text>"`: where the check is that catches the
+  mistake the lesson is about (R-ENTRY-21). It writes `check` and `check-state: owed`.
+  `checked <ID> --by "<how it was shown that the check fails on the mistake>" [--check "<text>"]`
+  sets `check-state: checked` on a lesson, and `check` when `--check` is given; it refuses an
+  entry that is not a lesson, and a lesson that names no check when none is given. `checked` is
+  a person's decision (R-SAID-1). When the lesson is approved, its approved text is recorded
+  again, so the change is not taken for a hand change (R-LIFE-6).
 - **R-WRITE-10 SHOULD** `--dry-run` on every write command prints what would be written and
   changes nothing.
 - **R-WRITE-11 SHOULD** When a new lesson or how-to is added, `dossier` prints the titles of up
   to five existing entries with the most similar title and tags, so that the writer can update
   one of them instead (`--update <ID>` does that in the same command).
+
+### 5.4a Ruled out, and when to look again — RULED
+
+An entry rules something out when it is a declined proposal, a dead-end finding, or a decision
+with a *Rejected* section. Such an entry may say when to look at it again (D59).
+
+- **R-RULED-1 MUST** The field `revisit-if` holds one line: the condition under which what was
+  ruled out should be looked at again, for example `the solver supports sliding meshes` or
+  `the team grows past five`. `decide` and `propose` take `--revisit-if "<condition>"` (it is
+  about what their *Rejected* section rules out, or about the proposal itself once it is
+  declined), `found --dead-end` takes it, and `decline` takes it and writes it with the reason.
+  `found` without `--dead-end` refuses the option. The field is optional everywhere.
+- **R-RULED-2 MUST** `decide` shows what was ruled out before. Each related decision in force
+  that it lists (R-CTX-13) has ` — revisit if: <condition>` after its title when it carries one.
+  After them it lists up to three declined proposals and dead-end findings that are most related
+  to the new decision (R-FIND-1 to 4), best first, as
+  `ruled out: <ID> <title> — revisit if: <condition>`, or `— no condition recorded` when the
+  entry has none. These lines are part of the refusal of R-CTX-13 and of the command's result.
+  They never refuse a decision by themselves: a person may decide again what was once ruled out.
+- **R-RULED-3 MUST** `search` prints `  revisit if: <condition>` under each result that carries
+  the field, before its linked entries; with `--json` the result has `revisit_if`.
 
 ### 5.5 Drafts and approval — DRAFT
 
@@ -400,7 +449,7 @@ Some commands carry out what only a person may decide (D5, D57). The person need
 
 - **R-SAID-1 MUST** These commands take `--said-by <person>`: `approve`, `reject`, `accept`,
   `decline`, `confirm`, `refute`, `retire`, `remove`, `restore`, `reopen` (of a retired entry),
-  `cleared`, `reviewed`, and `confidential remove` and `confidential none`. A person runs them as
+  `cleared`, `reviewed`, `checked` (R-WRITE-18), and `confidential remove` and `confidential none`. A person runs them as
   before. An LLM without `--said-by` is refused (exit code 1) with a message that tells it to
   ask its person and to run the command again with `--said-by <person>`. An LLM with `--said-by`
   naming its own person (D34; case ignored) runs the command for that person. Any other name is
@@ -596,6 +645,28 @@ Several commands choose entries that are related to a text: `decide` (R-CTX-13),
   entry of which --binding (and so of guard's refusal), its related entries with status approved
   are shown, in the order of its related field, at most three, as one line each: two spaces,
   linked:, the ID, · and the title. A linked entry is not followed further (D53).
+  Typed links (R-WRITE-9, D61) are shown the same way and count towards the three: first the
+  entries of the `contradicts` field, then of `refines`, then of `refined-by`, then of
+  `related`, each entry once. The word before the colon says the type: `contradicts:`,
+  `refines:`, `refined by:` or `linked:`.
+
+### 5.9b Entries that look alike — SWEEP
+
+- **R-SWEEP-1 SHOULD** `sweep [--limit <n>]` reads the approved decisions, findings, lessons and
+  how-tos of the dossier and lists the pairs that look alike: one entry is related to the other
+  as `search --similar` finds it (R-READ-9, R-FIND-1 to 4), and neither names the other in
+  `related`, `refines`, `refined-by`, `contradicts`, `supersedes` or `superseded-by`. Each pair
+  is listed once, the pair with the highest score first, at most 20 pairs (`--limit`), as two
+  lines `<ID> · <kind> · <title>` and a blank line, under a first line that says how many pairs
+  there are. With no pair it prints `no entries in force look alike`. It changes nothing (D63);
+  `--json` returns the pairs with their IDs, titles and score.
+- **R-SWEEP-2 SHOULD** After the pairs `sweep` prints the rules for judging them, for the LLM in
+  the session: read both entries; when they say the same, the newer replaces the older
+  (`supersede`); when one no longer holds, `retire` it; when both hold but pull against each
+  other, `link --as contradicts` and ask which one holds; when one narrows the other,
+  `link --as refines`; when they are only about the same thing, `link`. The same lesson under
+  other conditions (*Valid for*) is not a duplicate, and advice that depends on its context is
+  not a contradiction. Nothing is changed without the person's yes (D5, D57).
 
 ### 5.10 Context for a session or task — CTX
 
@@ -660,6 +731,16 @@ Several commands choose entries that are related to a text: `decide` (R-CTX-13),
   assumptions, the proposals waiting for the project lead, and anything marked
   `rests on a wrong assumption`. `brief --task` adds the dead ends that match the task's tags and
   title words.
+- **R-CTX-17 MUST** `brief` and `status` print ` — settle by: <text>` at the end of the line of
+  each open assumption that carries `settle-by` (R-WRITE-17). Under what is unsettled, `status`
+  also says how many open assumptions name nothing that would settle them.
+- **R-CTX-18 MUST** Under what is unsettled, `status` prints one line for each pair of approved
+  entries of which one names the other in `contradicts` (R-WRITE-9):
+  `<ID> and <ID> contradict each other`. The line goes away when one of the two is superseded or
+  retired.
+- **R-CTX-19 MUST** Under what is unsettled, `status` says how many approved lessons owe a check
+  (R-ENTRY-21) and names the command that lists them:
+  `dossier list --kind lesson --where check-state=owed`.
 - **R-CTX-6 SHOULD** `brief --budget <lines>` changes the limit for one call, and `--json`
   returns the same selection as data, each item with the reason it was chosen (linked, milestone,
   tag match, word match).
@@ -1107,6 +1188,8 @@ depend on which of the two a command was typed on.
   twice; links to entries, tasks, how-tos or files that don't exist; approved entries changed
   after approval; lessons without *Valid for*; entries due for review; in a team dossier, any
   project named other than by code. Exit code `0` when nothing was found, `1` otherwise.
+  The links it checks include the typed links `refines`, `refined-by` and `contradicts`
+  (R-WRITE-9).
 - **R-CHECK-2 SHOULD** `check --fix` repairs what is safe: file names that don't match the
   title, missing format lines, the order of the tool's own fields.
 
@@ -1143,6 +1226,11 @@ depend on which of the two a command was typed on.
     exit codes 1 and 3 mean. From version 1.3 it also says: start a worker with
     `DOSSIER_ROLE=worker` (R-AGENT-6); a worker writes nothing to the dossier, so when a worker's
     task is done or given back, run `review-task`, read its `todo` note and record what it shows.
+    From version 1.4 it also says: give a dead end `--revisit-if` when you know what would make
+    it worth another look (R-RULED-1); give an assumption `--settle-by` (R-WRITE-17); give a
+    lesson `--check` when a test or hook could catch its mistake (R-WRITE-18); and when entries
+    pile up, run `sweep`, judge each pair with your person, and say how two entries stand to
+    each other with `link --as refines` or `--as contradicts` (R-SWEEP-2, R-WRITE-9).
     In a code project `help planner` leaves out the lines about runs and confidential terms
     (R-CODE-5).
   - A test fails when the common rules grow past 8 lines or the worker's text past 7, so that
@@ -1256,6 +1344,8 @@ depend on which of the two a command was typed on.
 | `promote`, `close` | project to team | MUST |
 | `software add/list/show`, `used`, `where-used`, `howtos` | software and usage | MUST |
 | `show`, `list`, `search`, `history`, `news` | read; what is new since last time | MUST |
+| `checked` | a lesson's check was shown to catch its mistake | MUST |
+| `sweep` | entries in force that look alike, for a person to judge | SHOULD |
 | `brief`, `brief --task` | context for a session or task | MUST |
 | `status` | the state of the whole project: progress, who does what, decisions, findings | MUST |
 | `script add`, `script update`, `scripts` | scripts (macros, Python) and where they are | MUST |
@@ -1396,6 +1486,13 @@ On a PC, in a connected folder: `.dossier-connect`, holding the server and the p
   refused and the message names `--said-by`; an LLM with `--said-by` naming its person carries
   the command out without a terminal, and the entry and the journal name both; an LLM naming
   another person is refused; and in a worker session it is refused.
+- **TEST-15 MUST** The additions of version 1.4 are tested: an entry file written before 1.4 is
+  read and changed with every other byte kept; `decide` lists a related dead end and a related
+  declined proposal with their conditions; `link --as` writes both sides, and a second run
+  changes nothing; `search` shows a contradicting entry before a plain linked one; `status`
+  lists a contradiction between two approved entries and drops it when one is retired; `checked`
+  is tested the four ways of TEST-14; and `sweep` lists two look-alike entries once, leaves out a
+  pair that is linked, and changes no file.
 
 ---
 
@@ -1622,6 +1719,29 @@ accept or the like (D57).
 **It worked if:** an LLM approves a draft with `dossier approve <ID> --said-by <person>` after
 its person said yes, and the entry and the journal show who said it and which LLM ran it.
 
+### Version 1.4 — Entries say what comes next
+
+**Goal:** an entry says what would change it: when a ruled-out option is looked at again, what
+would settle an assumption, how two entries stand to each other, and which check carries a
+lesson; and entries that look alike are put before a person (D59 to D63).
+
+| Area | Requirements |
+|---|---|
+| Ruled out, and when to look again | R-RULED-1 to 3 |
+| Assumptions that name what settles them | R-WRITE-17, R-CTX-17 |
+| Typed links | R-WRITE-9, R-FIND-5, R-CTX-18, R-CHECK-1 |
+| Lessons and their checks | R-ENTRY-21, R-WRITE-18, R-CTX-19, R-SAID-1 |
+| Entries that look alike | R-SWEEP-1, R-SWEEP-2 |
+| The planner's rules | R-AGENT-1 |
+| Tests | TEST-15 |
+
+The format stays version 1: the seven new fields are optional, and a file written by an older
+version is read unchanged (format.md §38).
+
+**It worked if:** in the project's own dossier each open assumption names what would settle it,
+`decide` on a question that was ruled out before shows that entry with its condition, and
+`sweep` lists at least one pair that the owner then links, supersedes or retires.
+
 ### Added on 2026-11-22
 
 Three pieces of work were added after phase 3 was finished: R-AGENT-5 (hooks after `todo`
@@ -1699,6 +1819,14 @@ Where another requirement still names a removed command, the replacement is mean
   reader then sees whether a lesson held in five projects or was seen once, a single
   contradiction has a place without retiring the lesson, and *Valid for* can grow. To be
   decided when lessons are really reused across projects.
+- **I-11** A finding records the git commit it was observed at, written by the tool when the
+  project folder is a git repository, so that what was seen can be checked against the code of
+  that day. Key values already name their source and results the checksums of what they were
+  made from (R-VALUE-1, R-FILE-10). (D64.)
+- **I-12** A check of the files staged for a commit against the confidential terms, whole words
+  only, with a list of places where a term is allowed, run as a git hook. It needs a decision
+  first: in a public repository the list of terms must not be committed, so it has to be kept
+  somewhere else. (D64.)
 
 ---
 
