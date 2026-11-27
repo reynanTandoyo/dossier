@@ -44,6 +44,7 @@ use crate::digest;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
 use crate::filelist;
+use crate::filter::{in_force_on, is_whole_date, newest_first};
 use crate::journal::{self, Record};
 use crate::mapfile;
 use crate::output::Output;
@@ -51,9 +52,8 @@ use crate::role::{self, Role};
 use crate::store::{self, Item};
 use crate::time;
 use crate::values;
-use chrono::{DateTime, FixedOffset, NaiveDate};
+use chrono::{DateTime, NaiveDate};
 use serde_json::{Value, json};
-use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::path::{MAIN_SEPARATOR, Path};
 
@@ -643,7 +643,7 @@ fn shown<'a>(items: &'a [Item], kind: Kind, day: Option<&str>) -> Vec<&'a Item> 
         .iter()
         .filter(|item| item.entry.kind() == Some(kind))
         .filter(|item| match day {
-            Some(day) => in_force(&item.entry, day),
+            Some(day) => in_force_on(&item.entry, day),
             None => item.entry.status() == Some(Status::Approved),
         })
         .collect()
@@ -1061,60 +1061,6 @@ fn is_dead_end(entry: &Entry) -> bool {
         .is_some_and(|outcome| outcome.eq_ignore_ascii_case("dead end"))
 }
 
-/// Whether an entry was in force on the day `day` (YYYY-MM-DD), by the rule of filter.rs for
-/// `--on` (R-LIFE-9): its valid-from date is on or before the day, and its valid-until is empty or
-/// after the day. An entry with no valid-from was never in force.
-fn in_force(entry: &Entry, day: &str) -> bool {
-    let from = entry.field("valid-from").unwrap_or_default();
-    let from = time::date(from.trim());
-    if !is_whole_date(from) || from > day {
-        return false;
-    }
-    let until = entry.field("valid-until").unwrap_or_default();
-    let until = until.trim();
-    if until.is_empty() {
-        return true;
-    }
-    let end = time::date(until);
-    is_whole_date(end) && end > day
-}
-
-/// A whole date as format.md §7 writes its day, `2026-11-15`: ten characters, digits, with a dash
-/// at the fifth and the eighth place.
-fn is_whole_date(text: &str) -> bool {
-    let bytes = text.as_bytes();
-    bytes.len() == 10
-        && bytes.iter().enumerate().all(|(index, byte)| match index {
-            4 | 7 => *byte == b'-',
-            _ => byte.is_ascii_digit(),
-        })
-}
-
-/// The order of decisions: newest `created` first, then the higher number first, then the ID
-/// in reverse. An entry with no valid `created` comes last.
-fn newest_first(a: &Entry, b: &Entry) -> Ordering {
-    created_at(b)
-        .cmp(&created_at(a))
-        .then_with(|| number(&b.id()).cmp(&number(&a.id())))
-        .then_with(|| b.id().cmp(&a.id()))
-}
-
-/// The `created` field as a point in time, when it is a time stamp.
-fn created_at(entry: &Entry) -> Option<DateTime<FixedOffset>> {
-    entry
-        .field("created")
-        .filter(|stamp| time::valid(stamp))
-        .and_then(|stamp| DateTime::parse_from_rfc3339(&stamp).ok())
-}
-
-/// The number of an ID: 12 for DEC-012, 0 when there is none.
-fn number(id: &str) -> u64 {
-    id.rsplit('-')
-        .next()
-        .and_then(|digits| digits.parse().ok())
-        .unwrap_or(0)
-}
-
 /// The map lines to print (`mapfile::lines`), at most MAX_MAP_LINES. When there are more, the last
 /// line says how many folders are left out and where to see them.
 fn map_lines(file: &BlockFile) -> Vec<String> {
@@ -1263,7 +1209,7 @@ fn team_part(ctx: &Ctx, team: &Ctx, day: Option<&str>) -> (Vec<Line>, usize, Vec
         .iter()
         .filter(|item| matches!(item.entry.kind(), Some(Kind::Lesson | Kind::Howto)))
         .filter(|item| match day {
-            Some(day) => in_force(&item.entry, day),
+            Some(day) => in_force_on(&item.entry, day),
             None => item.entry.status() == Some(Status::Approved),
         })
         .filter(|item| matches_tags(&item.entry, &ctx.cfg.tags))

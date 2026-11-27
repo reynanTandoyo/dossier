@@ -4,10 +4,8 @@
 //! in place of the entries they cover; this module decides which those are.
 
 use crate::entry::{Entry, Kind, Status};
+use crate::filter::{in_force_on, newest_first};
 use crate::store::Item;
-use crate::time;
-use chrono::{DateTime, FixedOffset};
-use std::cmp::Ordering;
 
 /// The rules for the summary, printed by `digest`.
 pub const RULES: [&str; 5] = [
@@ -24,7 +22,7 @@ pub fn in_force<'a>(items: &'a [Item], day: Option<&str>) -> Vec<&'a Item> {
         .iter()
         .filter(|item| item.entry.kind() == Some(Kind::Digest))
         .filter(|item| item.entry.status() == Some(Status::Approved))
-        .filter(|item| day.is_none_or(|day| on_day(&item.entry, day.trim())))
+        .filter(|item| day.is_none_or(|day| in_force_on(&item.entry, day.trim())))
         .collect();
     digests.sort_by(|a, b| newest_first(&a.entry, &b.entry));
     digests
@@ -60,64 +58,6 @@ fn coverable(entry: &Entry) -> bool {
             .is_some_and(|state| state.eq_ignore_ascii_case("open")),
         _ => true,
     }
-}
-
-/// Whether an entry was in force on the day `day` (`2026-11-15`; a time stamp counts by its date),
-/// by the rule of filter.rs for `--on` (R-LIFE-9): its valid-from date is on or before the day, and
-/// its valid-until is empty or after the day. An entry with no valid-from was never in force.
-fn on_day(entry: &Entry, day: &str) -> bool {
-    let day = time::date(day);
-    if !is_whole_date(day) {
-        return false;
-    }
-    let from = entry.field("valid-from").unwrap_or_default();
-    let from = time::date(from.trim());
-    if !is_whole_date(from) || from > day {
-        return false;
-    }
-    let until = entry.field("valid-until").unwrap_or_default();
-    let until = until.trim();
-    if until.is_empty() {
-        return true;
-    }
-    let end = time::date(until);
-    is_whole_date(end) && end > day
-}
-
-/// A whole date as format.md §7 writes its day, `2026-11-15`: ten characters, digits, with a dash
-/// at the fifth and the eighth place.
-fn is_whole_date(text: &str) -> bool {
-    let bytes = text.as_bytes();
-    bytes.len() == 10
-        && bytes.iter().enumerate().all(|(index, byte)| match index {
-            4 | 7 => *byte == b'-',
-            _ => byte.is_ascii_digit(),
-        })
-}
-
-/// The order of digests: newest `created` first, then the higher number first, then the ID in
-/// reverse. An entry with no valid `created` comes last.
-fn newest_first(a: &Entry, b: &Entry) -> Ordering {
-    created_at(b)
-        .cmp(&created_at(a))
-        .then_with(|| number(&b.id()).cmp(&number(&a.id())))
-        .then_with(|| b.id().cmp(&a.id()))
-}
-
-/// The `created` time stamp of an entry, when it is a valid one.
-fn created_at(entry: &Entry) -> Option<DateTime<FixedOffset>> {
-    entry
-        .field("created")
-        .filter(|stamp| time::valid(stamp))
-        .and_then(|stamp| DateTime::parse_from_rfc3339(&stamp).ok())
-}
-
-/// The number of an ID: 12 for DIG-012, 0 when there is none.
-fn number(id: &str) -> u64 {
-    id.rsplit('-')
-        .next()
-        .and_then(|digits| digits.parse().ok())
-        .unwrap_or(0)
 }
 
 #[cfg(test)]

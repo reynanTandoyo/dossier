@@ -13,6 +13,7 @@ use crate::ctx::Ctx;
 use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
 use crate::filelist;
+use crate::filter::in_force_on;
 use crate::links;
 use crate::output::Output;
 use crate::paths;
@@ -156,7 +157,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
 /// linked entries (`links::linked`, `links::line`), except those this output lists as entries of
 /// their own. With `session`, the entries that session has not been shown yet are kept
 /// (`shown::unseen`), and the linked entries of an entry are shown with it, never recorded.
-/// Nothing else is printed. An entry counts only when it is in force today (`in_force_today`).
+/// Nothing else is printed. An entry counts only when it is in force today (`filter::in_force_on`).
 fn binding(ctx: &Ctx, stored: &str, session: Option<&str>) -> Result<Output> {
     let (items, warnings) = store::all(&ctx.dossier);
     let now = time::now();
@@ -164,7 +165,7 @@ fn binding(ctx: &Ctx, stored: &str, session: Option<&str>) -> Result<Output> {
     let mut binding: Vec<&Item> = items
         .iter()
         .filter(|item| item.entry.status() == Some(Status::Approved))
-        .filter(|item| in_force_today(&item.entry, today))
+        .filter(|item| in_force_on(&item.entry, today))
         .filter(|item| points_at(&item.entry, stored))
         .collect();
     if let Some(session) = session {
@@ -292,36 +293,6 @@ fn points_at(entry: &Entry, stored: &str) -> bool {
         .list("code")
         .iter()
         .any(|pointer| codeptr::covers(pointer, stored))
-}
-
-/// Whether an entry is in force on `today` (YYYY-MM-DD, as `time::date` gives it). This is the rule
-/// of filter.rs `in_force_on`, which `--on` uses (R-LIFE-9), copied here because that function is
-/// private: its valid-from date is on or before the day, and its valid-until is empty or after the
-/// day. An entry with no valid-from was never in force.
-fn in_force_today(entry: &Entry, today: &str) -> bool {
-    let stamp = entry.field("valid-from").unwrap_or_default();
-    let from = time::date(stamp.trim());
-    if !is_whole_date(from) || from > today {
-        return false;
-    }
-    let stamp = entry.field("valid-until").unwrap_or_default();
-    let until = stamp.trim();
-    if until.is_empty() {
-        return true;
-    }
-    let end = time::date(until);
-    is_whole_date(end) && end > today
-}
-
-/// A whole date as format.md §7 writes its day, `2026-11-15`: ten characters, digits, with a dash
-/// at the fifth and the eighth place. The same test as filter.rs `is_whole_date`.
-fn is_whole_date(text: &str) -> bool {
-    let bytes = text.as_bytes();
-    bytes.len() == 10
-        && bytes.iter().enumerate().all(|(index, byte)| match index {
-            4 | 7 => *byte == b'-',
-            _ => byte.is_ascii_digit(),
-        })
 }
 
 /// The marks of an entry, without brackets: its status, then `changed after approval` for an

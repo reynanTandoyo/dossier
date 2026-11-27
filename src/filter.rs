@@ -3,6 +3,8 @@
 use crate::entry::{Entry, Kind, Status};
 use crate::store::Item;
 use crate::time;
+use chrono::{DateTime, FixedOffset};
+use std::cmp::Ordering;
 
 /// The filter options. Without `--status`, `--drafts`, `--all` and `--on`, only approved entries
 /// match; `--on` chooses by the dates instead (R-LIFE-9).
@@ -164,11 +166,11 @@ fn is_date_text(text: &str) -> bool {
     !text.is_empty() && text.chars().all(|c| c.is_ascii_digit() || c == '-')
 }
 
-/// Whether the entry was in force on the day `text` (`2026-11-15`; a time stamp counts by its
+/// Whether the entry was in force on the day `day` (`2026-11-15`; a time stamp counts by its
 /// date): its valid-from date is on or before the day, and its valid-until is empty or its date
 /// is after the day. An entry without a valid-from matches nothing; the status does not count.
-fn in_force_on(entry: &Entry, text: &str) -> bool {
-    let day = time::date(text);
+pub fn in_force_on(entry: &Entry, day: &str) -> bool {
+    let day = time::date(day);
     if !is_whole_date(day) {
         return false;
     }
@@ -188,13 +190,38 @@ fn in_force_on(entry: &Entry, text: &str) -> bool {
 
 /// A whole date as format.md §7 writes its day, `2026-11-15`: ten characters, digits, with a dash
 /// at the fifth and the eighth place.
-fn is_whole_date(text: &str) -> bool {
+pub fn is_whole_date(text: &str) -> bool {
     let bytes = text.as_bytes();
     bytes.len() == 10
         && bytes.iter().enumerate().all(|(index, byte)| match index {
             4 | 7 => *byte == b'-',
             _ => byte.is_ascii_digit(),
         })
+}
+
+/// The order of entries: newest `created` first, then the higher number first, then the ID in
+/// reverse. An entry with no valid `created` comes last.
+pub fn newest_first(a: &Entry, b: &Entry) -> Ordering {
+    created_at(b)
+        .cmp(&created_at(a))
+        .then_with(|| number(&b.id()).cmp(&number(&a.id())))
+        .then_with(|| b.id().cmp(&a.id()))
+}
+
+/// The `created` time stamp of an entry, when it is a valid one.
+fn created_at(entry: &Entry) -> Option<DateTime<FixedOffset>> {
+    entry
+        .field("created")
+        .filter(|stamp| time::valid(stamp))
+        .and_then(|stamp| DateTime::parse_from_rfc3339(&stamp).ok())
+}
+
+/// The number of an ID: 12 for DIG-012 or DEC-012, 0 when there is none.
+fn number(id: &str) -> u64 {
+    id.rsplit('-')
+        .next()
+        .and_then(|digits| digits.parse().ok())
+        .unwrap_or(0)
 }
 
 #[cfg(test)]
