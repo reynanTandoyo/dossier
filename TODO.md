@@ -12509,13 +12509,15 @@
 - note (2026-11-26, planner): added
 
 ### T-586 · 1.3.2: the last known bug and two tidy-ups
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P2 · type: milestone
 - goal: The after hook reacts only to a real todo command, never to the words todo done inside another command (idea T-548), and the helpers copied between take and return and the date rule copied into four files live in one place each (ideas T-404, T-415).
 - why: The owner asked to clear the remaining ideas that are bugs or cheap tidy-ups (2026-11-27).
 - summary: The hook stops reacting to commit messages that mention todo done, and duplicated code is shared.
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, planner): done — The after hook reacts only to a command that starts with todo; take and return share their path helpers, and the in-force rule, the whole-date check and newest-first exist once, in filter.rs.
 
 ### T-587 · after: only a command that starts with todo is a todo event
 - status: done
@@ -12568,8 +12570,8 @@
 - note (2026-11-27, planner): done — take and return share one copy of their path helpers in taken.rs; their messages are unchanged.
 
 ### T-589 · filter.rs: the in-force rule, the whole-date check and newest-first in one place
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-589
 - priority: P3 · difficulty: 2 · type: chore
 - milestone: T-586
 - why: is_whole_date is copied into filter.rs, brief.rs, digest.rs and which.rs, the in-force rule into which.rs and digest.rs, and newest_first into brief.rs and digest.rs (ideas T-415 and T-540).
@@ -12585,11 +12587,15 @@
 - accept: is_whole_date, the in-force rule and newest_first exist once, in filter.rs, and every command behaves as before.
 - verify: cargo test --test cmd_brief && cargo test --test cmd_which && cargo test --test cmd_digest
 - attempts: 1
+- verified: 2026-11-27
+- commit: 81f9bea
 - reqs: R-CTX-1, R-CTX-14, R-CODE-8
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
 - note (2026-11-27, haiku-T-589): stuck — Not consolidated, no file changed. The in-force copies differ for a day that is not a whole date. filter.rs in_force_on and digest.rs on_day return false for it (whole-date check first). which.rs in_force_today and brief.rs in_force have no such check. Input: entry with valid-from 2026-11-10 and no valid-until, day garbage. Results: filter.rs false, digest.rs false, which.rs true, brief.rs true. Every CLI path passes a whole date (time::now for which, day_option for brief), so output is unchanged today, but merging needs one result chosen for this input. brief.rs also has an in_force copy that the task's comparison list does not name.
 - note (2026-11-27, planner): Planner: the copies differ only for a day that is not a whole date, which no command passes. Use filter.rs in_force_on (with its whole-date check) for all four callers, including the in_force copy in brief.rs.
 - note (2026-11-27, planner): unblocked
+- note (2026-11-27, haiku-T-589): done — Consolidated: filter.rs in_force_on and is_whole_date are public, newest_first moved in; which.rs, brief.rs and digest.rs use them and their copies are gone; verify, fmt, clippy and the full test run pass.
 
 ## Questions
 
@@ -12809,3 +12815,75 @@
 - type: idea
 - note (2026-11-26, planner): added
 - note (2026-11-27, planner): dropped — Done in 1.3.1: approve, reject and accept take --said-by (D57).
+
+### T-590 · Keywords 1 - dossier tags: list every tag in use with its count, as dossier topics does, and mark near-duplicates by word stem (pump/pumps, SSH/ssh), so an LLM reuses a tag instead of inventing a new one. In the dossier project no entry has a tag yet (2026-11-27).
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-27, planner): added
+
+### T-591 · Keywords 2 - suggested tags when writing: after decide, found, learn and the others, dossier proposes three to five tags from the entry's rare words and the tags already in use; the LLM adds the fitting ones with --tags. Computed from the text, no model (D7).
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-27, planner): added
+
+### T-592 · Keywords 3 - search words that are not in the text: an entry field for the words people would search with (for D43: multiplexing, ControlMaster), weighted like the title in search and ranking, so an entry worded differently is still found.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-27, planner): added
+
+### T-593 · Keywords 4 - link suggestions: dossier link --suggest <ID> lists entries that share rare words, tags or code pointers and are not linked yet; the LLM proposes the pairs and links them with its person's yes. check reports entries with neither tags nor links (islands).
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-27, planner): added
+
+### T-594 · Keywords 5 - tag aliases through the glossary: a glossary term's other spellings also match a tag, so searching SSH finds an entry tagged secure shell.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-27, planner): added
+
+### T-595 · Overview 1 - dossier report --html: one self-contained page for people, built like todo report (light and dark, colour-blind colours, no network, written only when asked, default in .state so git never sees it, --out and --open).
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-27, planner): added
+
+### T-596 · Overview 2 - page sections: project header with counts by kind and status; Needs you (drafts waiting for approval, open assumptions, open investigations, proposals); Last 7 days from the journal; decisions in force grouped by topic; findings and dead ends; lessons, how-tos and tools.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-27, planner): added
+
+### T-597 · Overview 3 - entry cards: a click on an entry opens its full text, history, linked entries in both directions, code pointers and its task.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-27, planner): added
+
+### T-598 · Overview 4 - link map: the entries and their links, supersedes and rests-on as an inline SVG graph, coloured by kind and grouped by topic, without a library.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-27, planner): added
+
+### T-599 · Overview 5 - code map: the folders of map.md with the entries that bind each folder or file, so people see where rules live in the code.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-27, planner): added
+
+### T-600 · Overview 6 - task view: per todo milestone, its decisions, findings, open investigations and digest (read through todo --json), so a colleague sees what was decided for each part of the work.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-27, planner): added
+
+### T-601 · Overview 7 - all projects: --all writes one page across the registered projects and the team dossier, as todo report --all does.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-27, planner): added
