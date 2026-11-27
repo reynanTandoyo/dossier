@@ -1725,7 +1725,9 @@ pub const LINK_FIELDS: [(&str, &str); 4] = [
 /// As before, but over the fields of LINK_FIELDS in their order: the approved entries that
 /// "entry" names, at most limit, each once.
 pub fn linked<'a>(entry: &Entry, items: &'a [Item], limit: usize) -> Vec<&'a Item>;
-/// The word of the first field of LINK_FIELDS in which "entry" names "other"; "linked" when none.
+/// The first field of LINK_FIELDS in which "entry" names "other"; "related" when none.
+pub fn field_of(entry: &Entry, other: &Item) -> &'static str;
+/// The word of LINK_FIELDS that belongs to `field_of(entry, other)`.
 pub fn label(entry: &Entry, other: &Item) -> &'static str;
 /// Two spaces, the label, ": ", the ID, " · " and the title.
 pub fn typed_line(entry: &Entry, item: &Item) -> String;
@@ -1735,8 +1737,8 @@ pub fn contradictions<'a>(items: &[&'a Item]) -> Vec<(&'a Item, &'a Item)>;
 ```
 
 `search`, `brief --task` and `which --binding` call `typed_line(entry, item)` where they called
-`line(item)`; in JSON each linked entry gains `"type"`: `contradicts`, `refines`, `refined-by`
-or `related`.
+`line(item)`; in JSON each linked entry gains `"type"`, the value of `field_of`: `contradicts`,
+`refines`, `refined-by` or `related`.
 
 `link` gains `pub as_type: Option<String>` (`--as <TYPE>`). No type: as before. `refines`: A gets
 B in `refines`, B gets A in `refined-by`; the text is `<A> refines <B>`. `contradicts`: each gets
