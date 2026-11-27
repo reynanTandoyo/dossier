@@ -590,9 +590,13 @@ fn entry_problems(ctx: &Ctx, item: &Item, known: &HashSet<String>, today: &str) 
         }
     }
 
-    // LINK: every ID that a link field names must be an entry of the dossier (format.md §14).
+    // LINK: every ID that a link field names must be an entry of the dossier (format.md §14 and
+    // §38 for the typed links).
     let links = [
         ("related", entry.list("related")),
+        ("refines", entry.list("refines")),
+        ("refined-by", entry.list("refined-by")),
+        ("contradicts", entry.list("contradicts")),
         ("supersedes", single_id(entry, "supersedes")),
         ("superseded-by", single_id(entry, "superseded-by")),
         ("rests-on", entry.list("rests-on")),

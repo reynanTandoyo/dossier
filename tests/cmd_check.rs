@@ -443,6 +443,58 @@ fn a_rests_on_field_of_a_file_block_is_checked_like_an_entry_link() {
     );
 }
 
+#[test]
+fn a_typed_link_naming_a_missing_entry_gives_link() {
+    for field in ["refines", "refined-by", "contradicts"] {
+        let project = Project::new();
+        decide(&project);
+        let assignment = format!("{field}=DEC-099");
+        project.stdout("anna", &["set", "DEC-001", "--field", &assignment]);
+
+        let line = line_of(
+            &text_of(&project, "DEC-001"),
+            &format!("- {field}: DEC-099"),
+        );
+        assert_eq!(
+            problems(&project),
+            format!(
+                "error: {}:{line}: DEC-001 LINK {field} names DEC-099, which does not exist\nDOSSIER: 1 problems\n",
+                shown(&project.entry_file("DEC-001"))
+            )
+        );
+    }
+}
+
+#[test]
+fn a_settle_by_field_is_written_and_gives_no_problem() {
+    let project = Project::new();
+    project.stdout(
+        "ben",
+        &[
+            "assume",
+            "The inlet profile is uniform.",
+            "--reason",
+            "No measured profile was delivered.",
+        ],
+    );
+    project.stdout(
+        "ben",
+        &[
+            "set",
+            "ASM-001",
+            "--field",
+            "settle-by=the rig test in March",
+        ],
+    );
+
+    let text = text_of(&project, "ASM-001");
+    assert!(
+        text.lines()
+            .any(|line| line == "- settle-by: the rig test in March")
+    );
+    assert_eq!(project.stdout("anna", &["check"]), OK);
+}
+
 /// An approved how-to written by hand, with its software and its sections Purpose and Steps.
 const HOW_TO: &str = "<!-- dossier-format: 1 -->\n# HOW-001 · Warm the solver before a run\n\n- kind: howto\n- status: approved\n- created: 2026-11-20T10:00:00+01:00\n- author: anna\n- approved: 2026-11-20T10:00:00+01:00 by anna\n- valid-from: 2026-11-20T10:00:00+01:00\n- software: Invented Solver\n- history: 2026-11-20T10:00:00+01:00 anna: created\n- history: 2026-11-20T10:00:00+01:00 anna: approved\n\n## Purpose\n\nPrepares an invented solver run.\n\n## Steps\n\nStart the invented run with one iteration.\n";
 

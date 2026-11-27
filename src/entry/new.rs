@@ -10,10 +10,10 @@ const FORMAT_LINE: &str = "<!-- dossier-format: 1 -->";
 const PICTURES: &str = "Pictures";
 
 /// The known fields in the order of format.md §5, with the fields of §14 and §15 after
-/// `rejected-reason` and after `software`, the fields of §28 after `refuted`, and the fields of
-/// §32 after `task`. `history` is not listed: it is always written last. `kind` is listed first,
-/// but `render` writes it from `Draft::kind`.
-pub const FIELD_ORDER: [&str; 47] = [
+/// `rejected-reason` and after `software`, the fields of §28 after `refuted`, the fields of §32
+/// after `task`, and the fields of §38 where that section places them. `history` is not listed:
+/// it is always written last. `kind` is listed first, but `render` writes it from `Draft::kind`.
+pub const FIELD_ORDER: [&str; 54] = [
     "kind",
     "status",
     "created",
@@ -24,6 +24,8 @@ pub const FIELD_ORDER: [&str; 47] = [
     "valid-until",
     "state",
     "confidence",
+    "check",
+    "check-state",
     "outcome",
     "task",
     "milestone",
@@ -39,13 +41,18 @@ pub const FIELD_ORDER: [&str; 47] = [
     "tags",
     "topic",
     "related",
+    "refines",
+    "refined-by",
+    "contradicts",
     "supersedes",
     "superseded-by",
     "retired-reason",
     "rejected-reason",
     "declined-reason",
+    "revisit-if",
     "confirmed",
     "refuted",
+    "settle-by",
     "closed",
     "given-up-reason",
     "rests-on",
