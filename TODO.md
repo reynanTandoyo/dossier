@@ -12597,6 +12597,24 @@
 - note (2026-11-27, planner): unblocked
 - note (2026-11-27, haiku-T-589): done — Consolidated: filter.rs in_force_on and is_whole_date are public, newest_first moved in; which.rs, brief.rs and digest.rs use them and their copies are gone; verify, fmt, clippy and the full test run pass.
 
+### T-602 · Release 1.3.2: the after hook and two tidy-ups
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: chore
+- milestone: T-586
+- why: Milestone T-586 is finished; the owner wants it released and installed.
+- summary: Version 1.3.2 is built, checked on Windows and Linux, tagged and published on GitHub.
+- files: Cargo.toml, Cargo.lock, README.md
+- read: README.md
+- steps:
+  1. Cargo.toml: version = "1.3.2"; cargo build so that Cargo.lock follows.
+  2. README.md: status v1.3.2, a section What version 1.3.2 changes, the server sample shows 1.3.2.
+  3. Run fmt, clippy and all tests on Windows and in WSL; after CI passes, tag v1.3.2.
+- accept: Version 1.3.2 builds, passes every check, and the README says what it changes.
+- verify: cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-features
+- reqs: REL-1, REL-2
+- note (2026-11-27, planner): added
+
 ## Questions
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.

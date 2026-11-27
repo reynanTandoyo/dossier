@@ -4,7 +4,7 @@
 while doing its projects. People and their LLMs write to it and read from it, so that neither has
 to rely on memory.
 
-**Status: v1.3.1**
+**Status: v1.3.2**
 
 - [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the seven phases it is
   built in.
@@ -1248,6 +1248,14 @@ The entry names the person, and its history and the journal name the person and 
 session, the LLM is refused. `supersede`, `value approve`, `value reject`, the two `team`
 removals and `close` still need a person.
 
+### What version 1.3.2 changes
+
+- The hook after shell commands reacts only to a command that starts with `todo` (or
+  `dossier todo`), after any `NAME=value` settings. The words `todo done` inside another command,
+  such as a commit message, no longer start a task review.
+- Inside, `take` and `return` share one copy of their path checks, and the rule for which entries
+  are in force on a day exists once. Nothing else changes for users.
+
 ## What it needs
 
 - [`todo`](https://github.com/reynanTandoyo/todo) 0.8 or newer. `todo` keeps the tasks of a
@@ -1458,7 +1466,7 @@ lines:
 
 ```
 ssh: ok
-dossier on the server: 1.3.1
+dossier on the server: 1.3.2
 todo on the server: 0.8.0
 dossier folder: ok (P-001)
 ```
