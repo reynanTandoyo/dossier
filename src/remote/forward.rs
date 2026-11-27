@@ -33,9 +33,9 @@ const LOCAL_COMMANDS: [&str; 10] = [
 
 /// The commands that ask ssh for a terminal when the PC has one (R-REMOTE-3): the approvals and
 /// changes of a person, and the decisions of a decider.
-const TERMINAL_COMMANDS: [&str; 12] = [
+const TERMINAL_COMMANDS: [&str; 13] = [
     "approve", "remove", "restore", "edit", "accept", "decline", "confirm", "refute", "cleared",
-    "value", "close", "reviewed",
+    "value", "close", "reviewed", "checked",
 ];
 
 /// The option that lets a person at a terminal write text that looks like a credential (R-CONF-7).
@@ -524,7 +524,7 @@ mod tests {
         let (code, written) = maybe_with(&args_file, &["dossier", "accept", "DEC-001"]);
         assert_eq!(code, Some(7));
         assert!(tokens(&written).contains(&"-t"), "{written}");
-        for command in ["close", "reviewed"] {
+        for command in ["close", "reviewed", "checked"] {
             let (code, written) = maybe_with(&args_file, &["dossier", command, "DEC-001"]);
             assert_eq!(code, Some(7));
             assert!(tokens(&written).contains(&"-t"), "{written}");

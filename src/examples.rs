@@ -357,6 +357,11 @@ pub fn of(command: &str) -> Option<[&'static str; 3]> {
             "dossier reviewed LES-004 --next 2027-09-30",
             "dossier reviewed fnd-007 --next 2027-03-01",
         ],
+        "checked" => [
+            "dossier checked LES-004 --by \"the test fails without the fix\" --said-by anna",
+            "dossier checked LES-011 --by 'the hook refuses the old file' --check 'tests/hooks.rs fails on the old text'",
+            "dossier checked LES-012 --by 'the lint flags the unwrap' --check 'cargo clippy with -D warnings'",
+        ],
         "review-folder" => [
             "dossier review-folder",
             "dossier review-folder 'D:\\old-projects\\P-017' --depth 2",
@@ -436,6 +441,11 @@ pub fn of(command: &str) -> Option<[&'static str; 3]> {
             "dossier story",
             "dossier story --milestone T-130",
             "dossier story --json",
+        ],
+        "sweep" => [
+            "dossier sweep",
+            "dossier sweep --limit 5",
+            "dossier sweep --json",
         ],
         "export" => [
             "dossier export",

@@ -550,6 +550,7 @@ fn help_without_a_topic_lists_every_command_in_order() {
             "glossary",
             "topics",
             "reviewed",
+            "checked",
             "review-folder",
             "review-document",
             "reviewed-document",
@@ -567,6 +568,7 @@ fn help_without_a_topic_lists_every_command_in_order() {
             "session-end",
             "digest",
             "story",
+            "sweep",
             "export",
             "schema",
         ]
