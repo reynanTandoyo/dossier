@@ -29,6 +29,9 @@ pub struct Args {
     /// Marks a dead end: something was tried and did not work (outcome: dead end)
     #[arg(long)]
     pub dead_end: bool,
+    /// When the dead end should be looked at again; only with --dead-end (R-RULED-1)
+    #[arg(long, value_name = "CONDITION")]
+    pub revisit_if: Option<String>,
     /// Saves a quick note: a draft with the tag inbox, to be sorted out later
     #[arg(long)]
     pub later: bool,
@@ -67,6 +70,9 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             "the observation must not be empty",
         ));
     }
+    if trimmed(args.revisit_if.as_deref()).is_some() && !args.dead_end {
+        return Err(Error::new(Code::Usage, "--revisit-if needs --dead-end"));
+    }
     let ctx = Ctx::load(g, "found")?;
     let new = new_finding(args, observation);
     tx::write(&ctx, |tx| {
@@ -79,11 +85,15 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
 }
 
 /// What `found` asks to create: the observation as the Observation section, the evidence as the
-/// Evidence section when given, the fields the options give, and a draft when `--later` is given.
+/// Evidence section when given, the fields the options give (with `--dead-end`, the outcome and
+/// the revisit-if condition when given), and a draft when `--later` is given.
 fn new_finding(args: &Args, observation: &str) -> New {
     let mut fields = Vec::new();
     if args.dead_end {
         fields.push(pair("outcome", "dead end"));
+        if let Some(revisit_if) = trimmed(args.revisit_if.as_deref()) {
+            fields.push(pair("revisit-if", revisit_if));
+        }
     }
     if let Some(task) = trimmed(args.task.as_deref()) {
         fields.push(pair("task", &task.to_uppercase()));

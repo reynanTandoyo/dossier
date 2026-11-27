@@ -116,6 +116,64 @@ fn dead_end_writes_outcome_dead_end() {
 }
 
 #[test]
+fn dead_end_with_revisit_if_writes_the_condition_as_the_revisit_if_field() {
+    let project = Project::new();
+    let stdout = project.stdout(
+        "anna-claude",
+        &[
+            "found",
+            "--dead-end",
+            "The coarse mesh did not resolve the wake.",
+            "--revisit-if",
+            "the solver is updated",
+        ],
+    );
+    assert_eq!(stdout, "FND-001: added (approved)\n");
+
+    let text = entry_text(&project, "FND-001");
+    assert!(text.contains("\n- outcome: dead end\n"), "{text}");
+    assert!(
+        text.contains("\n- revisit-if: the solver is updated\n"),
+        "{text}"
+    );
+    assert_eq!(
+        entry_of(&project, "FND-001").field("revisit-if").as_deref(),
+        Some("the solver is updated")
+    );
+}
+
+#[test]
+fn revisit_if_without_dead_end_is_a_usage_error_and_nothing_is_written() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "found",
+                "The coarse mesh did not resolve the wake.",
+                "--revisit-if",
+                "x",
+            ],
+        )
+        .code(2)
+        .stderr(contains("--revisit-if needs --dead-end"));
+    assert!(nothing_is_written(&project));
+}
+
+#[test]
+fn dead_end_without_revisit_if_writes_no_revisit_if_line() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &["found", "--dead-end", "Halving the step did not help."],
+    );
+
+    let text = entry_text(&project, "FND-001");
+    assert!(!text.contains("\n- revisit-if:"), "{text}");
+    assert_eq!(entry_of(&project, "FND-001").field("revisit-if"), None);
+}
+
+#[test]
 fn later_gives_a_draft_with_the_inbox_tag_added_to_the_tags_given() {
     let project = Project::new();
     let stdout = project.stdout(
