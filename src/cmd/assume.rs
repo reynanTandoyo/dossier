@@ -49,6 +49,9 @@ pub struct Args {
     /// The topics it is about, from the project's list (dossier topics), comma-separated
     #[arg(long)]
     pub topic: Option<String>,
+    /// The test, measurement or person that would confirm or refute it (R-WRITE-17)
+    #[arg(long, value_name = "TEXT")]
+    pub settle_by: Option<String>,
 }
 
 /// Runs `assume`: writes the assumption and prints its ID and its status.
@@ -97,8 +100,9 @@ fn default_title(text: &str) -> String {
         .join(" ")
 }
 
-/// The fields of the assumption: its state, then the task (upper-cased) and the tag lists and the
-/// topic as given. `entry::new::render` leaves out a field whose value is empty.
+/// The fields of the assumption: its state, then the task (upper-cased), the tag lists and the
+/// topic as given, then the settle-by text trimmed when it is not blank (R-WRITE-17).
+/// `entry::new::render` leaves out a field whose value is empty.
 fn fields(args: &Args) -> Vec<(String, String)> {
     let mut fields = vec![pair("state", OPEN)];
     if let Some(task) = &args.task {
@@ -115,6 +119,14 @@ fn fields(args: &Args) -> Vec<(String, String)> {
         if let Some(value) = value {
             fields.push(pair(key, value));
         }
+    }
+    let settle_by = args
+        .settle_by
+        .as_deref()
+        .map(str::trim)
+        .filter(|text| !text.is_empty());
+    if let Some(settle_by) = settle_by {
+        fields.push(pair("settle-by", settle_by));
     }
     fields
 }

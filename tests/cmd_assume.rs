@@ -372,3 +372,47 @@ fn without_topics_in_the_settings_an_llms_assumption_without_a_topic_is_written(
     assert_eq!(stdout, "ASM-001: added (approved, open)\n");
     assert_eq!(entry_of(&project, "ASM-001").field("topic"), None);
 }
+
+#[test]
+fn a_given_settle_by_is_written_as_the_field_settle_by() {
+    let project = Project::new();
+    let stdout = project.stdout(
+        "anna-claude",
+        &[
+            "assume",
+            TEXT,
+            "--reason",
+            "No profile.",
+            "--settle-by",
+            "the rig test in March",
+        ],
+    );
+    assert_eq!(stdout, "ASM-001: added (approved, open)\n");
+    assert!(entry_text(&project, "ASM-001").contains("- settle-by: the rig test in March\n"));
+    assert_eq!(
+        entry_of(&project, "ASM-001").field("settle-by").as_deref(),
+        Some("the rig test in March")
+    );
+}
+
+#[test]
+fn without_settle_by_or_with_only_spaces_no_settle_by_line_is_written() {
+    let project = Project::new();
+    project.stdout("anna-claude", &["assume", TEXT, "--reason", "No profile."]);
+    assert!(!entry_text(&project, "ASM-001").contains("settle-by"));
+    assert_eq!(entry_of(&project, "ASM-001").field("settle-by"), None);
+
+    project.stdout(
+        "anna-claude",
+        &[
+            "assume",
+            TEXT,
+            "--reason",
+            "No profile.",
+            "--settle-by",
+            "   ",
+        ],
+    );
+    assert!(!entry_text(&project, "ASM-002").contains("settle-by"));
+    assert_eq!(entry_of(&project, "ASM-002").field("settle-by"), None);
+}
