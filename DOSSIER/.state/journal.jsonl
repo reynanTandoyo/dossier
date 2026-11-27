@@ -370,3 +370,4 @@
 {"time":"2026-11-26T21:40:49+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-057","event":"created","detail":"approved"}
 {"time":"2026-11-26T21:40:49+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-007","event":"superseded","detail":"by DEC-057"}
 {"time":"2026-11-26T23:15:20+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"approve","id":"DIG-001","event":"approved","detail":""}
+{"time":"2026-11-27T18:50:48+01:00","name":"reyna - claude","person":"reyna","llm":true,"command":"decide","id":"DEC-058","event":"created","detail":"approved"}

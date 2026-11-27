@@ -12619,6 +12619,23 @@
 - note (2026-11-27, planner): added
 - note (2026-11-27, planner): done — Released 1.3.2: checked on Windows (2553 tests), WSL Fedora 44 (2557) and CI; https://github.com/reynanTandoyo/dossier/releases/tag/v1.3.2
 
+### T-603 · Release 1.3.3: the planner rules ask for tags
+- status: open
+- owner: —
+- priority: P1 · difficulty: 1 · type: chore
+- why: The owner wants an LLM to tag every entry it writes (D58); every writing command already takes --tags, but no rule asked for them.
+- summary: The rules for LLMs ask for two to five tags on every entry, and the version with that rule is released and installed.
+- files: src/agents/planner.md, tests/cmd_agents.rs, Cargo.toml, Cargo.lock, README.md
+- read: src/agents/planner.md
+- steps:
+  1. src/agents/planner.md: after the topic rule, the rule to give every entry two to five tags with --tags and to reuse the tags in use.
+  2. tests/cmd_agents.rs: help planner names the tag rule.
+  3. Version 1.3.3 with a README note; checks on Windows and WSL; tag after CI.
+- accept: help planner asks for tags, and 1.3.3 is released.
+- verify: cargo test --test cmd_agents
+- reqs: R-AGENT-1, D58
+- note (2026-11-27, planner): added
+
 ## Questions
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.
