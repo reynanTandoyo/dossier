@@ -12518,8 +12518,8 @@
 - note (2026-11-27, planner): added
 
 ### T-587 · after: only a command that starts with todo is a todo event
-- status: open
-- owner: —
+- status: done
+- owner: haiku-T-587
 - priority: P1 · difficulty: 1 · type: fix
 - milestone: T-586
 - why: The after hook read 'todo done <word>' anywhere in a shell command, also inside a git commit message, and answered with a review of a task named after the next word (idea T-548).
@@ -12532,8 +12532,12 @@
   3. Run cargo test --lib hooks::
 - accept: todo_event finds a todo command only as the first program of a command part.
 - verify: cargo test --lib hooks::
+- verified: 2026-11-27
+- commit: 6544e3b
 - reqs: R-AGENT-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, haiku-T-587): done — The after hook now reads a todo event only when todo, or dossier todo, is the program of a simple command after any leading NAME=value assignments; tests added, all checks pass.
 
 ### T-588 · taken.rs: the path helpers of take and return in one place
 - status: open
