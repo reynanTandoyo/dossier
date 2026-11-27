@@ -12584,8 +12584,12 @@
   4. Run cargo test --all-features (the rules are used by many commands).
 - accept: is_whole_date, the in-force rule and newest_first exist once, in filter.rs, and every command behaves as before.
 - verify: cargo test --test cmd_brief && cargo test --test cmd_which && cargo test --test cmd_digest
+- attempts: 1
 - reqs: R-CTX-1, R-CTX-14, R-CODE-8
 - note (2026-11-27, planner): added
+- note (2026-11-27, haiku-T-589): stuck — Not consolidated, no file changed. The in-force copies differ for a day that is not a whole date. filter.rs in_force_on and digest.rs on_day return false for it (whole-date check first). which.rs in_force_today and brief.rs in_force have no such check. Input: entry with valid-from 2026-11-10 and no valid-until, day garbage. Results: filter.rs false, digest.rs false, which.rs true, brief.rs true. Every CLI path passes a whole date (time::now for which, day_option for brief), so output is unchanged today, but merging needs one result chosen for this input. brief.rs also has an in_force copy that the task's comparison list does not name.
+- note (2026-11-27, planner): Planner: the copies differ only for a day that is not a whole date, which no command passes. Use filter.rs in_force_on (with its whole-date check) for all four callers, including the in_force copy in brief.rs.
+- note (2026-11-27, planner): unblocked
 
 ## Questions
 
