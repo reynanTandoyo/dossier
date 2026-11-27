@@ -5,6 +5,7 @@
 mod common;
 
 use common::Project;
+use predicates::prelude::PredicateBooleanExt;
 use predicates::str::contains;
 
 /// The text of the decision file with `id`.
@@ -665,4 +666,170 @@ fn without_code_no_code_line_is_written() {
 
     let text = decision_text(&project, "DEC-001");
     assert!(!text.contains("\n- code:"), "{text}");
+}
+
+/// The title of the dead end that the revisit tests record (invented text).
+const DEAD_END: &str = "Rebuilding the mesh stalled the rig at the second run.";
+
+/// The decision that the revisit tests record or refuse; it shares the words "mesh" and "rig"
+/// with DEAD_END (invented text).
+const MESH_DECISION: &str = "Keep the mesh fixed for the rig.";
+
+/// Records DEAD_END as a dead end by anna, which is approved at once: it is FND-001.
+fn anna_records_dead_end(project: &Project) {
+    project.stdout("anna", &["found", DEAD_END, "--dead-end"]);
+}
+
+#[test]
+fn revisit_if_is_written_as_the_field_of_the_decision() {
+    let project = Project::new();
+    let output = project.stdout(
+        "anna",
+        &[
+            "decide",
+            MESH_DECISION,
+            "--reason",
+            "The rig runs were checked on it.",
+            "--revisit-if",
+            "the solver supports sliding meshes",
+        ],
+    );
+    assert_eq!(output, "DEC-001: added (approved)\n");
+    assert!(
+        decision_text(&project, "DEC-001")
+            .contains("\n- revisit-if: the solver supports sliding meshes\n"),
+        "the decision holds the revisit-if field"
+    );
+}
+
+#[test]
+fn a_dead_end_with_a_revisit_if_is_named_by_decide_with_its_condition() {
+    let project = Project::new();
+    anna_records_dead_end(&project);
+    project
+        .run(
+            "anna",
+            &[
+                "set",
+                "FND-001",
+                "--field",
+                "revisit-if=the mesh is rebuilt",
+            ],
+        )
+        .success();
+
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                MESH_DECISION,
+                "--reason",
+                "The rig runs were checked on it.",
+            ],
+        )
+        .success()
+        .stdout(contains("DEC-001: added (approved)"))
+        .stderr(contains("ruled out: FND-001"))
+        .stderr(contains("revisit if: the mesh is rebuilt"));
+}
+
+#[test]
+fn a_dead_end_without_a_revisit_if_is_named_with_no_condition_recorded() {
+    let project = Project::new();
+    anna_records_dead_end(&project);
+
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                MESH_DECISION,
+                "--reason",
+                "The rig runs were checked on it.",
+            ],
+        )
+        .success()
+        .stderr(contains("ruled out: FND-001"))
+        .stderr(contains("no condition recorded"));
+}
+
+#[test]
+fn a_dead_end_about_something_else_is_not_named() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &["found", "Gearbox oil foamed at the start.", "--dead-end"],
+    );
+
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                MESH_DECISION,
+                "--reason",
+                "The rig runs were checked on it.",
+            ],
+        )
+        .success()
+        .stderr(contains("ruled out:").not());
+}
+
+#[test]
+fn a_related_dead_end_alone_does_not_refuse_an_llm_decision() {
+    let project = Project::new();
+    anna_records_dead_end(&project);
+
+    project
+        .run(
+            "anna-claude",
+            &[
+                "decide",
+                MESH_DECISION,
+                "--reason",
+                "The rig runs were checked on it.",
+                "--said-by",
+                "anna",
+            ],
+        )
+        .success()
+        .stdout(contains("DEC-001: added (approved)"))
+        .stderr(contains("ruled out: FND-001"));
+    assert_eq!(decision_files(&project), 1);
+}
+
+#[test]
+fn a_related_decision_in_force_refusal_names_its_revisit_if() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &[
+            "decide",
+            MESH_DECISION,
+            "--reason",
+            "The rig runs were checked on it.",
+            "--revisit-if",
+            "the solver supports sliding meshes",
+        ],
+    );
+
+    project
+        .run(
+            "anna-claude",
+            &[
+                "decide",
+                "Rebuild the mesh on every run for the rig.",
+                "--reason",
+                "Each run starts from a clean mesh.",
+                "--said-by",
+                "anna",
+            ],
+        )
+        .failure()
+        .code(1)
+        .stderr(contains(
+            "DEC-001 Keep the mesh fixed for the rig. — revisit if: the solver supports sliding meshes",
+        ));
+    assert_eq!(decision_files(&project), 1, "nothing was written");
 }

@@ -16,6 +16,7 @@ use crate::error::{Code, Error, Result};
 use crate::glossary;
 use crate::names::{self, Who};
 use crate::output::Output;
+use crate::ruled;
 use crate::select::{self, Query};
 use crate::store::{self, Item};
 use crate::tx::{self, Change, Tx};
@@ -54,6 +55,9 @@ pub struct Args {
     /// The new decision stands next to the related ones (an LLM states this instead of --replaces)
     #[arg(long)]
     pub besides: bool,
+    /// When what this decision rules out should be looked at again (R-RULED-1)
+    #[arg(long, value_name = "CONDITION")]
+    pub revisit_if: Option<String>,
     /// The decision binds the whole project, not one milestone; it is written with `standing: yes`
     #[arg(long)]
     pub standing: bool,
@@ -82,7 +86,9 @@ pub struct Args {
 /// supersedes the old one in the same transaction; a proposal cannot replace one, which is refused
 /// before anything is written. The output is `<ID>: added (<status>)`, or
 /// `<ID>: proposed (...)` when the decision is only a proposal (see `announce`), and a second line
-/// `<old ID>: superseded by <ID>` when one was replaced.
+/// `<old ID>: superseded by <ID>` when one was replaced. The ruled-out entries most related to the
+/// decision (R-RULED-2) are warnings after the related decisions, and the data holds them as
+/// `ruled_out`; they never refuse.
 pub fn run(args: &Args, g: &Global) -> Result<Output> {
     if args.replaces.is_some() && args.besides {
         return Err(Error::new(
@@ -108,7 +114,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
             }
         }
         let mut new = new_decision(args);
-        let related = find_related(
+        let (related, ruled_out) = find_related(
             &tx.ctx().dossier,
             &tx.ctx().cfg.code,
             &search_query(args, &new.title),
@@ -116,10 +122,10 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
 
         // An LLM names the person who decided it; without one, create refuses the decision
         // itself, so the related decisions are only asked about for a decision that could be
-        // recorded.
+        // recorded. Ruled-out entries alone never refuse.
         let llm_with_said_by = who.is_llm && non_empty(args.said_by.as_deref()).is_some();
         if llm_with_said_by && !related.is_empty() && replaced.is_none() && !args.besides {
-            return Err(Error::new(Code::Refused, refusal(&related)));
+            return Err(Error::new(Code::Refused, refusal(&related, &ruled_out)));
         }
 
         let replaced_id = replaced.as_ref().map(|old| old.entry.id());
@@ -150,11 +156,15 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
                 .iter()
                 .map(|(related_id, title)| json!({"id": related_id, "title": title}))
                 .collect::<Vec<_>>(),
+            "ruled_out": ruled_out,
         });
         let output = Output::with(lines.join("\n"), data);
-        Ok(shown.iter().fold(output, |output, (related_id, title)| {
+        let output = shown.iter().fold(output, |output, (related_id, title)| {
             output.warn(format!("related: {related_id} {title}"))
-        }))
+        });
+        Ok(ruled_out
+            .iter()
+            .fold(output, |output, line| output.warn(line.clone())))
     })
 }
 
@@ -174,7 +184,8 @@ fn announce(id: &str, status: Status, entry: &Entry) -> Result<String> {
 }
 
 /// The entry that `decide` asks to create: the decision and its reason, the rejected options
-/// when given, the tags, topic, code, task and standing mark when given, and the person who said it.
+/// when given, the tags, topic, code, task, revisit-if and standing mark when given, and the person
+/// who said it.
 fn new_decision(args: &Args) -> New {
     let mut sections = vec![
         ("Decision".to_string(), args.decision.clone()),
@@ -201,6 +212,9 @@ fn new_decision(args: &Args) -> New {
     }
     if let Some(task) = non_empty(args.task.as_deref()) {
         fields.push(("task".to_string(), task.to_uppercase()));
+    }
+    if let Some(condition) = non_empty(args.revisit_if.as_deref()) {
+        fields.push((ruled::REVISIT_IF.to_string(), condition));
     }
     if args.standing {
         fields.push(("standing".to_string(), "yes".to_string()));
@@ -251,24 +265,34 @@ fn search_query(args: &Args, title: &str) -> Query {
     Query { tags, words }
 }
 
-/// The approved decisions most related to the query, best first, as (ID, title). The query is
-/// widened by the project's glossary (`code` names it when it is missing); a glossary that cannot
-/// be read adds no terms. The store's warnings about files it could not read are not shown here.
-fn find_related(dossier: &Path, code: &str, query: &Query) -> Vec<(String, String)> {
+/// The approved decisions most related to the query, best first, as (ID, `ruled::titled`), and the
+/// ruled-out entries most related to it as `ruled::lines` (R-RULED-2). Both come from one reading
+/// of the entries and one widened query (`code` names the glossary when it is missing); a glossary
+/// that cannot be read adds no terms. The store's warnings about files it could not read are not
+/// shown here.
+fn find_related(dossier: &Path, code: &str, query: &Query) -> (Vec<(String, String)>, Vec<String>) {
     let (items, _warnings) = store::all(dossier);
-    let approved: Vec<Item> = items
-        .into_iter()
-        .filter(|item| item.entry.kind() == Some(Kind::Decision))
-        .filter(|item| item.entry.status() == Some(Status::Approved))
-        .collect();
+    let mut approved: Vec<Item> = Vec::new();
+    let mut ruled_out: Vec<Item> = Vec::new();
+    for item in items {
+        if item.entry.kind() == Some(Kind::Decision)
+            && item.entry.status() == Some(Status::Approved)
+        {
+            approved.push(item);
+        } else if ruled::is_ruled_out(&item) {
+            ruled_out.push(item);
+        }
+    }
     let terms = glossary::load(dossier, code)
         .map(|(file, _)| glossary::terms(&file))
         .unwrap_or_default();
     let widened = select::widened(query, &terms);
-    select::top(&approved, &widened, RELATED_LIMIT)
+    let related = select::top(&approved, &widened, RELATED_LIMIT)
         .into_iter()
-        .map(|item| (item.entry.id(), item.entry.title()))
-        .collect()
+        .map(|item| (item.entry.id(), ruled::titled(&item.entry)))
+        .collect();
+    let lines = ruled::lines(&ruled_out, &widened, ruled::RULED_LIMIT);
+    (related, lines)
 }
 
 /// What `--replaces` needs of the old entry: a decision that is approved. Otherwise
@@ -346,11 +370,12 @@ fn close_replaced(tx: &mut Tx, old: Item, new_id: &str, who: &Who) -> String {
     format!("{old_id}: superseded by {new_id}")
 }
 
-/// The refusal of an LLM's decision that stands next to related ones: the related decisions,
-/// then what the LLM must state.
-fn refusal(related: &[(String, String)]) -> String {
+/// The refusal of an LLM's decision that stands next to related ones: the related decisions, then
+/// the ruled-out lines (R-RULED-2), then what the LLM must state.
+fn refusal(related: &[(String, String)], ruled_out: &[String]) -> String {
     let mut lines = vec!["related decisions in force:".to_string()];
     lines.extend(related.iter().map(|(id, title)| format!("{id} {title}")));
+    lines.extend(ruled_out.iter().cloned());
     lines.push("state --replaces <ID> or --besides".to_string());
     lines.join("\n")
 }
