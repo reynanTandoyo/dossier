@@ -12640,6 +12640,410 @@
 - note (2026-11-27, planner): added
 - note (2026-11-27, planner): done — Released 1.3.3: help planner asks for two to five tags per entry (D58); checked on Windows, WSL and CI.
 
+### T-604 · Entries say what comes next: revisit-if, settle-by, typed links, lesson checks and sweep
+- status: open
+- owner: —
+- priority: P2 · type: milestone
+- goal: R-RULED-1 to R-RULED-3, R-WRITE-17, R-WRITE-18, R-ENTRY-21, R-CTX-17 to R-CTX-19, R-SWEEP-1 and R-SWEEP-2 hold, and R-WRITE-9, R-FIND-5 and R-CHECK-1 cover typed links (D59 to D63): a ruled-out option says when to look at it again and is shown when the question comes back; an open assumption names what would settle it; a link can say refines or contradicts, and a contradiction between entries in force shows in status; a lesson names the check that carries it, owed or checked; sweep lists entries in force that look alike and changes nothing. TEST-15 passes and version 1.4.0 is ready to tag.
+- why: The owner had the toppingout logbook studied on 2026-11-27 and chose five of its eleven ideas (D59 to D63); six were rejected or put off (D64).
+- summary: Five small additions taken from a study of another team's logbook: entries can say when a ruled-out option is looked at again, what would settle an assumption, how two entries stand to each other and which test guards a lesson, and one command lists entries that look alike.
+- note (2026-11-27, planner): added
+
+### T-605 · requirements.md, format.md and design.md: revisit-if, settle-by, typed links, lesson checks and sweep (D59 to D64)
+- status: done
+- owner: planner
+- priority: P2 · difficulty: 3 · type: docs
+- milestone: T-604
+- why: Every task of this milestone names the requirements, the fields and the functions it builds.
+- summary: The requirements, the file format and the design describe the five additions, so each worker task can point to them.
+- final: Writing requirements, format and design is the planner's work.
+- files: docs/requirements.md, docs/format.md, docs/design.md
+- read: docs/requirements.md, docs/format.md, docs/design.md, DOSSIER/decisions
+- steps:
+  1. requirements.md: add D59 to D64 as recorded in the dossier (DEC-059 to DEC-064); add R-RULED-1 to 3, R-WRITE-17 and 18, R-ENTRY-21, R-CTX-17 to 19, R-SWEEP-1 and 2 and TEST-15; extend R-WRITE-9, R-FIND-5, R-CHECK-1, R-SAID-1 and the planner part of R-AGENT-1; add the release section for version 1.4.
+  2. format.md: add section 38 with the seven new fields, their place in the field order and the new history details; old files read unchanged.
+  3. design.md: add section 25 with the module ruled.rs, the changes to links.rs and the two new commands checked and sweep.
+- accept: requirements.md defines the new requirements and names D59 to D64; format.md section 38 fixes the seven fields; design.md section 25 fixes the functions each task fills in.
+- commit: d41b0d8
+- reqs: R-RULED-1 to R-RULED-3, R-WRITE-17, R-WRITE-18, R-ENTRY-21, R-CTX-17 to R-CTX-19, R-SWEEP-1, R-SWEEP-2, TEST-15
+- by: Reynan Henry Tandoyo
+- note (2026-11-27, planner): added
+- note (2026-11-27, planner): done — The requirements, the file format and the design describe the five additions; each worker task points to them.
+
+### T-606 · Field order and check know the seven new fields
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: feature
+- milestone: T-604
+- why: Every command of this milestone writes one of the new fields; they need a fixed place in the entry file, and check must not let a typed link point to nothing.
+- summary: New fields get their fixed place in an entry file, and the check command reports a typed link that points to an entry that does not exist.
+- files: src/entry/new.rs, src/cmd/check.rs, tests/cmd_check.rs
+- read: docs/format.md, docs/design.md
+- steps:
+  1. src/entry/new.rs: FIELD_ORDER becomes `[&str; 54]`. Add `"check"` and `"check-state"` directly after `"confidence"`; `"refines"`, `"refined-by"` and `"contradicts"`, in this order, directly after `"related"`; `"revisit-if"` directly after `"declined-reason"`; `"settle-by"` directly after `"refuted"`. Extend the doc comment above the constant: the fields of format.md section 38 are placed as that section says. If a test in this file counts or lists the fields, update it.
+  2. src/cmd/check.rs, function `entry_problems`, the array `links`: after the line `("related", entry.list("related")),` add `("refines", entry.list("refines")),`, `("refined-by", entry.list("refined-by")),` and `("contradicts", entry.list("contradicts")),`. Extend the comment above the array to name format.md section 38.
+  3. tests/cmd_check.rs: add two tests. (a) For each of the fields `refines`, `refined-by` and `contradicts`: a person writes a decision, then `set DEC-001 --field <field>=DEC-099`; `check` exits with code 1 and its output holds `LINK` and `<field> names DEC-099, which does not exist`. (b) A person writes an assumption, then `set ASM-001 --field "settle-by=the rig test in March"`; the entry file holds the line `- settle-by: the rig test in March`, and `check` reports nothing about ASM-001. Tests use the helpers the test file already has (common::Project, the people anna and ben, the LLM anna-claude, the fixed clock) and invented text only.
+  4. Run cargo test --lib entry:: and cargo test --test cmd_check.
+- accept: FIELD_ORDER holds the seven fields of format.md section 38 in their places, and check reports a refines, refined-by or contradicts field that names a missing entry.
+- verify: cargo test --test cmd_check
+- reqs: R-CHECK-1, R-WRITE-9
+- note (2026-11-27, planner): added
+
+### T-607 · ruled.rs: which entries rule something out, and the line shown for each
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: feature
+- milestone: T-604
+- why: decide and search show what was ruled out before, with the condition for looking again; both use this one module so they show the same.
+- summary: A small library module decides whether an entry rules something out and builds the line that names it with its condition.
+- files: src/ruled.rs, src/lib.rs
+- read: docs/design.md, src/links.rs, src/select.rs
+- steps:
+  1. src/lib.rs: add `pub mod ruled;` in alphabetical order.
+  2. src/ruled.rs: a module comment naming R-RULED-2 and D59, then the two constants and four functions exactly as docs/design.md section 25.2 gives them, with those doc comments. `is_ruled_out`: kind Decision and status Declined; or kind Finding, status Approved and the field `outcome`, trimmed, equal to `dead end`. `condition`: the field REVISIT_IF trimmed; None when it is missing or empty. `titled`: the trimmed title, and when there is a condition `format!("{title} — revisit if: {condition}")`. `lines`: `select::top(items, query, limit)`, each item as `ruled out: <ID> <titled>`; an item with no condition as `ruled out: <ID> <title> — no condition recorded`. Imports: `crate::entry::{Entry, Kind, Status}`, `crate::select::{self, Query}`, `crate::store::Item`.
+  3. Unit tests at the end of the file, built like the tests of src/links.rs (copy its helper `item` and adapt it): a declined decision and an approved dead-end finding are ruled out; an approved decision, a proposed decision, an approved finding without outcome and a draft dead-end finding are not; `condition` trims and is None for an empty field; `titled` with and without a condition; `lines` gives the best match first, keeps to the limit, and writes both forms of the line; a query with no words and no tags gives no lines.
+  4. Run cargo test --lib ruled::.
+- accept: src/ruled.rs has the constants and functions of design.md section 25.2 with unit tests, and the crate builds without warnings.
+- verify: cargo test --lib ruled::
+- reqs: R-RULED-2
+- note (2026-11-27, planner): added
+
+### T-608 · decide: --revisit-if, and what was ruled out before
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: feature
+- milestone: T-604
+- why: decide showed only the decisions in force, so a dead end or a declined proposal on the same question was not seen when the question came back (D59).
+- summary: When a decision is recorded, dossier also shows the related dead ends and declined proposals with the condition for looking at them again, and a decision can carry such a condition itself.
+- depends: T-607, T-606
+- files: src/cmd/decide.rs, tests/cmd_decide.rs, tests/cmd_decide_related.rs
+- read: docs/design.md, docs/requirements.md, src/select.rs
+- steps:
+  1. src/cmd/decide.rs, Args: add `/// When what this decision rules out should be looked at again (R-RULED-1)` `#[arg(long, value_name = "CONDITION")] pub revisit_if: Option<String>`. In `new_decision`, push `("revisit-if".to_string(), value)` when `non_empty(args.revisit_if.as_deref())` gives a value.
+  2. `find_related` returns `(Vec<(String, String)>, Vec<String>)` and still reads the entries once. Split the items of `store::all`: the approved decisions as now; of all other items, those that pass `ruled::is_ruled_out` go into a second `Vec<Item>`. The first part of the result is `select::top(&approved, &widened, RELATED_LIMIT)` as (ID, `ruled::titled(&item.entry)`); the second is `ruled::lines(&ruled_out, &widened, ruled::RULED_LIMIT)`. Add `use crate::ruled;` and update the doc comment.
+  3. `run`: bind `let (related, ruled_out) = find_related(…)`. The condition for refusing stays as it is (it looks at `related` only). `refusal(&related, &ruled_out)`: after the related lines and before the last line `state --replaces <ID> or --besides`, one line per ruled-out line. On success, after the `related:` warnings add one warning per ruled-out line (the line as `ruled::lines` gives it), and add `"ruled_out": ruled_out` to the data. Update the doc comments of `run` and `refusal`.
+  4. tests/cmd_decide.rs: add tests. (a) A person's `decide … --revisit-if "the solver supports sliding meshes"` writes the line `- revisit-if: the solver supports sliding meshes`. (b) `found --dead-end` with a title that shares its rare words with the decision that follows, then `set FND-001 --field "revisit-if=the mesh is rebuilt"`; a person's `decide` on those words succeeds and its output holds `ruled out: FND-001` and `revisit if: the mesh is rebuilt`. (c) The same without the field: the output holds `no condition recorded`. (d) A dead end about something else is not named. (e) anna-claude with `--said-by anna`, no decision in force that is related and one related dead end: the decision is written, not refused. (f) anna-claude with `--said-by anna` and a related decision in force that carries `revisit-if`: the refusal names that decision followed by ` — revisit if: ` and its condition. See how the file already checks the `related:` warnings and do the same. Tests use the helpers the test file already has (common::Project, the people anna and ben, the LLM anna-claude, the fixed clock) and invented text only.
+  5. tests/cmd_decide_related.rs: change only what the new output breaks (a related title now ends with its condition when it has one; the data has `ruled_out`).
+  6. Run cargo test --test cmd_decide and cargo test --test cmd_decide_related.
+- accept: decide --revisit-if writes the field; decide lists related dead ends and declined proposals with their condition, in its result and in its refusal, and never refuses because of them alone.
+- verify: cargo test --test cmd_decide && cargo test --test cmd_decide_related
+- reqs: R-RULED-1, R-RULED-2, R-CTX-13
+- note (2026-11-27, planner): added
+
+### T-609 · propose and decline: --revisit-if
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: feature
+- milestone: T-604
+- why: A declined proposal is the clearest case of something ruled out; whoever declines it knows best what would change the answer (D59).
+- summary: A proposal, and the decision to decline it, can say under which condition the idea should be looked at again.
+- depends: T-606
+- files: src/cmd/propose.rs, src/cmd/decline.rs, tests/cmd_decline.rs
+- read: docs/design.md, docs/requirements.md
+- steps:
+  1. src/cmd/propose.rs, Args: add `/// When this should be looked at again if it is declined, or what would reopen what it rejects (R-RULED-1)` `#[arg(long, value_name = "CONDITION")] pub revisit_if: Option<String>`. In `new_proposal`, push `("revisit-if".to_string(), value)` when `non_empty(args.revisit_if.as_deref())` gives a value.
+  2. src/cmd/decline.rs, Args: add `/// When the declined proposal should be looked at again (R-RULED-1)` `#[arg(long, value_name = "CONDITION")] pub revisit_if: Option<String>`. In `run`, directly after `entry.set_field("declined-reason", reason);`: when the option, trimmed, is not empty, `entry.set_field("revisit-if", <trimmed value>);`. The history line and the journal line stay as they are. Update the module comment and the doc comment of `run`.
+  3. tests/cmd_decline.rs: add tests. (a) `propose … --revisit-if "the team grows past five"` writes the line `- revisit-if: the team grows past five`. (b) `decline DEC-001 --reason … --revisit-if "the licence allows it"`, run the way the file's other tests run decline: the entry has `status: declined`, the declined-reason and `- revisit-if: the licence allows it`, with exactly one new history line. (c) A proposal that has a condition keeps it when it is declined without the option; declined with the option, the new condition replaces it. Tests use the helpers the test file already has (common::Project, the people anna and ben, the LLM anna-claude, the fixed clock) and invented text only.
+  4. Run cargo test --test cmd_decline and cargo test --test cmd_propose.
+- accept: propose and decline take --revisit-if and write the field revisit-if; decline writes it in the same change as the reason.
+- verify: cargo test --test cmd_decline && cargo test --test cmd_propose
+- reqs: R-RULED-1
+- note (2026-11-27, planner): added
+
+### T-610 · found --dead-end: --revisit-if
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: feature
+- milestone: T-604
+- why: A dead end says what did not work; with a condition it also says when trying again makes sense (D59).
+- summary: A dead end can say under which condition the failed approach is worth another look.
+- depends: T-606
+- files: src/cmd/found.rs, tests/cmd_found.rs
+- read: docs/design.md, docs/requirements.md
+- steps:
+  1. src/cmd/found.rs, Args: add `/// When the dead end should be looked at again; only with --dead-end (R-RULED-1)` `#[arg(long, value_name = "CONDITION")] pub revisit_if: Option<String>`.
+  2. `run`: after the check of the empty observation and before `Ctx::load`, when `trimmed(args.revisit_if.as_deref())` gives a value and `args.dead_end` is false, return `Err(Error::new(Code::Usage, "--revisit-if needs --dead-end"))`.
+  3. `new_finding`: directly after the push of `outcome`, push `pair("revisit-if", value)` when the option, trimmed, is not empty. Update the doc comment.
+  4. tests/cmd_found.rs: add tests. (a) `found --dead-end "…" --revisit-if "the solver is updated"` writes `- outcome: dead end` and `- revisit-if: the solver is updated`. (b) `found "…" --revisit-if "x"` without --dead-end exits with code 2, the message holds `--revisit-if needs --dead-end`, and no entry is written. (c) `found --dead-end` without the option writes no revisit-if line. Tests use the helpers the test file already has (common::Project, the people anna and ben, the LLM anna-claude, the fixed clock) and invented text only.
+  5. Run cargo test --test cmd_found.
+- accept: found --dead-end --revisit-if writes the field; without --dead-end the option is refused as wrong usage.
+- verify: cargo test --test cmd_found
+- reqs: R-RULED-1
+- note (2026-11-27, planner): added
+
+### T-611 · assume: --settle-by
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: feature
+- milestone: T-604
+- why: Open assumptions pile up because nothing says how one gets settled (D60).
+- summary: An assumption can name the test, measurement or person that would confirm or refute it.
+- depends: T-606
+- files: src/cmd/assume.rs, tests/cmd_assume.rs
+- read: docs/design.md, docs/requirements.md
+- steps:
+  1. src/cmd/assume.rs, Args: add `/// The test, measurement or person that would confirm or refute it (R-WRITE-17)` `#[arg(long, value_name = "TEXT")] pub settle_by: Option<String>`.
+  2. Function `fields`: before `fields` is returned, when the option, trimmed, is not empty, `fields.push(pair("settle-by", <trimmed value>));`. Update the doc comment.
+  3. tests/cmd_assume.rs: add tests. (a) `assume "…" --reason "…" --settle-by "the rig test in March"` writes the line `- settle-by: the rig test in March`. (b) Without the option, and with an option of spaces only, no settle-by line is written. Tests use the helpers the test file already has (common::Project, the people anna and ben, the LLM anna-claude, the fixed clock) and invented text only.
+  4. Run cargo test --test cmd_assume.
+- accept: assume --settle-by writes the field settle-by; without it nothing changes.
+- verify: cargo test --test cmd_assume
+- reqs: R-WRITE-17
+- note (2026-11-27, planner): added
+
+### T-612 · links.rs: typed links, their order and their labels
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: feature
+- milestone: T-604
+- why: search, brief --task, which --binding and status must all show typed links the same way, so the rule lives in one module (D61, D53).
+- summary: The library knows the four kinds of link, shows contradictions first, names each link by its type, and finds the pairs of entries that contradict each other.
+- files: src/links.rs
+- read: docs/design.md, docs/format.md
+- steps:
+  1. src/links.rs: add `pub const LINK_FIELDS` exactly as docs/design.md section 25.4 gives it, with its doc comment. Remove the private constant RELATED if nothing uses it any more.
+  2. `linked`: same signature. Walk the fields of LINK_FIELDS in their order and, within a field, the IDs in the order of the field; keep the rules it has now (approved entries only, never the entry itself, each entry once, unknown IDs skipped, stop at `limit`). Update its doc comment.
+  3. Add `pub fn field_of(entry: &Entry, other: &Item) -> &'static str`: the first field of LINK_FIELDS whose list holds the ID of `other`, ignoring case; `"related"` when none does. Add `pub fn label(entry: &Entry, other: &Item) -> &'static str`: the second part of the LINK_FIELDS pair whose first part is `field_of(entry, other)`. Add `pub fn typed_line(entry: &Entry, item: &Item) -> String`: `format!("  {}: {} · {}", label(entry, item), item.entry.id(), item.entry.title().trim())`. Leave `line` as it is.
+  4. Add `pub fn contradictions<'a>(items: &[&'a Item]) -> Vec<(&'a Item, &'a Item)>`: every pair of items with status Approved of which at least one names the other in its `contradicts` field, ignoring case; each pair once, the item that comes first in `items` first, the pairs in the order of `items`.
+  5. Unit tests in the file, with its existing helpers: `linked` puts a contradicts entry before a refines entry before a refined-by entry before a related one, and still stops at three; an entry named in two fields is shown once; `field_of`, `label` and `typed_line` for each of the four fields and for an entry that is not named; `contradictions` gives one pair for two approved entries where only one names the other, one pair when both name each other, and none when one of the two is not approved. The existing tests pass unchanged.
+  6. Run cargo test --lib links::.
+- accept: links.rs has LINK_FIELDS, field_of, label, typed_line and contradictions as design.md section 25.4 fixes them, and linked walks the four fields in order.
+- verify: cargo test --lib links::
+- reqs: R-FIND-5, R-CTX-18
+- note (2026-11-27, planner): added
+
+### T-613 · link: --as refines and --as contradicts
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: feature
+- milestone: T-604
+- why: A plain link does not say that one entry narrows another or that two pull against each other (D61).
+- summary: Two entries can be linked with a type: one refines the other, or the two contradict each other.
+- depends: T-606
+- files: src/cmd/link.rs, tests/cmd_link.rs
+- read: docs/design.md, docs/format.md, docs/requirements.md
+- steps:
+  1. src/cmd/link.rs, Args: add `/// The type of the link: refines (the first entry narrows the second) or contradicts; without it a plain related link (R-WRITE-9)` `#[arg(long = "as", value_name = "TYPE")] pub as_type: Option<String>`.
+  2. `run`, before the transaction: from the option, trimmed and in lower case, take three values: the field written into A, the field written into B, and the name of the type. None: `related`, `related`, `related`. `refines`: `refines`, `refined-by`, `refines`. `contradicts`: `contradicts`, `contradicts`, `contradicts`. Anything else: `Err(Error::new(Code::BadValue, "--as takes refines or contradicts"))`.
+  3. `names` and `relate` take the field as a parameter instead of the constant RELATED. The detail of the history line and of the journal line is the field with `-` written as a space, then the other ID: `related FND-001`, `refines FND-001`, `refined by DEC-001`, `contradicts FND-001`. A names B when A's field for this type holds B; B names A when B's field for this type holds A.
+  4. The text: without a type `<A> and <B>: linked` as now; with refines `<A> refines <B>`; with contradicts `<A> contradicts <B>`; `already linked` when both sides already hold the link of this type. The data gains `"as"` with the name of the type. Update the module comment and the doc comments (R-WRITE-9, D61).
+  5. tests/cmd_link.rs: add tests. (a) `link DEC-001 FND-001 --as refines`: stdout is `DEC-001 refines FND-001\n`; DEC-001 has the line `- refines: FND-001` and one new history line ending in `changed — refines FND-001`; FND-001 has `- refined-by: DEC-001` and one new history line ending in `changed — refined by DEC-001`; taking the new lines away gives back the old text of each file, as the first test of the file checks for a plain link. (b) `--as contradicts`: both files get a `- contradicts:` line naming the other; stdout `DEC-001 contradicts FND-001\n`. (c) A second run of (a) prints `already linked` and adds no journal line. (d) `--as supersedes` fails with the exit code the file's test of a link to itself expects, and the message `--as takes refines or contradicts`; nothing is written. (e) A plain `link` after (b) still adds each entry to the other's related field. Tests use the helpers the test file already has (common::Project, the people anna and ben, the LLM anna-claude, the fixed clock) and invented text only.
+  6. Run cargo test --test cmd_link.
+- accept: link --as refines writes refines and refined-by, link --as contradicts writes contradicts on both sides, a second run changes nothing, and a plain link works as before.
+- verify: cargo test --test cmd_link
+- reqs: R-WRITE-9, TEST-15
+- note (2026-11-27, planner): added
+
+### T-614 · brief --task and which --binding show the type of a link
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: feature
+- milestone: T-604
+- why: An LLM that is shown an entry before an edit must see that another entry contradicts it, not only that the two are linked (D61, D51).
+- summary: Where entries are shown for a task or before an edit, a linked entry says whether it contradicts, refines or is only related.
+- depends: T-612
+- files: src/brief_task.rs, src/cmd/which.rs, tests/cmd_which.rs
+- read: docs/design.md, src/links.rs
+- steps:
+  1. src/brief_task.rs, function `insert_linked`: replace `.map(links::line)` by `.map(|found| links::typed_line(&item.entry, found))`. Update the doc comment.
+  2. src/cmd/which.rs, in the loop over `binding`: replace `lines.push(links::line(other));` by `lines.push(links::typed_line(entry, other));`, and give each object of `linked_json` a third key `"type": links::field_of(entry, other)`. Update the doc comments that name `links::line`.
+  3. tests/cmd_which.rs: add one test. Two decisions by a person; the first has `--code src/pump.rs` (create that file in the project folder as the file's other tests do); then `set DEC-001 --field contradicts=DEC-002`. `which src/pump.rs --binding` prints the line `  contradicts: DEC-002 · <title of DEC-002>` under DEC-001, and with `--json` the linked entry has `"type": "contradicts"`. The existing tests of `linked:` lines pass unchanged; where one compares the whole JSON of a linked entry, add `"type": "related"`. Tests use the helpers the test file already has (common::Project, the people anna and ben, the LLM anna-claude, the fixed clock) and invented text only.
+  4. Run cargo test --test cmd_which and cargo test --test cmd_brief.
+- accept: brief --task and which --binding print contradicts:, refines:, refined by: or linked: before a linked entry, and which --json names the type.
+- verify: cargo test --test cmd_which && cargo test --test cmd_brief
+- reqs: R-FIND-5
+- note (2026-11-27, planner): added
+
+### T-615 · search: the condition of a ruled-out entry, and the type of a link
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: feature
+- milestone: T-604
+- why: Whoever searches and finds a dead end should see at once when it is worth another look, and whether a linked entry contradicts the result (D59, D61).
+- summary: Search results show the condition for looking again under an entry that has one, and name the type of each linked entry.
+- depends: T-607, T-612
+- files: src/cmd/search.rs, tests/cmd_search.rs
+- read: docs/design.md, src/links.rs, src/select.rs
+- steps:
+  1. src/cmd/search.rs: `linked_for` maps with `|item| linked_of(entry, item)`; `linked_of` becomes `fn linked_of(entry: &Entry, item: &Item) -> Linked`, with the line `links::typed_line(entry, item)` and the data `json!({"id": …, "title": …, "type": links::field_of(entry, item)})`.
+  2. `result_line`: directly before `push_linked(&mut text, hit);`, when `ruled::condition(&hit.item.entry)` gives a condition, append the line `  revisit if: <condition>` and a line break. Add `use crate::ruled;`.
+  3. The JSON data of a result (where `"linked": linked` is set): add `"revisit_if": ruled::condition(entry)`, which is null when there is none.
+  4. Update the module comment and the doc comments that name `links::line` (R-RULED-3, R-FIND-5).
+  5. tests/cmd_search.rs: add tests. (a) A dead end (`found --dead-end`) that got `set FND-001 --field "revisit-if=the mesh is rebuilt"` and a plain link to a decision: the search result is followed by the line `  revisit if: the mesh is rebuilt` and then by its `  linked:` line; with `--json` the result has `"revisit_if": "the mesh is rebuilt"`, and a result without the field has null. (b) A decision with a plain link to one entry and `set DEC-001 --field contradicts=DEC-003` to another: under the result the `  contradicts:` line comes before the `  linked:` line, and in JSON the two linked entries have the types `contradicts` and `related`. Where an existing test compares the whole JSON of a linked entry, add `"type": "related"`. Tests use the helpers the test file already has (common::Project, the people anna and ben, the LLM anna-claude, the fixed clock) and invented text only.
+  6. Run cargo test --test cmd_search and cargo test --test retrieval.
+- accept: search prints `  revisit if: <condition>` under a result that carries the field, shows typed links with their type and contradictions first, and gives both in JSON.
+- verify: cargo test --test cmd_search && cargo test --test retrieval
+- reqs: R-RULED-3, R-FIND-5, TEST-15
+- note (2026-11-27, planner): added
+
+### T-616 · brief: an open assumption says what would settle it
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: feature
+- milestone: T-604
+- why: The brief is what every session starts with; an assumption shown there with its test gets settled sooner (D60).
+- summary: The session brief shows, next to each open assumption, the test or person that would settle it.
+- files: src/cmd/brief.rs, tests/cmd_brief.rs
+- read: docs/design.md, docs/requirements.md
+- steps:
+  1. src/cmd/brief.rs: add `/// The text after an open assumption that says what would settle it (R-CTX-17): the settle-by field with the words before it, or nothing.` `fn settle_suffix(entry: &Entry) -> String`: `format!(" — settle by: {text}")` when the field `settle-by`, trimmed, is not empty; otherwise an empty string.
+  2. Where the lines of the open assumptions are built (`assumptions: shown(items, Kind::Assumption, day)` … `.map(|item| line(&item.entry, &review_marks(&ctx.state, item), &wrong))`): pass as the suffix the settle text followed by the review marks, so the line reads `<ID> · <title> — settle by: <text>` and then its marks. Change nothing for the other kinds. Add one sentence to the module comment.
+  3. tests/cmd_brief.rs: add tests. (a) A person writes an assumption, then `set ASM-001 --field "settle-by=the rig test in March"`: `brief` prints the assumption's line ending in ` — settle by: the rig test in March`. (b) An assumption without the field is printed as before. Tests use the helpers the test file already has (common::Project, the people anna and ben, the LLM anna-claude, the fixed clock) and invented text only.
+  4. Run cargo test --test cmd_brief.
+- accept: brief prints ` — settle by: <text>` at the end of the line of each open assumption that carries settle-by.
+- verify: cargo test --test cmd_brief
+- reqs: R-CTX-17
+- note (2026-11-27, planner): added
+
+### T-617 · status: what would settle an assumption, lessons that owe a check, and contradictions
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: feature
+- milestone: T-604
+- why: status is where a person or an LLM asks what is unsettled; the three new kinds of unsettled things belong there (D60, D61, D62).
+- summary: The status of a project shows what would settle each open assumption, how many lessons still have no test that guards them, and which entries contradict each other.
+- depends: T-612
+- files: src/cmd/status.rs, tests/cmd_status.rs
+- read: docs/design.md, docs/requirements.md, src/links.rs
+- steps:
+  1. src/cmd/status.rs, the section `## Open assumptions` in `project_screen`: each line becomes `format!("{}{}{}", heading_of(item), settle, due_mark(&item.entry))`, where `settle` is ` — settle by: <text>` when the field `settle-by`, trimmed, is not empty, and empty otherwise (a small private function `settle_suffix(entry: &Entry) -> String`).
+  2. `struct Unsettled`: add `no_settle: usize` (open assumptions with no settle-by), `owed: usize` (approved lessons that owe a check) and `contradictions: Vec<(String, String)>`, each with a doc comment. `count_unsettled`: an open assumption without a settle-by adds one to `no_settle`; an approved entry of kind Lesson whose field `check`, trimmed, is not empty and whose field `check-state`, trimmed, is not `checked` adds one to `owed` (count it in its own `if` before the `match`, so a lesson can also count as changed by hand). In `project_screen`, after `count_unsettled`: `counts.contradictions = links::contradictions(&scope)` mapped to the two IDs of each pair.
+  3. `unsettled_lines`: directly after the line of the open assumptions, when `no_settle` is above zero: `counted(counts.no_settle, "open assumption names nothing that would settle it", "open assumptions name nothing that would settle them")`. After the line of the entries changed by hand, when `owed` is above zero: `format!("{}: dossier list --kind lesson --where check-state=owed", counted(counts.owed, "lesson owes a check", "lessons owe a check"))`. Then one line per contradiction: `<ID> and <ID> contradict each other`. `nothing waiting` stays the only line when there is no other.
+  4. The JSON object `unsettled` gains `"assumptions_without_settle_by"`, `"lessons_owing_a_check"` and `"contradictions"` (a list of two-ID lists). Update the module comment (R-CTX-17 to R-CTX-19) and any unit test in the file that builds `Unsettled` or compares the unsettled lines.
+  5. tests/cmd_status.rs: add tests; the fields are written with `set`, so no other new command is needed. (a) Two open assumptions by a person, one with `set ASM-001 --field "settle-by=the rig test in March"`: its line under `## Open assumptions` ends in ` — settle by: the rig test in March`, and `## Unsettled` holds `1 open assumption names nothing that would settle it`. (b) A person's lesson, then `set LES-001 --field "check=tests/pump.rs::seal" --field check-state=owed`: `## Unsettled` holds `1 lesson owes a check: dossier list --kind lesson --where check-state=owed`; after `set LES-001 --field check-state=checked` the line is gone. (c) Two decisions by a person and `set DEC-001 --field contradicts=DEC-002`: `## Unsettled` holds `DEC-001 and DEC-002 contradict each other`; after DEC-002 is retired, the way the file's other tests retire or supersede an entry, the line is gone. (d) `status --json` has the three new keys under `unsettled`. Tests use the helpers the test file already has (common::Project, the people anna and ben, the LLM anna-claude, the fixed clock) and invented text only.
+  6. Run cargo test --test cmd_status.
+- accept: status prints settle-by on open assumptions and, under Unsettled, the assumptions that name nothing, the lessons that owe a check and each pair of approved entries that contradict each other; status --json has the same.
+- verify: cargo test --test cmd_status
+- reqs: R-CTX-17, R-CTX-18, R-CTX-19, TEST-15
+- note (2026-11-27, planner): added
+
+### T-618 · learn: --check names the check that carries the lesson
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: feature
+- milestone: T-604
+- why: A lesson in a brief is the weakest way to stop a mistake; naming the test or hook that would catch it is the first step to having one (D62).
+- summary: A new lesson can name the test, lint or hook that would catch the mistake it is about; it starts as owed.
+- depends: T-606
+- files: src/cmd/learn.rs, tests/cmd_learn.rs
+- read: docs/design.md, docs/format.md, docs/requirements.md
+- steps:
+  1. src/cmd/learn.rs, Args: add `/// Where the check is that catches the mistake: a test, a lint rule, a hook or a step of a review; the lesson then owes this check until dossier checked says it is there (R-WRITE-18)` `#[arg(long, value_name = "TEXT", conflicts_with = "update")] pub check: Option<String>`.
+  2. Function `lesson`: when `given(args.check.as_deref())` gives a value, push `("check".to_string(), <that value>)` and `("check-state".to_string(), "owed".to_string())` to `fields`. Update the doc comment.
+  3. tests/cmd_learn.rs: add tests. (a) A person's `learn … --check "tests/pump.rs::seal_leak"` writes the lines `- check: tests/pump.rs::seal_leak` and `- check-state: owed`, directly after the confidence line. (b) Without the option neither line is written. (c) `--check` together with `--update LES-001` exits with code 2 and writes nothing. (d) An LLM's `learn … --check …` is a draft that holds both lines. Tests use the helpers the test file already has (common::Project, the people anna and ben, the LLM anna-claude, the fixed clock) and invented text only.
+  4. Run cargo test --test cmd_learn and cargo test --test cmd_learn_similar.
+- accept: learn --check writes check and check-state: owed on a new lesson, and is refused together with --update.
+- verify: cargo test --test cmd_learn && cargo test --test cmd_learn_similar
+- reqs: R-WRITE-18, R-ENTRY-21
+- note (2026-11-27, planner): added
+
+### T-619 · The checked and sweep commands: registered, with help lines and examples
+- status: open
+- owner: —
+- priority: P2 · difficulty: 2 · type: feature
+- milestone: T-604
+- why: Two new commands are registered in the shared command lists; the later tasks fill in their behaviour in their own files.
+- summary: dossier knows the two new commands, shows them in its help with examples, and treats checked as a writing command.
+- final: Registers two commands in ten shared files; cannot be cut to three.
+- files: src/cli.rs, src/cmd/mod.rs, src/cmd/checked.rs, src/cmd/sweep.rs, src/cmd/help.rs, src/examples.rs, src/ctx.rs, src/remote/forward.rs, tests/cmd_agents.rs, tests/cmd_help.rs
+- read: docs/design.md, src/cmd/reviewed.rs, src/cmd/story.rs, src/cli.rs, src/cmd/mod.rs, src/cmd/help.rs, src/examples.rs, src/ctx.rs
+- steps:
+  1. Register `checked` and `sweep` exactly as `handover` and `takeover` are registered (follow commit 171c60a of T-527 in git log): the subcommands in src/cli.rs (`checked` directly after `reviewed`, `sweep` directly after `story`), the modules in src/cmd/mod.rs, a help line each in src/cmd/help.rs (checked: `Says a lesson's check catches its mistake`; sweep: `Lists entries in force that look alike`), three examples each in src/examples.rs in the style of the others (checked: `dossier checked LES-004 --by "the test fails without the fix" --said-by anna` and two more with other IDs and `--check`; sweep: `dossier sweep`, `dossier sweep --limit 5`, `dossier sweep --json`).
+  2. src/cmd/checked.rs: `Args` with `id: String` (positional, the lesson such as LES-004), `#[arg(long)] by: String`, `#[arg(long)] check: Option<String>` and `#[arg(long, value_name = "PERSON")] said_by: Option<String>`, each with a doc comment; `run` returns Code::NotImplemented with the message `checked is not available yet`. src/cmd/sweep.rs: `Args` with `#[arg(long, default_value_t = 20)] limit: usize`; `run` returns Code::NotImplemented with `sweep is not available yet`. The module comments name R-WRITE-18 and D62, and R-SWEEP-1 and D63.
+  3. src/ctx.rs: add `checked` to WRITING (array length +1). src/remote/forward.rs: add `checked` to TERMINAL_COMMANDS (array length +1), and to the test in that file that lists `close` and `reviewed`.
+  4. tests/cmd_agents.rs and tests/cmd_help.rs: update the expected command list and help overview so the two commands appear where the order puts them; `help checked` and `help sweep` show their line and examples.
+  5. Run cargo test --test cmd_agents and cargo test --test cmd_help, then the full checks.
+- accept: checked and sweep are registered commands with help lines and examples, checked is a writing command that asks for a terminal in remote mode, and both still answer not available yet.
+- verify: cargo test --test cmd_agents && cargo test --test cmd_help
+- reqs: R-WRITE-18, R-SWEEP-1, R-OUT-5
+- note (2026-11-27, planner): added
+
+### T-620 · checked: a person says that a lesson's check catches its mistake
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: feature
+- milestone: T-604
+- why: That a check is in place is a claim a person must stand for; once it is made, the lesson no longer counts as owing one (D62, D57).
+- summary: A person, or an LLM with that person's yes, records that the test or hook named by a lesson really catches the mistake.
+- depends: T-619, T-606
+- files: src/cmd/checked.rs, tests/cmd_checked.rs
+- read: docs/design.md, docs/requirements.md, src/cmd/reviewed.rs, tests/cmd_reviewed.rs, src/names.rs
+- steps:
+  1. src/cmd/checked.rs, `run`, built like `run` of src/cmd/reviewed.rs: `Ctx::load(g, "checked")`, the writer, `let said = names::said_by_gate(&who, args.said_by.as_deref(), "checked")?;`, and when `said` is false and `term::is_terminal()` is false, Code::NeedsTerminal with `this command must be run by a person at a terminal`. `--by`, trimmed, must not be empty: Code::BadValue, `say with --by how the check was shown to catch the mistake`.
+  2. In one transaction (`tx::write`): get the entry with `store::get`. Refuse with Code::Refused when its kind is not Lesson (`<ID> is not a lesson`), when its status is neither Draft nor Approved (`<ID> is <status>; only a draft or approved lesson can be checked`), and when `--check`, trimmed, is empty and the field `check`, trimmed, is empty or missing (`<ID> names no check: give --check`).
+  3. Then: set the field `check` when `--check` was given; set `check-state` to `checked`; add a history line with the event `checked` and the `--by` text as detail (`entry.add_history(&time, &who, "checked", by)`); when the lesson is approved and this is not a dry run, `approval::record(&tx.ctx().state, &id, text.as_bytes())?` as `reviewed` does; `tx.put` with `Change { id, event: "checked", detail: by }`. The text is `<ID>: checked`; the data is `{"id", "check", "by"}`. Write the module comment and the doc comments (R-WRITE-18, R-ENTRY-21, D62, D57).
+  4. tests/cmd_checked.rs (new, built like tests/cmd_reviewed.rs). The four ways of TEST-14: anna-claude without --said-by is refused with exit code 1 and a message that holds `--said-by anna`, nothing changed; anna-claude with `--said-by anna`, with no terminal, succeeds: the lesson has `- check-state: checked`, its newest history line holds `anna via anna-claude: checked` and the --by text, and the newest journal line has the person anna, the name anna-claude and `llm` true; anna-claude with `--said-by ben` is refused (`acts for anna only`); the same with `.env("DOSSIER_ROLE", "worker")` on the prepared command is refused (`a worker decides nothing`). Also: `--check` sets the check field of a lesson that had none; a lesson with no check and no `--check` is refused; a decision is refused with `is not a lesson`; after `checked` on an approved lesson, `show` does not mark it `changed after approval`; an empty `--by` is refused.
+  5. Run cargo test --test cmd_checked.
+- accept: checked sets check-state: checked on a lesson for a person or for an LLM with --said-by, records who and how, refuses anything else, and leaves an approved lesson approved and unmarked.
+- verify: cargo test --test cmd_checked
+- reqs: R-WRITE-18, R-SAID-1 to R-SAID-4, TEST-15
+- note (2026-11-27, planner): added
+
+### T-621 · sweep: the pairs of entries in force that look alike, with the rules for judging them
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: feature
+- milestone: T-604
+- why: Duplicates and contradictions were only caught at the moment of writing; nothing ever looked at the entries in force together (D63).
+- summary: One command lists the entries that look alike so that a person can decide which one replaces, contradicts or refines the other. It changes nothing.
+- depends: T-619
+- files: src/cmd/sweep.rs, tests/cmd_sweep.rs
+- read: docs/design.md, docs/requirements.md, src/select.rs, src/cmd/search.rs, src/store.rs
+- steps:
+  1. src/cmd/sweep.rs: the constant RULES exactly as docs/design.md section 25.6 gives it. `run`: `Ctx::load(g, "sweep")`, then `store::all(&ctx.dossier)` once; the store's warnings become warnings of the output. The candidates are the items with status Approved and kind Decision, Finding, Lesson or Howto, in a `Vec<Item>`.
+  2. One `select::Index::of(&candidates)`. For each candidate build the query as `fn similar` of src/cmd/search.rs does: `tags` are the values of its fields `machine`, `analysis`, `software`, `tags` and `topic` (`entry.list(key)`), `words` are `select::words(&entry.title())`. `select::ranked_in(&candidates, &query, &index)` gives (score, item) pairs. Skip the candidate itself (same path). Skip a pair when either entry names the other, ignoring case, in one of the fields `related`, `refines`, `refined-by`, `contradicts`, `supersedes` or `superseded-by`.
+  3. Keep each pair once, whichever side it was found from: the key is the two IDs in the order of the candidates, the value is the higher of the two scores (a BTreeMap or a Vec with a lookup is fine). Sort by score, highest first, then by the first ID, then by the second. Keep at most `args.limit` pairs.
+  4. The text. No pair: `no entries in force look alike`. Otherwise: the first line `<n> pairs of entries in force look alike:` (for one: `1 pair of entries in force looks alike:`), an empty line, then per pair two lines `<ID> · <kind> · <title>` (kind as `Kind::name`) and an empty line, then RULES. The data: `{"pairs": [{"a": {"id", "kind", "title"}, "b": {…}, "score": <number>}…]}`. The command takes no lock and writes nothing: do not use `tx::write`. Write the module comment and the doc comments (R-SWEEP-1, R-SWEEP-2, D63, D7).
+  5. tests/cmd_sweep.rs (new, built like tests/cmd_search.rs). (a) Two decisions by a person whose titles share their rare words, and one about something else: `sweep` prints `1 pair of entries in force looks alike:`, both IDs, and the line `- The same lesson under other conditions (Valid for) is not a duplicate.` of the rules; the third decision is not named. (b) After `link DEC-001 DEC-002` the output is `no entries in force look alike`. (c) A draft that looks like a decision (an LLM's lesson) is not paired. (d) With three look-alike entries, `--limit 1` prints one pair. (e) `--json` has `pairs` with the IDs, the kinds, the titles and a score. (f) The journal has as many lines after `sweep` as before, and every entry file is byte for byte the same. Tests use the helpers the test file already has (common::Project, the people anna and ben, the LLM anna-claude, the fixed clock) and invented text only.
+  6. Run cargo test --test cmd_sweep.
+- accept: sweep lists each pair of look-alike approved entries once, best first, leaves out linked pairs, prints the rules after them, and changes no file.
+- verify: cargo test --test cmd_sweep
+- reqs: R-SWEEP-1, R-SWEEP-2, TEST-15
+- note (2026-11-27, planner): added
+
+### T-622 · Planner rules: revisit-if, settle-by, check, sweep and typed links
+- status: open
+- owner: —
+- priority: P2 · difficulty: 1 · type: feature
+- milestone: T-604
+- why: An option nobody is told about is not used; the planner's rules are where an LLM learns the new options (D59 to D63).
+- summary: The rules for planner LLMs tell them to say when a dead end is worth another look, what would settle an assumption, which test guards a lesson, and to sweep for look-alike entries.
+- depends: T-619
+- files: src/agents/planner.md, tests/cmd_agents.rs
+- read: docs/design.md, docs/requirements.md
+- steps:
+  1. src/agents/planner.md, the line that starts `- Record what you observe with`: add at its end, after the last sentence: ` Add --revisit-if "<condition>" to a dead end when you know what would make it worth another look.` (with the option in backticks, as the other options of the file are written).
+  2. The line that starts `- Record what you had to assume with`: it becomes `- Record what you had to assume with dossier assume "<assumption>" --reason "<why>" --settle-by "<the test, measurement or person that would settle it>".`, with the command in backticks as before.
+  3. The line that starts `- After todo done <id>, run dossier review-task <id>`: add at its end: ` Name the test or hook that would catch the mistake with --check "<where it is>"; with your person's yes, dossier checked <ID> --by "<how it was shown>" --said-by <person> says it is in place.` (commands in backticks).
+  4. Directly after the line that starts `- dossier search lists entries that hold only some of your words`, add one line: `- When entries pile up, run dossier sweep and judge each pair with your person; say how two entries stand to each other with dossier link <A> <B> --as refines|contradicts.` (commands in backticks).
+  5. tests/cmd_agents.rs: add one test in the style of `help_planner_tells_the_llm_to_give_tags_and_to_reuse_them`: `help planner` holds `--revisit-if`, `--settle-by`, `--check`, `dossier checked`, `dossier sweep` and `--as refines|contradicts`. If a test counts the lines of the planner text, raise the number by one. The limits of the common rules and of the worker text (TEST-13) are not touched.
+  6. Run cargo test --test cmd_agents and cargo test --lib agents::.
+- accept: help planner names --revisit-if, --settle-by, --check, checked, sweep and link --as, and the tests of the rule limits still pass.
+- verify: cargo test --test cmd_agents
+- reqs: R-AGENT-1
+- note (2026-11-27, planner): added
+
+### T-623 · Release 1.4.0: entries say what comes next
+- status: open
+- owner: —
+- priority: P2 · difficulty: 2 · type: chore
+- milestone: T-604
+- why: The five additions reach the owner's PC and the team only with a released and installed version.
+- summary: Version 1.4.0 is released and installed, with a README note on the new options and the two new commands.
+- final: The release is the planner's work: it needs the checks on two systems and the owner's yes to push and tag.
+- depends: T-608, T-609, T-610, T-611, T-613, T-614, T-615, T-616, T-617, T-618, T-620, T-621, T-622
+- files: Cargo.toml, Cargo.lock, README.md
+- read: docs/requirements.md, README.md
+- steps:
+  1. Cargo.toml: version 1.4.0; cargo build so that Cargo.lock follows.
+  2. README.md: a note for 1.4.0 in the style of the notes of earlier versions: --revisit-if, --settle-by, link --as, learn --check and checked, and sweep.
+  3. The full checks on Windows and in WSL (TOOL-004); run TEST-15 by hand once on the project's own dossier: give each open assumption a settle-by and run dossier sweep.
+  4. With the owner's yes: push, wait for CI, tag v1.4.0, install; then dossier digest for milestone T-604.
+- accept: Version 1.4.0 is tagged and installed, and the checks pass on Windows, WSL and CI.
+- verify: cargo test --all-features
+- reqs: TEST-15
+- note (2026-11-27, planner): added
+
 ## Questions
 
 ### T-061 · Does a lock taken through the Samba share see a lock taken on the Linux server? Needs a test on the real server (open point O-1); decides whether R-LOCK-3 refuses or only warns.
@@ -12882,6 +13286,7 @@
 - owner: —
 - type: idea
 - note (2026-11-27, planner): added
+- note (2026-11-27, planner): The pair listing of this idea is built as dossier sweep (D63, T-621), and typed links as link --as (D61, T-613). What stays of this idea: check reports entries with neither tags nor links (islands).
 
 ### T-594 · Keywords 5 - tag aliases through the glossary: a glossary term's other spellings also match a tag, so searching SSH finds an entry tagged secure shell.
 - status: open
@@ -12926,6 +13331,18 @@
 - note (2026-11-27, planner): added
 
 ### T-601 · Overview 7 - all projects: --all writes one page across the registered projects and the team dossier, as todo report --all does.
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-27, planner): added
+
+### T-624 · Logbook study 6 - a finding records the git commit it was observed at: written by the tool when the project folder is a git repository, so what was seen can be checked against the code of that day. Key values already name their source and results the checksums of what they were made from. Put off by the owner on 2026-11-27 (D64, requirements I-11).
+- status: open
+- owner: —
+- type: idea
+- note (2026-11-27, planner): added
+
+### T-625 · Logbook study 10 - a names check before commit: scan the files staged for a commit for the confidential terms, whole words only, with a list of places where a term is allowed, run as a git hook. Not covered today (check and the hooks only look at the dossier's own files). Needs a decision first: in a public repository the list of terms must not be committed, so it has to be kept elsewhere. Put off by the owner on 2026-11-27 (D64, requirements I-12).
 - status: open
 - owner: —
 - type: idea

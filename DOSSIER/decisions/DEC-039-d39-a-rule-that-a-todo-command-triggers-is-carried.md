@@ -11,7 +11,7 @@
 - task: T-283
 - code: src/cmd/after.rs
 - topic: hooks, todo
-- related: DEC-038, FND-002
+- related: DEC-038, FND-002, DEC-062
 - tags: hook, todo
 - history: 2026-11-25T07:33:28+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:33:28+01:00 reyna via reyna - claude: approved
@@ -20,6 +20,7 @@
 - history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related DEC-038
 - history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related FND-002
 - history: 2026-11-27T19:12:40+01:00 reyna via reyna - claude: changed — field tags
+- history: 2026-11-27T20:10:36+01:00 reyna via reyna - claude: changed — related DEC-062
 
 ## Decision
 

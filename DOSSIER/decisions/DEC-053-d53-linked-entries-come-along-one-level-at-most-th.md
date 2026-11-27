@@ -10,12 +10,13 @@
 - valid-from: 2026-11-25T21:03:06+01:00
 - topic: search
 - code: src/links.rs
-- related: DEC-051
+- related: DEC-051, DEC-061
 - tags: link, search
 - history: 2026-11-25T21:03:06+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T21:03:06+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T21:45:13+01:00 reyna via reyna - claude: changed — related DEC-051
 - history: 2026-11-27T19:12:41+01:00 reyna via reyna - claude: changed — field tags
+- history: 2026-11-27T20:10:36+01:00 reyna via reyna - claude: changed — related DEC-061
 
 ## Decision
 

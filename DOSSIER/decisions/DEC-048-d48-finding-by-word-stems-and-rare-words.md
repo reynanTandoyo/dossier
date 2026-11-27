@@ -11,7 +11,7 @@
 - task: T-431
 - code: src/select.rs, src/cmd/search.rs
 - topic: search
-- related: DEC-012, DEC-049
+- related: DEC-012, DEC-049, DEC-063
 - tags: search, stemming, ranking
 - history: 2026-11-25T20:10:34+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T20:10:34+01:00 reyna via reyna - claude: approved
@@ -19,6 +19,7 @@
 - history: 2026-11-25T21:45:13+01:00 reyna via reyna - claude: changed — related DEC-012
 - history: 2026-11-25T21:45:13+01:00 reyna via reyna - claude: changed — related DEC-049
 - history: 2026-11-27T19:12:41+01:00 reyna via reyna - claude: changed — field tags
+- history: 2026-11-27T20:10:36+01:00 reyna via reyna - claude: changed — related DEC-063
 
 ## Decision
 
