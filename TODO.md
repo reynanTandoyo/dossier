@@ -12540,8 +12540,8 @@
 - note (2026-11-27, haiku-T-587): done — The after hook now reads a todo event only when todo, or dossier todo, is the program of a simple command after any leading NAME=value assignments; tests added, all checks pass.
 
 ### T-588 · taken.rs: the path helpers of take and return in one place
-- status: open
-- owner: —
+- status: done
+- owner: planner
 - priority: P3 · difficulty: 1 · type: chore
 - milestone: T-586
 - why: take.rs and return_cmd.rs each hold a copy of stored_paths, stored_path and ensure_file, made in T-322 under the three-file limit (idea T-404).
@@ -12555,11 +12555,17 @@
   4. Run cargo test --test cmd_take and cargo test --test cmd_return (tests/cmd_take.rs line 219 checks the take wording and must pass unchanged), then the full checks.
 - accept: stored_paths, stored_path and ensure_file exist once, in taken.rs, and take and return behave as before.
 - verify: cargo test --test cmd_take && cargo test --test cmd_return
-- attempts: 1
+- attempts: 2
+- verified: 2026-11-27
+- commit: 3192ca7
 - reqs: R-FILE-1, R-FILE-3
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
 - note (2026-11-27, haiku-T-588): stuck — Step 1 found more than comments. stored_paths is identical in take.rs and return_cmd.rs, but stored_path and ensure_file differ in their error text: stored_path says 'the project folder itself cannot be taken' (take.rs:233) vs 'cannot be returned' (return_cmd.rs:262), and ensure_file says '{} is not a file; take takes files' (take.rs:258) vs '... return takes files' (return_cmd.rs:287). tests/cmd_take.rs:219 asserts the take wording. One shared copy with the signatures as fixed would change one command's message; a parameter for the verb would change the signature. Not done without a decision on the messages or the signature.
 - note (2026-11-27, planner): unblocked
+- note (2026-11-27, haiku-T-588): stuck — Step 2 cannot be done as written. Only ensure_file uses command (the message '<path> is not a file; <command> takes files'). The message 'the project folder itself cannot be <done>' in stored_path uses only done, and stored_paths only passes both on. So a command parameter on stored_path and stored_paths is unused: rustc warns (unused variable) and cargo clippy -D warnings fails. The only ways round it are a _command name or dropping the parameter, and both change the written step, so I stopped. Proposed fix: stored_path and stored_paths take (ctx, cwd, typed, done); ensure_file takes (root, stored, command, done). No source file was changed; the only modified file in the tree is TODO.md from todo claim.
+- note (2026-11-27, planner): forced claim (owner was —)
+- note (2026-11-27, planner): done — take and return share one copy of their path helpers in taken.rs; their messages are unchanged.
 
 ### T-589 · filter.rs: the in-force rule, the whole-date check and newest-first in one place
 - status: open
