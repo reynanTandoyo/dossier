@@ -19,8 +19,11 @@
 //! With `--similar <ID>` no words are needed: the entries most related to that entry are listed
 //! instead, by word stems, tags and rare words (select::top), under the same filter rules
 //! (R-READ-9, `similar`). Each says why it was chosen, `tag match` or `word match`, after the dash.
-//! Under each result come its linked entries (links::linked, R-FIND-5), one `linked:` line each, at
-//! most `links::LINKED_LIMIT`; in JSON each result has them as `"linked"`.
+//! Under each result come its linked entries (links::linked, R-FIND-5), one typed line each (the
+//! label of links::typed_line, `linked:` for a plain link), at most `links::LINKED_LIMIT`; in JSON
+//! each result has them as `"linked"`, each with its `"type"`. A result whose entry has a
+//! `revisit-if` condition shows it as `revisit if: <condition>` before its linked lines
+//! (ruled::condition, R-RULED-2); in JSON each result has `"revisit_if"`, null when none.
 
 use crate::approval::{self, Mark};
 use crate::cli::Global;
@@ -33,6 +36,7 @@ use crate::glossary::{self, Term};
 use crate::links;
 use crate::output::Output;
 use crate::paths;
+use crate::ruled;
 use crate::select::{self, Query};
 use crate::store::{self, Item};
 use crate::time;
@@ -101,7 +105,7 @@ struct Hit {
     linked: Vec<Linked>,
 }
 
-/// A linked entry shown under a result: its `linked:` line (links::line) and its data in JSON.
+/// A linked entry shown under a result: its typed line (links::typed_line) and its data in JSON.
 #[derive(Clone)]
 struct Linked {
     line: String,
@@ -514,7 +518,7 @@ fn hit(ctx: &Ctx, item: Item, words: &[Wanted], today: &str, linked: Vec<Linked>
 fn linked_for(items: &[Item], entry: &Entry) -> Vec<Linked> {
     links::linked(entry, items, links::LINKED_LIMIT)
         .into_iter()
-        .map(linked_of)
+        .map(|item| linked_of(entry, item))
         .collect()
 }
 
@@ -527,11 +531,16 @@ fn copy_of(item: &Item) -> Item {
     }
 }
 
-/// The line and the JSON data of a linked entry shown under a result.
-fn linked_of(item: &Item) -> Linked {
+/// The line and the JSON data of an entry `item` linked from the result `entry`: the typed line
+/// (links::typed_line) and its `type` (links::field_of).
+fn linked_of(entry: &Entry, item: &Item) -> Linked {
     Linked {
-        line: links::line(item),
-        data: json!({"id": item.entry.id(), "title": item.entry.title()}),
+        line: links::typed_line(entry, item),
+        data: json!({
+            "id": item.entry.id(),
+            "title": item.entry.title(),
+            "type": links::field_of(entry, item),
+        }),
     }
 }
 
@@ -718,7 +727,8 @@ fn result_lines(hits: &[Hit]) -> String {
 /// `team:` before it for a team entry, the mark only when there is one and the part after the dash
 /// only when it is not empty. The part after the dash is the reason of a `--similar` result, else
 /// the matched line; a result with some of the words has none, its title being its line. The
-/// linked lines of the result follow it (push_linked).
+/// line `revisit if:` of an entry with a condition follows it, then the linked lines of the result
+/// (push_linked).
 fn result_line(hit: &Hit) -> String {
     let id = shown_id(hit);
     let title = hit.item.entry.title();
@@ -736,11 +746,14 @@ fn result_line(hit: &Hit) -> String {
     } else {
         format!("{head}  — {shown}\n")
     };
+    if let Some(condition) = ruled::condition(&hit.item.entry) {
+        text.push_str(&format!("  revisit if: {condition}\n"));
+    }
     push_linked(&mut text, hit);
     text
 }
 
-/// Appends the linked lines of a result, each ending with a line break (links::line).
+/// Appends the linked lines of a result, each ending with a line break (links::typed_line).
 fn push_linked(text: &mut String, hit: &Hit) {
     for linked in &hit.linked {
         text.push_str(&linked.line);
@@ -783,10 +796,11 @@ fn count_line(count: usize, partial: usize) -> String {
     }
 }
 
-/// The data of one result: its ID, title, status, matched line, place (`project` or `team`) and
-/// linked entries (`linked`, each with its `id` and `title`, none is an empty list). The ID is the
-/// entry's own, without `team:`; the place says where it is. A word search result has its `match`
-/// (`all` or `some`); a `--similar` result has its `reason`.
+/// The data of one result: its ID, title, status, matched line, place (`project` or `team`),
+/// linked entries (`linked`, each with its `id`, `title` and `type`, none is an empty list) and
+/// `revisit_if` (the condition of ruled::condition, null when none). The ID is the entry's own,
+/// without `team:`; the place says where it is. A word search result has its `match` (`all` or
+/// `some`); a `--similar` result has its `reason`.
 fn result_data(hit: &Hit) -> Value {
     let entry = &hit.item.entry;
     let linked: Vec<Value> = hit
@@ -801,6 +815,7 @@ fn result_data(hit: &Hit) -> Value {
         "line": hit.line,
         "place": hit.place,
         "linked": linked,
+        "revisit_if": ruled::condition(entry),
     });
     if let Some(matched) = hit.matched {
         data["match"] = json!(matched.name());

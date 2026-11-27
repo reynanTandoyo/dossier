@@ -6,8 +6,10 @@
 //! and the team (R-TERM-4). A word also matches a word of the same stem, so `replaced` finds
 //! `replacement`. When more than one word is typed, the entries that hold only some of them are
 //! listed after the full matches, and JSON marks each result `all` or `some`. The linked entries of
-//! a result (its related entries, approved only) follow it as `linked:` lines, and JSON gives them
-//! as `"linked"`. Each test runs in its own temporary project with the clock fixed at
+//! a result (approved only) follow it as typed lines (`linked:` for a plain link, `contradicts:`
+//! and so on), and JSON gives them as `"linked"`, each with its `"type"`. A dead end's `revisit-if`
+//! condition is shown as `revisit if:` before them, and JSON gives it as `"revisit_if"`. Each test
+//! runs in its own temporary project with the clock fixed at
 //! 2026-11-20T10:00:00+01:00.
 
 mod common;
@@ -515,6 +517,7 @@ fn json_gives_the_id_title_status_and_line_of_each_result() {
             "match": "all",
             "place": "project",
             "linked": [],
+            "revisit_if": null,
         },
         {
             "id": "DEC-001",
@@ -524,6 +527,7 @@ fn json_gives_the_id_title_status_and_line_of_each_result() {
             "match": "all",
             "place": "project",
             "linked": [],
+            "revisit_if": null,
         },
     ]);
     assert_eq!(value["data"], expected);
@@ -661,6 +665,7 @@ fn json_gives_the_place_of_each_result() {
             "match": "all",
             "place": "project",
             "linked": [],
+            "revisit_if": null,
         },
         {
             "id": "LES-001",
@@ -670,6 +675,7 @@ fn json_gives_the_place_of_each_result() {
             "match": "all",
             "place": "team",
             "linked": [],
+            "revisit_if": null,
         },
     ]);
     assert_eq!(value["data"], expected);
@@ -1266,6 +1272,7 @@ fn similar_lists_the_entries_that_share_a_tag_or_a_title_word_and_not_the_entry_
             "place": "project",
             "reason": "tag match",
             "linked": [],
+            "revisit_if": null,
         },
     ]);
     assert_eq!(value["data"], expected);
@@ -1555,8 +1562,10 @@ fn json_gives_each_result_its_linked_entries() {
                 {
                     "id": "FND-001",
                     "title": "Mass flow still oscillated by 0.4 percent at half the time step",
+                    "type": "related",
                 },
             ],
+            "revisit_if": null,
         },
     ]);
     assert_eq!(value["data"], expected);
@@ -1629,4 +1638,142 @@ fn similar_shows_the_linked_entries_under_each_similar_entry() {
         \x20 linked: FND-001 · Mass flow still oscillated by 0.4 percent at half the time step\n\
         1 match\n";
     assert_eq!(stdout, expected);
+}
+
+#[test]
+fn a_dead_end_shows_its_revisit_condition_before_its_linked_line() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Keep the current mesh for the rig runs",
+                "--reason",
+                "Finer meshes did not change the outlet pressure.",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "found",
+                "Refining the inlet mesh did not move the outlet pressure",
+                "--dead-end",
+                "--evidence",
+                "Runs 14 and 15, pressure plots in results.",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "set",
+                "FND-001",
+                "--field",
+                "revisit-if=the mesh is rebuilt",
+            ],
+        )
+        .success();
+    project
+        .run("anna", &["link", "FND-001", "DEC-001"])
+        .success();
+
+    let stdout = project.stdout("", &["search", "inlet"]);
+    let expected = "FND-001  Refining the inlet mesh did not move the outlet pressure  — # FND-001 · Refining the inlet mesh did not move the outlet pressure\n\
+        \x20 revisit if: the mesh is rebuilt\n\
+        \x20 linked: DEC-001 · Keep the current mesh for the rig runs\n\
+        1 match\n";
+    assert_eq!(stdout, expected);
+
+    let json = project.stdout("", &["--json", "search", "inlet"]);
+    let value: serde_json::Value = serde_json::from_str(&json).expect("one JSON line");
+    assert_eq!(
+        value["data"][0]["revisit_if"], "the mesh is rebuilt",
+        "{json}"
+    );
+    // DEC-001 has no revisit-if field: its result says so with null.
+    let json = project.stdout("", &["--json", "search", "rig"]);
+    let value: serde_json::Value = serde_json::from_str(&json).expect("one JSON line");
+    assert_eq!(value["data"][0]["id"], "DEC-001", "{json}");
+    assert_eq!(
+        value["data"][0]["revisit_if"],
+        serde_json::Value::Null,
+        "{json}"
+    );
+}
+
+#[test]
+fn a_contradicting_link_is_shown_before_a_plain_link_and_json_gives_both_types() {
+    let project = Project::new();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Use transient runs for the last three speedline points",
+                "--reason",
+                "Steady runs converged where the transient run already showed stall.",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "found",
+                "Mass flow still oscillated by 0.4 percent at half the time step",
+                "--evidence",
+                "Runs 12 and 13, monitor plots in results.",
+            ],
+        )
+        .success();
+    project
+        .run(
+            "anna",
+            &[
+                "decide",
+                "Use steady runs for the first three points",
+                "--reason",
+                "Steady runs converged early in the range.",
+            ],
+        )
+        .success();
+    project
+        .run("anna", &["link", "DEC-001", "FND-001"])
+        .success();
+    project
+        .run(
+            "anna",
+            &["set", "DEC-001", "--field", "contradicts=DEC-002"],
+        )
+        .success();
+
+    let stdout = project.stdout("", &["search", "speedline"]);
+    let expected = "DEC-001  Use transient runs for the last three speedline points  — # DEC-001 · Use transient runs for the last three speedline points\n\
+        \x20 contradicts: DEC-002 · Use steady runs for the first three points\n\
+        \x20 linked: FND-001 · Mass flow still oscillated by 0.4 percent at half the time step\n\
+        1 match\n";
+    assert_eq!(stdout, expected);
+
+    let json = project.stdout("", &["--json", "search", "speedline"]);
+    let value: serde_json::Value = serde_json::from_str(&json).expect("one JSON line");
+    assert_eq!(
+        value["data"][0]["linked"],
+        serde_json::json!([
+            {
+                "id": "DEC-002",
+                "title": "Use steady runs for the first three points",
+                "type": "contradicts",
+            },
+            {
+                "id": "FND-001",
+                "title": "Mass flow still oscillated by 0.4 percent at half the time step",
+                "type": "related",
+            },
+        ]),
+        "{json}"
+    );
 }
