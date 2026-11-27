@@ -94,7 +94,7 @@ pub const COMMANDS: [(&str, &str); 93] = [
     ("glossary", "Lists all glossary terms"),
     ("topics", "Lists or adds project topics"),
     ("reviewed", "Confirms an entry still holds"),
-    ("checked", "Says a lesson's check catches its mistake"),
+    ("checked", "Confirms a lesson's check"),
     ("review-folder", "Shows material from old folder"),
     ("review-document", "Starts reviewing a document"),
     ("reviewed-document", "Marks a document done"),
@@ -112,7 +112,7 @@ pub const COMMANDS: [(&str, &str); 93] = [
     ("session-end", "Starts the session review"),
     ("digest", "Sums up a closed milestone"),
     ("story", "Decisions in the order made"),
-    ("sweep", "Lists entries in force that look alike"),
+    ("sweep", "Lists look-alike entries"),
     ("export", "Writes the project as Markdown"),
     ("schema", "Describes commands and JSON"),
 ];

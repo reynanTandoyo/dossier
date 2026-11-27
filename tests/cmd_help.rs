@@ -102,10 +102,7 @@ fn help_checked_prints_the_description_and_three_example_lines() {
     let text = String::from_utf8(output).expect("the standard output is UTF-8");
     let lines: Vec<&str> = text.lines().collect();
     assert_eq!(lines.len(), 6, "{text}");
-    assert_eq!(
-        lines[0],
-        "checked: Says a lesson's check catches its mistake"
-    );
+    assert_eq!(lines[0], "checked: Confirms a lesson's check");
     assert_eq!(lines[1], "Examples (PowerShell):");
     assert_eq!(lines[4], "Example (Linux shell):");
     for example in [lines[2], lines[3], lines[5]] {
@@ -127,7 +124,7 @@ fn help_sweep_prints_the_description_and_three_example_lines() {
     let text = String::from_utf8(output).expect("the standard output is UTF-8");
     let lines: Vec<&str> = text.lines().collect();
     assert_eq!(lines.len(), 6, "{text}");
-    assert_eq!(lines[0], "sweep: Lists entries in force that look alike");
+    assert_eq!(lines[0], "sweep: Lists look-alike entries");
     assert_eq!(lines[1], "Examples (PowerShell):");
     assert_eq!(lines[4], "Example (Linux shell):");
     for example in [lines[2], lines[3], lines[5]] {
