@@ -12717,8 +12717,8 @@
 - note (2026-11-27, worker-T-607): done — ruled.rs with 6 unit tests; full suite 2560 passed
 
 ### T-608 · decide: --revisit-if, and what was ruled out before
-- status: open
-- owner: —
+- status: done
+- owner: worker-T-608
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-604
 - why: decide showed only the decisions in force, so a dead end or a declined proposal on the same question was not seen when the question came back (D59).
@@ -12735,12 +12735,16 @@
   6. Run cargo test --test cmd_decide and cargo test --test cmd_decide_related.
 - accept: decide --revisit-if writes the field; decide lists related dead ends and declined proposals with their condition, in its result and in its refusal, and never refuses because of them alone.
 - verify: cargo test --test cmd_decide && cargo test --test cmd_decide_related
+- verified: 2026-11-27
+- commit: 301c953
 - reqs: R-RULED-1, R-RULED-2, R-CTX-13
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, worker-T-608): done — decide --revisit-if and ruled-out lines
 
 ### T-609 · propose and decline: --revisit-if
-- status: open
-- owner: —
+- status: done
+- owner: worker-T-609
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-604
 - why: A declined proposal is the clearest case of something ruled out; whoever declines it knows best what would change the answer (D59).
@@ -12755,12 +12759,16 @@
   4. Run cargo test --test cmd_decline and cargo test --test cmd_propose.
 - accept: propose and decline take --revisit-if and write the field revisit-if; decline writes it in the same change as the reason.
 - verify: cargo test --test cmd_decline && cargo test --test cmd_propose
+- verified: 2026-11-27
+- commit: c6c15f5
 - reqs: R-RULED-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, worker-T-609): done — propose and decline --revisit-if
 
 ### T-610 · found --dead-end: --revisit-if
-- status: open
-- owner: —
+- status: done
+- owner: worker-T-610
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-604
 - why: A dead end says what did not work; with a condition it also says when trying again makes sense (D59).
@@ -12776,12 +12784,16 @@
   5. Run cargo test --test cmd_found.
 - accept: found --dead-end --revisit-if writes the field; without --dead-end the option is refused as wrong usage.
 - verify: cargo test --test cmd_found
+- verified: 2026-11-27
+- commit: 5065cef
 - reqs: R-RULED-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, worker-T-610): done — found --dead-end --revisit-if; full suite passed
 
 ### T-611 · assume: --settle-by
-- status: open
-- owner: —
+- status: done
+- owner: worker-T-611
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-604
 - why: Open assumptions pile up because nothing says how one gets settled (D60).
@@ -12796,8 +12808,12 @@
   4. Run cargo test --test cmd_assume.
 - accept: assume --settle-by writes the field settle-by; without it nothing changes.
 - verify: cargo test --test cmd_assume
+- verified: 2026-11-27
+- commit: 08e71dd
 - reqs: R-WRITE-17
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, worker-T-611): done — assume --settle-by; full suite 2575 passed
 
 ### T-612 · links.rs: typed links, their order and their labels
 - status: done
@@ -12825,8 +12841,8 @@
 - note (2026-11-27, worker-T-612): done — LINK_FIELDS, field_of, label, typed_line, contradictions; full suite 2561 passed
 
 ### T-613 · link: --as refines and --as contradicts
-- status: open
-- owner: —
+- status: done
+- owner: worker-T-613
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-604
 - why: A plain link does not say that one entry narrows another or that two pull against each other (D61).
@@ -12843,12 +12859,16 @@
   6. Run cargo test --test cmd_link.
 - accept: link --as refines writes refines and refined-by, link --as contradicts writes contradicts on both sides, a second run changes nothing, and a plain link works as before.
 - verify: cargo test --test cmd_link
+- verified: 2026-11-27
+- commit: f64a4d9
 - reqs: R-WRITE-9, TEST-15
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, worker-T-613): done — link --as refines and contradicts
 
 ### T-614 · brief --task and which --binding show the type of a link
-- status: open
-- owner: —
+- status: done
+- owner: worker-T-614
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-604
 - why: An LLM that is shown an entry before an edit must see that another entry contradicts it, not only that the two are linked (D61, D51).
@@ -12863,12 +12883,16 @@
   4. Run cargo test --test cmd_which and cargo test --test cmd_brief.
 - accept: brief --task and which --binding print contradicts:, refines:, refined by: or linked: before a linked entry, and which --json names the type.
 - verify: cargo test --test cmd_which && cargo test --test cmd_brief
+- verified: 2026-11-27
+- commit: 107b76c
 - reqs: R-FIND-5
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, worker-T-614): done — brief --task and which --binding show link types
 
 ### T-615 · search: the condition of a ruled-out entry, and the type of a link
-- status: open
-- owner: —
+- status: done
+- owner: worker-T-615
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-604
 - why: Whoever searches and finds a dead end should see at once when it is worth another look, and whether a linked entry contradicts the result (D59, D61).
@@ -12885,8 +12909,12 @@
   6. Run cargo test --test cmd_search and cargo test --test retrieval.
 - accept: search prints `  revisit if: <condition>` under a result that carries the field, shows typed links with their type and contradictions first, and gives both in JSON.
 - verify: cargo test --test cmd_search && cargo test --test retrieval
+- verified: 2026-11-27
+- commit: 0c7fe5f
 - reqs: R-RULED-3, R-FIND-5, TEST-15
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, worker-T-615): done — search shows revisit if and link types
 
 ### T-616 · brief: an open assumption says what would settle it
 - status: done
@@ -12912,8 +12940,8 @@
 - note (2026-11-27, worker-T-616): done — brief shows settle by; full suite passed
 
 ### T-617 · status: what would settle an assumption, lessons that owe a check, and contradictions
-- status: open
-- owner: —
+- status: done
+- owner: worker-T-617
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-604
 - why: status is where a person or an LLM asks what is unsettled; the three new kinds of unsettled things belong there (D60, D61, D62).
@@ -12930,12 +12958,16 @@
   6. Run cargo test --test cmd_status.
 - accept: status prints settle-by on open assumptions and, under Unsettled, the assumptions that name nothing, the lessons that owe a check and each pair of approved entries that contradict each other; status --json has the same.
 - verify: cargo test --test cmd_status
+- verified: 2026-11-27
+- commit: 6af419b
 - reqs: R-CTX-17, R-CTX-18, R-CTX-19, TEST-15
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, worker-T-617): done — status: settle by, owed checks, contradictions; three expected outputs updated
 
 ### T-618 · learn: --check names the check that carries the lesson
-- status: open
-- owner: —
+- status: done
+- owner: worker-T-618
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-604
 - why: A lesson in a brief is the weakest way to stop a mistake; naming the test or hook that would catch it is the first step to having one (D62).
@@ -12950,8 +12982,12 @@
   4. Run cargo test --test cmd_learn and cargo test --test cmd_learn_similar.
 - accept: learn --check writes check and check-state: owed on a new lesson, and is refused together with --update.
 - verify: cargo test --test cmd_learn && cargo test --test cmd_learn_similar
+- verified: 2026-11-27
+- commit: 2abdad4
 - reqs: R-WRITE-18, R-ENTRY-21
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, worker-T-618): done — learn --check writes check and check-state owed
 
 ### T-619 · The checked and sweep commands: registered, with help lines and examples
 - status: done
@@ -12979,8 +13015,8 @@
 - note (2026-11-27, worker-T-619): done — registered checked and sweep; planner shortened the help lines to five words (next commit)
 
 ### T-620 · checked: a person says that a lesson's check catches its mistake
-- status: open
-- owner: —
+- status: done
+- owner: worker-T-620
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-604
 - why: That a check is in place is a claim a person must stand for; once it is made, the lesson no longer counts as owing one (D62, D57).
@@ -12996,12 +13032,16 @@
   5. Run cargo test --test cmd_checked.
 - accept: checked sets check-state: checked on a lesson for a person or for an LLM with --said-by, records who and how, refuses anything else, and leaves an approved lesson approved and unmarked.
 - verify: cargo test --test cmd_checked
+- verified: 2026-11-27
+- commit: 416ee65
 - reqs: R-WRITE-18, R-SAID-1 to R-SAID-4, TEST-15
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, worker-T-620): done — checked command with TEST-14 cases
 
 ### T-621 · sweep: the pairs of entries in force that look alike, with the rules for judging them
-- status: open
-- owner: —
+- status: done
+- owner: worker-T-621
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-604
 - why: Duplicates and contradictions were only caught at the moment of writing; nothing ever looked at the entries in force together (D63).
@@ -13018,12 +13058,16 @@
   6. Run cargo test --test cmd_sweep.
 - accept: sweep lists each pair of look-alike approved entries once, best first, leaves out linked pairs, prints the rules after them, and changes no file.
 - verify: cargo test --test cmd_sweep
+- verified: 2026-11-27
+- commit: 3d68b90
 - reqs: R-SWEEP-1, R-SWEEP-2, TEST-15
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, worker-T-621): done — sweep lists look-alike pairs with the rules
 
 ### T-622 · Planner rules: revisit-if, settle-by, check, sweep and typed links
-- status: open
-- owner: —
+- status: done
+- owner: worker-T-622
 - priority: P2 · difficulty: 1 · type: feature
 - milestone: T-604
 - why: An option nobody is told about is not used; the planner's rules are where an LLM learns the new options (D59 to D63).
@@ -13040,8 +13084,12 @@
   6. Run cargo test --test cmd_agents and cargo test --lib agents::.
 - accept: help planner names --revisit-if, --settle-by, --check, checked, sweep and link --as, and the tests of the rule limits still pass.
 - verify: cargo test --test cmd_agents
+- verified: 2026-11-27
+- commit: f80de79
 - reqs: R-AGENT-1
+- by: Reynan Henry Tandoyo
 - note (2026-11-27, planner): added
+- note (2026-11-27, worker-T-622): done — planner rules for revisit-if, settle-by, check, sweep, typed links
 
 ### T-623 · Release 1.4.0: entries say what comes next
 - status: open
