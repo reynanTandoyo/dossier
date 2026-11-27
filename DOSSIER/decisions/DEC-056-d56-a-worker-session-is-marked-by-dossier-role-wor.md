@@ -12,9 +12,11 @@
 - topic: hooks, todo
 - code: src/cmd/brief.rs, src/cmd/after.rs
 - related: DEC-055
+- tags: worker, brief
 - history: 2026-11-26T20:04:57+01:00 reyna via reyna - claude: created
 - history: 2026-11-26T20:04:57+01:00 reyna via reyna - claude: approved
 - history: 2026-11-26T20:04:57+01:00 reyna via reyna - claude: changed — related DEC-055
+- history: 2026-11-27T19:12:41+01:00 reyna via reyna - claude: changed — field tags
 
 ## Decision
 

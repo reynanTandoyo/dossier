@@ -11,12 +11,14 @@
 - code: src/cmd/promote.rs
 - topic: team
 - related: DEC-032, DEC-030
+- tags: team-dossier, customer-data, confidential
 - history: 2026-11-25T07:33:27+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:33:27+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:40:54+01:00 reyna via reyna - claude: changed — field code
 - history: 2026-11-25T20:45:12+01:00 reyna via reyna - claude: changed — field topic
 - history: 2026-11-25T21:45:13+01:00 reyna via reyna - claude: changed — related DEC-032
 - history: 2026-11-25T21:45:14+01:00 reyna via reyna - claude: changed — related DEC-030
+- history: 2026-11-27T19:12:39+01:00 reyna via reyna - claude: changed — field tags
 
 ## Decision
 

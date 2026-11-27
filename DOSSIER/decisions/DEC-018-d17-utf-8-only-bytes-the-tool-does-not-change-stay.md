@@ -11,11 +11,13 @@
 - code: src/tx.rs, src/entry/edit.rs
 - topic: entries
 - related: DEC-003
+- tags: utf-8, entry-file
 - history: 2026-11-25T07:33:27+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:33:27+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:40:54+01:00 reyna via reyna - claude: changed — field code
 - history: 2026-11-25T20:45:12+01:00 reyna via reyna - claude: changed — field topic
 - history: 2026-11-25T21:45:13+01:00 reyna via reyna - claude: changed — related DEC-003
+- history: 2026-11-27T19:12:39+01:00 reyna via reyna - claude: changed — field tags
 
 ## Decision
 

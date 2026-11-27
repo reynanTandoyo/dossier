@@ -11,11 +11,13 @@
 - code: src/remote/
 - topic: remote
 - related: INV-001, FND-001
+- tags: ssh, scp, test, server
 - history: 2026-11-25T07:34:45+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T20:40:57+01:00 reyna via reyna - claude: changed — field code
 - history: 2026-11-25T20:45:14+01:00 reyna via reyna - claude: changed — field topic
 - history: 2026-11-25T21:45:11+01:00 reyna via reyna - claude: changed — related INV-001
 - history: 2026-11-25T21:45:11+01:00 reyna via reyna - claude: changed — related FND-001
+- history: 2026-11-27T19:12:38+01:00 reyna via reyna - claude: changed — field tags
 
 ## Statement
 

@@ -12,12 +12,14 @@
 - code: src/cmd/session_end.rs
 - topic: hooks
 - related: DEC-044, FND-005
+- tags: cmd, windows, quoting, session-review
 - history: 2026-11-25T07:34:44+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:34:44+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:40:57+01:00 reyna via reyna - claude: changed — field code
 - history: 2026-11-25T20:45:14+01:00 reyna via reyna - claude: changed — field topic
 - history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related DEC-044
 - history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related FND-005
+- history: 2026-11-27T19:12:38+01:00 reyna via reyna - claude: changed — field tags
 
 ## Observation
 

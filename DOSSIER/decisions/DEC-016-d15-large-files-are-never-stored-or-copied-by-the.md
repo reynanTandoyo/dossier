@@ -10,12 +10,14 @@
 - valid-from: 2026-11-25T07:33:27+01:00
 - topic: files
 - related: DEC-046, DEC-019, DEC-026
+- tags: large-file, take
 - history: 2026-11-25T07:33:27+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:33:27+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:45:12+01:00 reyna via reyna - claude: changed — field topic
 - history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related DEC-046
 - history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related DEC-019
 - history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related DEC-026
+- history: 2026-11-27T19:12:39+01:00 reyna via reyna - claude: changed — field tags
 
 ## Decision
 

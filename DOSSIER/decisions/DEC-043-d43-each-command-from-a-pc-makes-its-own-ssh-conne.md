@@ -12,12 +12,14 @@
 - code: src/remote/ssh.rs
 - topic: remote
 - related: FND-011, DEC-010
+- tags: ssh, windows, remote
 - history: 2026-11-25T07:33:28+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:33:28+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:40:47+01:00 reyna via reyna - claude: changed — field code
 - history: 2026-11-25T20:45:13+01:00 reyna via reyna - claude: changed — field topic
 - history: 2026-11-25T21:45:10+01:00 reyna via reyna - claude: changed — related FND-011
 - history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related DEC-010
+- history: 2026-11-27T19:12:40+01:00 reyna via reyna - claude: changed — field tags
 
 ## Decision
 

@@ -11,8 +11,10 @@
 - task: T-550
 - topic: hooks
 - code: src/cmd/guard.rs
+- tags: worker, guard
 - history: 2026-11-26T21:05:13+01:00 reyna via reyna - claude: created
 - history: 2026-11-26T21:05:13+01:00 reyna via reyna - claude: approved
+- history: 2026-11-27T19:12:39+01:00 reyna via reyna - claude: changed — field tags
 
 ## Observation
 

@@ -12,9 +12,11 @@
 - supersedes: DEC-050
 - code: src/cmd/topics.rs
 - related: DEC-006
+- tags: topic, said-by
 - history: 2026-11-25T20:45:06+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T20:45:06+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T21:45:13+01:00 reyna via reyna - claude: changed — related DEC-006
+- history: 2026-11-27T19:12:41+01:00 reyna via reyna - claude: changed — field tags
 
 ## Decision
 

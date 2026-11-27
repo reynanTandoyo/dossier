@@ -11,10 +11,12 @@
 - task: T-056
 - code: src/digest.rs, src/cmd/digest.rs
 - topic: entries
+- tags: digest, milestone
 - history: 2026-11-25T07:33:27+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:33:27+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:40:55+01:00 reyna via reyna - claude: changed — field code
 - history: 2026-11-25T20:45:12+01:00 reyna via reyna - claude: changed — field topic
+- history: 2026-11-27T19:12:39+01:00 reyna via reyna - claude: changed — field tags
 
 ## Decision
 

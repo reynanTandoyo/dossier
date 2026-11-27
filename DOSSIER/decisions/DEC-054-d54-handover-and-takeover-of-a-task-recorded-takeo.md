@@ -9,8 +9,10 @@
 - approved: 2026-11-26T06:51:03+01:00 by reyna
 - valid-from: 2026-11-26T06:51:03+01:00
 - topic: todo,files
+- tags: handover, takeover, todo, said-by
 - history: 2026-11-26T06:51:03+01:00 reyna via reyna - claude: created
 - history: 2026-11-26T06:51:03+01:00 reyna via reyna - claude: approved
+- history: 2026-11-27T19:12:41+01:00 reyna via reyna - claude: changed — field tags
 
 ## Decision
 

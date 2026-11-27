@@ -11,10 +11,12 @@
 - task: T-284
 - topic: release
 - related: DEC-047
+- tags: release
 - history: 2026-11-25T07:33:28+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:33:28+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:45:13+01:00 reyna via reyna - claude: changed — field topic
 - history: 2026-11-25T21:45:14+01:00 reyna via reyna - claude: changed — related DEC-047
+- history: 2026-11-27T19:12:40+01:00 reyna via reyna - claude: changed — field tags
 
 ## Decision
 

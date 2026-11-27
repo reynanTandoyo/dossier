@@ -13,12 +13,14 @@
 - code: src/remote/transfer.rs
 - topic: files, remote
 - related: LES-002, INV-001
+- tags: scp, windows, file-mode, return
 - history: 2026-11-25T07:34:44+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:34:44+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:40:57+01:00 reyna via reyna - claude: changed — field code
 - history: 2026-11-25T20:45:14+01:00 reyna via reyna - claude: changed — field topic
 - history: 2026-11-25T21:45:11+01:00 reyna via reyna - claude: changed — related LES-002
 - history: 2026-11-25T21:45:11+01:00 reyna via reyna - claude: changed — related INV-001
+- history: 2026-11-27T19:12:38+01:00 reyna via reyna - claude: changed — field tags
 
 ## Observation
 

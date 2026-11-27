@@ -11,10 +11,12 @@
 - task: T-411
 - topic: release
 - related: DEC-040
+- tags: github, credential, test
 - history: 2026-11-25T07:34:44+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:34:44+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:45:14+01:00 reyna via reyna - claude: changed — field topic
 - history: 2026-11-25T21:45:11+01:00 reyna via reyna - claude: changed — related DEC-040
+- history: 2026-11-27T19:12:39+01:00 reyna via reyna - claude: changed — field tags
 
 ## Observation
 

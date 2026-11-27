@@ -12,8 +12,10 @@
 - topic: approval
 - supersedes: DEC-007
 - code: src/names.rs, src/cmd/approve.rs
+- tags: said-by, approval
 - history: 2026-11-26T21:40:49+01:00 reyna via reyna - claude: created
 - history: 2026-11-26T21:40:49+01:00 reyna via reyna - claude: approved
+- history: 2026-11-27T19:12:41+01:00 reyna via reyna - claude: changed — field tags
 
 ## Decision
 

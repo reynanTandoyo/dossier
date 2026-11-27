@@ -12,11 +12,13 @@
 - code: src/cmd/guard.rs, src/shown.rs
 - topic: hooks
 - related: FND-012, DEC-053
+- tags: guard, code-pointer, hook
 - history: 2026-11-25T20:10:34+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T20:10:34+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:45:13+01:00 reyna via reyna - claude: changed — field topic
 - history: 2026-11-25T21:45:11+01:00 reyna via reyna - claude: changed — related FND-012
 - history: 2026-11-25T21:45:13+01:00 reyna via reyna - claude: changed — related DEC-053
+- history: 2026-11-27T19:12:41+01:00 reyna via reyna - claude: changed — field tags
 
 ## Decision
 

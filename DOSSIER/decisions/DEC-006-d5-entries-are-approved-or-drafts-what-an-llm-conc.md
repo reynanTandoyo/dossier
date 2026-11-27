@@ -11,6 +11,7 @@
 - code: src/approval.rs
 - topic: approval
 - related: DEC-007, DEC-027, DEC-052
+- tags: draft, approval, llm
 - history: 2026-11-25T07:33:27+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:33:27+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:40:54+01:00 reyna via reyna - claude: changed — field code
@@ -18,6 +19,7 @@
 - history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related DEC-007
 - history: 2026-11-25T21:45:12+01:00 reyna via reyna - claude: changed — related DEC-027
 - history: 2026-11-25T21:45:13+01:00 reyna via reyna - claude: changed — related DEC-052
+- history: 2026-11-27T19:12:39+01:00 reyna via reyna - claude: changed — field tags
 
 ## Decision
 

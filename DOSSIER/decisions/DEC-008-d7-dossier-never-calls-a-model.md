@@ -10,10 +10,12 @@
 - valid-from: 2026-11-25T07:33:27+01:00
 - topic: search
 - related: DEC-012
+- tags: model, search
 - history: 2026-11-25T07:33:27+01:00 reyna via reyna - claude: created
 - history: 2026-11-25T07:33:27+01:00 reyna via reyna - claude: approved
 - history: 2026-11-25T20:45:12+01:00 reyna via reyna - claude: changed — field topic
 - history: 2026-11-25T21:45:13+01:00 reyna via reyna - claude: changed — related DEC-012
+- history: 2026-11-27T19:12:39+01:00 reyna via reyna - claude: changed — field tags
 
 ## Decision
 

@@ -13,9 +13,11 @@
 - supersedes: DEC-015
 - code: src/agents
 - related: DEC-056
+- tags: agent-rules, worker
 - history: 2026-11-26T20:04:51+01:00 reyna via reyna - claude: created
 - history: 2026-11-26T20:04:51+01:00 reyna via reyna - claude: approved
 - history: 2026-11-26T20:04:57+01:00 reyna via reyna - claude: changed — related DEC-056
+- history: 2026-11-27T19:12:41+01:00 reyna via reyna - claude: changed — field tags
 
 ## Decision
 
