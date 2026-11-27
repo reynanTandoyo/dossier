@@ -23,7 +23,10 @@
 //! The decisions, findings, open assumptions and entries that rest on a wrong assumption carry
 //! `[due for review]` when their review date has passed (R-LIFE-7). The unsettled part counts the
 //! approved lessons, how-tos and tools changed by hand after their approval (approval::guarded,
-//! R-LIFE-6); its JSON key stays `changed_lessons`.
+//! R-LIFE-6); its JSON key stays `changed_lessons`. An open assumption shows what would settle it
+//! (`settle-by`, R-CTX-17), and the unsettled part counts the open assumptions that name nothing.
+//! It lists the pairs of approved entries that contradict each other (R-CTX-18) and counts the
+//! approved lessons whose check is owed (R-CTX-19).
 
 use crate::approval::{self, Mark};
 use crate::atomic;
@@ -35,6 +38,7 @@ use crate::entry::{Entry, Kind, Status};
 use crate::error::{Code, Error, Result};
 use crate::filter::Filter;
 use crate::journal::{self, Record};
+use crate::links;
 use crate::names::{self, Who};
 use crate::output::Output;
 use crate::store::{self, Item};
@@ -413,6 +417,10 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
         .take(FINDINGS)
         .collect();
     let mut counts = count_unsettled(&scope, &ctx.state);
+    counts.contradictions = links::contradictions(&scope)
+        .into_iter()
+        .map(|(first, second)| (first.entry.id(), second.entry.id()))
+        .collect();
     let proposals: Vec<&Item> = scope
         .iter()
         .copied()
@@ -451,7 +459,14 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
             open_assumptions
                 .iter()
                 .copied()
-                .map(|item| format!("{}{}", heading_of(item), due_mark(&item.entry)))
+                .map(|item| {
+                    format!(
+                        "{}{}{}",
+                        heading_of(item),
+                        settle_suffix(&item.entry),
+                        due_mark(&item.entry)
+                    )
+                })
                 .collect(),
             "none",
             "dossier list --kind assumption",
@@ -521,6 +536,11 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
     let values_data: Vec<Value> = shown.iter().map(Shown::data).collect();
     let rests_data = rests_on_json(&rests_entries, &rests_files);
     let resting_ids: Vec<String> = resting.iter().map(|(id, _)| id.clone()).collect();
+    let contradiction_pairs: Vec<Value> = counts
+        .contradictions
+        .iter()
+        .map(|(first, second)| json!([first, second]))
+        .collect();
     let data = json!({
         "code": ctx.cfg.code,
         "on": day.map(|day| day.date.as_str()),
@@ -546,7 +566,10 @@ fn project_screen(ctx: &Ctx, all: &[Item], milestone: Option<&str>, day: Option<
         "unsettled": {
             "drafts": counts.drafts,
             "open_assumptions": counts.open_assumptions,
+            "assumptions_without_settle_by": counts.no_settle,
             "changed_lessons": counts.changed,
+            "lessons_owing_a_check": counts.owed,
+            "contradictions": contradiction_pairs,
         },
     });
     Screen {
@@ -887,6 +910,25 @@ fn heading_of(item: &Item) -> String {
     }
 }
 
+/// The field that says what would settle an assumption (R-WRITE-17).
+const SETTLE_BY: &str = "settle-by";
+
+/// The text after an open assumption that says what would settle it (R-CTX-17): ` — settle by:
+/// <text>` when the `settle-by` field is not empty, or nothing.
+fn settle_suffix(entry: &Entry) -> String {
+    let text = trimmed(entry, SETTLE_BY);
+    if text.is_empty() {
+        String::new()
+    } else {
+        format!(" — settle by: {text}")
+    }
+}
+
+/// The value of a field without its surrounding blanks; empty when the field is missing.
+fn trimmed(entry: &Entry, key: &str) -> String {
+    entry.field(key).unwrap_or_default().trim().to_string()
+}
+
 /// ` [due for review]` when the `review` date of an entry (format.md §23) is before today
 /// (R-LIFE-7), with today the day of the run, as `show` compares it. A review value that is not a
 /// date, or no review date, gives nothing.
@@ -985,6 +1027,12 @@ fn ids(items: &[&Item]) -> Vec<String> {
 struct Unsettled {
     drafts: usize,
     open_assumptions: usize,
+    /// The open assumptions whose `settle-by` is empty: nothing says what would settle them.
+    no_settle: usize,
+    /// The approved lessons with a `check` that is not `checked` (R-CTX-19, D62).
+    owed: usize,
+    /// The approved entries that contradict each other, by ID, each pair once (R-CTX-18).
+    contradictions: Vec<(String, String)>,
     /// The approved lessons, how-tos and tools changed by hand (approval::guarded).
     changed: usize,
     proposals: usize,
@@ -999,8 +1047,10 @@ fn is_open_assumption(item: &Item) -> bool {
         && item.entry.field("state").as_deref() == Some("open")
 }
 
-/// Counts the drafts, the approved assumptions that are still open, and the approved lessons,
-/// how-tos and tools (approval::guarded) whose file was changed by hand after their approval.
+/// Counts the drafts, the approved assumptions that are still open (and those of them that name
+/// nothing that would settle them), the approved lessons whose check is owed, and the approved
+/// lessons, how-tos and tools (approval::guarded) whose file was changed by hand after their
+/// approval.
 fn count_unsettled(scope: &[&Item], state: &Path) -> Unsettled {
     let mut counts = Unsettled::default();
     for item in scope {
@@ -1011,9 +1061,18 @@ fn count_unsettled(scope: &[&Item], state: &Path) -> Unsettled {
         if status != Some(Status::Approved) {
             continue;
         }
+        if item.entry.kind() == Some(Kind::Lesson)
+            && !trimmed(&item.entry, "check").is_empty()
+            && trimmed(&item.entry, "check-state") != "checked"
+        {
+            counts.owed += 1;
+        }
         match item.entry.kind() {
             Some(Kind::Assumption) if is_open_assumption(item) => {
                 counts.open_assumptions += 1;
+                if trimmed(&item.entry, SETTLE_BY).is_empty() {
+                    counts.no_settle += 1;
+                }
             }
             Some(kind)
                 if approval::guarded(kind)
@@ -1043,12 +1102,28 @@ fn unsettled_lines(counts: &Unsettled) -> Vec<String> {
             "open assumptions",
         ));
     }
+    if counts.no_settle > 0 {
+        lines.push(counted(
+            counts.no_settle,
+            "open assumption names nothing that would settle it",
+            "open assumptions name nothing that would settle them",
+        ));
+    }
     if counts.changed > 0 {
         lines.push(counted(
             counts.changed,
             "approved lesson, how-to or tool changed by hand",
             "approved lessons, how-tos or tools changed by hand",
         ));
+    }
+    if counts.owed > 0 {
+        lines.push(format!(
+            "{}: dossier list --kind lesson --where check-state=owed",
+            counted(counts.owed, "lesson owes a check", "lessons owe a check")
+        ));
+    }
+    for (first, second) in &counts.contradictions {
+        lines.push(format!("{first} and {second} contradict each other"));
     }
     if counts.proposals > 0 {
         lines.push(counted(

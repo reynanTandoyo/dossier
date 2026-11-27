@@ -1,8 +1,9 @@
 //! Runs the built program for `status`: the project's tags and tasks from todo (or one line without
 //! it), who works on what, what waits, what is next, the decisions in force, the newest findings,
 //! the open assumptions, what rests on a wrong assumption, what is unsettled (proposals, the
-//! counts), the map, the key values, the last exchange, `--since`, `--milestone` and `--on`
-//! (R-CTX-16, R-EXCH-5, R-LIFE-9, R-INV-5).
+//! counts, what would settle an assumption, owed checks and contradictions), the map, the key
+//! values, the last exchange, `--since`, `--milestone` and `--on`
+//! (R-CTX-16 to R-CTX-19, R-EXCH-5, R-LIFE-9, R-INV-5).
 //! Each test runs in its own temporary project folder with the clock fixed; the entries and the
 //! names are invented.
 
@@ -678,7 +679,14 @@ fn json_returns_the_same_parts_as_data() {
     assert_eq!(value["data"]["findings"], serde_json::json!([]));
     assert_eq!(
         value["data"]["unsettled"],
-        serde_json::json!({"drafts": 1, "open_assumptions": 0, "changed_lessons": 0})
+        serde_json::json!({
+            "drafts": 1,
+            "open_assumptions": 0,
+            "assumptions_without_settle_by": 0,
+            "changed_lessons": 0,
+            "lessons_owing_a_check": 0,
+            "contradictions": []
+        })
     );
 }
 
@@ -1277,6 +1285,7 @@ fn open_assumptions_and_what_rests_on_a_wrong_assumption_are_listed_under_the_de
          none\n\
          ## Unsettled\n\
          1 open assumption\n\
+         1 open assumption names nothing that would settle it\n\
          2 entries and files rest on a wrong assumption\n"
     );
     let data = status_data(&project, &[]);
@@ -1302,7 +1311,7 @@ fn the_open_assumptions_are_cut_before_the_decisions_when_the_screen_is_too_long
     }
     let settings = project
         .read("DOSSIER/dossier.toml")
-        .replace("status_lines = 60", "status_lines = 12");
+        .replace("status_lines = 60", "status_lines = 13");
     project.write("DOSSIER/dossier.toml", &settings);
     assert_eq!(
         project.stdout("anna", &["status"]),
@@ -1317,7 +1326,8 @@ fn the_open_assumptions_are_cut_before_the_decisions_when_the_screen_is_too_long
          ## Newest findings\n\
          none\n\
          ## Unsettled\n\
-         3 open assumptions\n"
+         3 open assumptions\n\
+         3 open assumptions name nothing that would settle them\n"
     );
 }
 
@@ -2323,4 +2333,187 @@ fn a_draft_digest_is_not_listed_and_covers_nothing() {
     let data = status_data(&project, &[]);
     assert_eq!(data["digests"], json!([]));
     assert_eq!(data["decisions"], json!(["DEC-001"]));
+}
+
+/// A lesson by anna (LES-001) whose check is owed: `check` names an invented test and
+/// `check-state` is `owed`.
+fn owed_lesson(project: &Project) {
+    project.stdout(
+        "anna",
+        &[
+            "learn",
+            "The pump seal leaks above four bar",
+            "--valid-for",
+            "The invented test rig with water at 20 C",
+            "--evidence",
+            "Invented rig report of March",
+            "--confidence",
+            "measured",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "set",
+            "LES-001",
+            "--field",
+            "check=tests/pump.rs::seal",
+            "--field",
+            "check-state=owed",
+        ],
+    );
+}
+
+/// Two decisions by anna, DEC-001 and DEC-002 (invented titles), with DEC-001 naming DEC-002 in
+/// `contradicts`.
+fn contradicting_decisions(project: &Project) {
+    project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Use the transient runs",
+            "--reason",
+            "Steady runs converged where rotating stall already shows.",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "decide",
+            "Keep the mesh coarse near the hub",
+            "--reason",
+            "The hub flow is steady there.",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &["set", "DEC-001", "--field", "contradicts=DEC-002"],
+    );
+}
+
+#[test]
+fn an_open_assumption_shows_what_settles_it_and_one_that_names_nothing_is_counted() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &[
+            "assume",
+            "The wall function is valid",
+            "--reason",
+            "It was used in the last project.",
+        ],
+    );
+    project.stdout(
+        "ben",
+        &[
+            "assume",
+            "The inlet profile is uniform",
+            "--reason",
+            "No measured profile was delivered.",
+        ],
+    );
+    project.stdout(
+        "anna",
+        &[
+            "set",
+            "ASM-001",
+            "--field",
+            "settle-by=the rig test in March",
+        ],
+    );
+
+    let stdout = project.stdout("anna", &["status"]);
+    assert!(
+        stdout.contains(
+            "## Open assumptions\n\
+             ASM-001 · The wall function is valid — settle by: the rig test in March\n\
+             ASM-002 · The inlet profile is uniform\n"
+        ),
+        "{stdout}"
+    );
+    assert!(
+        stdout.ends_with(
+            "## Unsettled\n\
+             2 open assumptions\n\
+             1 open assumption names nothing that would settle it\n"
+        ),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn a_lesson_whose_check_is_owed_is_counted_until_the_check_is_checked() {
+    let project = Project::new();
+    owed_lesson(&project);
+
+    let stdout = project.stdout("anna", &["status"]);
+    assert!(
+        stdout.ends_with(
+            "## Unsettled\n\
+             1 lesson owes a check: dossier list --kind lesson --where check-state=owed\n"
+        ),
+        "{stdout}"
+    );
+
+    project.stdout(
+        "anna",
+        &["set", "LES-001", "--field", "check-state=checked"],
+    );
+    let stdout = project.stdout("anna", &["status"]);
+    assert!(
+        stdout.ends_with("## Unsettled\nnothing waiting\n"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn two_approved_entries_that_contradict_each_other_are_listed_until_one_is_retired() {
+    let project = Project::new();
+    contradicting_decisions(&project);
+
+    let stdout = project.stdout("anna", &["status"]);
+    assert!(
+        stdout.ends_with("## Unsettled\nDEC-001 and DEC-002 contradict each other\n"),
+        "{stdout}"
+    );
+
+    project.stdout(
+        "anna",
+        &[
+            "retire",
+            "DEC-002",
+            "--reason",
+            "The hub flow was measured.",
+        ],
+    );
+    let stdout = project.stdout("anna", &["status"]);
+    assert!(
+        stdout.ends_with("## Unsettled\nnothing waiting\n"),
+        "{stdout}"
+    );
+}
+
+#[test]
+fn json_gives_the_settle_count_the_owed_checks_and_the_contradicting_pairs() {
+    let project = Project::new();
+    project.stdout(
+        "anna",
+        &[
+            "assume",
+            "The inlet profile is uniform",
+            "--reason",
+            "No measured profile was delivered.",
+        ],
+    );
+    owed_lesson(&project);
+    contradicting_decisions(&project);
+
+    let data = status_data(&project, &[]);
+    assert_eq!(data["unsettled"]["open_assumptions"], json!(1));
+    assert_eq!(data["unsettled"]["assumptions_without_settle_by"], json!(1));
+    assert_eq!(data["unsettled"]["lessons_owing_a_check"], json!(1));
+    assert_eq!(
+        data["unsettled"]["contradictions"],
+        json!([["DEC-001", "DEC-002"]])
+    );
 }
