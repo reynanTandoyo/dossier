@@ -4,7 +4,7 @@
 while doing its projects. People and their LLMs write to it and read from it, so that neither has
 to rely on memory.
 
-**Status: v1.3.2**
+**Status: v1.3.3**
 
 - [`docs/requirements.md`](docs/requirements.md): what the tool must do, and the seven phases it is
   built in.
@@ -1256,6 +1256,13 @@ removals and `close` still need a person.
 - Inside, `take` and `return` share one copy of their path checks, and the rule for which entries
   are in force on a day exists once. Nothing else changes for users.
 
+### What version 1.3.3 changes
+
+The rules for LLMs (`dossier help planner`) now ask for two to five tags on every entry an LLM
+writes, given with `--tags`, and tell it to reuse the tags already in use (decision D58). Tags
+weigh three times as much as words in the text when entries are searched or chosen as related, so
+tagged entries are found far more reliably.
+
 ## What it needs
 
 - [`todo`](https://github.com/reynanTandoyo/todo) 0.8 or newer. `todo` keeps the tasks of a
@@ -1466,7 +1473,7 @@ lines:
 
 ```
 ssh: ok
-dossier on the server: 1.3.2
+dossier on the server: 1.3.3
 todo on the server: 0.8.0
 dossier folder: ok (P-001)
 ```

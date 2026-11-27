@@ -80,6 +80,15 @@ fn help_planner_tells_the_llm_to_give_a_topic_and_a_code_pointer() {
 }
 
 #[test]
+fn help_planner_tells_the_llm_to_give_tags_and_to_reuse_them() {
+    let folder = tempfile::tempdir().unwrap();
+    dossier(folder.path(), &["help", "planner"])
+        .success()
+        .stdout(contains("two to five tags with `--tags`"))
+        .stdout(contains("Reuse the tags already in use"));
+}
+
+#[test]
 fn help_planner_tells_the_llm_to_add_an_agreed_topic_with_said_by() {
     let folder = tempfile::tempdir().unwrap();
     dossier(folder.path(), &["help", "planner"])

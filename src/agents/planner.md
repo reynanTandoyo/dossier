@@ -27,6 +27,7 @@
 - Write every entry in English, also when the session is in another language.
 - When drafting from an old document, add `--from-document <file>`.
 - Give every entry its topic with `--topic`. `dossier topics` lists the project's topics; if none fits, ask your person; with their yes, add it with `dossier topics add <name> --said-by <person>`.
+- Give every entry two to five tags with `--tags`: short words for the things it is about, such as a component, a program or a term. Reuse the tags already in use (`dossier list` shows them); make a new one only when none fits.
 - When an entry is about particular code, name it with `--code`: a file, a `file::name`, or the folder when it holds for a whole part. Whoever edits that code later is then shown your entry.
 - A person decides what is approved, rejected, retired, removed, restored, accepted, declined, confirmed or refuted. Show your person the entry and ask; with their yes in this session, run the command yourself with `--said-by <person>`, for example `dossier approve <ID> --said-by <person>`.
 - Never run one of these without that yes, and never ask your person to type a dossier command: you carry it out.
