@@ -208,18 +208,23 @@ fn part_event(words: &[&str], payload: &Value) -> Option<TodoEvent> {
 }
 
 /// The words after `todo`, or after `dossier todo`, in a simple command; None when it runs no todo.
+/// The program is the first word after any leading environment assignments. Only a program `todo`,
+/// or `dossier` followed by `todo`, counts; a `todo` or `dossier` later in the command is an argument.
 fn todo_arguments<'a, 'b>(words: &'a [&'b str]) -> Option<&'a [&'b str]> {
-    let start = words.iter().enumerate().find_map(|(index, word)| {
-        if is_program(word, "todo") {
-            return Some(index + 1);
-        }
-        let dossier_todo = is_program(word, "dossier")
-            && words
-                .get(index + 1)
-                .is_some_and(|next| is_program(next, "todo"));
-        dossier_todo.then_some(index + 2)
-    })?;
-    words.get(start..)
+    let index = words.iter().position(|word| !is_assignment(word))?;
+    let (program, after) = words.get(index..)?.split_first()?;
+    if is_program(program, "todo") {
+        return Some(after);
+    }
+    let (next, arguments) = after.split_first()?;
+    (is_program(program, "dossier") && is_program(next, "todo")).then_some(arguments)
+}
+
+/// Whether a word is an environment assignment, `NAME=value`, where NAME is not empty and holds
+/// no `/` or `\`.
+fn is_assignment(word: &str) -> bool {
+    word.split_once('=')
+        .is_some_and(|(name, _)| !name.is_empty() && !name.contains(['/', '\\']))
 }
 
 /// Whether a word names the program `name`: the text after the last `/` or `\`, without a trailing
@@ -838,6 +843,41 @@ mod tests {
             event_of("dossier todo done T-9"),
             Some(TodoEvent::Done("T-9".to_string()))
         );
+    }
+
+    #[test]
+    fn a_todo_word_that_is_an_argument_gives_no_event() {
+        assert_eq!(
+            event_of(r#"git commit -m "T-1: todo done does work""#),
+            None
+        );
+        assert_eq!(event_of("echo todo done T-4"), None);
+    }
+
+    #[test]
+    fn leading_environment_assignments_are_skipped() {
+        assert_eq!(
+            event_of("TODO_AGENT=anna todo done T-5 --commit HEAD"),
+            Some(TodoEvent::Done("T-5".to_string()))
+        );
+        assert_eq!(
+            event_of("A=1 B=2 dossier todo claim T-6"),
+            Some(TodoEvent::Claimed("T-6".to_string()))
+        );
+        assert_eq!(
+            event_of("cd x && todo claim T-2"),
+            Some(TodoEvent::Claimed("T-2".to_string()))
+        );
+        assert_eq!(
+            event_of("dossier todo done T-3"),
+            Some(TodoEvent::Done("T-3".to_string()))
+        );
+    }
+
+    #[test]
+    fn a_word_with_a_slash_before_the_equals_sign_is_the_program() {
+        assert_eq!(event_of("tools/x=1 todo claim T-1"), None);
+        assert_eq!(event_of(r"C:\bin\x=1 todo claim T-1"), None);
     }
 
     #[test]
