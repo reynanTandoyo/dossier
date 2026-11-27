@@ -50,7 +50,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let mode = mode(args)?;
     let ctx = Ctx::load(g, "return")?;
     let cwd = std::env::current_dir()?;
-    let stored = stored_paths(&ctx, &cwd, &args.files)?;
+    let stored = taken::stored_paths(&ctx, &cwd, &args.files, "returned")?;
     match mode {
         Mode::Check => check(&ctx, &stored),
         Mode::Done | Mode::Abandon => end_take(&ctx, mode, args.force, &stored),
@@ -158,7 +158,7 @@ fn end_take(ctx: &Ctx, mode: Mode, force: bool, stored: &[String]) -> Result<Out
                 return Err(held_by_other(take));
             }
             if done {
-                ensure_file(&root, &take.path)?;
+                taken::ensure_file(&root, &take.path, "return")?;
             }
         }
 
@@ -242,59 +242,7 @@ fn held_by_other(take: &Take) -> Error {
     )
 }
 
-/// The stored paths of the typed paths, in order, each once (see `stored_path`).
-fn stored_paths(ctx: &Ctx, cwd: &Path, typed: &[String]) -> Result<Vec<String>> {
-    let mut stored: Vec<String> = Vec::new();
-    for path in typed {
-        let path = stored_path(ctx, cwd, path)?;
-        if !stored.contains(&path) {
-            stored.push(path);
-        }
-    }
-    Ok(stored)
-}
-
-/// A typed path as stored (R-XOS-2). The project folder itself cannot be returned, and a path that
-/// begins or ends with a space or has a line break cannot be a block key (Code::BadValue).
-fn stored_path(ctx: &Ctx, cwd: &Path, typed: &str) -> Result<String> {
-    let stored = paths::stored(&ctx.root, cwd, typed)?;
-    if stored.is_empty() {
-        return Err(bad("the project folder itself cannot be returned"));
-    }
-    if stored.trim() != stored || stored.contains(['\r', '\n']) {
-        return Err(bad(format!(
-            "a path cannot begin or end with a space or have a line break: {typed}"
-        )));
-    }
-    Ok(stored)
-}
-
-/// Refuses `--done` for a stored path that is not a regular file: Code::NotFound when it does not
-/// exist, Code::BadValue for a folder. The path is named in the message.
-fn ensure_file(root: &Path, stored: &str) -> Result<()> {
-    let full = root.join(stored);
-    let metadata = std::fs::metadata(&full).map_err(|error| match error.kind() {
-        std::io::ErrorKind::NotFound => Error::new(
-            Code::NotFound,
-            format!("{} does not exist", paths::shown(stored)),
-        ),
-        _ => Error::new(Code::Io, format!("{}: {error}", full.display())),
-    })?;
-    if metadata.is_file() {
-        return Ok(());
-    }
-    Err(bad(format!(
-        "{} is not a file; return takes files",
-        paths::shown(stored)
-    )))
-}
-
 /// "file" for one, "files" for any other number.
 fn noun(count: usize) -> &'static str {
     if count == 1 { "file" } else { "files" }
-}
-
-/// A failure for a value the person gave, Code::BadValue.
-fn bad(message: impl Into<String>) -> Error {
-    Error::new(Code::BadValue, message)
 }

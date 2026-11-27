@@ -97,6 +97,68 @@ fn field_text(file: &BlockFile, path: &str, name: &str) -> String {
     file.field(path, name).unwrap_or_default()
 }
 
+/// The stored paths of the typed paths, in order, each once (see `stored_path`). `done` is the
+/// past form of the command (`taken` or `returned`) for its messages.
+pub fn stored_paths(
+    ctx: &crate::ctx::Ctx,
+    cwd: &Path,
+    typed: &[String],
+    done: &str,
+) -> Result<Vec<String>> {
+    let mut stored: Vec<String> = Vec::new();
+    for path in typed {
+        let path = stored_path(ctx, cwd, path, done)?;
+        if !stored.contains(&path) {
+            stored.push(path);
+        }
+    }
+    Ok(stored)
+}
+
+/// A typed path as stored (R-XOS-2). The project folder itself cannot be taken or returned, and a
+/// path that begins or ends with a space or has a line break cannot be a block key
+/// (Code::BadValue). `done` is the past form of the command (`taken` or `returned`).
+pub fn stored_path(ctx: &crate::ctx::Ctx, cwd: &Path, typed: &str, done: &str) -> Result<String> {
+    let stored = crate::paths::stored(&ctx.root, cwd, typed)?;
+    if stored.is_empty() {
+        return Err(Error::new(
+            Code::BadValue,
+            format!("the project folder itself cannot be {done}"),
+        ));
+    }
+    if stored.trim() != stored || stored.contains(['\r', '\n']) {
+        return Err(Error::new(
+            Code::BadValue,
+            format!("a path cannot begin or end with a space or have a line break: {typed}"),
+        ));
+    }
+    Ok(stored)
+}
+
+/// Refuses a stored path that is not a regular file: Code::NotFound when it does not exist,
+/// Code::BadValue for a folder. The path is named in the message; `command` (`take` or
+/// `return`) names the command in it.
+pub fn ensure_file(root: &Path, stored: &str, command: &str) -> Result<()> {
+    let full = root.join(stored);
+    let metadata = std::fs::metadata(&full).map_err(|error| match error.kind() {
+        std::io::ErrorKind::NotFound => Error::new(
+            Code::NotFound,
+            format!("{} does not exist", crate::paths::shown(stored)),
+        ),
+        _ => Error::new(Code::Io, format!("{}: {error}", full.display())),
+    })?;
+    if metadata.is_file() {
+        return Ok(());
+    }
+    Err(Error::new(
+        Code::BadValue,
+        format!(
+            "{} is not a file; {command} takes files",
+            crate::paths::shown(stored)
+        ),
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -14,7 +14,6 @@ use crate::paths;
 use crate::taken::{self, Take};
 use crate::tx::{self, Change};
 use serde_json::json;
-use std::path::Path;
 
 /// The arguments of `take`.
 #[derive(clap::Args, Debug)]
@@ -55,7 +54,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
     let who = ctx.writer()?.clone();
     let task = task_id(&args.task)?;
     let cwd = std::env::current_dir()?;
-    let stored = stored_paths(&ctx, &cwd, &args.files)?;
+    let stored = taken::stored_paths(&ctx, &cwd, &args.files, "taken")?;
 
     tx::write(&ctx, |tx| {
         let dossier = tx.ctx().dossier.clone();
@@ -73,7 +72,7 @@ pub fn run(args: &Args, g: &Global) -> Result<Output> {
         // Every file is checked before any is hashed, so that a refusal is quick and writes nothing.
         let mut steps = Vec::new();
         for path in &stored {
-            ensure_file(&root, path)?;
+            taken::ensure_file(&root, path, "take")?;
             let step = match taken::current(&file, path) {
                 Some(take) if take.person == who.person => Step::Already(take),
                 Some(take) if !args.force => return Err(refused(path, &take)),
@@ -211,53 +210,6 @@ fn task_id(task: &str) -> Result<String> {
         return Err(bad(format!("a task is written like T-042: {task}")));
     }
     Ok(task.to_uppercase())
-}
-
-/// The stored paths of the typed paths, in order, each once (see `stored_path`).
-fn stored_paths(ctx: &Ctx, cwd: &Path, typed: &[String]) -> Result<Vec<String>> {
-    let mut stored: Vec<String> = Vec::new();
-    for path in typed {
-        let path = stored_path(ctx, cwd, path)?;
-        if !stored.contains(&path) {
-            stored.push(path);
-        }
-    }
-    Ok(stored)
-}
-
-/// A typed path as stored (R-XOS-2). The project folder itself cannot be taken, and a path that
-/// begins or ends with a space or has a line break cannot be a block key (Code::BadValue).
-fn stored_path(ctx: &Ctx, cwd: &Path, typed: &str) -> Result<String> {
-    let stored = paths::stored(&ctx.root, cwd, typed)?;
-    if stored.is_empty() {
-        return Err(bad("the project folder itself cannot be taken"));
-    }
-    if stored.trim() != stored || stored.contains(['\r', '\n']) {
-        return Err(bad(format!(
-            "a path cannot begin or end with a space or have a line break: {typed}"
-        )));
-    }
-    Ok(stored)
-}
-
-/// Refuses a stored path that is not a regular file: Code::NotFound when it does not exist,
-/// Code::BadValue for a folder. The path is named in the message.
-fn ensure_file(root: &Path, stored: &str) -> Result<()> {
-    let full = root.join(stored);
-    let metadata = std::fs::metadata(&full).map_err(|error| match error.kind() {
-        std::io::ErrorKind::NotFound => Error::new(
-            Code::NotFound,
-            format!("{} does not exist", paths::shown(stored)),
-        ),
-        _ => Error::new(Code::Io, format!("{}: {error}", full.display())),
-    })?;
-    if metadata.is_file() {
-        return Ok(());
-    }
-    Err(bad(format!(
-        "{} is not a file; take takes files",
-        paths::shown(stored)
-    )))
 }
 
 /// The refusal for a file that another person holds (R-FILE-1): the person, the task and the time.
